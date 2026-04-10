@@ -38,9 +38,9 @@ BodyMemberParticle::BodyMemberParticle(const Sprite& spr, const Point2i& positio
   SetSize(image->GetSize());
   SetOnTop(true);
   MSG_DEBUG("random.get", "BodyMemberParticle::BodyMemberParticle(...) speed vector length");
-  double speed_vector_length = (double)RandomSync().GetLong(10, 15);
+  Double speed_vector_length = (Double)RandomSync().GetLong(10, 15);
   MSG_DEBUG("random.get", "BodyMemberParticle::BodyMemberParticle(...) speed vector angle");
-  double speed_vector_angle = - (double)RandomSync().GetLong(0, 3000)/1000.0;
+  Double speed_vector_angle = - RandomSync().GetDouble(0, 3);
   SetSpeed(speed_vector_length, speed_vector_angle);
 }
 
@@ -50,7 +50,7 @@ void BodyMemberParticle::Refresh()
   UpdatePosition();
 
   angle_rad += GetSpeedXY().Norm() * 20;
-  angle_rad = fmod(angle_rad, 2 *M_PI);
+  angle_rad = fmod(angle_rad, 2 *PI);
   //FIXME what about negatives values ? what would happen ?
   if(m_left_time_to_live < 50)
     image->SetAlpha(m_left_time_to_live / 50.0);

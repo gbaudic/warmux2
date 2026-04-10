@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.9.1], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.9.2], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -311,14 +311,7 @@ if test "${WIN32}" = "yes"; then
   CXXFLAGS="$CXXFLAGS -D_WIN32_WINNT=0x501"
 fi
 
-AC_MSG_CHECKING(for libxml2)
-
-if $PACKAGE_CONFIG --exists libxml-2.0; then
-  AC_MSG_RESULT(yes)
-else
-  AC_MSG_RESULT(no)
-  check_libxml="no"
-fi
+PKG_CHECK_MODULES(LIBXML2, libxml-2.0 >= 2.7.3, [], [AC_MSG_FAILURE([libxml2 >= 2.7.3 not found])])
 
 dnl === Display error if SDL image, mixer, etc. is missing ==================
 
@@ -346,9 +339,6 @@ if test \
   fi
   if test x${check_sdl_net} = xno; then
     AC_MSG_RESULT([ERROR: SDL_net library required])
-  fi
-  if test x${check_libxml} = xno; then
-    AC_MSG_RESULT([ERROR: libxml2 not found!])
   fi
   if test x${check_curl} = xno; then
     AC_MSG_RESULT([ERROR: libcurl not found!])
@@ -396,6 +386,7 @@ AC_CONFIG_FILES([Makefile
                  data/Makefile
                  src/Makefile
                  lib/Makefile
+                 lib/fixedpoint/Makefile
                  lib/wormux/Makefile
                  lib/wormux-server/Makefile
                  build/win32_setup/create_setup.sh

@@ -33,7 +33,7 @@
 class SyringeConfig : public WeaponConfig
 {
   public:
-    uint range;
+    Double range;
     uint damage;
     uint turns;
     SyringeConfig();
@@ -52,7 +52,7 @@ SyringeConfig::SyringeConfig(){
 
 void SyringeConfig::LoadXml(const xmlNode* elem){
   WeaponConfig::LoadXml(elem);
-  XmlReader::ReadUint(elem, "range", range);
+  XmlReader::ReadDouble(elem, "range", range);
   XmlReader::ReadUint(elem, "turns", turns);
   XmlReader::ReadUint(elem, "damage", damage);
 }
@@ -72,8 +72,8 @@ void Syringe::UpdateTranslationStrings()
 }
 
 bool Syringe::p_Shoot (){
-  double angle = ActiveCharacter().GetFiringAngle();
-  double radius = 0.0;
+  Double angle = ActiveCharacter().GetFiringAngle();
+  Double radius = 0.0;
   bool end = false;
 
   JukeBox::GetInstance()->Play ("default","weapon/syringe_shoot");
@@ -81,7 +81,7 @@ bool Syringe::p_Shoot (){
   do
   {
     // Did we have finished the computation
-    radius += 1.0;
+    radius += ONE;
     if (cfg().range < radius)
     {
       radius = cfg().range;

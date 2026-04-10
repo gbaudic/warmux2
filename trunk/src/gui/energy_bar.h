@@ -23,16 +23,51 @@
 #define ENERGY_BAR_H
 
 #include "gui/progress_bar.h"
+#include "tool/resource_manager.h"
+#include <vector>
 
-class EnergyBar : public ProgressBar {
+class EnergyBar : public ProgressBar 
+{
   public:
+    class Threshold
+    {
+      public:
+        Double value;
+        Color color;
+        Double redCoef;
+        Double greenCoef;
+        Double blueCoef;
+        Double alphaCoef;
+        
+        bool operator < (const Threshold & threshold) const {
+          return value < threshold.value;
+        }
+    };
     static const int NB_OF_ENERGY_COLOR = 6;
-    Color colors_value[NB_OF_ENERGY_COLOR];
+
+  private:
+    Profile * profile;
+    const xmlNode * widgetNode;
+    std::vector<Threshold> listThresholds;
 
   public:
-    EnergyBar();
+    EnergyBar(uint _x,
+              uint _y,
+              uint _width,
+              uint _height,
+              long _value = 0,
+              long minValue = 0,
+              long maxValue = 100,
+              enum orientation _orientation = PROG_BAR_HORIZONTAL);
+    EnergyBar(Profile * _profile,
+              const xmlNode * _widgetNode);
+
+    virtual bool LoadXMLConfiguration(void);
+    void ProcessThresholds(int thresholdNumber,
+                           Double thresholdMax,
+                           Color & colorMax);
+    void SortThresholds();
     void Actu(long val);
-    Color GetColorValue(long app_energy) const;
 };
 
 #endif /* ENERGY_BAR_H */

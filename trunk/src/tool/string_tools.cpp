@@ -39,7 +39,7 @@ bool str2int (const std::string &txt, int &valeur)
   return true;
 }
 
-bool str2double (const std::string &txt, double &valeur)
+bool str2Double (const std::string &txt, Double &valeur)
 {
   std::stringstream ss;
   ss << txt;
@@ -65,10 +65,10 @@ bool str2bool(const std::string &str, bool &value)
   return false;
 }
 
-std::string double2str (double x)
+std::string Double2str (Double x, int places)
 {
   std::ostringstream ss;
-  ss << x;
+  printTo(ss, x, places);
   return ss.str();
 }
 

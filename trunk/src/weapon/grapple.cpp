@@ -22,7 +22,7 @@
 #include "weapon/grapple.h"
 #include "weapon/weapon_cfg.h"
 
-#include <math.h>
+#include <WORMUX_types.h>
 #include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
@@ -38,15 +38,17 @@
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
+#include "tool/string_tools.h"
 
-const uint DT_MVT = 15 ; //delta_t between 2 up/down/left/right mvt
-const uint DST_MIN = 80 ;  //dst_minimal between 2 nodes
+const uint DT_MVT = 15; //delta_t between 2 up/down/left/right mvt
+const uint DST_MIN = 4;  //dst_minimal between 2 nodes
+const int SKIP_DST = 8;
 
-bool find_first_contact_point (Point2i from, double angle, uint length,
+bool find_first_contact_point (Point2i from, Double angle, uint length,
                                int skip, Point2i &contact_point)
 {
   Point2d posd;
-  double x_step, y_step;
+  Double x_step, y_step;
 
   if ((int)length <= skip) /* to avoid integer overflow */
     return false;
@@ -54,11 +56,11 @@ bool find_first_contact_point (Point2i from, double angle, uint length,
   x_step = cos(angle);
   y_step = sin(angle);
 
-  posd.x = (double)from.x;
-  posd.y = (double)from.y;
+  posd.x = (Double)from.x;
+  posd.y = (Double)from.y;
 
-  posd.x += ((double)skip) * x_step;
-  posd.y += ((double)skip) * y_step;
+  posd.x += ((Double)skip) * x_step;
+  posd.y += ((Double)skip) * y_step;
 
   from.x = (int)round(posd.x);
   from.y = (int)round(posd.y);
@@ -144,8 +146,7 @@ class GrappleConfig : public EmptyWeaponConfig
 //-----------------------------------------------------------------------------
 
 Grapple::Grapple() :
-  Weapon(WEAPON_GRAPPLE, "grapple", new GrappleConfig()),
-  last_broken_node_sense(0)
+  Weapon(WEAPON_GRAPPLE, "grapple", new GrappleConfig())
 {
   UpdateTranslationStrings();
 
@@ -196,7 +197,7 @@ bool Grapple::TryAttachRope()
 {
   Point2i pos;
   uint length;
-  double angle;
+  Double angle;
 
   ASSERT(rope_nodes.empty());
 
@@ -206,7 +207,7 @@ bool Grapple::TryAttachRope()
   angle = ActiveCharacter().GetFiringAngle();
 
   Point2i contact_point;
-  if (find_first_contact_point(pos, angle, length, 4, contact_point)) {
+  if (find_first_contact_point(pos, angle, length, SKIP_DST, contact_point)) {
     AttachRope(contact_point);
     return true;
   }
@@ -214,12 +215,12 @@ bool Grapple::TryAttachRope()
   return false;
 }
 
-bool Grapple::TryAddNode(int CurrentSense)
+bool Grapple::TryAddNode()
 {
   uint lg;
   Point2d V;
   Point2i contact_point;
-  double angle, rope_angle;
+  Double angle, rope_angle;
   Point2i handPos;
 
   ActiveCharacter().GetHandPosition(handPos);
@@ -229,20 +230,16 @@ bool Grapple::TryAddNode(int CurrentSense)
   V.x = handPos.x - m_fixation_point.x;
   V.y = handPos.y - m_fixation_point.y;
   angle = V.ComputeAngle();
-  lg = static_cast<uint>(V.Norm());
+  lg = static_cast<int>(V.Norm());
 
   if (lg < DST_MIN)
     return false;
 
   // Check if the rope collide something
 
-  if (find_first_contact_point(m_fixation_point, angle, lg, 2, contact_point))
+  if (find_first_contact_point(m_fixation_point, angle, lg, SKIP_DST, contact_point))
     {
       rope_angle = ActiveCharacter().GetRopeAngle() ;
-
-      if ( (last_broken_node_sense * CurrentSense > 0) &&
-           (fabs(last_broken_node_angle - rope_angle) < 0.1))
-        return false ;
 
       // if contact point is the same as position of the last node
       // (can happen because of jitter applied in find_first_contact_point),
@@ -252,7 +249,7 @@ bool Grapple::TryAddNode(int CurrentSense)
 
       // The rope has collided something...
       // Add a node on the rope and change the fixation point
-      AttachNode(contact_point, rope_angle, CurrentSense);
+      AttachNode(contact_point, rope_angle);
 
       return true;
     }
@@ -260,75 +257,37 @@ bool Grapple::TryAddNode(int CurrentSense)
   return false;
 }
 
-bool Grapple::TryRemoveNodes(int currentSense)
+void Grapple::TryRemoveNodes()
 {
-  if ( rope_nodes.size() < 2 )
-    return false;
+  std::list<rope_node_t>::reverse_iterator nodeit;
 
-  // [RCL]: nodeSense check seems to be useless... either remove node senses at all or
-  // find an example where it is required
-  double currentAngle = ActiveCharacter().GetRopeAngle();
-  Point2i mapRopeStart;
-  ActiveCharacter().GetHandPosition(mapRopeStart);
+  int lg;
+  Point2d V;
+  Point2i handPos, contact_point;
+  Double angle;
 
-  const int max_nodes_per_turn = 100; // safe value, was used to avoid network congestion
-  int nodes_to_remove = 0;
+  ActiveCharacter().GetHandPosition(handPos);
 
-  TraceResult tr;
+  while (rope_nodes.size() > 1) {
 
-  for ( std::list<rope_node_t>::reverse_iterator it = rope_nodes.rbegin();
-       it != rope_nodes.rend(); it++ )
-  {
-    if ( nodes_to_remove >= max_nodes_per_turn )
-        break;
+    nodeit = rope_nodes.rbegin();
+    ++nodeit;
 
-    // try tracing to current node:
-    // if we cannot trace, this means that previous node shouldn't have been removed
-    // (NOTE: since nodes are often in ground, we're ignoring traces hitting ground
-    // right at the end)
-    const float end_proximity_threshold = 0.95f;
-    if ( GetWorld().TraceRay( mapRopeStart, it->pos, tr ) && tr.m_fraction < end_proximity_threshold )
-    {
-        // collision detected!
-        if ( nodes_to_remove > 0 )
-            nodes_to_remove--; // undo the node remove
+    V.x = handPos.x - nodeit->pos.x;
+    V.y = handPos.y - nodeit->pos.y;
+    angle = V.ComputeAngle();
+    lg = static_cast<int>(V.Norm());
 
-        // now we can stop removing the nodes as we don't have the clear "sight"
-        // to current node
-        break;
-    };
+    if (find_first_contact_point(nodeit->pos, angle, lg, SKIP_DST, contact_point))
+      break;
 
-    double nodeAngle = it->angle;
-
-    int currentAngleSign = ( currentAngle < 0 ) ? -1 : 1;
-    int nodeAngleSign = ( nodeAngle < 0 ) ? -1 : 1;
-
-    if ( currentAngleSign != nodeAngleSign && rope_nodes.size() > 2 )
-        nodes_to_remove++;
-    else
-        break;
-
-  };
-
-  if ( nodes_to_remove > 0 )
-    MSG_DEBUG( "grapple.break", "nodes to remove %d", nodes_to_remove );
-
-  for ( int i = 0; i < nodes_to_remove; i ++ )
-  {
-     last_broken_node_angle = currentAngle;
-     last_broken_node_sense = currentSense;
-
-     // remove last node
-     DetachNode();
+    DetachNode();
   }
-
-  return nodes_to_remove > 0;
 }
 
 void Grapple::NotifyMove(bool collision)
 {
   bool addNode = false;
-  int currentSense;
 
   if (!attached)
     return;
@@ -337,7 +296,7 @@ void Grapple::NotifyMove(bool collision)
   if (collision)
     {
       // Yes there has been a collision.
-      if (delta_len != 0)
+      if (delta_len != ZERO)
         {
           // The character tryed to change the rope size.
           // There has been a collision, so we cancel the rope length change.
@@ -347,10 +306,9 @@ void Grapple::NotifyMove(bool collision)
       return;
     }
 
-  currentSense = ActiveCharacter().GetAngularSpeed() >= 0 ? 1: -1;
 
   // While there is nodes to add, we add !
-  while (TryAddNode(currentSense))
+  while (TryAddNode())
     addNode = true;
 
   // If we have created nodes, we exit to avoid breaking what we
@@ -358,7 +316,7 @@ void Grapple::NotifyMove(bool collision)
   if (addNode)
     return;
 
-  TryRemoveNodes( currentSense );
+  TryRemoveNodes();
 }
 
 void Grapple::Refresh()
@@ -385,7 +343,7 @@ void Grapple::Refresh()
 void Grapple::Draw()
 {
   int x, y;
-  double angle, prev_angle;
+  Double angle, prev_angle;
   Point2i handPos;
 
   struct CL_Quad {Sint16 x1,x2,x3,x4,y1,y2,y3,y4;} quad;
@@ -404,28 +362,28 @@ void Grapple::Draw()
   x = handPos.x;
   y = handPos.y;
 
-  quad.x1 = (int)round((double)x - 2 * cos(angle));
-  quad.y1 = (int)round((double)y + 2 * sin(angle));
-  quad.x2 = (int)round((double)x + 2 * cos(angle));
-  quad.y2 = (int)round((double)y - 2 * sin(angle));
+  quad.x1 = (int)round((Double)x - 2 * cos(angle));
+  quad.y1 = (int)round((Double)y + 2 * sin(angle));
+  quad.x2 = (int)round((Double)x + 2 * cos(angle));
+  quad.y2 = (int)round((Double)y - 2 * sin(angle));
 
   for (std::list<rope_node_t>::reverse_iterator it = rope_nodes.rbegin();
        it != rope_nodes.rend(); it++)
     {
-      quad.x3 = (int)round((double)it->pos.x + 2 * cos(angle));
-      quad.y3 = (int)round((double)it->pos.y - 2 * sin(angle));
-      quad.x4 = (int)round((double)it->pos.x - 2 * cos(angle));
-      quad.y4 = (int)round((double)it->pos.y + 2 * sin(angle));
+      quad.x3 = (int)round((Double)it->pos.x + 2 * cos(angle));
+      quad.y3 = (int)round((Double)it->pos.y - 2 * sin(angle));
+      quad.x4 = (int)round((Double)it->pos.x - 2 * cos(angle));
+      quad.y4 = (int)round((Double)it->pos.y + 2 * sin(angle));
 
-      float dx = sin(angle) * (float)m_node_sprite->GetHeight();
-      float dy = cos(angle) * (float)m_node_sprite->GetHeight();
+      Double dx = sin(angle) * (Double)m_node_sprite->GetHeight();
+      Double dy = cos(angle) * (Double)m_node_sprite->GetHeight();
       int step = 0;
       int size = (quad.x1-quad.x4) * (quad.x1-quad.x4)
                 +(quad.y1-quad.y4) * (quad.y1-quad.y4);
       size -= m_node_sprite->GetHeight();
       while( (step*dx*step*dx)+(step*dy*step*dy) < size ) {
-	m_node_sprite->Draw(Point2i(quad.x4 + (int)((float) step * dx),
-				    quad.y4 + (int)((float) step * dy)));
+	m_node_sprite->Draw(Point2i(quad.x4 + (int)((Double) step * dx),
+				    quad.y4 + (int)((Double) step * dy)));
         step++;
       }
       quad.x1 = quad.x4 ;
@@ -459,21 +417,20 @@ void Grapple::AttachRope(const Point2i& contact_point)
   ActiveCharacter().SetPhysFixationPointXY(
                                            contact_point.x / PIXEL_PER_METER,
                                            contact_point.y / PIXEL_PER_METER,
-                                           (double)pos.x / PIXEL_PER_METER,
-                                           (double)pos.y / PIXEL_PER_METER);
+                                           (Double)pos.x / PIXEL_PER_METER,
+                                           (Double)pos.y / PIXEL_PER_METER);
 
   m_fixation_point = contact_point;
 
   rope_node_t root_node;
   root_node.pos = m_fixation_point;
   root_node.angle = 0;
-  root_node.sense = 0;
   rope_nodes.push_back(root_node);
 
-  ActiveCharacter().ChangePhysRopeSize (-10.0 / PIXEL_PER_METER);
+  ActiveCharacter().ChangePhysRopeSize (((Double)(-10)) / PIXEL_PER_METER);
   ActiveCharacter().SetMovement("ninja-rope");
 
-  ActiveCharacter().SetFiringAngle(-M_PI / 3);
+  ActiveCharacter().SetFiringAngle(-PI / 3);
 
   // Camera should focus on it!
   Camera::GetInstance()->FollowObject(&ActiveCharacter());
@@ -488,9 +445,7 @@ void Grapple::DetachRope()
   cable_sound.Stop();
 }
 
-void Grapple::AttachNode(const Point2i& contact_point,
-                         double angle,
-                         int sense)
+void Grapple::AttachNode(const Point2i& contact_point, Double angle)
 {
   // The rope has collided something...
   // Add a node on the rope and change the fixation point.
@@ -499,17 +454,16 @@ void Grapple::AttachNode(const Point2i& contact_point,
 
   ActiveCharacter().SetPhysFixationPointXY(contact_point.x / PIXEL_PER_METER,
                                            contact_point.y / PIXEL_PER_METER,
-                                           (double)pos.x / PIXEL_PER_METER,
-                                           (double)pos.y / PIXEL_PER_METER);
+                                           (Double)pos.x / PIXEL_PER_METER,
+                                           (Double)pos.y / PIXEL_PER_METER);
 
   m_fixation_point = contact_point;
   rope_node_t node;
   node.pos = m_fixation_point;
   node.angle = angle;
-  node.sense = sense;
   rope_nodes.push_back(node);
 
-  MSG_DEBUG("grapple.node", "+ %d,%d %f %d", node.pos.x, node.pos.y, node.angle, node.sense);
+  MSG_DEBUG("grapple.node", "+ %d,%d %s", node.pos.x, node.pos.y, Double2str(node.angle).c_str());
 }
 
 void Grapple::DetachNode()
@@ -520,7 +474,7 @@ void Grapple::DetachNode()
   { // for debugging only
     rope_node_t node;
     node = rope_nodes.back();
-    MSG_DEBUG("grapple.node", "- %d,%d %f %d", node.pos.x, node.pos.y, node.angle, node.sense);
+    MSG_DEBUG("grapple.node", "- %d,%d %s", node.pos.x, node.pos.y, Double2str(node.angle).c_str());
   }
 #endif
 
@@ -534,15 +488,15 @@ void Grapple::DetachNode()
 
   ActiveCharacter().SetPhysFixationPointXY(m_fixation_point.x / PIXEL_PER_METER,
                                            m_fixation_point.y / PIXEL_PER_METER,
-                                           (double)pos.x / PIXEL_PER_METER,
-                                           (double)pos.y / PIXEL_PER_METER);
+                                           (Double)pos.x / PIXEL_PER_METER,
+                                           (Double)pos.y / PIXEL_PER_METER);
 }
 
 // =========================== Moves management
 
-void Grapple::SetRopeSize(double length) const
+void Grapple::SetRopeSize(Double length) const
 {
-  double delta = length - ActiveCharacter().GetRopeLength();
+  Double delta = length - ActiveCharacter().GetRopeLength();
   ActiveCharacter().ChangePhysRopeSize (delta);
 }
 
@@ -746,17 +700,13 @@ void Grapple::StopShooting()
 
 void Grapple::PrintDebugRope()
 {
-  printf("%05d %05d %03.3f\n",
-         ActiveCharacter().GetX(),
-         ActiveCharacter().GetY(),
-         ActiveCharacter().GetRopeAngle());
+  std::cout << ActiveCharacter().GetX() << " " << ActiveCharacter().GetY() << " " << ActiveCharacter().GetRopeAngle() << std::endl;
 
   for (std::list<rope_node_t>::iterator it = rope_nodes.begin();
        it != rope_nodes.end();
        it++) {
 
-    printf("%05d %05d %03.3f %d\n", it->pos.x, it->pos.y,
-           it->angle, it->sense);
+    std::cout << it->pos.x << " " << it->pos.y << " " << it->angle << std::endl;
   }
 }
 

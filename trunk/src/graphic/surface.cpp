@@ -309,7 +309,7 @@ void Surface::MergeSurface( Surface &spr, const Point2i &pos)
 {
   Uint32 spr_pix, cur_pix;
   Uint8 r, g, b, a, p_r, p_g, p_b, p_a;
-  float f_a, f_ca, f_pa;
+  Double f_a, f_ca, f_pa;
   SDL_PixelFormat * current_fmt = surface->format;
   SDL_PixelFormat * spr_fmt = spr.surface->format;
   int current_offset, spr_offset;
@@ -342,17 +342,17 @@ void Surface::MergeSurface( Surface &spr, const Point2i &pos)
       if (a == SDL_ALPHA_OPAQUE || (p_a == 0 && a >0)) // new pixel with no alpha or nothing on previous pixel
         ((Uint32 *)(surface->pixels))[current_offset] = SDL_MapRGBA(current_fmt, r, g, b, a);
       else if (a > 0) { // alpha is lower => merge color with previous value
-        f_a = (float)a / 255.0;
-        f_ca = 1.0 - f_a;
-        f_pa = (float)p_a / 255.0;
+        f_a = (Double)a / (Double)255.0;
+        f_ca = ONE - f_a;
+        f_pa = (Double)p_a / (Double)255.0;
 
         p_r = (Uint8)(((cur_pix & current_fmt->Rmask) >> current_fmt->Rshift) << current_fmt->Rloss);
         p_g = (Uint8)(((cur_pix & current_fmt->Gmask) >> current_fmt->Gshift) << current_fmt->Gloss);
         p_b = (Uint8)(((cur_pix & current_fmt->Bmask) >> current_fmt->Bshift) << current_fmt->Bloss);
 
-        r = (Uint8)((float)p_r * f_ca * f_pa + (float)r * f_a);
-        g = (Uint8)((float)p_g * f_ca * f_pa + (float)g * f_a);
-        b = (Uint8)((float)p_b * f_ca * f_pa + (float)b * f_a);
+        r = (int)((Double)p_r * f_ca * f_pa + (Double)r * f_a);
+        g = (int)((Double)p_g * f_ca * f_pa + (Double)g * f_a);
+        b = (int)((Double)p_b * f_ca * f_pa + (Double)b * f_a);
 
         a = (a > p_a ? a : p_a);
         ((Uint32 *)(surface->pixels))[current_offset] = SDL_MapRGBA(current_fmt, r, g, b, a);
@@ -720,8 +720,8 @@ end:
 * Warning rotozoomSurfaceXY uses degrees so the rotation of image use degrees here,
 * but when accessing thanks to GetSurfaceForAngle the index is using radian
 * (because we juste need an index in array, not an angle) */
-static const double ratio_deg_to_rad = 180 / M_PI;
-Surface Surface::RotoZoom(double angle, double zoomx, double zoomy, int smooth)
+static const Double ratio_deg_to_rad = 180 / PI;
+Surface Surface::RotoZoom(Double angle, Double zoomx, Double zoomy, int smooth)
 {
   SDL_Surface *surf;
 
@@ -731,16 +731,16 @@ Surface Surface::RotoZoom(double angle, double zoomx, double zoomy, int smooth)
    * can also be negative. In this case the corresponding axis is flipped.
    * Note: Flipping currently only works with antialiasing turned off
    */
-  if (zoomx < 0.0 || zoomy < 0.0)
+  if (zoomx < ZERO || zoomy < ZERO)
     smooth = SMOOTHING_OFF;
 #endif
 
   if (EqualsZero(angle))
-    surf = zoomSurface(surface, zoomx, zoomy, smooth);
-  else if (zoomx == zoomy && zoomx > 0.0)
-    surf = rotozoomSurface(surface, angle * ratio_deg_to_rad , zoomx, smooth);
+    surf = zoomSurface(surface, zoomx.toDouble(), zoomy.toDouble(), smooth);
+  else if (zoomx == zoomy && zoomx > ZERO)
+    surf = rotozoomSurface(surface, (angle * ratio_deg_to_rad).toDouble() , zoomx.toDouble(), smooth);
   else
-    surf = rotozoomSurfaceXY(surface, angle * ratio_deg_to_rad , zoomx, zoomy, smooth);
+    surf = rotozoomSurfaceXY(surface, (angle * ratio_deg_to_rad).toDouble() , zoomx.toDouble(), zoomy.toDouble(), smooth);
 
   if(!surf)
     Error( "Unable to make a rotozoom on the surface !" );

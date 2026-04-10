@@ -27,7 +27,7 @@
 
 TextBox::TextBox (const std::string &label, uint max_width,
                   Font::font_size_t fsize, Font::font_style_t fstyle) :
-  Label(label, max_width, fsize, fstyle),
+  Label(label, max_width, fsize, fstyle, white_color, false, true),
   max_nb_chars(0),
   cursor_pos(label.size())
 {
@@ -35,26 +35,54 @@ TextBox::TextBox (const std::string &label, uint max_width,
   Widget::SetHighlightBgColor(highlightOptionColorBox);
 }
 
-void TextBox::BasicSetText(std::string const &new_txt)
+TextBox::TextBox(Profile * profile,
+                 const xmlNode * textBoxNode) :
+  Label(profile, textBoxNode),
+  max_nb_chars(0),
+  cursor_pos(0)
+{
+}
+
+bool TextBox::LoadXMLConfiguration()
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return false;
+  }
+
+  XmlReader * xmlFile = profile->GetXMLDocument();
+
+  Label::LoadXMLConfiguration();
+
+  Color hlBgColor = highlightOptionColorBox;
+  xmlFile->ReadHexColorAttr(widgetNode, "hlBgColor", hlBgColor);
+  Widget::SetHighlightBgColor(hlBgColor);
+
+  SetText(Text::GetText());
+
+  return true;
+}
+
+void TextBox::BasicSetText(std::string const & new_txt)
 {
   std::string _new_txt = new_txt;
 
-  if (max_nb_chars != 0 && _new_txt.size() > max_nb_chars)
+  if (max_nb_chars != 0 &&
+      _new_txt.size() > max_nb_chars) {
     _new_txt.resize(max_nb_chars);
+  }
 
-  Font* font = Font::GetInstance(GetFontSize(), GetFontStyle());
+  const Font * font = Font::GetInstance(GetFontSize(), GetFontStyle());
 
   if (font->GetWidth(_new_txt) < GetSizeX() - 5) {
     Label::SetText(_new_txt);
-  }
-  else
+  } else {
     cursor_pos = GetText().size();
+  }
 }
 
-void TextBox::SetText(std::string const &new_txt)
+void TextBox::SetText(std::string const & new_txt)
 {
   BasicSetText(new_txt);
-
   cursor_pos = GetText().size();
 }
 
@@ -63,7 +91,7 @@ void TextBox::SetMaxNbChars(unsigned int nb_chars)
   max_nb_chars = nb_chars;
 }
 
-bool TextBox::SendKey(const SDL_keysym& key)
+bool TextBox::SendKey(const SDL_keysym & key)
 {
   bool used = true;
 
@@ -73,61 +101,91 @@ bool TextBox::SendKey(const SDL_keysym& key)
 
   used = TextHandle(new_txt, cursor_pos, key);
 
-  if (new_txt != GetText())
+  if (new_txt != GetText()) {
     BasicSetText(new_txt);
+  }
 
   return used;
 }
 
-void TextBox::Draw(const Point2i &mousePosition) const
+void TextBox::Draw(const Point2i & mousePosition) const
 {
   Label::Draw(mousePosition);
-  txt_label->DrawCursor(position, cursor_pos);
+  DrawCursor(position, cursor_pos);
 }
 
-Widget* TextBox::ClickUp(const Point2i &, uint button)
+Widget * TextBox::ClickUp(const Point2i & mousePosition,
+                          uint button)
 {
-  bool used = true;
-
   NeedRedrawing();
-  if (button == SDL_BUTTON_MIDDLE)
-  {
+
+  if (button == SDL_BUTTON_MIDDLE) {
     std::string new_txt = GetText();
-    used = RetrieveBuffer(new_txt, cursor_pos);
+    bool        used    = RetrieveBuffer(new_txt, cursor_pos);
 
     if (new_txt != GetText())
       BasicSetText(new_txt);
+    return used ? this : NULL;
+  } else if (button == SDL_BUTTON_LEFT) {
+    const std::string      cur_txt = GetText();
+    const Font*            font    = Font::GetInstance(GetFontSize(), GetFontStyle());
+    std::string            txt     = "";
+    std::string::size_type pos     = 0;
+
+    cursor_pos = 0;
+    while (pos < cur_txt.size() &&
+           this->position.x + font->GetWidth(txt) < mousePosition.x+2) {
+      cursor_pos = pos;
+      while ((cur_txt[++pos] & 0xc0) == 0x80) { }
+      txt = cur_txt.substr(0, pos);
+    }
+
+    Label::Draw(mousePosition);
+    DrawCursor(position, cursor_pos);
+
+    return this;
   }
-  return used ? this : NULL;
+
+  // Om nom nom
+  return this;
 }
 
 
-PasswordBox::PasswordBox(const std::string &label, uint max_width,
-                         Font::font_size_t fsize, Font::font_style_t fstyle)
-  : TextBox(label, max_width, fsize, fstyle)
+PasswordBox::PasswordBox(const std::string & label, 
+                         uint max_width,
+                         Font::font_size_t fsize, 
+                         Font::font_style_t fstyle) : 
+  TextBox(label, max_width, fsize, fstyle)
 {
 }
 
-void PasswordBox::BasicSetText(std::string const &new_txt)
+PasswordBox::PasswordBox(Profile * profile,
+                         const xmlNode * passwordBoxNode) :
+  TextBox(profile, passwordBoxNode)
+{
+}
+
+void PasswordBox::BasicSetText(std::string const & new_txt)
 {
   std::string _new_txt = new_txt;
 
-  if (max_nb_chars != 0 && _new_txt.size() > max_nb_chars)
+  if (max_nb_chars != 0 && _new_txt.size() > max_nb_chars) {
     _new_txt.resize(max_nb_chars);
+  }
   clear_text = _new_txt;
 
   //printf("Real text: %s\n", clear_text.c_str());
 
-  Font* font = Font::GetInstance(GetFontSize(), GetFontStyle());
+  Font * font = Font::GetInstance(GetFontSize(), GetFontStyle());
 
   if (font->GetWidth(_new_txt) < GetSizeX() - 5) {
     Label::SetText( std::string(clear_text.size(), '*') );
-  }
-  else
+  } else {
     cursor_pos = GetText().size();
+  }
 }
 
-bool PasswordBox::SendKey(const SDL_keysym& key)
+bool PasswordBox::SendKey(const SDL_keysym & key)
 {
   bool used = true;
 
@@ -137,8 +195,9 @@ bool PasswordBox::SendKey(const SDL_keysym& key)
 
   used = TextHandle(new_txt, cursor_pos, key);
 
-  if (new_txt != GetText())
+  if (new_txt != GetText()) {
     BasicSetText(new_txt);
+  }
 
   return used;
 }

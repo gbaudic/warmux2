@@ -40,7 +40,7 @@ class DynamiteStick : public WeaponProjectile
     DynamiteStick(ExplosiveWeaponConfig& cfg,
                   WeaponLauncher * p_launcher);
 
-    void Shoot(double strength);
+    void Shoot(Double strength);
     void Refresh();
 
   protected:
@@ -61,7 +61,7 @@ DynamiteStick::DynamiteStick(ExplosiveWeaponConfig& cfg,
   SetTestRect (0, 0, 2, 3);
 }
 
-void DynamiteStick::Shoot(double strength)
+void DynamiteStick::Shoot(Double strength)
 {
   unsigned int delay = (1000 * WeaponProjectile::GetTotalTimeout())/image->GetFrameCount();
   image->SetFrameSpeed(delay);
@@ -130,9 +130,9 @@ bool Dynamite::p_Shoot ()
   projectile->Shoot(0);
   // add the character speed
   if(ActiveCharacter().GetDirection() == 1)
-    projectile->SetSpeed(3.0, -M_PI_4);
+    projectile->SetSpeed(3.0, -QUARTER_PI);
   else
-    projectile->SetSpeed(3.0, -3.0 * M_PI_4);
+    projectile->SetSpeed(3.0, -THREE * QUARTER_PI);
 
   projectile = NULL;
   ReloadLauncher();

@@ -41,15 +41,16 @@
 #include <WORMUX_debug.h>
 #include "tool/isnan.h"
 #include "tool/math_tools.h"
+#include "tool/string_tools.h"
 #include <WORMUX_point.h>
 #include <WORMUX_random.h>
 #include <WORMUX_rectangle.h>
 #include "weapon/weapon_launcher.h"
 
 const int Y_OBJET_MIN = -10000;
-const double PIXEL_PER_METER = 40;
+const Double PIXEL_PER_METER = 40;
 
-double MeterDistance (const Point2i &p1, const Point2i &p2)
+Double MeterDistance (const Point2i &p1, const Point2i &p2)
 {
   return p1.Distance(p2) / PIXEL_PER_METER;
 }
@@ -95,7 +96,7 @@ PhysicalObj::~PhysicalObj ()
 
 void PhysicalObj::SetXY(const Point2i &position)
 {
-  SetXY(Point2d(double(position.x), double(position.y)));
+  SetXY(Point2d(Double(position.x), Double(position.y)));
 }
 
 void PhysicalObj::SetXY(const Point2d &position)
@@ -115,11 +116,11 @@ void PhysicalObj::SetXY(const Point2d &position)
     }
 }
 
-double PhysicalObj::GetXdouble() const { return round(GetPhysX() * PIXEL_PER_METER); };
-double PhysicalObj::GetYdouble() const { return round(GetPhysY() * PIXEL_PER_METER); };
+Double PhysicalObj::GetXDouble() const { return round(GetPhysX() * PIXEL_PER_METER); };
+Double PhysicalObj::GetYDouble() const { return round(GetPhysY() * PIXEL_PER_METER); };
 
-int PhysicalObj::GetX() const { return (int)GetXdouble(); };
-int PhysicalObj::GetY() const { return (int)GetYdouble(); };
+int PhysicalObj::GetX() const { return (int)GetXDouble(); };
+int PhysicalObj::GetY() const { return (int)GetYDouble(); };
 
 void PhysicalObj::SetSize(const Point2i &newSize)
 {
@@ -130,7 +131,7 @@ void PhysicalObj::SetSize(const Point2i &newSize)
 
   ASSERT(m_width >= 0);
   ASSERT(m_height >= 0);
-  SetPhysSize( (double)newSize.x / PIXEL_PER_METER, (double)newSize.y/PIXEL_PER_METER );
+  SetPhysSize( (Double)newSize.x / PIXEL_PER_METER, (Double)newSize.y/PIXEL_PER_METER );
 }
 
 void PhysicalObj::SetOverlappingObject(PhysicalObj* obj, int timeout)
@@ -217,10 +218,13 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
   newPos *= PIXEL_PER_METER;
 
   // Compute distance between old and new position.
-  double lg = oldPos.Distance( newPos);
+  Double lg = oldPos.Distance( newPos);
 
-  MSG_DEBUG("physic.move", "%s moves (%f, %f) -> (%f, %f), distance: %f",
-            typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y, lg);
+  MSG_DEBUG("physic.move", "%s moves (%s, %s) -> (%s, %s), distance: %s",
+            typeid(*this).name(), 
+            Double2str(oldPos.x).c_str(), Double2str(oldPos.y).c_str(), 
+            Double2str(newPos.x).c_str(), Double2str(newPos.y).c_str(),
+            Double2str(lg).c_str());
 
   if (lg == 0)
     return NO_COLLISION;
@@ -234,8 +238,10 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
 
   if (!m_collides_with_ground || IsInWater())
   {
-    MSG_DEBUG("physic.move", "%s moves (%f, %f) -> (%f, %f), collides ground:%d, water:%d",
-              typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y,
+    MSG_DEBUG("physic.move", "%s moves (%s, %s) -> (%s, %s), collides ground:%d, water:%d",
+              typeid(*this).name(), 
+              Double2str(oldPos.x).c_str(), Double2str(oldPos.y).c_str(), 
+              Double2str(newPos.x).c_str(), Double2str(newPos.y).c_str(),
               m_collides_with_ground, IsInWater());
 
     SetXY(newPos);
@@ -244,7 +250,7 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
 
   do
   {
-    Point2i tmpPos( lround(pos.x), lround(pos.y) );
+    Point2i tmpPos(round(pos.x), round(pos.y) );
 
     // Check if we exit the GetWorld(). If so, we stop moving and return.
     if( IsOutsideWorldXY(tmpPos) ){
@@ -260,7 +266,9 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
       SetXY( pos );
 
       MSG_DEBUG("physic.move", "%s moves (%f, %f) -> (%f, %f) : OUTSIDE WORLD",
-                typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y);
+                typeid(*this).name(), 
+                Double2str(oldPos.x).c_str(), Double2str(oldPos.y).c_str(), 
+                Double2str(newPos.x).c_str(), Double2str(newPos.y).c_str());
       return NO_COLLISION;
     }
 
@@ -286,7 +294,7 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
     // Next motion step
     pos += offset;
     lg -= 1.0 ;
-  } while (0 < lg);
+  } while (ZERO < lg);
 
   Point2d speed_before_collision = GetSpeed();
   Point2d speed_collided_obj;
@@ -322,7 +330,7 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
 void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, const Point2d& position)
 {
   Point2d contactPos;
-  double contactAngle;
+  Double contactAngle;
 
   switch (collision) {
   case NO_COLLISION:
@@ -343,7 +351,7 @@ void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, cons
     // thanks to Rebound()
 
     // Get the current speed
-    double v1, v2, mass1, angle1, angle2, mass2;
+    Double v1, v2, mass1, angle1, angle2, mass2;
     collided_obj->GetSpeed(v1, angle1);
     GetSpeed(v2, angle2);
     mass1 = GetMass();
@@ -361,7 +369,8 @@ void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, cons
   }
 
   // Make it rebound!!
-  MSG_DEBUG("physic.state", "m_name.c_str() rebounds at %d,%d", m_name.c_str(), contactPos.x, contactPos.y);
+  MSG_DEBUG("physic.state", "m_name.c_str() rebounds at %s,%s", m_name.c_str(), 
+            Double2str(contactPos.x).c_str(), Double2str(contactPos.y).c_str());
 
   Rebound(contactPos, contactAngle);
   CheckRebound();
@@ -369,7 +378,7 @@ void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, cons
 
 void PhysicalObj::ContactPointAngleOnGround(const Point2d& oldPos,
 					    Point2d& contactPos,
-					    double& contactAngle) const
+					    Double& contactAngle) const
 {
       // Find the contact point and collision angle.
 //       // !!! ContactPoint(...) _can_ return false when CollisionTest(...) is true !!!
@@ -381,8 +390,8 @@ void PhysicalObj::ContactPointAngleOnGround(const Point2d& oldPos,
     if (ContactPoint(cx, cy)) {
       contactAngle = GetWorld().ground.Tangent(cx, cy);
       if(!isNaN(contactAngle)) {
-        contactPos.x = (double)cx / PIXEL_PER_METER;
-        contactPos.y = (double)cy / PIXEL_PER_METER;
+        contactPos.x = (Double)cx / PIXEL_PER_METER;
+        contactPos.y = (Double)cy / PIXEL_PER_METER;
       } else {
         contactAngle = - GetSpeedAngle();
         contactPos = oldPos;
@@ -427,7 +436,7 @@ void PhysicalObj::UpdatePosition ()
 
 }
 
-bool PhysicalObj::PutOutOfGround(double direction, double max_distance)
+bool PhysicalObj::PutOutOfGround(Double direction, Double max_distance)
 {
   if(IsOutsideWorld(Point2i(0, 0)))
     return false;
@@ -435,11 +444,11 @@ bool PhysicalObj::PutOutOfGround(double direction, double max_distance)
   if( IsInVacuum(Point2i(0, 0), false) )
     return true;
 
-  double dx = cos(direction);
-  double dy = sin(direction);
+  Double dx = cos(direction);
+  Double dy = sin(direction);
   // (dx,dy) is a normal vector (cos^2+sin^2==1)
 
-  double step=1;
+  Double step=1;
   while( step<max_distance && !IsInVacuum(
                           Point2i((int)(dx * step),(int)(dy * step)), false ))
     step+=1.0;
@@ -474,7 +483,7 @@ bool PhysicalObj::PutOutOfGround()
 
   Point2i b(dx, dy);
 
-  double dir = b.ComputeAngle();
+  Double dir = b.ComputeAngle();
   return PutOutOfGround(dir);
 }
 
@@ -695,7 +704,7 @@ bool PhysicalObj::IsInWater () const
 void PhysicalObj::DirectFall()
 {
   while (!IsGhost() && !IsInWater() && FootsInVacuum())
-    SetY(GetYdouble()+1.0);
+    SetY(GetYDouble()+ONE);
 }
 
 bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
@@ -771,7 +780,7 @@ bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
   return false;
 }
 
-bool PhysicalObj::PutRandomly(bool on_top_of_world, double min_dst_with_characters, bool net_sync)
+bool PhysicalObj::PutRandomly(bool on_top_of_world, Double min_dst_with_characters, bool net_sync)
 {
   uint bcl=0;
   uint NB_MAX_TRY = 60;
@@ -842,7 +851,7 @@ bool PhysicalObj::PutRandomly(bool on_top_of_world, double min_dst_with_characte
       } else {
         Point2i p1 = character->GetCenter();
         Point2i p2 = GetCenter();
-        double dst = p1.Distance( p2 );
+        Double dst = p1.Distance( p2 );
 
         // ok this test is not perfect but quite efficient ;-)
         // else we need to check each distance between each "corner"

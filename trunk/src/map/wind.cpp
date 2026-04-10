@@ -31,6 +31,7 @@
 #include <WORMUX_random.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
+#include "tool/string_tools.h"
 #include "interface/interface.h"
 #include <SDL.h>
 #include "game/config.h"
@@ -40,25 +41,25 @@
 const uint MAX_WIND_OBJECTS = 200;
 const uint bar_speed = 1;
 
-WindParticle::WindParticle(const std::string &xml_file, float scale) :
+WindParticle::WindParticle(const std::string &xml_file, Double scale) :
   PhysicalObj("wind", xml_file)
 {
   SetCollisionModel(false, false, false);
 
   CanBeGhost(false);
   // Physic constants
-  double mass, wind_factor ;
+  Double mass, wind_factor ;
   //Mass = mass_mean + or - 25%
   mass = GetMass();
-  mass *= (1.0 + RandomLocal().GetLong(-100, 100)/400.0);
+  mass *= RandomLocal().GetDouble(0.75, 1.25);
   SetMass (mass);
   SetSize( Point2i(20,20) );
   wind_factor = GetWindFactor() ;
-  wind_factor *= (1.0 + RandomLocal().GetLong(-100, 100)/400.0);
+  wind_factor *= RandomLocal().GetDouble(0.75, 1.25);
   SetWindFactor(wind_factor);
-  SetAirResistFactor(GetAirResistFactor() * (1.0 + RandomLocal().GetLong(-100, 100)/400.0));
+  SetAirResistFactor(GetAirResistFactor() * RandomLocal().GetDouble(0.75, 1.25));
 
-  MSG_DEBUG("wind", "Create wind particle: %s, %f, %f", xml_file.c_str(), mass, wind_factor);
+  MSG_DEBUG("wind", "Create wind particle: %s, %s, %s", xml_file.c_str(), Double2str(mass).c_str(), Double2str(wind_factor).c_str());
 
   // Fixe test rectangle
   int dx = 0 ;
@@ -68,7 +69,8 @@ WindParticle::WindParticle(const std::string &xml_file, float scale) :
   m_allow_negative_y = true;
 
   // Sprite loading
-  scale = 0.5 + scale / 2.0;
+  Double ONE_HALF = 0.5;
+  scale = ONE_HALF + scale / TWO;
 
   sprite = GetResourceManager().LoadSprite( ActiveMap()->ResProfile(), "wind_particle");
   sprite->Scale(scale, scale);
@@ -87,7 +89,7 @@ WindParticle::WindParticle(const std::string &xml_file, float scale) :
     flipped = NULL;
   }
 
-  if (!GetAlignParticleState() && ActiveMap()->GetWind().rotation_speed != 0.0) {
+  if (!GetAlignParticleState() && ActiveMap()->GetWind().rotation_speed != ZERO) {
     sprite->EnableRotationCache(64);
     sprite->SetRotation_rad(RandomLocal().GetLong(0,628)/100.0); // 0 < angle < 2PI
 
@@ -113,15 +115,15 @@ void WindParticle::Refresh()
     sprite->Update();
 
   if (GetAlignParticleState()) {
-    sprite->SetRotation_rad(GetSpeedAngle() - (M_PI / 2));
+    sprite->SetRotation_rad(GetSpeedAngle() - (PI / 2));
   } 
-  else if (ActiveMap()->GetWind().rotation_speed != 0.0) // Rotate the sprite if needed
+  else if (ActiveMap()->GetWind().rotation_speed != ZERO) // Rotate the sprite if needed
   {
     if (flipped && GetSpeed().x < 0) {
-      float new_angle = flipped->GetRotation_rad() + ActiveMap()->GetWind().rotation_speed;
+      Double new_angle = flipped->GetRotation_rad() + ActiveMap()->GetWind().rotation_speed;
       flipped->SetRotation_rad(new_angle);
     } else {
-      float new_angle = sprite->GetRotation_rad() + ActiveMap()->GetWind().rotation_speed;
+      Double new_angle = sprite->GetRotation_rad() + ActiveMap()->GetWind().rotation_speed;
       sprite->SetRotation_rad(new_angle);
     }
   }
@@ -147,7 +149,7 @@ void WindParticle::Refresh()
     m_alive = ALIVE;
     StartMoving();
     SetXY( Point2i(x, y) );
-    MSG_DEBUG("wind", "new position %d, %d - mass %f, wind_factor %f", x, y, GetMass(), GetWindFactor());
+    MSG_DEBUG("wind", "new position %d, %d - mass %s, wind_factor %s", x, y, Double2str(GetMass()).c_str(), Double2str(GetWindFactor()).c_str());
   } 
 
   UpdatePosition();
@@ -178,7 +180,7 @@ Wind::~Wind()
   RemoveAllParticles();
 }
 
-double Wind::GetStrength() const
+Double Wind::GetStrength() const
 {
   return m_nv_val * WIND_STRENGTH / 100.0;
 }
@@ -219,7 +221,7 @@ void Wind::Reset()
   std::string config_file = ActiveMap()->GetConfigFilepath();
 
   for (uint i = 0; i < nb; ++i) {
-    WindParticle * tmp = new WindParticle(config_file, (float)i / nb);
+    WindParticle * tmp = new WindParticle(config_file, (Double)i / nb);
     particles.push_back(tmp);
   }
   RandomizeParticlesPos();

@@ -63,7 +63,7 @@ void PolygonBuffer::SetSize(const int size)
   } else {
     int16_t * tmp_vx = vx;
     int16_t * tmp_vy = vy;
-    // double the buffer size (64, 128, 256, 512)
+    // Double the buffer size (64, 128, 256, 512)
     // to avoid call of delete/new at each new point
     array_size = (array_size * 2 > size ? array_size * 2 : size);
     vx = new int16_t[array_size];
@@ -426,12 +426,12 @@ void Polygon::ClearItem(bool free_mem)
   items.clear();
 }
 
-double Polygon::GetWidth() const
+Double Polygon::GetWidth() const
 {
   return max.x - min.x;
 }
 
-double Polygon::GetHeight() const
+Double Polygon::GetHeight() const
 {
   return max.y - min.y;
 }
@@ -481,12 +481,13 @@ Point2d Polygon::GetRandomUpperPoint()
   int i;
   for(i = 0; i < start; i++)
     point++;
+  Double max_tmp = 0.4;
   while(point != transformed_shape.end()) {
     previous = *point++;
     i++;
     tmp = *point - previous;
     tmp = tmp / tmp.Norm();
-    if(tmp.y > 0.4)
+    if(tmp.y > max_tmp)
       return tmp;
   }
   return Point2d();
@@ -506,13 +507,13 @@ void Polygon::AddBezierCurve(const Point2d& anchor1, const Point2d& control1,
 {
   Point2d tmp1 = anchor1 + control1;
   Point2d tmp2 = anchor2 + control2;
-  double a, b;
+  Double a, b;
   if(add_first_point)
     AddPoint(anchor1);
   for(int step = 1; step < num_steps - 1; step++) {
-    a = ((float)step / (float)num_steps) * 1.0;
+    a = ((Double)step / (Double)num_steps) * ONE;
     b = 1 - a;
-    AddPoint(anchor1 * b * b * b + tmp1 * 3.0 * b * b * a + tmp2 * 3.0 * b * a * a + anchor2 * a * a * a);
+    AddPoint(anchor1 * b * b * b + tmp1 * THREE * b * b * a + tmp2 * THREE * b * a * a + anchor2 * a * a * a);
   }
   if(add_last_point)
     AddPoint(anchor2);
@@ -520,7 +521,7 @@ void Polygon::AddBezierCurve(const Point2d& anchor1, const Point2d& control1,
 
 // Generate random point between 2 points
 void Polygon::AddRandomCurve(const Point2d& start, const Point2d& end,
-                             const double x_random_offset, const double y_random_offset,
+                             const Double x_random_offset, const Double y_random_offset,
                              const int num_steps, const bool add_first_point,
                              const bool add_last_point)
 {
@@ -530,9 +531,9 @@ void Polygon::AddRandomCurve(const Point2d& start, const Point2d& end,
     AddPoint(start);
   for (int i = 1; i < num_steps - 1; i++) {
     MSG_DEBUG("random.get", "Polygon::AddRandomCurve(...)");
-    double x = RandomSync().GetDouble(-x_random_offset, x_random_offset);
+    Double x = RandomSync().GetDouble(-x_random_offset, x_random_offset);
     MSG_DEBUG("random.get", "Polygon::AddRandomCurve(...)");
-    double y = RandomSync().GetDouble(-y_random_offset, y_random_offset);
+    Double y = RandomSync().GetDouble(-y_random_offset, y_random_offset);
     AddPoint(start + (step * i) + Point2d(x,y));
   }
   if(add_last_point)
@@ -540,11 +541,11 @@ void Polygon::AddRandomCurve(const Point2d& start, const Point2d& end,
 }
 
 // Generate a new polygon with Bezier interpolation
-Polygon * Polygon::GetBezierInterpolation(double smooth_value, int num_steps, double rand)
+Polygon * Polygon::GetBezierInterpolation(Double smooth_value, int num_steps, Double rand)
 {
   Point2d p0, p1, p2, p3, c0, c1, c2, v1, v2;
   Polygon * shape = new Polygon();
-  double l1, l2, l3;
+  Double l1, l2, l3;
   AffineTransform2D trans = AffineTransform2D();
   for(int index_p1 = 0; index_p1 < (int)original_shape.size(); index_p1++) {
     p0 = original_shape[(index_p1 == 0 ? original_shape.size() : index_p1) - 1];
@@ -553,9 +554,9 @@ Polygon * Polygon::GetBezierInterpolation(double smooth_value, int num_steps, do
     p3 = original_shape[(index_p1 + 2) % original_shape.size()];
 
     // compute center of [p0,p1], [p1,p2] and [p2,p3]
-    c0 = p0 + ((p1 - p0) / 2.0);
-    c1 = p1 + ((p2 - p1) / 2.0);
-    c2 = p2 + ((p3 - p2) / 2.0);
+    c0 = p0 + ((p1 - p0) / TWO);
+    c1 = p1 + ((p2 - p1) / TWO);
+    c2 = p2 + ((p3 - p2) / TWO);
 
     // Distance
     l1 = p0.Distance(p1);
@@ -567,7 +568,7 @@ Polygon * Polygon::GetBezierInterpolation(double smooth_value, int num_steps, do
     v2 = (c1 - c2) * (l2 / (l2 + l3)) * smooth_value;
 
     // Randomization
-    if(rand != 0.0) {
+    if(rand != ZERO) {
       MSG_DEBUG("random.get", "Polygon::GetBezierInterpolation(...)");
       trans.SetRotation(RandomSync().GetDouble(-rand, rand));
       v1 = trans * v1;
@@ -590,13 +591,13 @@ PolygonBuffer * Polygon::GetPolygonBuffer()
 }
 
 // expand the polygon (to draw a little border for example)
-void Polygon::Expand(double expand_value)
+void Polygon::Expand(Double expand_value)
 {
   if(original_shape.size() < 2) return;
   if(!IsClockWise())
     expand_value = -expand_value;
   std::vector<Point2d> tmp_shape;
-  AffineTransform2D trans = AffineTransform2D::Rotate(M_PI_2);
+  AffineTransform2D trans = AffineTransform2D::Rotate(HALF_PI);
   Point2d current, next, vect, expand;
   int i, j, k;
   for(i = 0; i < (int)original_shape.size(); i++) {
@@ -606,7 +607,8 @@ void Polygon::Expand(double expand_value)
     // If the next point is to close to current point skip next point
     // Avoid visual artefact
     k = 0;
-    while(k < 10 && next.Distance(current) < 0.1) {
+    Double min_distance = 0.1;
+    while(k < 10 && next.Distance(current) < min_distance) {
       j = (j + 1) % original_shape.size();
       next    = original_shape[j];
       k++;
@@ -713,7 +715,7 @@ void Polygon::DrawOnScreen()
 ////////////////////////////
 // DecoratedBox
 
-DecoratedBox::DecoratedBox(double width, double height):Polygon(),
+DecoratedBox::DecoratedBox(Double width, Double height):Polygon(),
 m_border(NULL),
 m_style(DecoratedBox::STYLE_ROUNDED)
 {
@@ -751,7 +753,7 @@ void DecoratedBox::SetStyle(DecoratedBox::Style style)
   m_style = style;
 }
 
-void DecoratedBox::SetPosition(double x, double y)
+void DecoratedBox::SetPosition(Double x, Double y)
 {
     for(std::vector<PolygonItem *>::iterator item = items.begin();
       item != items.end(); item++) {
@@ -889,7 +891,8 @@ void DecoratedBox::ApplyTransformation(const AffineTransform2D & trans, bool sav
   Point2d new_min =  trans * original_min;
   Point2d new_max = trans * original_max;
 
-  if((round(max.x - min.x +0.5)!=round( new_max.x -new_min.x+0.5)) || (round(max.y - min.y )!=round( new_max.y -new_min.y)))
+  Double one_half = 0.5;
+  if((round(max.x - min.x +one_half)!=round( new_max.x -new_min.x+one_half)) || (round(max.y - min.y )!=round( new_max.y -new_min.y)))
   {
       delete m_border;
       m_border = NULL;

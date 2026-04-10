@@ -21,7 +21,7 @@
 
 #include "team/team_energy.h"
 #include <sstream>
-#include <math.h>
+#include <WORMUX_types.h>
 #include "map/camera.h"
 #include "map/map.h"
 #include "game/time.h"
@@ -40,7 +40,7 @@ const uint BAR_HEIGHT = 50;
 const uchar ALPHA = 127;
 const uchar BACK_ALPHA = 0;
 
-const float MOVE_DURATION = 750.0;
+const Double MOVE_DURATION = 750.0;
 
 void EnergyList::Reset()
 {
@@ -64,7 +64,7 @@ void EnergyList::AddValue(uint value)
 
 
 TeamEnergy::TeamEnergy(Team * _team):
-  energy_bar(),
+  energy_bar(NULL),
   value(0),
   new_value(0),
   max_value(0),
@@ -82,15 +82,21 @@ TeamEnergy::TeamEnergy(Team * _team):
   status(EnergyStatusOK),
   energy_list()
 {
-  energy_bar.InitPos(0, 0, BAR_WIDTH, BAR_HEIGHT);
-  energy_bar.SetBorderColor(Color(255, 255, 255, ALPHA));
-  energy_bar.SetBackgroundColor(Color(255*6/10, 255*6/10, 255*6/10, BACK_ALPHA));
+  energy_bar = new EnergyBar(0, 0, BAR_WIDTH, BAR_HEIGHT,
+                             0, 0, 100, ProgressBar::PROG_BAR_VERTICAL);
+
+  energy_bar->SetBorderColor(Color(255, 255, 255, ALPHA));
+  energy_bar->SetBackgroundColor(Color(255*6/10, 255*6/10, 255*6/10, BACK_ALPHA));
 }
 
 TeamEnergy::~TeamEnergy()
 {
-  if(icon) delete icon;
-  if(t_team_energy) delete t_team_energy;
+  if (icon) delete icon;
+  if (t_team_energy) delete t_team_energy;
+
+  if (NULL != energy_bar) {
+    delete energy_bar;
+  }
 }
 
 void TeamEnergy::Config(uint _current_energy,
@@ -101,7 +107,7 @@ void TeamEnergy::Config(uint _current_energy,
   value = _current_energy;
   new_value = _current_energy;
   ASSERT(max_value != 0)
-  energy_bar.InitVal(value, 0, max_value, ProgressBar::PROG_BAR_VERTICAL);
+  energy_bar->InitVal(value, 0, max_value, ProgressBar::PROG_BAR_VERTICAL);
   icon = NULL;
   SetIcon(team->GetFlag());
   energy_list.Reset();
@@ -151,10 +157,10 @@ void TeamEnergy::Refresh()
 
 void TeamEnergy::Draw(const Point2i& pos)
 {
-  energy_bar.Actu(value);
+  energy_bar->Actu(value);
   Point2i tmp = pos + Point2i(BAR_SPACING / 2 + rank * (BAR_WIDTH + BAR_SPACING) + dx, dy);
-  energy_bar.DrawXY(tmp);
-  icon->DrawXY(tmp + Point2i(energy_bar.GetWidth() / 2, 0));
+  energy_bar->DrawXY(tmp);
+  icon->DrawXY(tmp + Point2i(energy_bar->GetWidth() / 2, 0));
 }
 
 void TeamEnergy::SetValue(uint new_energy)
@@ -187,23 +193,23 @@ void TeamEnergy::Move()
     if(move_start_time == 0)
       move_start_time = global_time->Read();
 
-    dx = (int)(((float)new_rank - rank) * (BAR_WIDTH + BAR_SPACING) * ((global_time->Read() - move_start_time) / MOVE_DURATION));
+    dx = (int)(((Double)new_rank - rank) * (BAR_WIDTH + BAR_SPACING) * ((global_time->Read() - move_start_time) / MOVE_DURATION));
 
     // displacement in arc only when losing place ranking
     if( new_rank > rank ) {
-      dy = (int)((BAR_HEIGHT * ((float)rank - new_rank)) * 0.5 *
-           sin( M_PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
+      dy = (int)((BAR_HEIGHT * ((Double)rank - new_rank)) * ONE_HALF *
+           sin( PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
     } else {
-      dy = (int)((BAR_HEIGHT * ((float)rank - new_rank)) * 0.5 *
-          sin( M_PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
+      dy = (int)((BAR_HEIGHT * ((Double)rank - new_rank)) * ONE_HALF *
+          sin( PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
     }
     // End of movement ?
-    if( (global_time->Read() - move_start_time) > MOVE_DURATION)
+    if( ((long)global_time->Read() - (long)move_start_time) > (long)MOVE_DURATION)
       FinalizeMove();
   } else {
     // While moving, it came back to previous place in ranking
-    dy = (int)((float)dy - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dy);
-    dx = (int)((float)dx - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dx);
+    dy = (int)((Double)dy - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dy);
+    dx = (int)((Double)dx - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dx);
   }
 }
 

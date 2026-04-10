@@ -42,8 +42,9 @@ const Point2i BORDER_POSITION(5, 5);
 
 const uint MARGIN = 4;
 
-Interface::Interface():
-m_last_minimap_redraw(0)
+Interface::Interface() :
+  energy_bar(NULL),
+  m_last_minimap_redraw(0)
 {
   display = true;
   start_hide_display = 0;
@@ -82,14 +83,16 @@ m_last_minimap_redraw(0)
   rounding_style_mask[2][1] = GetResourceManager().LoadImage( res, "interface/rounding_mask_right");
 
   // energy bar
-  energy_bar.InitVal(0, 0, GameMode::GetInstance()->character.init_energy);
-  energy_bar.InitPos(0, 0, 120, 15);
+  energy_bar = new EnergyBar(0, 0, 120, 15,
+                             0, 0,
+                             GameMode::GetInstance()->character.init_energy);
 
   // wind bar
   wind_bar.InitPos(0, 0, wind_indicator.GetWidth() - 4, wind_indicator.GetHeight() - 4);
   wind_bar.SetMinMaxValueColor(GetResourceManager().LoadColor(res, "interface/wind_color_min"),
                                GetResourceManager().LoadColor(res, "interface/wind_color_max"));
   wind_bar.InitVal(0, -100, 100);
+
   wind_bar.border_color.SetColor(0, 0, 0, 0);
   wind_bar.background_color.SetColor(0, 0, 0, 0);
   //wind_bar.value_color = c_red;
@@ -142,6 +145,9 @@ Interface::~Interface()
   if (t_weapon_name) delete t_weapon_name;
   if (t_weapon_stock) delete t_weapon_stock;
   if (minimap) delete minimap;
+  if (NULL != energy_bar) {
+    delete energy_bar;
+  }
 }
 
 void Interface::Reset()
@@ -154,7 +160,7 @@ void Interface::Reset()
   character_under_cursor = NULL;
   weapon_under_cursor = NULL;
   weapons_menu.Reset();
-  energy_bar.InitVal(0, 0, GameMode::GetInstance()->character.init_energy);
+  energy_bar->InitVal(0, 0, GameMode::GetInstance()->character.init_energy);
 }
 
 void Interface::DrawCharacterInfo()
@@ -169,46 +175,46 @@ void Interface::DrawCharacterInfo()
   // Display energy bar
   Point2i energy_bar_offset = BORDER_POSITION + Point2i(MARGIN + character_under_cursor->GetTeam().GetFlag().GetWidth(),
                                                         character_under_cursor->GetTeam().GetFlag().GetHeight() / 2);
-  energy_bar.DrawXY(bottom_bar_pos + energy_bar_offset);
+  energy_bar->DrawXY(bottom_bar_pos + energy_bar_offset);
 
   // Display team logo
-  if(energy_bar.GetCurrentValue() == energy_bar.GetMinValue())
+  if(energy_bar->GetCurrentValue() == energy_bar->GetMinValue())
     app->video->window.Blit(character_under_cursor->GetTeam().GetDeathFlag(), bottom_bar_pos + BORDER_POSITION);
   else
     app->video->window.Blit(character_under_cursor->GetTeam().GetFlag(), bottom_bar_pos + BORDER_POSITION);
 
   // Display team name
-  t_team_name->Set(character_under_cursor->GetTeam().GetName());
-  Point2i team_name_offset = energy_bar_offset + Point2i(energy_bar.GetWidth() / 2, energy_bar.GetHeight() + t_team_name->GetHeight() / 2);
+  t_team_name->SetText(character_under_cursor->GetTeam().GetName());
+  Point2i team_name_offset = energy_bar_offset + Point2i(energy_bar->GetWidth() / 2, energy_bar->GetHeight() + t_team_name->GetHeight() / 2);
   t_team_name->DrawCenter(bottom_bar_pos + team_name_offset);
 
   // Display character's name
-  t_character_name->Set(character_under_cursor->GetName());
-  Point2i character_name_offset = energy_bar_offset + Point2i((energy_bar.GetWidth() > t_character_name->GetWidth() ? energy_bar.GetWidth() : t_character_name->GetWidth()) / 2, -t_character_name->GetHeight() / 2);
+  t_character_name->SetText(character_under_cursor->GetName());
+  Point2i character_name_offset = energy_bar_offset + Point2i((energy_bar->GetWidth() > t_character_name->GetWidth() ? energy_bar->GetWidth() : t_character_name->GetWidth()) / 2, -t_character_name->GetHeight() / 2);
   t_character_name->DrawCenter(bottom_bar_pos + character_name_offset);
 
   // Display player's name
-  t_player_name->Set(_("Head commander: ") + character_under_cursor->GetTeam().GetPlayerName());
-  Point2i player_name_offset = energy_bar_offset + Point2i(energy_bar.GetWidth() / 2, t_team_name->GetHeight() + t_player_name->GetHeight() + MARGIN);
+  t_player_name->SetText(_("Head commander: ") + character_under_cursor->GetTeam().GetPlayerName());
+  Point2i player_name_offset = energy_bar_offset + Point2i(energy_bar->GetWidth() / 2, t_team_name->GetHeight() + t_player_name->GetHeight() + MARGIN);
   t_player_name->DrawCenter(bottom_bar_pos + player_name_offset);
 
   // Display energy
   if (!character_under_cursor->IsDead()) {
-    t_character_energy->Set(ulong2str(character_under_cursor->GetEnergy())+"%");
-    energy_bar.Actu(character_under_cursor->GetEnergy());
+    t_character_energy->SetText(ulong2str(character_under_cursor->GetEnergy())+"%");
+    energy_bar->Actu(character_under_cursor->GetEnergy());
   } else {
-    t_character_energy->Set(_("(dead)"));
-    energy_bar.Actu(0);
+    t_character_energy->SetText(_("(dead)"));
+    energy_bar->Actu(0);
   }
 
-  t_character_energy->DrawCenter(bottom_bar_pos + energy_bar_offset + energy_bar.GetSize()/2);
+  t_character_energy->DrawCenter(bottom_bar_pos + energy_bar_offset + energy_bar->GetSize()/2);
 }
 
 void Interface::DrawWeaponInfo() const
 {
   Weapon* weapon;
   int nbr_munition;
-  float icon_scale_factor = 0.75;
+  Double icon_scale_factor = 0.75;
 
   // Get the weapon
   if(weapon_under_cursor==NULL) {
@@ -217,18 +223,18 @@ void Interface::DrawWeaponInfo() const
   } else {
     weapon = weapon_under_cursor;
     nbr_munition = ActiveTeam().ReadNbAmmos(weapon_under_cursor->GetType());
-    icon_scale_factor = cos((float)Time::GetInstance()->Read() / 1000 * M_PI) * 0.9;
+    icon_scale_factor = cos((Double)Time::GetInstance()->Read() / 1000 * PI) * (Double)0.9;
   }
 
   std::string tmp;
 
   // Draw weapon name
-  t_weapon_name->Set(weapon->GetName());
+  t_weapon_name->SetText(weapon->GetName());
   Point2i weapon_name_offset = Point2i(game_menu.GetWidth() / 2 - clock_background.GetWidth() / 2 - t_weapon_name->GetWidth() - MARGIN, 0);
   t_weapon_name->DrawTopLeft(bottom_bar_pos + weapon_name_offset);
 
   // Display number of ammo
-  t_weapon_stock->Set((nbr_munition ==  INFINITE_AMMO ? _("(unlimited)") : _("Stock:") + Format("%i", nbr_munition)));
+  t_weapon_stock->SetText((nbr_munition ==  INFINITE_AMMO ? _("(unlimited)") : _("Stock:") + Format("%i", nbr_munition)));
   Point2i weapon_stock_offset = Point2i(game_menu.GetWidth() / 2 - clock_background.GetWidth() / 2 - t_weapon_stock->GetWidth() - MARGIN, t_weapon_name->GetHeight());
   t_weapon_stock->DrawTopLeft(bottom_bar_pos + weapon_stock_offset);
 
@@ -265,7 +271,7 @@ void Interface::DrawClock(const Point2i &time_pos) const
 
   // Draw global timer
   std::string tmp(Time::GetInstance()->GetString());
-  global_timer->Set(tmp);
+  global_timer->SetText(tmp);
   global_timer->DrawCenter(time_pos + Point2i(0, clock_background.GetHeight()/3));
 }
 
@@ -637,7 +643,7 @@ void Interface::UpdateTimer(uint utimer, bool emergency, bool reset_anim)
     timer->SetColor(black_color);
   }
 
-  timer->Set(ulong2str(utimer));
+  timer->SetText(ulong2str(utimer));
   remaining_turn_time = utimer;
 
   if (prev_clock != clock || reset_anim) {
@@ -656,11 +662,6 @@ void Interface::UpdateTimer(uint utimer, bool emergency, bool reset_anim)
 void Interface::UpdateWindIndicator(int wind_value)
 {
   wind_bar.UpdateValue(wind_value);
-  /*
-  int redValue   = 155 * abs(wind_value) / 100;
-  int greenValue = 200 * abs(wind_value) / 100;
-  wind_bar.SetValueColor(Color(redValue, 200 - greenValue, 10, 255)); // Green to Red
-  */
 };
 
 void AbsoluteDraw(const Surface &s, const Point2i& pos)

@@ -21,6 +21,14 @@
 
 #include "map/ground.h"
 #include <iostream>
+#include <SDL_stdinc.h>
+
+// a hack I need I have no clue why
+#ifndef SDL_static_cast
+#define SDL_reinterpret_cast(type, expression) ((type)(expression))
+#define SDL_static_cast(type, expression) ((type)(expression))
+#endif
+
 #include <SDL_video.h>
 #include <SDL_gfxPrimitives.h>
 #include <limits.h>
@@ -78,7 +86,7 @@ bool Ground::IsEmpty(const Point2i & pos) const {
  * returns -1.0 if no tangent was found (pixel (x,y) does not touch any
  * other piece of ground
  */
-double Ground::Tangent(int x,int y) const {
+Double Ground::Tangent(int x,int y) const {
   //Approximation : returns the chord instead of the tangent to the ground
 
   /* We try to find 2 points on the ground on each side of (x,y)
@@ -97,28 +105,28 @@ double Ground::Tangent(int x,int y) const {
   }
 /*
   if(p1.x == p2.x)
-    return M_PI / 2.0;
+    return PI / 2.0;
   if(p1.y == p2.y)
-    return M_PI;
+    return PI;
 */
   //ASSERT (p1.x != p2.x);
 
-  /* double tangeante = atan((double)(p2.y-p1.y)/(double)(p2.x-p1.x));
+  /* Double tangeante = atan((Double)(p2.y-p1.y)/(Double)(p2.x-p1.x));
 
   while(tangeante <= 0.0)
-    tangeante += M_PI;
-  while(tangeante > 2 * M_PI)
-    tangeante -= M_PI;
+    tangeante += PI;
+  while(tangeante > 2 * PI)
+    tangeante -= PI;
 
   return tangeante; */
 
   //calculated with a good old TI-83... using table[a][b] = atan( (a-2) / (b-2) )
-  const float table[5][5] = {
-    {      .78539,       .46364,     M_PI, -.46364+M_PI, -.78539+M_PI},
-    {      1.1071,       .78539,     M_PI, -.78539+M_PI, -1.1071+M_PI},
-    {    M_PI/2.0,     M_PI/2.0, M_PI/2.0,     M_PI/2.0,   M_PI / 2.0},
-    {-1.1071+M_PI, -.78539+M_PI,     M_PI,        78539,       1.1071},
-    {-.78539+M_PI, -.46364+M_PI,     M_PI,       .46364,       .78539}};
+  const Double table[5][5] = {
+    {     QUARTER_PI,          .46364,      PI,    -.46364+M_PI, PI - QUARTER_PI},
+    {         1.1071,      QUARTER_PI,      PI, PI - QUARTER_PI,     1.1071+M_PI},
+    {        HALF_PI,         HALF_PI, HALF_PI,         HALF_PI,         HALF_PI},
+    {   -1.1071+M_PI, PI - QUARTER_PI,      PI,      QUARTER_PI,          1.1071},
+    {PI - QUARTER_PI,     -.46364+M_PI,     PI,          .46364,     QUARTER_PI}};
 
   ASSERT(p2.x-p1.x >= -2 && p2.x-p1.x <= 2);
   ASSERT(p2.y-p1.y >= -2 && p2.y-p1.y <= 2);

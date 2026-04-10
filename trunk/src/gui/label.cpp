@@ -20,62 +20,82 @@
  *****************************************************************************/
 
 #include "gui/label.h"
-#include "graphic/text.h"
 
-Label::Label (const std::string &label,
-              uint max_width,
-              Font::font_size_t fsize,
-              Font::font_style_t fstyle,
-              const Color& color,
-              bool _center,
-              bool shadowed):
-  center(_center)
+Label::Label(const std::string & text,
+             uint maxWidth,
+             Font::font_size_t fontSize,
+             Font::font_style_t fontStyle,
+             const Color & fontColor,
+             bool centered,
+             bool shadowed,
+             const Color & shadowColor) :
+  Text(text, fontColor, fontSize,
+       fontStyle, shadowed, shadowColor),
+  center(centered)
 {
-  Widget::SetFont(color, fsize, fstyle, shadowed, false);
+  size.x = maxWidth;
+  SetMaxWidth(size.x);
+  size.y = GetHeight();
+}
 
-  size.x = max_width;
-  txt_label = new Text(label, color, fsize, fstyle, shadowed, label.empty());
-  txt_label->SetMaxWidth(size.x);
-  size.y = txt_label->GetHeight();
+Label::Label(const Point2i & size) :
+  Widget(size),
+  center(false)
+{
+}
+
+Label::Label(Profile * profile,
+             const xmlNode * labelNode) :
+  Widget(profile, labelNode),
+  center(false)
+{
 }
 
 Label::~Label()
 {
-  delete txt_label;
 }
 
-void Label::Draw(const Point2i &/*mousePosition*/) const
+bool Label::LoadXMLConfiguration()
 {
-  if (!center)
-    txt_label->DrawTopLeft(position);
-  else
-    txt_label->DrawCenterTop(Point2i(position.x + size.x/2, position.y));
+  if (NULL == profile || NULL == widgetNode) {
+    return false;
+  }
+
+  ParseXMLPosition();
+  ParseXMLSize();
+  ParseXMLBorder();
+  ParseXMLBackground();
+  
+  Text::LoadXMLConfiguration(profile->GetXMLDocument(), 
+                             widgetNode);
+
+  return true;
+}
+
+void Label::Draw(const Point2i & mousePosition) const
+{
+  (void)mousePosition;
+
+  if (!center) {
+    DrawTopLeft(position);
+  } else {
+    DrawCenterTop(Point2i(position.x + size.x/2, position.y));
+  }
 }
 
 void Label::Pack()
 {
-  txt_label->SetMaxWidth(size.x);
-  size.y = txt_label->GetHeight();
+  SetMaxWidth(size.x);
+  size.y = GetHeight();
 }
 
-void Label::SetText(const std::string &new_txt)
+void Label::SetText(const std::string & new_txt)
 {
   NeedRedrawing();
 
-  if (txt_label)
-    delete txt_label;
+  Text::SetText(new_txt);
 
-  txt_label = new Text(new_txt, GetFontColor(), GetFontSize(), GetFontStyle(), IsFontShadowed(), new_txt.empty());
-  txt_label->SetMaxWidth(size.x);
-  size.y = txt_label->GetHeight();
+  SetMaxWidth(size.x);
+  size.y = GetHeight();
 }
 
-const std::string& Label::GetText() const
-{
-  return txt_label->GetText();
-}
-
-void Label::OnFontChange()
-{
-  SetText(GetText());
-}

@@ -29,7 +29,8 @@
 #include "include/app.h"
 #include "tool/resource_manager.h"
 
-BaseListBox::BaseListBox (const Point2i &_size, bool always_one_selected_b):
+BaseListBox::BaseListBox(const Point2i & _size, 
+                         bool always_one_selected_b):
   Widget(Point2i(_size.x, _size.y)),
   always_one_selected(always_one_selected_b),
   scrolling(false),
@@ -51,12 +52,66 @@ BaseListBox::BaseListBox (const Point2i &_size, bool always_one_selected_b):
   Widget::SetBackgroundColor(defaultListColor1);
 }
 
+BaseListBox::BaseListBox(Profile * profile,
+                         const xmlNode * baseListBoxNode) :
+  Widget(profile, baseListBoxNode),
+  always_one_selected(),
+  scrolling(false),
+  first_visible_item(0),
+  selected_item(-1),
+  m_items(),
+  m_up(NULL),
+  m_down(NULL),
+  selected_item_color(),
+  default_item_color(),
+  margin(0)
+{
+}
+
 BaseListBox::~BaseListBox()
 {
-  delete m_up;
-  delete m_down;
+  if (NULL != m_up) {
+    delete m_up;
+  }
+
+  if (NULL != m_down) {
+    delete m_down;
+  }
 
   ClearItems();
+}
+
+bool BaseListBox::LoadXMLConfiguration()
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return false;
+  }
+
+  ParseXMLPosition();
+  ParseXMLSize();
+  ParseXMLBorder();
+  ParseXMLBackground();
+
+  //Text::LoadXMLConfiguration(xmlFile, widgetNode);
+
+  XmlReader * xmlFile = profile->GetXMLDocument();
+  const xmlNode * buttonUpNode   = xmlFile->GetFirstNamedChild(widgetNode, "ButtonUp");
+  const xmlNode * buttonDownNode = xmlFile->GetFirstNamedChild(widgetNode, "ButtonDown");
+    
+  if (NULL == buttonUpNode || NULL == buttonDownNode) {
+    return false;
+  }
+  m_up   = new Button(profile, buttonUpNode);
+  m_up->LoadXMLConfiguration();
+  m_up->SetPosition(0, 0);
+  m_up->SetSize(0, 0);
+
+  m_down = new Button(profile, buttonDownNode);
+  m_down->LoadXMLConfiguration();
+  m_down->SetPosition(0, 0);
+  m_down->SetSize(0, 0);   
+
+  return true;
 }
 
 void BaseListBox::ClearItems()
@@ -86,26 +141,29 @@ Widget* BaseListBox::ClickUp(const Point2i &mousePosition, uint button)
 {
   scrolling = false;
 
-  if (m_items.empty())
+  if (m_items.empty()) {
     return NULL;
+  }
 
   // buttons for listbox with more items than visible (first or last item not visible)
   if ((button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition)) ||
       (button == Mouse::BUTTON_LEFT() && m_down->Contains(mousePosition))) {
 
     // bottom button
-    if (last_visible_item < m_items.size() - 1)
-      first_visible_item++ ;
-
+    if (last_visible_item < m_items.size() - 1) {
+      first_visible_item++;
+    }
+    NeedRedrawing();
     return this;
-  }
-  else if ((button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
-	   (button == Mouse::BUTTON_LEFT() && m_up->Contains(mousePosition))) {
+  } else if ((button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
+	     (button == Mouse::BUTTON_LEFT() && m_up->Contains(mousePosition))) {
 
     // top button
-    if (first_visible_item > 0)
-      first_visible_item-- ;
+    if (first_visible_item > 0) {
+      first_visible_item--;
+    }
 
+    NeedRedrawing();
     return this;
   }
 
@@ -126,29 +184,33 @@ Widget* BaseListBox::ClickUp(const Point2i &mousePosition, uint button)
   return NULL;
 }
 
-Widget* BaseListBox::Click(const Point2i &mousePosition, uint button)
+Widget * BaseListBox::Click(const Point2i & mousePosition, 
+                            uint button)
 {
-  if (!Contains(mousePosition)) return NULL;
+  if (!Contains(mousePosition)) {
+    return NULL;
+  }
 
   if (ScrollBarPos().Contains(mousePosition) && button == Mouse::BUTTON_LEFT()) {
     scrolling = true;
   }
+
   return this;
 }
 
-void BaseListBox::__Update(const Point2i &mousePosition,
-		       const Point2i &/*lastMousePosition*/)
+void BaseListBox::__Update(const Point2i & mousePosition,
+		       const Point2i & lastMousePosition)
 {
+  (void) lastMousePosition;
   if (!Contains(mousePosition)) {
     scrolling = false;
   }
   // update position of items because of scrolling with scroll bar
   if (scrolling &&
       uint(mousePosition.y) < GetPositionY() + GetSizeY() - 12 -margin&&
-      mousePosition.y > GetPositionY() + 12)
-    {
-      first_visible_item = (mousePosition.y - GetPositionY() - 10) * m_items.size() / (GetSizeY()-20-margin);
-    }
+      mousePosition.y > GetPositionY() + 12) {
+    first_visible_item = (mousePosition.y - GetPositionY() - 10) * m_items.size() / (GetSizeY()-20-margin);
+  }
 }
 
 void BaseListBox::Draw(const Point2i &mousePosition) const
@@ -306,19 +368,48 @@ ListBoxItem::ListBoxItem(const std::string& _label,
                          Font::font_style_t fstyle,
                          const std::string& _value,
                          const Color& color) :
-  Label(_label, 200, fsize, fstyle, color),
+  Label(_label, 200, fsize, fstyle, color, false, true),
   value(_value)
 {
 }
 
 
-
 const std::string& ListBoxItem::GetLabel() const
 {
-  return txt_label->GetText();
+  return GetText();
 }
 
 //-----------------------------------------------------------------------------
+
+ListBox::ListBox(Profile * profile,
+                 const xmlNode * listBoxNode) :
+  BaseListBox(profile, listBoxNode)
+{
+}
+
+bool ListBox::LoadXMLConfiguration()
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return false;
+  }
+
+  BaseListBox::LoadXMLConfiguration();
+
+  XmlReader * xmlFile = profile->GetXMLDocument();
+  const xmlNode * labelListNode = xmlFile->GetFirstNamedChild(widgetNode, "List");
+  const xmlNode * currentListNode = xmlFile->GetFirstChild(labelListNode);
+  std::string labelValue = "No text";
+
+  Color black(0, 0, 0, 255);
+
+  while (NULL != currentListNode) {
+    xmlFile->ReadString(currentListNode, "Label", labelValue);
+    AddItem(false, labelValue, "no value", Font::FONT_SMALL, Font::FONT_BOLD, black);
+    currentListNode = xmlFile->GetNextSibling(currentListNode);
+  }
+  BaseListBox::Pack();
+  return true;
+}
 
 void ListBox::AddItem (bool selected,
                        const std::string &label,
@@ -334,7 +425,7 @@ void ListBox::AddItem (bool selected,
 void ListBox::Select(const std::string& val)
 {
   uint index = 0;
-  for(std::vector<Widget*>::iterator it=m_items.begin();
+  for (std::vector<Widget*>::iterator it=m_items.begin();
       it != m_items.end();
       it++,index++)
   {
@@ -346,16 +437,18 @@ void ListBox::Select(const std::string& val)
   }
 }
 
-const std::string& ListBox::ReadLabel () const
+const std::string& ListBox::ReadLabel() const
 {
   ASSERT (selected_item != -1);
-  return GetItem(m_items[selected_item])->GetLabel();
+  const ListBoxItem * item = (const ListBoxItem*)m_items[selected_item];
+  return item->GetLabel();
 }
 
-const std::string& ListBox::ReadValue () const
+const std::string& ListBox::ReadValue() const
 {
   ASSERT (selected_item != -1);
-  return GetItem(m_items[selected_item])->GetValue();
+  const ListBoxItem * item = (const ListBoxItem*)m_items[selected_item];
+  return item->GetValue();
 }
 
 int ListBox::ReadIntValue() const

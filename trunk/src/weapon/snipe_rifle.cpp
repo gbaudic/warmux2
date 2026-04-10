@@ -122,7 +122,7 @@ void SnipeRifle::ComputeCrossPoint(bool force = false)
 {
   // Did the current character is moving ?
   Point2i pos = GetGunHolePosition();
-  double angle = ActiveCharacter().GetFiringAngle();
+  Double angle = ActiveCharacter().GetFiringAngle();
   if ( !force && last_rifle_pos == pos && last_angle == angle )
     return;
   else
@@ -132,7 +132,7 @@ void SnipeRifle::ComputeCrossPoint(bool force = false)
   }
 
   // Equation of movement : y = ax + b
-  double a, b;
+  Double a, b;
   a = sin(angle) / cos(angle);
   b = pos.y - ( a * pos.x );
   Point2i delta_pos, size, start_point;
@@ -140,13 +140,15 @@ void SnipeRifle::ComputeCrossPoint(bool force = false)
   uint distance = 0;
   targeting_something = false;
   // While test is not finished
-  while( distance < SNIPE_RIFLE_MAX_BEAM_SIZE ){
+  Double PI_3_div_4 = PI * THREE / FOUR;
+  Double PI_div_4 = PI / FOUR;
+  while( distance < SNIPE_RIFLE_MAX_BEAM_SIZE ){    
     // going upwards ( -3pi/4 < angle <-pi/4 )
-    if (angle < -0.78 && angle > -2.36){
+    if (angle < -PI_div_4 && angle > -PI_3_div_4){
       pos.x = (int)((pos.y-b)/a);       //Calculate x
       delta_pos.y = -1;                   //Increment y
     // going downwards ( 3pi/4 > angle > pi/4 )
-    } else if (angle > 0.78 && angle < 2.36){
+    } else if (angle > PI_div_4 && angle < PI_3_div_4){
       pos.x = (int)((pos.y-b)/a);       //Calculate x
       delta_pos.y = 1;                    //Increment y
     // else going at right or left
@@ -183,7 +185,7 @@ void SnipeRifle::DrawBeam()
 {
   Point2i pos1 = laser_beam_start - Camera::GetInstance()->GetPosition();
   Point2i pos2 = targeted_point - Camera::GetInstance()->GetPosition();
-  float dst = laser_beam_start.Distance(targeted_point);
+  Double dst = laser_beam_start.Distance(targeted_point);
 
   GetMainWindow().
     AAFadingLineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color, Color(255, 0, 0, 0));
@@ -192,9 +194,9 @@ void SnipeRifle::DrawBeam()
 
   // Set area of the screen to be redrawn:
   // Splited into little rectangles to avoid too large area of redraw
-  float redraw_size = 20.0;
-  Point2f pos = Point2f((float)laser_beam_start.x, (float)laser_beam_start.y);
-  Point2f delta = ( Point2f((float)targeted_point.x, (float)targeted_point.y) - pos ) * redraw_size / dst;
+  Double redraw_size = 20.0;
+  Point2f pos = Point2f((Double)laser_beam_start.x, (Double)laser_beam_start.y);
+  Point2f delta = ( Point2f((Double)targeted_point.x, (Double)targeted_point.y) - pos ) * redraw_size / dst;
   Point2i delta_i((int)delta.x, (int)delta.y);
 
   if(delta_i.x < 0) delta_i.x = - delta_i.x; // the Map::ToRedraw method doesn't support negative rectangles
@@ -203,11 +205,11 @@ void SnipeRifle::DrawBeam()
   delta_i.y += 6;
 
   int i = 0;
-  while( (float)i * redraw_size < dst )
+  while( (Double)i * redraw_size < dst )
   {
-    // float to int conversion...
+    // Double to int conversion...
     Point2i pos_i((int)pos.x, (int)pos.y);
-    if(delta.x < 0.0)
+    if(delta.x < ZERO)
     {
       pos_i.x -= delta_i.x;
       pos_i.x += 3;
@@ -215,7 +217,7 @@ void SnipeRifle::DrawBeam()
     else
       pos_i.x -= 3;
 
-    if(delta.y < 0.0)
+    if(delta.y < ZERO)
     {
       pos_i.y -= delta_i.y;
       pos_i.y += 3;

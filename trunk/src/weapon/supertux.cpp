@@ -54,7 +54,7 @@ class SuperTux : public WeaponProjectile
   private:
     bool swimming; // Supertux is not in the air, it is swimming!
     ParticleEngine particle_engine;
-    double angle_rad;
+    Double angle_rad;
     SoundSample flying_sound;
 
   public:
@@ -67,10 +67,10 @@ class SuperTux : public WeaponProjectile
              WeaponLauncher * p_launcher);
     void Refresh();
 
-    inline void SetAngle(double angle) {angle_rad = angle;}
+    inline void SetAngle(Double angle) {angle_rad = angle;}
     void turn_left();
     void turn_right();
-    void Shoot(double strength);
+    void Shoot(Double strength);
     virtual void Explosion();
     virtual void SignalDrowning();
     virtual void SignalGoingOutOfWater();
@@ -95,7 +95,7 @@ SuperTux::SuperTux(SuperTuxWeaponConfig& cfg,
   SetTestRect(1, 1, 2, 2);
 }
 
-void SuperTux::Shoot(double strength)
+void SuperTux::Shoot(Double strength)
 {
   // Sound must be launched before WeaponProjectile::Shoot
   // in case that the projectile leave the battlefield
@@ -119,7 +119,7 @@ void SuperTux::Refresh()
 {
   WeaponProjectile::Refresh();
 
-  image->SetRotation_rad(angle_rad + M_PI_2);
+  image->SetRotation_rad(angle_rad + HALF_PI);
   if ((last_move+animation_deltat)<Time::GetInstance()->Read())
   {
     SetExternForce(static_cast<SuperTuxWeaponConfig&>(cfg).speed, angle_rad);
@@ -142,7 +142,7 @@ void SuperTux::turn_left()
   if (time_next_action<time_now)
     {
       time_next_action=time_now + time_delta;
-      angle_rad = angle_rad - M_PI / 12;
+      angle_rad = angle_rad - PI / 12;
     }
 }
 
@@ -152,7 +152,7 @@ void SuperTux::turn_right()
   if (time_next_action<time_now)
     {
       time_next_action=time_now + time_delta;
-      angle_rad = angle_rad + M_PI / 12;
+      angle_rad = angle_rad + PI / 12;
     }
 }
 

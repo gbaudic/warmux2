@@ -75,7 +75,7 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
 
       member_mvt mvt;
       int dx = 0, dy = 0, angle_deg = 0;
-      double scale_x = 1.0, scale_y = 1.0, tmp_alpha = 1.0;
+      Double scale_x = 1.0, scale_y = 1.0, tmp_alpha = 1.0;
 
       XmlReader::ReadIntAttr(child, "dx", dx);
       XmlReader::ReadIntAttr(child, "dy", dy);
@@ -92,10 +92,10 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
 	  && !XmlReader::ReadIntAttr(child, "follow_cursor_limit", mvt.follow_cursor_limit))
 	fprintf(stderr, "Warning ! \"follow_cursor\" flag used while \"follow_cursor_limit\" isn't defined, this won't do anything!\n");
 
-      if (tmp_alpha < 0.0 || tmp_alpha > 1.0)
+      if (tmp_alpha < ZERO || tmp_alpha > ONE)
 	tmp_alpha = 1.0;
 
-      mvt.SetAngle(angle_deg * M_PI / 180);
+      mvt.SetAngle(angle_deg * PI / 180);
       mvt.pos.x = dx;
       mvt.pos.y = dy;
       mvt.alpha = tmp_alpha;

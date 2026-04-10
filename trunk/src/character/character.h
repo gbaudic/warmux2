@@ -54,12 +54,12 @@ private:
   bool prepare_shoot;
   bool back_jumping;
   bool death_explosion;
-  double firing_angle;
+  Double firing_angle;
 
   uint disease_damage_per_turn;
   uint disease_duration; // std::numeric_limits<uint>::max() means unlimited
   DamageStatistics *damage_stats;
-  EnergyBar energy_bar;
+  EnergyBar * energy_bar;
 
   // survived games
   int survivals;
@@ -91,7 +91,7 @@ private:
 public:
 
   // Previous strength
-  double previous_strength;
+  Double previous_strength;
 
   Body* body;
 
@@ -109,7 +109,7 @@ private:
   void SetBody(Body* char_body);
 
   void UpdateFiringAngle();
-  void AddFiringAngle(double angle) { SetFiringAngle(firing_angle + angle); };
+  void AddFiringAngle(Double angle) { SetFiringAngle(firing_angle + angle); };
 
   void StartWalking(bool slowly);
   void StopWalking();
@@ -144,12 +144,9 @@ public:
     disease_damage_per_turn = damage_per_turn;
     disease_duration = duration;
   }
-// Keep almost 1 in energy
   uint GetDiseaseDamage() const
   {
-    if (disease_damage_per_turn < static_cast<uint>(GetEnergy()))
-      return disease_damage_per_turn;
-    return GetEnergy() - 1;
+    return std::min(disease_damage_per_turn, static_cast<uint>(GetEnergy()));
   }
   void DecDiseaseDuration()
   {
@@ -169,9 +166,9 @@ public:
   void PrepareShoot();
   bool IsPreparingShoot() const { return prepare_shoot; };
   void DoShoot();
-  double GetFiringAngle() const;
-  double GetAbsFiringAngle() const { return firing_angle; };
-  void SetFiringAngle(double angle);
+  Double GetFiringAngle() const;
+  Double GetAbsFiringAngle() const { return firing_angle; };
+  void SetFiringAngle(Double angle);
 
   // Show hide the Character
   void Hide() { hidden = true; };
@@ -185,7 +182,7 @@ public:
   bool CanJump() const { return HasGroundUnderFeets(); };
 
   // Jumps
-  void Jump(double strength, double angle);
+  void Jump(Double strength, Double angle);
   void Jump();
   void HighJump();
   void BackJump();

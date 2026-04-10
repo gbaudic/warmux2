@@ -40,9 +40,10 @@
 #include "network/randomsync.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
+#include "tool/string_tools.h"
 
 // XXX Not used
-//const double DEPART_FONCTIONNEMENT = 5;
+//const Double DEPART_FONCTIONNEMENT = 5;
 
 ObjMine::ObjMine(MineConfig& cfg,
                  WeaponLauncher * p_launcher) :
@@ -112,7 +113,7 @@ void ObjMine::Detection()
 
   //MSG_DEBUG("mine", "Escape_time is finished : %d", current_time);
 
-  double detection_range = static_cast<MineConfig&>(cfg).detection_range;
+  Double detection_range = static_cast<MineConfig&>(cfg).detection_range;
 
   FOR_ALL_LIVING_CHARACTERS(team, character) {
     if (MeterDistance(GetCenter(), character->GetCenter()) < detection_range &&
@@ -125,15 +126,16 @@ void ObjMine::Detection()
     }
   }
 
-  double speed_detection = static_cast<MineConfig&>(cfg).speed_detection;
-  double norm, angle;
+  Double speed_detection = static_cast<MineConfig&>(cfg).speed_detection;
+  Double norm, angle;
   FOR_EACH_OBJECT(obj) {
     if ((*obj) != this && !animation && GetName() != (*obj)->GetName() &&
         MeterDistance(GetCenter(), (*obj)->GetCenter()) < detection_range) {
 
       (*obj)->GetSpeed(norm, angle);
-      if (norm < speed_detection && norm > 0.0) {
-        MSG_DEBUG("mine", "norm: %d, speed_detection: %d", norm, speed_detection);
+      if (norm < speed_detection && norm > ZERO) {
+        MSG_DEBUG("mine", "norm: %s, speed_detection: %s", 
+                  Double2str(norm).c_str(), Double2str(speed_detection).c_str());
         StartTimeout();
         return;
       }
@@ -241,9 +243,9 @@ void Mine::Add(int x, int y)
 
   // add the character speed
   if(ActiveCharacter().GetDirection() == 1)
-    projectile->SetSpeed(1.0, -M_PI_4);
+    projectile->SetSpeed(1.0, -QUARTER_PI);
   else
-    projectile->SetSpeed(1.0, -3.0 * M_PI_4);
+    projectile->SetSpeed(1.0, -THREE * QUARTER_PI);
 
   ObjectsList::GetRef().AddObject (projectile);
   projectile = NULL;

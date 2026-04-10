@@ -36,34 +36,35 @@
 #include "team/team.h"
 #include <WORMUX_debug.h>
 #include "tool/math_tools.h"
+#include "tool/string_tools.h"
 #include "tool/resource_manager.h"
 #include <WORMUX_random.h>
 #include "weapon/weapon.h"
 
 Profile *weapons_res_profile = NULL;
 
-int GetDamageFromExplosion(const ExplosiveWeaponConfig &config, double distance)
+int GetDamageFromExplosion(const ExplosiveWeaponConfig &config, Double distance)
 {
   if (distance > config.explosion_range)
     return 0;
 
-  double dmg;
-  if( config.explosion_range != 0)
-    dmg = cos(M_PI_2 * distance / (float)config.explosion_range);
+  Double dmg;
+  if( config.explosion_range != ZERO)
+    dmg = cos(HALF_PI * distance / (Double)config.explosion_range);
   else
-    dmg = cos(M_PI_2 * distance);
+    dmg = cos(HALF_PI * distance);
 
   dmg *= config.damage;
   return (int) dmg;
 }
 
-double GetForceFromExplosion(const ExplosiveWeaponConfig &config, double distance)
+Double GetForceFromExplosion(const ExplosiveWeaponConfig &config, Double distance)
 {
-  double force;
-  if(config.blast_range != 0)
-    force = cos(M_PI_2 * distance / (float)config.blast_range);
+  Double force;
+  if(config.blast_range != ZERO)
+    force = cos(HALF_PI * distance / (Double)config.blast_range);
   else
-    force = cos(M_PI_2 * distance);
+    force = cos(HALF_PI * distance);
 
   force *= config.blast_force;
   return force;
@@ -76,7 +77,7 @@ void ApplyExplosion (const Point2i &pos,
                      ParticleEngine::ESmokeStyle smoke
                      )
 {
-  MSG_DEBUG("explosion", "explosion range : %i", config.explosion_range);
+  MSG_DEBUG("explosion", "explosion range : %s", Double2str(config.explosion_range,0).c_str());
 
 #ifdef HAVE_A_REALLY_BIG_CPU
   // Add particles based on the ground image
@@ -84,7 +85,7 @@ void ApplyExplosion (const Point2i &pos,
   {
     for(int y=-config.explosion_range; y < (int)config.explosion_range; y += 10)
     {
-      int dx = (int) (cos(asin((float)y / config.explosion_range)) * (float) y);
+      int dx = (int) (cos(asin((Double)y / config.explosion_range)) * (Double) y);
       for(int x=-dx; x < dx; x += 10)
         ParticleEngine::AddNow(pos + Point2i(x-5,y-5), 1, particle_GROUND, true);
     }
@@ -94,8 +95,8 @@ void ApplyExplosion (const Point2i &pos,
 #endif
 
   // Make a hole in the ground
-  if(config.explosion_range != 0)
-    GetWorld().Dig(pos, config.explosion_range);
+  if(config.explosion_range != ZERO)
+    GetWorld().Dig(pos, (int)config.explosion_range);
 
   // Play a sound
   if (son != "") {
@@ -104,18 +105,18 @@ void ApplyExplosion (const Point2i &pos,
 
   // Apply damage on the character.
   // Do not care about the death of the active character.
-  double highest_force = 0.0;
+  Double highest_force = 0.0;
   Character* fastest_character = NULL;
   FOR_ALL_CHARACTERS(team, character)
   {
-    double distance = pos.Distance(character -> GetCenter());
-    if(distance < 1.0)
-      distance = 1.0;
+    Double distance = pos.Distance(character -> GetCenter());
+    if(distance < ONE)
+      distance = ONE;
 
     // If the character is in the explosion range, apply damage on it !
     int dmg = GetDamageFromExplosion(config, distance);
     if (dmg != 0) {
-      MSG_DEBUG("explosion", "\n*Character %s : distance= %f", character->GetName().c_str(), distance);
+      MSG_DEBUG("explosion", "\n*Character %s : distance= %f", character->GetName().c_str(), Double2str(distance).c_str());
       MSG_DEBUG("explosion", "hit_point_loss energy= %d", character->GetName().c_str(), dmg);
       character->SetEnergyDelta (-dmg);
     }
@@ -123,7 +124,7 @@ void ApplyExplosion (const Point2i &pos,
     // If the character is in the blast range, apply the blast on it !
     if (distance <= config.blast_range)
     {
-      double force = GetForceFromExplosion(config, distance);
+      Double force = GetForceFromExplosion(config, distance);
 
       if ( force > highest_force )
       {
@@ -133,7 +134,7 @@ void ApplyExplosion (const Point2i &pos,
         highest_force = force;
       }
 
-      double angle;
+      Double angle;
       if (!EqualsZero(distance))
       {
         angle  = pos.ComputeAngle(character -> GetCenter());
@@ -141,11 +142,11 @@ void ApplyExplosion (const Point2i &pos,
           angle  = - angle;
       }
       else
-        angle = -M_PI/2;
+        angle = -PI/2;
 
 
-      MSG_DEBUG("explosion", "force = %f", force);
-      ASSERT(character->GetMass() != 0);
+      MSG_DEBUG("explosion", "force = %s", Double2str(force).c_str());
+      ASSERT(character->GetMass() != ZERO);
       character->AddSpeed (force / character->GetMass(), angle);
       character->SignalExplosion();
     }
@@ -161,32 +162,32 @@ void ApplyExplosion (const Point2i &pos,
 
      if (obj->CollidesWithGround() && !obj->IsGhost())
      {
-       double distance = pos.Distance(obj->GetCenter());
-       if(distance < 1.0)
-         distance = 1.0;
+       Double distance = pos.Distance(obj->GetCenter());
+       if(distance < ONE)
+         distance = ONE;
 
        int dmg = GetDamageFromExplosion(config, distance);
        if (dmg != 0) {
          obj->SetEnergyDelta(-dmg);
        }
 
-       if (distance <= (float)config.blast_range)
+       if (distance <= (Double)config.blast_range)
        {
-         double force = GetForceFromExplosion(config, distance);
-         double angle;
+         Double force = GetForceFromExplosion(config, distance);
+         Double angle;
          if (!EqualsZero(distance))
            angle  = pos.ComputeAngle(obj->GetCenter());
          else
-           angle = -M_PI_2;
+           angle = -HALF_PI;
 
-         ASSERT( obj->GetMass() != 0.0);
+         ASSERT( obj->GetMass() != ZERO);
 
          obj->AddSpeed (force / obj->GetMass(), angle);
        }
      }
    }
 
-  ParticleEngine::AddExplosionSmoke(pos, config.particle_range, smoke);
+  ParticleEngine::AddExplosionSmoke(pos, (int)config.particle_range, smoke);
 
   // Do we need to generate some fire particles ?
   if (fire_particle)
@@ -202,9 +203,9 @@ void ApplyExplosion (const Point2i &pos,
   if ( config.explosion_range > 25 && config.damage > 0 )
   {
      int reduced_range = ( int )config.explosion_range / 2;
-     Camera::GetInstance()->Shake( config.explosion_range * 15,
+     Camera::GetInstance()->Shake( (int)(config.explosion_range * 15),
          Point2i( RandomLocal().GetLong( -reduced_range, reduced_range  ),
-                config.explosion_range ),
+                (int)config.explosion_range ),
          Point2i( 0, 0 )
         );
   };

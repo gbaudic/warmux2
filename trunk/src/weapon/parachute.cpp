@@ -40,9 +40,9 @@
 class ParachuteConfig : public WeaponConfig
 {
   public:
-     double wind_factor;
-     double air_resist_factor;
-     double force_side_displacement;
+     Double wind_factor;
+     Double air_resist_factor;
+     Double force_side_displacement;
      ParachuteConfig();
      void LoadXml(const xmlNode* elem);
 };
@@ -111,12 +111,12 @@ void Parachute::Refresh()
   if (Game::GetInstance()->ReadState() != Game::PLAYING)
     return;
 
-  double speed;
-  double angle;
+  Double speed;
+  Double angle;
 
   ActiveCharacter().GetSpeed(speed, angle);
 
-  if(ActiveCharacter().FootsInVacuum() && speed != 0.0) { // We are falling
+  if(ActiveCharacter().FootsInVacuum() && speed != ZERO) { // We are falling
     if(!open && (speed > GameMode::GetInstance()->safe_fall)) { // with a sufficient speed
       if(EnoughAmmo()) { // We have enough ammo => start opening the parachute
         if(!m_used_this_turn)

@@ -27,63 +27,120 @@
 #include "include/app.h"
 #include "tool/resource_manager.h"
 
-CheckBox::CheckBox(const std::string& label, uint width, bool value):
-  txt_label(new Text(label, white_color, Font::FONT_SMALL, Font::FONT_BOLD)),
+CheckBox::CheckBox(const std::string & label,
+                   uint width,
+                   bool value):
+  Text(label,
+       dark_gray_color,
+       Font::FONT_SMALL,
+       Font::FONT_BOLD,
+       false,
+       true),
   m_value(value),
   m_checked_image(NULL)
 {
   Init(width);
 }
 
-CheckBox::CheckBox(Text *text, uint width, bool value):
-  txt_label(text),
-  m_value(value),
+CheckBox::CheckBox(Profile * profile,
+                   const xmlNode * checkBoxNode) :
+  Widget(profile, checkBoxNode),
+  m_value(false),
   m_checked_image(NULL)
 {
-  Init(width);
 }
 
 void CheckBox::Init(uint width)
 {
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  m_checked_image = GetResourceManager().LoadSprite( res, "menu/check");
-  GetResourceManager().UnLoadXMLProfile( res);
+  Profile * res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  m_checked_image = GetResourceManager().LoadSprite(res, "menu/check");
+  GetResourceManager().UnLoadXMLProfile(res);
 
   m_checked_image->cache.EnableLastFrameCache();
 
   position = Point2i(W_UNDEF, W_UNDEF);
   size.x = width;
-  size.y = txt_label->GetHeight();
+  size.y = Text::GetHeight();
 }
 
 CheckBox::~CheckBox()
 {
-  delete m_checked_image;
-  delete txt_label;
+  if (NULL != m_checked_image) {
+    delete m_checked_image;
+  }
 }
 
 void CheckBox::Pack()
 {
-  txt_label->SetMaxWidth(size.x - m_checked_image->GetWidth() -2);
-  size.y = std::max(uint(txt_label->GetHeight()),
+  Text::SetMaxWidth(size.x - m_checked_image->GetWidth() -2);
+  size.y = std::max(uint(Text::GetHeight()),
 		    m_checked_image->GetHeight());
 }
+
+bool CheckBox::LoadXMLConfiguration()
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return false;
+  }
+
+  XmlReader * xmlFile = profile->GetXMLDocument();
+
+  ParseXMLPosition();
+  ParseXMLSize();
+  ParseXMLBorder();
+  ParseXMLBackground();
+
+  Text::LoadXMLConfiguration(xmlFile, widgetNode);
+
+  std::string file;
+
+  Surface picChecked;
+  xmlFile->ReadStringAttr(widgetNode, "pictureChecked", file);
+  file = profile->relative_path + file;
+  if (!picChecked.ImgLoad(file)) {
+    file = profile->relative_path + "menu/cbox_checked.png";
+    if (!picChecked.ImgLoad(file)) {
+      Error("XML Loading -> CheckBox: can't load " + file);
+    }
+  }
+
+  Surface picUnchecked;
+  xmlFile->ReadStringAttr(widgetNode, "pictureUnchecked", file);
+  file = profile->relative_path + file;
+  if (!picUnchecked.ImgLoad(file)) {
+    file = profile->relative_path + "menu/cbox_unchecked.png";
+    if (!picUnchecked.ImgLoad(file)) {
+      Error("XML Loading -> CheckBox: can't load " + file);
+    }
+  }
+
+  m_checked_image = new Sprite();
+  m_checked_image->AddFrame(picChecked);
+  m_checked_image->AddFrame(picUnchecked);
+
+  //m_checked_image->cache.EnableLastFrameCache();
+
+  return true;
+}
+
 
 void CheckBox::Draw(const Point2i &/*mousePosition*/) const
 {
   Surface& surf = GetMainWindow();
 
-  txt_label->DrawTopLeft( GetPosition() );
+  Text::DrawTopLeft(GetPosition());
 
-  if (m_value)
+  if (m_value) {
     m_checked_image->SetCurrentFrame(0);
-  else
+  } else {
     m_checked_image->SetCurrentFrame(1);
+  }
 
   m_checked_image->Blit(surf, GetPositionX() + GetSizeX() - 16, GetPositionY());
 }
 
-Widget* CheckBox::ClickUp(const Point2i &/*mousePosition*/, uint /*button*/)
+Widget * CheckBox::ClickUp(const Point2i &/*mousePosition*/,
+                           uint /*button*/)
 {
   NeedRedrawing();
   m_value = !m_value;

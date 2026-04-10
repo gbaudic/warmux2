@@ -77,11 +77,8 @@ bool PictureWidget::LoadXMLConfiguration()
   }
   XmlReader * xmlFile = profile->GetXMLDocument();
 
-  std::string file;
-  if (!xmlFile->ReadStringAttr(widgetNode, "file", file)) {
-    //TODO error
-    return false;
-  }
+  std::string file("menu/pic_not_found.png");
+  xmlFile->ReadStringAttr(widgetNode, "file", file);
 
   bool activeAlpha = false;
   xmlFile->ReadBoolAttr(widgetNode, "alpha", activeAlpha);
@@ -95,6 +92,7 @@ bool PictureWidget::LoadXMLConfiguration()
     surface = surface.DisplayFormatAlpha();
   }
 
+  ParseXMLMisc();
   ParseXMLPosition();
   ParseXMLSize();
 
@@ -119,9 +117,10 @@ void PictureWidget::SetSurface(const Surface & s,
 
   spr = new Sprite(s, antialiasing);
   if (enable_scaling) {
-    float scale = std::min(float(GetSizeY())/spr->GetHeight(),
-                           float(GetSizeX())/spr->GetWidth());
-    spr->Scale(scale, scale);
+    Double scale = std::min( Double(GetSizeY())/spr->GetHeight(),
+                            Double(GetSizeX())/spr->GetWidth() ) ;
+
+    spr->Scale (scale, scale);
   }
 }
 

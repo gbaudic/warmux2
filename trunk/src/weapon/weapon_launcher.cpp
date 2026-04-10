@@ -38,6 +38,7 @@
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
+#include "tool/string_tools.h"
 #include "weapon/explosion.h"
 #include "weapon/weapon_cfg.h"
 #include "weapon/weapon_launcher.h"
@@ -83,8 +84,8 @@ void WeaponBullet::SignalObjectCollision(const Point2d& my_speed_before,
   obj->AddSpeed(cfg.speed_on_hit, my_speed_before.ComputeAngle());
 #else
   // multiply by ten to get something more funny
-  double bullet_mass = GetMass()/* * 10*/;
-  double total_mass = bullet_mass + obj->GetMass();
+  Double bullet_mass = GetMass()/* * 10*/;
+  Double total_mass = bullet_mass + obj->GetMass();
   // computing new speed of character
   Point2d v2 = (my_speed_before * (1 + 0.8) * bullet_mass +
                 obj->GetSpeed() * (obj->GetMass() - 0.8 * bullet_mass)) / total_mass;
@@ -154,9 +155,9 @@ WeaponProjectile::~WeaponProjectile()
   delete image;
 }
 
-void WeaponProjectile::Shoot(double strength)
+void WeaponProjectile::Shoot(Double strength)
 {
-  MSG_DEBUG("weapon.projectile", "shoot with strength:%f", strength);
+  MSG_DEBUG("weapon.projectile", "shoot with strength:%s", Double2str(strength).c_str());
 
   Init();
 
@@ -170,7 +171,7 @@ void WeaponProjectile::Shoot(double strength)
   SetOverlappingObject(&ActiveCharacter(), 100);
   ObjectsList::GetRef().AddObject(this);
 
-  double angle = ActiveCharacter().GetFiringAngle();
+  Double angle = ActiveCharacter().GetFiringAngle();
   RandomizeShoot(angle, strength);
 
   Point2i hand_position;
@@ -184,8 +185,8 @@ void WeaponProjectile::Shoot(double strength)
             hand_position.GetX(),
             hand_position.GetY());
 
-  MSG_DEBUG("weapon.projectile", "shoot with strength:%f, angle:%f, position:%d,%d",
-            strength, angle, GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "shoot with strength:%s, angle:%s, position:%d,%d",
+            Double2str(strength).c_str(), Double2str(angle).c_str(), GetX(), GetY());
 
   StartTimeout();
 
@@ -455,12 +456,12 @@ int WeaponLauncher::GetDamage()
   return cfg().damage;
 }
 
-double WeaponLauncher::GetWindFactor()
+Double WeaponLauncher::GetWindFactor()
 {
   return projectile->GetWindFactor();
 }
 
-double WeaponLauncher::GetMass()
+Double WeaponLauncher::GetMass()
 {
   return projectile->GetMass();
 }

@@ -24,39 +24,39 @@
 
 #include "include/base.h"
 #include "gui/widget.h"
-#include "graphic/font.h"
+#include "graphic/text.h"
 #include <string>
 
-class Text;
-
-class Label : public Widget{
+class Label : public Text, public Widget
+{
   /* If you need this, implement it (correctly)*/
   Label(const Label&);
   Label operator=(const Label&);
   /*********************************************/
 
- protected:
-  Text *txt_label;
-
  private:
   bool center;
 
  public:
-  Label(const std::string &label,
+  Label(const std::string & label,
         uint max_width,
         Font::font_size_t font_size = Font::FONT_SMALL,
         Font::font_style_t font_style = Font::FONT_BOLD,
-        const Color& color = white_color,
+        const Color & color = dark_gray_color,
         bool center = false,
-        bool shadowed = true);
-  ~Label();
+        bool shadowed = false,
+        const Color & shadowColor = black_color);
+  Label(const Point2i & size);
+  Label(Profile * profile,
+        const xmlNode * pictureNode);
+  Label(void) {}
+  virtual ~Label();
 
-  virtual void Draw(const Point2i &mousePosition) const;
-  void SetText(const std::string &new_txt);
-  const std::string& GetText() const;
-
-  virtual void OnFontChange();
+  virtual bool LoadXMLConfiguration(void);
+  virtual void Draw(const Point2i & mousePosition) const;
   virtual void Pack();
+
+  void SetText(const std::string & new_txt);
 };
 
 #endif

@@ -31,6 +31,12 @@
 #include "interface/mouse.h"
 #include "sound/jukebox.h"
 #include "tool/resource_manager.h"
+#include "gui/big/button_pic.h"
+#include "gui/label.h"
+#include "gui/check_box.h"
+#include "gui/picture_text_cbox.h"
+#include "gui/text_box.h"
+#include "gui/list_box.h"
 
 Menu::Menu(const std::string& bg, t_action _actions) :
   actions(_actions),
@@ -127,17 +133,27 @@ Widget * Menu::CreateWidget(Profile * profile,
   } else if ("GridBox" == widgetName) {
     widget = new GridBox(profile, widgetNode);
   } else if ("ButtonPic" == widgetName) {
-    return NULL;
+    widget = new ButtonPic(profile, widgetNode);
   } else if ("Label" == widgetName) {
-    return NULL;
+    widget = new Label(profile, widgetNode);
+  } else if ("CheckBox" == widgetName) {
+    widget = new CheckBox(profile, widgetNode);
+  } else if ("PicTxtCheckBox" == widgetName ) {
+    widget = new PictureTextCBox(profile, widgetNode);
   } else if ("VerticalBox" == widgetName) {
     return NULL;
   } else if ("HorizontalBox" == widgetName) {
     return NULL;
   } else if ("SpinButton" == widgetName) {
     return NULL;
+  } else if ("PasswordBox" == widgetName) {
+    widget = new PasswordBox(profile, widgetNode);
   } else if ("TextBox" == widgetName) {
-    return NULL;
+    widget = new TextBox(profile, widgetNode);
+  } else if ("Button" == widgetName) {
+    widget = new Button(profile, widgetNode);
+  } else if ("ListBox" == widgetName) {
+    widget = new ListBox(profile, widgetNode);
   }
 
   if (NULL != widget) { 

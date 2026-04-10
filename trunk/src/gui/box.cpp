@@ -46,22 +46,10 @@ Box::~Box()
 {
 }
 
-void Box::ParseXMLBoxParameters(XmlReader * xmlFile,
-                                const xmlNode * boxNode)
+void Box::ParseXMLBoxParameters()
 {
-  bool drawBorder = false;
-  xmlFile->ReadBoolAttr(boxNode, "drawBorder", drawBorder);
-  
-  int borderSize = 0;
-  xmlFile->ReadPixelAttr(boxNode, "borderSize", borderSize);
-
-  Color borderColor = defaultOptionColorRect;
-  xmlFile->ReadHexColorAttr(boxNode, "borderColor", borderColor); 
-  Widget::SetBorder(borderColor, borderSize);
-
-  Color backgroundColor = defaultOptionColorBox;
-  xmlFile->ReadHexColorAttr(boxNode, "backgroundColor", backgroundColor);
-  Widget::SetBackgroundColor(backgroundColor);
+  ParseXMLBorder();
+  ParseXMLBackground();
 }
 
 void Box::Update(const Point2i &mousePosition,
@@ -181,6 +169,14 @@ GridBox::GridBox(Profile * _profile,
   this->widgetNode = _gridBoxNode;
 }
 
+/*
+  <GridBox x="50px" y="50px" 
+           width="120px" height="110px"
+           borderSize="3" borderColor="ff0102ff" 
+           backgroundColor="00ff00ff">
+    <!-- sub-widgets -->
+  </GridBox>
+*/
 bool GridBox::LoadXMLConfiguration(void)
 {
   if (NULL == profile || NULL == widgetNode) {
@@ -188,12 +184,9 @@ bool GridBox::LoadXMLConfiguration(void)
     return false;
   }
 
-  XmlReader * xmlFile = profile->GetXMLDocument();
-
   ParseXMLPosition();
   ParseXMLSize();
-
-  ParseXMLBoxParameters(xmlFile, widgetNode);
+  ParseXMLBoxParameters();
 
   return true;
 }

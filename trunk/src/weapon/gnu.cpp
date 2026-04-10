@@ -48,7 +48,7 @@ protected:
 public:
   Gnu(ExplosiveWeaponConfig& cfg,
       WeaponLauncher * p_launcher);
-  void Shoot(double strength);
+  void Shoot(Double strength);
   void Refresh();
 
   virtual void Explosion();
@@ -63,16 +63,16 @@ Gnu::Gnu(ExplosiveWeaponConfig& cfg,
   last_rebound_time = 0;
 }
 
-void Gnu::Shoot(double strength)
+void Gnu::Shoot(Double strength)
 {
   WeaponProjectile::Shoot(strength);
 
   save_x=GetX();
   save_y=GetY();
 
-  double angle = ActiveCharacter().GetFiringAngle();
+  Double angle = ActiveCharacter().GetFiringAngle();
 
-  if(angle<M_PI/2 && angle>-M_PI/2)
+  if(angle<PI/2 && angle>-PI/2)
     m_sens = 1;
   else
     m_sens = -1;
@@ -87,7 +87,7 @@ void Gnu::Refresh()
   int tmp = GetMSSinceTimeoutStart();
   if(cfg.timeout && tmp > 1000 * (GetTotalTimeout())) SignalTimeout();
 
-  double norm, angle;
+  Double norm, angle;
   //When we hit the ground, jump !
   if(!IsMoving()&& !FootsInVacuum()) {
     // Limiting number of rebound to avoid desync
@@ -108,7 +108,7 @@ void Gnu::Refresh()
     //Do the jump
     norm = RandomSync().GetDouble(2.0, 5.0);
     PutOutOfGround();
-    SetSpeedXY(Point2d(m_sens * norm , - norm * 3.0));
+    SetSpeedXY(Point2d(m_sens * norm , - norm * THREE));
     JukeBox::GetInstance()->Play("default", "weapon/gnu_bounce");
   }
 
@@ -116,25 +116,25 @@ void Gnu::Refresh()
   //sometimes, angle==infinite (according to gdb) ??
   GetSpeed(norm, angle);
 
-  while(angle < -M_PI)
-    angle += M_PI;
-  while(angle > M_PI)
-    angle -= M_PI;
+  while(angle < -PI)
+    angle += PI;
+  while(angle > PI)
+    angle -= PI;
 
-  angle /= 2.0;
+  angle /= TWO;
   if(m_sens == -1)
   {
-    if(angle > 0)
-      angle -= M_PI_2;
+    if(angle > ZERO)
+      angle -= HALF_PI;
     else
-      angle += M_PI_2;
+      angle += HALF_PI;
   }
 
-  if(angle > 4 * M_PI)
-    angle = 0;
+  if(angle > FOUR * PI)
+    angle = ZERO;
 
   image->SetRotation_rad(angle);
-  image->Scale((double)m_sens,1.0);
+  image->Scale((Double)m_sens,1.0);
   image->Update();
 }
 

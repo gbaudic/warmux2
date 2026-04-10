@@ -37,14 +37,11 @@ Widget::Widget():
   border_size(0),
   background_color(transparent_color),
   highlight_bg_color(transparent_color),
-  font_color(dark_gray_color),
-  font_shadowed(false),
-  font_size(Font::FONT_SMALL),
-  font_style(Font::FONT_BOLD),
   ct(NULL),
   need_redrawing(true),
   profile(NULL),
-  widgetNode(NULL)
+  widgetNode(NULL),
+  actionName("NoAction")
 {
 }
 
@@ -57,14 +54,11 @@ Widget::Widget(const Point2i &size):
   border_size(0),
   background_color(transparent_color),
   highlight_bg_color(transparent_color),
-  font_color(dark_gray_color),
-  font_shadowed(false),
-  font_size(Font::FONT_SMALL),
-  font_style(Font::FONT_BOLD),
   ct(NULL),
   need_redrawing(true),
   profile(NULL),
-  widgetNode(NULL)
+  widgetNode(NULL),
+  actionName("NoAction")
 {
 }
 
@@ -78,14 +72,11 @@ Widget::Widget(Profile * _profile,
   border_size(0),
   background_color(transparent_color),
   highlight_bg_color(transparent_color),
-  font_color(dark_gray_color),
-  font_shadowed(false),
-  font_size(Font::FONT_SMALL),
-  font_style(Font::FONT_BOLD),
   ct(NULL),
   need_redrawing(true),
   profile(_profile),
-  widgetNode(_widgetNode)
+  widgetNode(_widgetNode),
+  actionName("NoAction")
 {
 }
 
@@ -120,56 +111,94 @@ void Widget::RedrawBackground(const Rectanglei& rect)
     surf.RectangleColor(*this, c_red, border_size);
 }
 
-void Widget::ParseXMLPosition(void)
+void Widget::ParseXMLMisc(void)
 {
   if (NULL == profile || NULL == widgetNode) {
     return;
   }
   XmlReader * xmlFile = profile->GetXMLDocument();
-  int x = 0;
-  if (xmlFile->IsAPercentageAttr(widgetNode, "x")) {
-    double tmpValue;
-    xmlFile->ReadPercentageAttr(widgetNode, "x", tmpValue);
-    x = GetMainWindow().GetWidth() * tmpValue / 100;
-  } else {
-    xmlFile->ReadPixelAttr(widgetNode, "x", x);
-  }
 
-  int y = 0;
-  if (xmlFile->IsAPercentageAttr(widgetNode, "y")) {
-    double tmpValue;
-    xmlFile->ReadPercentageAttr(widgetNode, "y", tmpValue);
-    y = GetMainWindow().GetHeight() * tmpValue / 100;
-  } else {
-    xmlFile->ReadPixelAttr(widgetNode, "y", y);
+  xmlFile->ReadStringAttr(widgetNode, "action", actionName);
+}
+
+void Widget::ParseXMLBorder(void)
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return;
   }
+  XmlReader * xmlFile = profile->GetXMLDocument();
+
+  int borderSize = 0;
+  xmlFile->ReadPixelAttr(widgetNode, "borderSize", borderSize);
+  Color borderColor = defaultOptionColorRect;
+  xmlFile->ReadHexColorAttr(widgetNode, "borderColor", borderColor);
+  SetBorder(borderColor, borderSize);
+}
+
+void Widget::ParseXMLBackground(void)
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return;
+  }
+  XmlReader * xmlFile = profile->GetXMLDocument();
+
+  Color backgroundColor = defaultOptionColorBox;
+  xmlFile->ReadHexColorAttr(widgetNode, "backgroundColor", backgroundColor);
+  SetBackgroundColor(backgroundColor);  
+}
+
+void Widget::ParseXMLPosition(void)
+{
+  int x = ParseHorizontalTypeAttribut("x", 0);
+  int y = ParseVerticalTypeAttribut("y", 0);
   SetPosition(x, y);
 }
 
 void Widget::ParseXMLSize(void)
 {
+  int width = ParseHorizontalTypeAttribut("width", 100);
+  int height = ParseVerticalTypeAttribut("height", 100);
+  SetSize(width, height);
+}
+
+int Widget::ParseHorizontalTypeAttribut(const std::string & attributName,
+                                        int defaultValue)
+{
+  int finalValue = defaultValue;
+
   if (NULL == profile || NULL == widgetNode) {
-    return;
-  }
-  XmlReader * xmlFile = profile->GetXMLDocument();
-  int width = 100;
-  if (xmlFile->IsAPercentageAttr(widgetNode, "width")) {
-    double tmpValue;
-    xmlFile->ReadPercentageAttr(widgetNode, "width", tmpValue);
-    width = GetMainWindow().GetWidth() * tmpValue / 100;
-  } else {
-    xmlFile->ReadPixelAttr(widgetNode, "width", width);
+    return finalValue;
   }
 
-  int height = 100;
-  if (xmlFile->IsAPercentageAttr(widgetNode, "height")) {
-    double tmpValue;
-    xmlFile->ReadPercentageAttr(widgetNode, "height", tmpValue);
-    height = GetMainWindow().GetHeight() * tmpValue / 100;
+  XmlReader * xmlFile = profile->GetXMLDocument();
+  Double tmpValue;
+  
+  if (xmlFile->ReadPercentageAttr(widgetNode, attributName, tmpValue)) {
+    finalValue = GetMainWindow().GetWidth() * tmpValue / 100;
   } else {
-    xmlFile->ReadPixelAttr(widgetNode, "height", height);
+    xmlFile->ReadPixelAttr(widgetNode, attributName, finalValue);
   }
-  SetSize(width, height);
+  return finalValue;
+}
+
+int Widget::ParseVerticalTypeAttribut(const std::string & attributName, 
+                                      int defaultValue)
+{
+  int finalValue = defaultValue;
+  
+  if (NULL == profile || NULL == widgetNode) {
+    return finalValue;
+  }
+
+  XmlReader * xmlFile = profile->GetXMLDocument();
+  Double tmpValue;
+
+  if (xmlFile->ReadPercentageAttr(widgetNode, attributName, tmpValue)) {
+    finalValue = GetMainWindow().GetHeight() * tmpValue / 100;
+  } else {
+    xmlFile->ReadPixelAttr(widgetNode, attributName, finalValue);
+  }
+  return finalValue;
 }
 
 void Widget::Update(const Point2i &mousePosition,
@@ -271,32 +300,3 @@ void Widget::SetHighlightBgColor(const Color &_highlight_bg_color)
   }
 }
 
-void Widget::SetFont(const Color &_font_color,
-		     const Font::font_size_t _font_size,
-		     const Font::font_style_t _font_style,
-		     bool _font_shadowed,
-		     bool update_now)
-{
-  bool change = false;
-
-  if (font_color != _font_color) {
-    font_color = _font_color;
-    change = true;
-  }
-  if (font_size != _font_size) {
-    font_size = _font_size;
-    change = true;
-  }
-  if (font_style != _font_style) {
-    font_style = _font_style;
-    change = true;
-  }
-  if (font_shadowed != _font_shadowed) {
-    font_shadowed = _font_shadowed;
-    change = true;
-  }
-
-  if (change && update_now) {
-    OnFontChange();
-  }
-}

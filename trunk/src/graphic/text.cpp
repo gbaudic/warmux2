@@ -24,43 +24,111 @@
 #include "interface/interface.h"
 #include "map/map.h"
 
-Text::Text(const std::string &new_txt,
-           const Color& new_color,
-           Font::font_size_t fsize,
-           Font::font_style_t fstyle,
-           bool _shadowed,
-           bool _dummy)
+Text::Text(const std::string & text,
+           const Color & fontColor,
+           uint fontSize,
+           Font::font_style_t fontStyle,
+           bool isShadowed,
+           const Color & _shadowColor,
+           bool _dummy) :
+  surf(),
+  background(),
+  txt(text),
+  color(fontColor),
+  shadowed(isShadowed),
+  dummy(_dummy),
+  bg_offset(0),
+  max_width(0),
+  shadowColor(_shadowColor),
+  font_size((Font::font_size_t)fontSize),
+  font_style(fontStyle)
 {
-  font_size = fsize;
-  font_style = fstyle;
+  Init();
+}
 
-  txt = new_txt;
-  color = new_color;
-  shadowed = _shadowed;
-  dummy = _dummy;
-
-  if (shadowed) {
-    int width = Font::GetInstance(font_size, font_style)->GetWidth("x");
-    bg_offset = (unsigned int)width/8; // shadow offset = 0.125ex
-    if (bg_offset < 1) bg_offset = 1;
-  }
-  else {
-    bg_offset = 0;
-  }
-  max_width = 0;
-
-  Render();
+Text::Text() :
+  surf(),
+  background(),
+  txt("No text"),
+  color(black_color),
+  shadowed(true),
+  dummy(false),
+  bg_offset(0),
+  max_width(0),
+  shadowColor(),
+  font_size(Font::FONT_SMALL),
+  font_style(Font::FONT_NORMAL)
+{
 }
 
 Text::~Text()
 {
 }
 
+void Text::Init()
+{
+  if (shadowed) {
+    int width = Font::GetInstance(font_size, font_style)->GetWidth("x");
+    bg_offset = (unsigned int)width/8; // shadow offset = 0.125ex
+    if (bg_offset < 1) {
+      bg_offset = 1;
+    }
+  }
+  Render();
+}
+
+void Text::LoadXMLConfiguration(XmlReader * xmlFile,
+                                const xmlNode * textNode)
+{
+  std::string xmlText("Text not found");
+  xmlFile->ReadStringAttr(textNode, "text", xmlText);
+
+  Color textColor(0, 0, 0, 255);
+  xmlFile->ReadHexColorAttr(textNode, "textColor", textColor);
+
+  // Load the font size ... based on 72 DPI
+  int fontSize = 12;
+  Double tmpValue;
+
+  if (xmlFile->ReadPercentageAttr(textNode, "fontSize", tmpValue)) {
+    fontSize = GetMainWindow().GetHeight() * tmpValue / 100;
+  } else {
+    xmlFile->ReadPixelAttr(textNode, "fontSize", fontSize);
+  }
+
+  std::string fontStyle;
+  xmlFile->ReadStringAttr(textNode, "fontStyle", fontStyle);
+
+  bool activeShadow = false;
+  xmlFile->ReadBoolAttr(textNode, "shadow", activeShadow);
+  Color shadowColor(255, 255, 255, 255);
+  xmlFile->ReadHexColorAttr(textNode, "shadowColor", shadowColor);
+
+  SetText(xmlText);
+  SetFont(textColor,
+          (Font::font_size_t)fontSize,
+          DetectFontStyle(fontStyle),
+          activeShadow,
+          shadowColor);
+  Init();
+}
+
+Font::font_style_t Text::DetectFontStyle(const std::string & fontStyle)
+{
+  if ("bold" == fontStyle) {
+    return Font::FONT_BOLD;
+  } else if ("italic" == fontStyle) {
+    return Font::FONT_ITALIC;
+  }
+  return Font::FONT_NORMAL;
+}
+
 void Text::Render()
 {
-  if (!dummy)
-  {
-    if (txt=="") return;
+  if (!dummy) {
+    if ("" == txt) {
+      return;
+    }
 
     if (max_width != 0) {
       RenderMultiLines();
@@ -70,31 +138,30 @@ void Text::Render()
     Font* font = Font::GetInstance(font_size, font_style);
 
     surf = font->CreateSurface(txt, color);
-    if ( shadowed ) {
-      background = font->CreateSurface(txt, black_color);
+    if (shadowed) {
+      background = font->CreateSurface(txt, shadowColor);
     }
-  }
-  else
-  {
-    int psize = Font::GetPointSize(font_size);
-    surf = Surface(Point2i(psize, psize), 0);
-    if ( shadowed ) {
-      background = Surface(Point2i(psize, psize), 0);
+  } else {
+    surf = Surface(Point2i(font_size, font_size), 0);
+    if (shadowed) {
+      background = Surface(Point2i(font_size, font_size), 0);
     }
   }
 }
 
 void Text::RenderMultiLines()
 {
-  if (txt=="") return;
+  if ("" == txt) {
+    return;
+  }
 
   Font* font = Font::GetInstance(font_size, font_style);
 
   // Make a first try
   if (font->GetWidth(txt) < int(max_width)) {
     surf = font->CreateSurface(txt, color);
-    if ( shadowed ) {
-      background = font->CreateSurface(txt, black_color);
+    if (shadowed) {
+      background = font->CreateSurface(txt, shadowColor);
     }
     return;
   }
@@ -186,7 +253,7 @@ void Text::RenderMultiLines()
   }
 }
 
-void Text::Set(const std::string &new_txt)
+void Text::SetText(const std::string &new_txt)
 {
   if(txt == new_txt)
     return;
@@ -267,7 +334,7 @@ void Text::DrawCursor(const Point2i &text_pos, std::string::size_type cursor_pos
   uint txt_width = 1;
   if (GetText() != "") {
     Text txt_before_cursor(*this);
-    txt_before_cursor.Set(GetText().substr(0, cursor_pos));
+    txt_before_cursor.SetText(GetText().substr(0, cursor_pos));
     txt_width = txt_before_cursor.GetWidth();
   }
   GetMainWindow().VlineColor(text_pos.GetX()+txt_width,
@@ -317,5 +384,23 @@ void DrawTmpBoxText(Font& font, Point2i pos,
 
   pos.y += font.GetHeight(txt)/2;
   font.WriteCenter( pos, txt, white_color);
+}
+
+void Text::SetFont(const Color &_font_color,
+                   const Font::font_size_t _font_size,
+                   const Font::font_style_t _font_style,
+                   bool _font_shadowed,
+                   const Color & _shadowColor)
+{
+  color = _font_color;
+  font_size = _font_size;
+  font_style = _font_style;
+  shadowColor = _shadowColor;
+
+  if (shadowed != _font_shadowed) {
+    // recompute shadow offset
+    shadowed = _font_shadowed;
+    Init();
+  }
 }
 
