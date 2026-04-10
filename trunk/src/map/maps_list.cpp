@@ -32,6 +32,7 @@
 #include <WORMUX_random.h>
 #include "tool/string_tools.h"
 #include "tool/xml_document.h"
+#include <sstream>
 
 extern const uint MAX_WIND_OBJECTS;
 
@@ -52,7 +53,7 @@ InfoMap::InfoMap(const std::string &map_name,
   is_data_loaded(false),
   random_generated(false),
   island_type(RANDOM_GENERATED),
-  water_type(Water::NO_WATER),
+  water_type("no"),
   res_profile(NULL)
 {
   wind.nb_sprite = 0;
@@ -78,7 +79,6 @@ void InfoMap::LoadBasicInfo()
   preview = GetResourceManager().LoadImage(res_profile, "preview");
   is_basic_info_loaded = true;
   // Load other informations
-  XmlReader doc;
   if (!doc.Load(nomfich) || !ProcessXmlData(doc.GetRoot()))
     throw _("error parsing the config file");
 
@@ -87,7 +87,7 @@ void InfoMap::LoadBasicInfo()
 
 bool InfoMap::ProcessXmlData(const xmlNode *xml)
 {
-    uint tmpisle = (uint) island_type;
+  uint tmpisle = (uint) island_type;
 
   XmlReader::ReadBool(xml, "random", random_generated);
 
@@ -131,9 +131,19 @@ bool InfoMap::ProcessXmlData(const xmlNode *xml)
   XmlReader::ReadBool(xml, "is_open", is_opened);
 
   // reading water type
-  std::string water_name;
-  XmlReader::ReadString(xml, "water", water_name);
-  water_type = (Water::Water_type)Water::GetWaterType(water_name);
+  water_type = "no";
+  XmlReader::ReadString(xml, "water", water_type);
+
+  // check this water type is valid
+  if (water_type != "no") {
+    std::string path = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR +
+      "water" + PATH_SEPARATOR + water_type;
+    if (!DoesFileExist(path)) {
+      fprintf(stderr, "Map %s (%s) uses invalid water type %s\n",
+	      GetRawName().c_str(), ReadFullMapName().c_str(), water_type.c_str());
+      water_type = "no";
+    }
+  }
 
   // Load padding value
   bool add_pad = false;
@@ -178,8 +188,21 @@ void InfoMap::LoadData()
 
   MSG_DEBUG("map.load", "Map data loaded: %s", name.c_str());
 
-  img_sky = GetResourceManager().LoadImage(res_profile,"sky");
-  if(!random_generated) {
+  img_sky = GetResourceManager().LoadImage(res_profile, "sky");
+
+  if (Config::GetInstance()->GetDisplayMultiLayerSky()) {
+
+    uint layer = 0;
+    XmlReader::ReadUint(doc.GetRoot(), "sky_layer", layer);
+
+    for (uint i = 0; i < layer; i++) {
+      std::ostringstream ss;
+      ss << "sky_layer_" << i;
+      sky_layer.push_back(GetResourceManager().LoadImage(res_profile, ss.str()));
+    }
+  }
+
+  if (!random_generated) {
     img_ground = GetResourceManager().LoadImage(res_profile, "map");
   } else {
     img_ground = GetResourceManager().GenerateMap(res_profile, island_type, img_sky.GetWidth(), img_sky.GetHeight());
@@ -189,6 +212,13 @@ void InfoMap::LoadData()
 void InfoMap::FreeData()
 {
   img_sky.Free();
+
+  std::vector<Surface>::iterator it = sky_layer.begin();
+  while (it != sky_layer.end()) {
+    it->Free();
+    sky_layer.erase(it);
+  }
+
   img_ground.Free();
   is_data_loaded = false;
 }
@@ -205,6 +235,13 @@ Surface& InfoMap::ReadImgSky()
   LoadBasicInfo();
   LoadData();
   return img_sky;
+}
+
+std::vector<Surface>& InfoMap::ReadSkyLayer()
+{
+  LoadBasicInfo();
+  LoadData();
+  return sky_layer;
 }
 
 std::string InfoMap::GetConfigFilepath() const
@@ -234,7 +271,7 @@ MapsList::MapsList()
     while ((name = FolderSearchNext(f)) != NULL) LoadOneMap(dirname, name);
     CloseFolder(f);
   } else {
-    Error (Format(_("Unable to open maps directory (%s)!"), dirname.c_str()));
+    Error (Format(_("Unable to open the maps directory (%s)!"), dirname.c_str()));
   }
 
   // Load personal maps
@@ -246,7 +283,7 @@ MapsList::MapsList()
     CloseFolder(f);
   } else {
         std::cerr << std::endl
-          << Format(_("Unable to open personal maps directory (%s)!"),
+          << Format(_("Unable to open the personal maps directory (%s)!"),
                       dirname.c_str())
           << std::endl;
   }
@@ -255,7 +292,7 @@ MapsList::MapsList()
 
   // On a au moins une carte ?
   if (lst.size() < 1)
-    Error(_("You need at least one valid map !"));
+    Error(_("You need at least one valid map!"));
 
   /* Get the full set of map ordered */
   std::sort(lst.begin(), lst.end(), compareMaps);
@@ -277,7 +314,7 @@ void MapsList::LoadOneMap (const std::string &dir, const std::string &map_name)
   if (map_name[0] == '.') return;
 
   std::string fullname = dir + map_name;
-  if (!IsFolderExist(fullname))
+  if (!DoesFolderExist(fullname))
     return;
 
   InfoMap *nv_terrain = new InfoMap(map_name, fullname + PATH_SEPARATOR);

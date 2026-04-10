@@ -32,9 +32,9 @@
 #include "interface/mouse.h"
 #include "particles/body_member.h"
 #include "particles/teleport_member.h"
+#include "network/randomsync.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include <WORMUX_random.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 
@@ -607,7 +607,8 @@ void Body::SetMovement(const std::string& name)
 void Body::PlayAnimation()
 {
   std::ostringstream name;
-  name << "animation" << RandomLocal().GetLong(0, animation_number - 1);
+  MSG_DEBUG("random.get", "Body::PlayAnimation()");
+  name << "animation" << RandomSync().GetLong(0, animation_number - 1);
   SetClotheOnce(name.str());
   SetMovementOnce(name.str());
 }
@@ -715,6 +716,14 @@ uint Body::GetFrameCount() const
 
 void Body::SetFrame(uint no)
 {
+#ifdef DEBUG
+  if (no >= current_mvt->GetFrames().size()) {
+    fprintf(stderr, "%s:%d Clothe: %s\n", __PRETTY_FUNCTION__, __LINE__, current_clothe->GetName().c_str());
+    fprintf(stderr, "%s:%d Movement: %s\n", __PRETTY_FUNCTION__, __LINE__, current_mvt->GetType().c_str());
+    fprintf(stderr, "%s:%d Frame requested: %d - Max nb frames: %d\n", __PRETTY_FUNCTION__, __LINE__,
+	    no,(int) current_mvt->GetFrames().size());
+  }
+#endif
   ASSERT(no < current_mvt->GetFrames().size());
   current_frame = no;
   current_loop = 0;

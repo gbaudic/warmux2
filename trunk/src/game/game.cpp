@@ -65,42 +65,44 @@
 //#define USE_VALGRIND
 #endif
 
-std::string Game::current_mode_name = "none";
+std::string Game::current_rules = "none";
 
 Game * Game::GetInstance()
 {
-  if (singleton == NULL)
-  {
-    if (current_mode_name == "none")
-      current_mode_name = Config::GetInstance()->GetGameMode();
+  if (singleton == NULL) {
 
-    if (current_mode_name == "classic" || current_mode_name == "unlimited")
-      singleton = new GameClassic();
-    else if (current_mode_name == "blitz")
-    {
-      //printf(">>>> Starting in blitz!\n");
+    current_rules = GameMode::GetRef().rules;
+
+    if (GameMode::GetRef().rules == "blitz")
       singleton = new GameBlitz();
-    }
-    else
-    {
-      fprintf(stderr, "%s game mode not implemented\n", current_mode_name.c_str());
+    else if (GameMode::GetRef().rules == "classic")
+      singleton = new GameClassic();
+    else {
+      fprintf(stderr, "%s game rules not implemented\n", GameMode::GetRef().rules.c_str());
       exit(1);
     }
   }
   return singleton;
 }
 
-Game * Game::UpdateGameMode()
+bool Game::IsRunning()
 {
-  const std::string& config_mode_name = Config::GetInstance()->GetGameMode();
-  printf("Current mode: %s\n", config_mode_name.c_str());
-  if (singleton != NULL && current_mode_name != config_mode_name)
+  if (!singleton)
+    return false;
+
+  return (singleton->IsGameLaunched());
+}
+
+Game * Game::UpdateGameRules()
+{
+  const std::string& config_rules = GameMode::GetRef().rules;
+  printf("Current rules: %s\n", config_rules.c_str());
+  if (singleton != NULL && current_rules != config_rules)
   {
-    printf("Mode change! -> %s %s\n", config_mode_name.c_str(), current_mode_name.c_str());
+    printf("Rules change! %s -> %s\n", current_rules.c_str(), config_rules.c_str());
     delete singleton;
   }
 
-  current_mode_name = config_mode_name;
   return GetInstance();
 }
 
@@ -185,7 +187,8 @@ void Game::UnloadDatas(bool game_finished) const
   JukeBox::GetInstance()->StopAll();
 }
 
-bool Game::IsGameLaunched() const{
+bool Game::IsGameLaunched() const
+{
   return isGameLaunched;
 }
 
@@ -220,7 +223,8 @@ Game::Game():
   delay(0),
   time_of_next_frame(0),
   time_of_next_phy_frame(0),
-  character_already_chosen(false)
+  character_already_chosen(false),
+  m_current_turn(0)
 { }
 
 Game::~Game()
@@ -239,6 +243,8 @@ void Game::Init()
   Camera::GetInstance()->Reset();
 
   ActionHandler::GetInstance()->ExecActions();
+
+  m_current_turn = 0;
 
   FOR_ALL_CHARACTERS(team, character)
     (*character).ResetDamageStats();
@@ -261,7 +267,6 @@ void Game::RefreshInput()
 {
   // Poll and treat keyboard and mouse events
   SDL_Event event;
-  bool refresh_joystick =  Joystick::GetInstance()->GetNumberOfJoystick() > 0;
   while(SDL_PollEvent(&event)) {
 
     // Emergency exit
@@ -282,18 +287,23 @@ void Game::RefreshInput()
     // Keyboard event
     Keyboard::GetInstance()->HandleKeyEvent(event);
     // Joystick event
-    if(refresh_joystick && !Config::GetInstance()->IsJoystickDisable())
-      Joystick::GetInstance()->HandleKeyEvent(event);
+    Joystick::GetInstance()->HandleKeyEvent(event);
   }
 
   // Keyboard, Joystick and mouse refresh
-  if(!Config::GetInstance()->IsMouseDisable())
-    Mouse::GetInstance()->Refresh();
+  Mouse::GetInstance()->Refresh();
   Keyboard::GetInstance()->Refresh();
-  if(refresh_joystick && !Config::GetInstance()->IsJoystickDisable())
-    Joystick::GetInstance()->Refresh();
+  Joystick::GetInstance()->Refresh();
   AIengine::GetInstance()->Refresh();
 
+  GameMessages::GetInstance()->Refresh();
+
+  if (!IsGameFinished())
+    Camera::GetInstance()->Refresh();
+}
+
+void Game::RefreshActions() const
+{
   // Execute action
   do {
     ActionHandler::GetInstance()->ExecActions();
@@ -302,15 +312,26 @@ void Game::RefreshInput()
 	   !HasBeenNetworkDisconnected());
 
   Network::GetInstance()->sync_lock = false;
-
-  GameMessages::GetInstance()->Refresh();
-
-  if (!IsGameFinished())
-    Camera::GetInstance()->Refresh();
 }
 
 // ####################################################################
 // ####################################################################
+
+bool Game::IsCharacterAlreadyChosen() const
+{
+  return character_already_chosen;
+}
+
+void Game::SetCharacterChosen(bool chosen)
+{
+  if (character_already_chosen == chosen)
+    return;
+
+  character_already_chosen = chosen;
+  if (chosen) {
+    CharacterCursor::GetInstance()->Hide();
+  }
+}
 
 void Game::RefreshObject() const
 {
@@ -510,9 +531,15 @@ void Game::MainLoop()
   StatStart("Game:RefreshInput()");
   RefreshInput();
   StatStop("Game:RefreshInput()");
+
   StatStart("Game:RefreshObject()");
   RefreshObject();
   StatStop("Game:RefreshObject()");
+
+  StatStart("Game:RefreshActions()");
+  // Action from time t must be executed after physical engine frame at time t
+  RefreshActions();
+  StatStop("Game:RefreshActions()");
 
   // Refresh the map
   GetWorld().Refresh();
@@ -589,7 +616,7 @@ bool Game::NewBox()
 void Game::AddNewBox(ObjBox * box)
 {
   ObjectsList::GetRef().AddObject(box);
-  Camera::GetInstance()->FollowObject(box, true, true);
+  Camera::GetInstance()->FollowObject(box);
   GameMessages::GetInstance()->Add(_("It's a present!"));
   SetCurrentBox(box);
 }
@@ -618,6 +645,7 @@ void Game::Really_SetState(game_loop_state_t new_state)
   // Little pause at the end of the turn
   case END_TURN:
     __SetState_END_TURN();
+    m_current_turn++;
     break;
   }
 }
@@ -643,9 +671,10 @@ void Game::SetState(game_loop_state_t new_state, bool begin_game) const
 
   MSG_DEBUG("game", "Ask for state %d", new_state);
 
+  MSG_DEBUG("random.get", "Game::SetState(...): %d");
   Action *a = new Action(Action::ACTION_GAMELOOP_SET_STATE);
-  int seed = RandomSync().GetRand();
-  a->Push(seed);
+  uint seed = RandomSync().GetSeed();
+  a->Push((int)seed);
   a->Push(new_state);
   ActionHandler::GetInstance()->NewAction(a);
 }
@@ -705,7 +734,16 @@ void Game::SignalCharacterDeath (const Character *character) const
   std::string txt;
 
   ASSERT(IsGameLaunched());
-  if (character->IsGhost()) {
+
+  if (ActiveTeam().GetWeaponType() == Weapon::WEAPON_BASEBALL
+      && &ActiveCharacter() != character) {
+    txt = Format(_("What a beautiful homerun! %s from %s team is in another world..."),
+                 character->GetName().c_str(),
+                 character->GetTeam().GetName().c_str());
+
+    JukeBox::GetInstance()->Play(ActiveTeam().GetSoundProfile(), "weapon/baseball_homerun");
+
+  } else if (character->IsGhost()) {
     txt = Format(_("%s from %s team has fallen off the map!"),
                  character->GetName().c_str(),
                  character->GetTeam().GetName().c_str());
@@ -818,4 +856,8 @@ bool Game::MenuQuitPause() const
   return exit;
 }
 
+uint Game::GetCurrentTurn()
+{
+  return (m_current_turn+1)/2 ;
+}
 

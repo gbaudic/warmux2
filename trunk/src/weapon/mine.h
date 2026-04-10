@@ -22,9 +22,11 @@
 #ifndef MINE_H
 #define MINE_H
 
-#include "weapon_cfg.h"
-#include "weapon/weapon_launcher.h"
+#include <WORMUX_singleton.h>
 #include "include/base.h"
+#include "weapon/weapon_cfg.h"
+#include "weapon/weapon_launcher.h"
+
 
 class Mine;
 class MineConfig;
@@ -61,20 +63,18 @@ private:
     void Refresh();
 };
 
-class MineConfig : public ExplosiveWeaponConfig
+class MineConfig : public Singleton<MineConfig>, public ExplosiveWeaponConfig
 {
-  private:
-    static MineConfig * singleton;
-  public:
-    uint escape_time;
-    double detection_range;
-    double speed_detection;
-
-  private:
-    MineConfig();
-  public:
-    static MineConfig * GetInstance();
-    virtual void LoadXml(const xmlNode* elem);
+protected:
+  friend class Singleton<MineConfig>;
+public:
+  uint escape_time;
+  double detection_range;
+  double speed_detection;
+private:
+  MineConfig();
+public:
+  virtual void LoadXml(const xmlNode* elem);
 };
 
 class Mine : public WeaponLauncher

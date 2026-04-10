@@ -280,8 +280,13 @@ bool JukeBox::PlayMusic(const std::string& type)
   if(it == playlist.end())
   {
     std::cerr << "[Music] Unable to find " << type << " profile" << std::endl;
-    return false;
+    if (type == "ingame"){
+      return false;
+    } else {
+      return PlayMusic("ingame");
+    }
   }
+
 
   MSG_DEBUG("jukebox", "Loading playlist %s", type.c_str());
 
@@ -294,7 +299,7 @@ bool JukeBox::PlayMusic(const std::string& type)
   int i, j = 0;
   do
   {
-    i = rand()%it->second.size();
+    i = RandomLocal().GetInt(0,it->second.size()-1);
     j++;
   } while(!PlayMusicSample(it->second.begin()+i) && j < 10); // After 10 times, we think there is a problem.
 

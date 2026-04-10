@@ -24,6 +24,7 @@
 
 #include <limits>
 #include <string>
+#include "character/body.h"
 #include "gui/energy_bar.h"
 #include "include/base.h"
 #include "object/physical_obj.h"
@@ -33,7 +34,6 @@ class Text;
 class Team;
 class ParticleEngine;
 class DamageStatistics;
-class Body;
 
 #ifdef DEBUG
 //#define DEBUG_SKIN
@@ -104,6 +104,10 @@ private:
   void SetBody(Body* char_body);
 
   void AddFiringAngle(double angle) { SetFiringAngle(firing_angle + angle); };
+
+  void StartWalk(bool slowly);
+  void StopWalk();
+  bool IsWalking() const;
 
 public:
 
@@ -180,6 +184,7 @@ public:
   // Can we move (check a timeout)
   bool CanMoveRL() const;
   bool CanJump() const { return CanMoveRL(); };
+  void Move(enum BodyDirection direction, bool slowly);
 
   // Jumps
   void Jump(double strength, double angle);
@@ -224,11 +229,11 @@ public:
 
   // Keyboard handling
   void HandleKeyPressed_MoveRight(bool shift);
-  void HandleKeyRefreshed_MoveRight(bool shift) const;
+  void HandleKeyRefreshed_MoveRight(bool shift);
   void HandleKeyReleased_MoveRight(bool shift);
 
   void HandleKeyPressed_MoveLeft(bool shift);
-  void HandleKeyRefreshed_MoveLeft(bool shift) const;
+  void HandleKeyRefreshed_MoveLeft(bool shift);
   void HandleKeyReleased_MoveLeft(bool shift);
 
   void HandleKeyPressed_Up(bool shift) { HandleKeyRefreshed_Up(shift); };

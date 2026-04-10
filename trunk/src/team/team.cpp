@@ -74,7 +74,6 @@ Team::Team (const std::string& teams_dir, const std::string& id)
 
   active_character = characters.end();
 
-  is_camera_saved = false;
   active_weapon = NULL;
   attached_custom_team = NULL;
 
@@ -198,21 +197,27 @@ void Team::SelectCharacter(const Character * c)
   ActiveCharacter().StartPlaying();
 }
 
-void Team::NextCharacter()
+void Team::NextCharacter(bool newturn)
 {
   ASSERT (0 < NbAliveCharacter());
+
   ActiveCharacter().StopPlaying();
-  do
-  {
-    ++active_character;
-    if (active_character == characters.end())
-      active_character = characters.begin();
-  } while (ActiveCharacter().IsDead());
+
+  // we change character:
+  // - if user asked so
+  // - if it's a new turn and game mode requests a change of character
+  if (!newturn || GameMode::GetInstance()->auto_change_character) {
+
+    do {
+      ++active_character;
+      if (active_character == characters.end())
+	active_character = characters.begin();
+    } while (ActiveCharacter().IsDead());
+  }
   ActiveCharacter().StartPlaying();
 
-  if (is_camera_saved) Camera::GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
-  Camera::GetInstance()->FollowObject (&ActiveCharacter(),
-                          !is_camera_saved);
+  Camera::GetInstance()->CenterOnActiveCharacter();
+
   MSG_DEBUG("team", "%s (%d, %d)is now the active character",
             ActiveCharacter().GetName().c_str(),
             ActiveCharacter().GetX(),
@@ -229,11 +234,10 @@ void Team::PreviousCharacter()
       active_character = characters.end();
     --active_character;
   } while (ActiveCharacter().IsDead());
+
   ActiveCharacter().StartPlaying();
 
-  if (is_camera_saved) Camera::GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
-  Camera::GetInstance()->FollowObject (&ActiveCharacter(),
-                          !is_camera_saved);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter());
   MSG_DEBUG("team", "%s (%d, %d)is now the active character",
             ActiveCharacter().GetName().c_str(),
             ActiveCharacter().GetX(),
@@ -257,15 +261,11 @@ void Team::PrepareTurn()
   current_turn++;
 
   // Get a living character if possible
-  if (ActiveCharacter().IsDead())
-  {
-    is_camera_saved = false;
+  if (ActiveCharacter().IsDead()) {
     NextCharacter();
   }
 
-  if (is_camera_saved) Camera::GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
-  Camera::GetInstance()->FollowObject (&ActiveCharacter(),
-                          !is_camera_saved);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter(),true);
   CharacterCursor::GetInstance()->FollowActiveCharacter();
 
   // Updating weapon ammos (some weapons are not available from the beginning)
@@ -395,7 +395,6 @@ void Team::LoadGamingData()
   }
 
   active_weapon = WeaponsList::GetInstance()->GetWeapon(Weapon::WEAPON_DYNAMITE);
-  is_camera_saved = false;
 
   LoadCharacters();
 }

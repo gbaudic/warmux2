@@ -24,7 +24,7 @@
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "sound/jukebox.h"
-#include <WORMUX_random.h>
+#include "network/randomsync.h"
 #include "weapon/explosion.h"
 #include "weapon/weapon_cfg.h"
 
@@ -33,11 +33,17 @@ const uint dig_ground_time = 1000;
 
 ExplosiveWeaponConfig fire_cfg;
 
+static long GetRandomDigGroundTime()
+{
+  MSG_DEBUG("random.get", "GetRandomDigGroundTime");
+  return RandomSync().GetLong(0, dig_ground_time);
+}
+
 FireParticle::FireParticle() :
   Particle("fire_particle"),
   creation_time(Time::GetInstance()->Read()),
   on_ground(false),
-  oscil_delta(RandomLocal().GetLong(0, dig_ground_time))
+  oscil_delta(GetRandomDigGroundTime())
 {
   SetCollisionModel(true, false, false);
   m_left_time_to_live = 100;
@@ -75,8 +81,8 @@ void FireParticle::Refresh()
   if(image->GetSize().x != 0 && image->GetSize().y != 0)
   {
     int dx = (GetWidth() - image->GetWidth()) / 2;
-
-    SetTestRect(dx, dx - 1, GetHeight() - 2,1);
+    int dy = std::max(0, GetHeight() - 2);
+    SetTestRect(dx, dx, dy, 1);
   }
 
   // The position of the object represents its top left corner

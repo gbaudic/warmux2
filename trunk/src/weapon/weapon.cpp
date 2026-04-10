@@ -172,10 +172,7 @@ void Weapon::Select()
 
   // is there a crosshair ?
   if (m_display_crosshair)
-    ActiveTeam().crosshair.display = true;
-
-  if(!EqualsZero(min_angle - max_angle))
-    ActiveTeam().crosshair.enable = true;
+    ActiveTeam().crosshair.SetActive(true);
 
   p_Select();
 
@@ -196,8 +193,9 @@ void Weapon::Select()
 
 void Weapon::Deselect()
 {
-  ActiveTeam().crosshair.enable = false;
-  ActiveTeam().crosshair.display = false;
+  ActiveTeam().crosshair.SetActive(false);
+  ActiveCharacter().SetFiringAngle(0);
+  ActiveCharacter().SetMovement("breathe");
   m_is_active = false;
   MSG_DEBUG("weapon.change", "Deselect %s", m_name.c_str());
   p_Deselect();
@@ -330,7 +328,7 @@ bool Weapon::Shoot()
 
   if (max_strength != 0) ActiveCharacter().previous_strength = m_strength;
 
-  Game::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->SetCharacterChosen(true);
 
   return true;
 }
@@ -453,7 +451,7 @@ void Weapon::InitLoading(){
 
   m_strength = 0;
 
-  Game::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->SetCharacterChosen(true);
 }
 
 void Weapon::StopLoading(){
@@ -703,20 +701,18 @@ void Weapon::ActionStopUse()
 // #################### SHOOT
 void Weapon::HandleKeyPressed_Shoot(bool)
 {
-  if(ActiveCharacter().IsPreparingShoot())
+  if (ActiveCharacter().IsPreparingShoot())
     return;
 
-  if (max_strength == 0)
-    NewActionWeaponShoot();
-  else if ( IsReady() )
+  if (max_strength != 0 && IsReady())
     InitLoading();
 }
 
 void Weapon::HandleKeyRefreshed_Shoot(bool)
 {
-  if(ActiveCharacter().IsPreparingShoot())
+  if (ActiveCharacter().IsPreparingShoot())
     return;
-  if ( !IsLoading() )
+  if (!IsLoading())
     return;
 
   // Strength == max strength -> Fire !!!
@@ -730,16 +726,15 @@ void Weapon::HandleKeyRefreshed_Shoot(bool)
 
 void Weapon::HandleKeyReleased_Shoot(bool)
 {
-  if(ActiveCharacter().IsPreparingShoot())
-    return;
-  if ( !IsLoading())
-    return;
-
-  NewActionWeaponShoot();
+  if (!ActiveCharacter().IsPreparingShoot()) {
+    NewActionWeaponShoot();
+  }
 }
 
 void Weapon::p_Deselect()
 {
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
+
   ActiveCharacter().SetMovement("breathe");
 }
 

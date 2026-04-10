@@ -19,11 +19,8 @@
  * Air attack.
  *****************************************************************************/
 
-#include "weapon/air_attack.h"
-#include "weapon/explosion.h"
-#include "weapon/weapon_cfg.h"
-
 #include <sstream>
+
 #include "character/character.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
@@ -31,12 +28,15 @@
 #include "interface/mouse.h"
 #include "map/map.h"
 #include "map/camera.h"
+#include "network/network.h"
 #include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "team/teams_list.h"
 #include "tool/resource_manager.h"
-#include <WORMUX_random.h>
 #include "tool/xml_document.h"
+#include "weapon/air_attack.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 
 const int FORCE_X_MIN = -50;
@@ -129,7 +129,7 @@ void Plane::Shoot(double speed, const Point2i& target)
 
   SetSpeedXY (speed_vector);
 
-  Camera::GetInstance()->FollowObject(this, true, true);
+  Camera::GetInstance()->FollowObject(this);
 
   ObjectsList::GetRef().AddObject(this);
 }
@@ -154,7 +154,7 @@ void Plane::DropBomb()
   nb_dropped_bombs++;
 
   if (nb_dropped_bombs == 1)
-    Camera::GetInstance()->FollowObject(instance, true, true);
+    Camera::GetInstance()->FollowObject(instance);
 
 }
 
@@ -167,12 +167,14 @@ void Plane::Refresh()
   if ( OnTopOfTarget() && nb_dropped_bombs == 0) {
     DropBomb();
     m_ignore_movements = true;
-    next_height = RandomLocal().GetInt(20,100);
+    MSG_DEBUG("random.get", "Plane::Refresh() first bomb");
+    next_height = RandomSync().GetInt(20,100);
   } else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {
     // Get the last rocket and check the position to be sure to not collide with it
     if ( last_dropped_bomb->GetY() > GetY()+GetHeight()+next_height )
     {
-      next_height = RandomLocal().GetInt(20,100);
+      MSG_DEBUG("random.get", "Plane::Refresh() another bomb");
+      next_height = RandomSync().GetInt(20,100);
       DropBomb();
     }
   }
@@ -216,7 +218,7 @@ AirAttack::AirAttack() :
 void AirAttack::UpdateTranslationStrings()
 {
   m_name = _("Air Attack");
-  m_help = _("attack direction : Left/Right\nBombing : left clic on target\na bombing per turn");
+  m_help = _("attack direction : Left/Right\nBombing : left click on the target\none bombing per turn");
 }
 
 void AirAttack::ChooseTarget(Point2i mouse_pos)
@@ -233,7 +235,8 @@ bool AirAttack::p_Shoot ()
     return false;
 
   // Go back to default cursor
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
+  if (Network::GetInstance()->IsTurnMaster())
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
 
   Plane * plane = new Plane(cfg());
   plane->Shoot(cfg().speed, target);
@@ -245,19 +248,13 @@ bool AirAttack::p_Shoot ()
 
 void AirAttack::p_Select()
 {
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_FIRE);
+  if (Network::GetInstance()->IsTurnMaster())
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_FIRE);
 }
 
 bool AirAttack::IsInUse() const
 {
   return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
-}
-
-void AirAttack::p_Deselect()
-{
-  // Go back to default cursor
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
-  ActiveCharacter().SetMovement("breathe");
 }
 
 AirAttackConfig& AirAttack::cfg()

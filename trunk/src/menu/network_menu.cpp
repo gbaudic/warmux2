@@ -18,6 +18,7 @@
  ******************************************************************************
  * Game menu
  *****************************************************************************/
+#include <WORMUX_index_server.h>
 
 #include "menu/network_menu.h"
 
@@ -36,7 +37,7 @@
 #include "gui/text_box.h"
 #include "include/action_handler.h"
 #include "include/app.h"
-#include <WORMUX_index_server.h>
+#include "include/constant.h"
 #include "network/network.h"
 #include "network/network_server.h"
 #include "team/teams_list.h"
@@ -115,22 +116,6 @@ NetworkMenu::NetworkMenu() :
 				  0, Font::FONT_SMALL, Font::FONT_NORMAL);
   options_box->AddWidget(initialized_players);
 
-  if (!Network::GetInstance()->IsGameMaster()) {
-    // Client Mode
-    mode_label->SetText(_("Client mode"));
-    player_number->SetVisible(false);
-    connected_players->SetVisible(false);
-    initialized_players->SetVisible(false);
-  } else if (Network::GetInstance()->IsServer()) {
-    // Server Mode
-    mode_label->SetText(_("Server mode"));
-
-  } else {
-    // The first player to connect to a headless server asumes the game master role
-    mode_label->SetText(_("Master mode"));
-    player_number->SetVisible(false);
-  }
-
   play_in_loop = new CheckBox(_("Play several times"), W_UNDEF, true);
   options_box->AddWidget(play_in_loop);
 
@@ -160,6 +145,21 @@ NetworkMenu::NetworkMenu() :
   widgets.Pack();
 
   GetResourceManager().UnLoadXMLProfile(res);
+
+  if (!Network::GetInstance()->IsGameMaster()) {
+    // Client Mode
+    mode_label->SetText(_("Client mode"));
+    player_number->SetVisible(false);
+    connected_players->SetVisible(false);
+    initialized_players->SetVisible(false);
+  } else if (Network::GetInstance()->IsServer()) {
+    // Server Mode
+    mode_label->SetText(_("Server mode"));
+
+  } else {
+    // The first player to connect to a headless server asumes the game master role
+    SetGameMasterCallback();
+  }
 }
 
 NetworkMenu::~NetworkMenu()
@@ -202,6 +202,10 @@ void NetworkMenu::PrepareForNewGame()
   Network::GetInstance()->SetState(WNet::NETWORK_NEXT_GAME);
   Network::GetInstance()->SendNetworkState();
 
+  // to choose another random map
+  if (Network::GetInstance()->IsGameMaster())
+    map_box->ChangeMapDelta(0);
+
   RedrawMenu();
 }
 
@@ -223,7 +227,7 @@ bool NetworkMenu::signal_ok()
     }
     if(!found)
     {
-      msg_box->NewMessage(_("You won't be able to play before selecting a team !"));
+      msg_box->NewMessage(_("You won't be able to play before selecting a team!"));
       goto error;
     }
 
@@ -273,6 +277,9 @@ bool NetworkMenu::signal_ok()
 
     if (Network::GetInstance()->IsServer())
       IndexServer::GetInstance()->Disconnect();
+
+    if (Network::GetInstance()->IsGameMaster())
+      GameMode::GetInstance()->Load();
 
     Game::GetInstance()->Start();
 
@@ -333,10 +340,10 @@ void NetworkMenu::Draw(const Point2i &/*mousePosition*/)
       if (Network::GetInstance()->GetNbHostsConnected() ==
 	  Network::GetInstance()->GetNbHostsInitialized()
 	  && Network::GetInstance()->GetNbHostsInitialized() != 0) {
-	msg_box->NewMessage(_("The others are waiting for you! Wake up :-)"), c_red);
+	msg_box->NewMessage(_("The others are waiting for you! Wake up! :-)"), c_red);
       }
       else if (Network::GetInstance()->GetNbHostsConnected() == 0) {
-	msg_box->NewMessage(_("You are alone :-/"), c_red);
+	msg_box->NewMessage(_("You are alone. :-/"), c_red);
       }
     }
   }
@@ -383,6 +390,9 @@ void NetworkMenu::ChangeMapCallback()
 void NetworkMenu::SetGameMasterCallback()
 {
   // We are becoming game master, updating the menu...
+  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") +
+						     Constants::WORMUX_VERSION + " - " +
+						     _("Master mode"));
   mode_label->SetText(_("Master mode"));
   player_number->SetVisible(false);
   connected_players->SetVisible(true);
@@ -447,7 +457,7 @@ void NetworkMenu::WaitingForGameMaster()
   b_ok->SetVisible(false);
   actions_buttons->NeedRedrawing();
 
-  msg_box->NewMessage(_("Waiting for server, all you can do is cancel or chat!"), c_red);
+  msg_box->NewMessage(_("Waiting for the server. All you can do is cancel or chat!"), c_red);
 
   widgets.SetFocusOn(msg_box->GetTextBox());
 
@@ -464,4 +474,6 @@ void NetworkMenu::WaitingForGameMaster()
 
   } while (Network::GetInstance()->IsConnected() &&
 	   Network::GetInstance()->GetState() == WNet::NETWORK_MENU_OK);
+
+  waiting_for_server = false;
 }

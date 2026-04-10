@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE game_mode SYSTEM "game_mode.dtd" []>
 <game_mode>
+  <rules>classic</rules>
 
   <auto_change_character>true</auto_change_character>
   <allow_character_selection>before_first_action</allow_character_selection>
@@ -111,7 +112,7 @@
     </air_attack>
 
     <anvil_launcher>
-      <available_after_turn>5</available_after_turn>
+      <available_after_turn>6</available_after_turn>
       <nb_ammo>1</nb_ammo>
       <damage>200</damage>
       <mass>1000</mass>
@@ -146,6 +147,7 @@
     </automatic_bazooka>
 
     <baseball>
+      <available_after_turn>2</available_after_turn>
       <min_angle>-30</min_angle>
       <max_angle>75</max_angle>
       <nb_ammo>2</nb_ammo>
@@ -423,11 +425,12 @@
     </slap>
 
     <snipe_rifle>
+      <available_after_turn>2</available_after_turn>
       <min_angle>-89</min_angle>
       <max_angle>89</max_angle>
-      <nb_ammo>2</nb_ammo>
-      <unit_per_ammo>2</unit_per_ammo>
-      <damage>25</damage>
+      <nb_ammo>1</nb_ammo>
+      <unit_per_ammo>1</unit_per_ammo>
+      <damage>75</damage>
       <explosion_range>15</explosion_range>
       <particle_range>16</particle_range>
       <display_crosshair>0</display_crosshair>
@@ -457,14 +460,14 @@
     </teleportation>
 
     <tux>
-      <available_after_turn>7</available_after_turn>
+      <available_after_turn>5</available_after_turn>
       <nb_ammo>1</nb_ammo>
-      <damage>50</damage>
+      <damage>120</damage>
       <min_angle>-89</min_angle>
       <max_angle>89</max_angle>
-      <explosion_range>75</explosion_range>
-      <particle_range>80</particle_range>
-      <blast_range>75</blast_range>
+      <explosion_range>90</explosion_range>
+      <particle_range>130</particle_range>
+      <blast_range>130</blast_range>
       <blast_force>1000</blast_force>
       <speed>600</speed>
       <timeout>20</timeout>

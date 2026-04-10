@@ -87,7 +87,7 @@ void ObjMine::StartTimeout()
     // number generator is synchronized over the network)
     fake = !(RandomSync().GetLong(0, 9));
 
-    Camera::GetInstance()->FollowObject(this, true);
+    Camera::GetInstance()->FollowObject(this);
 
     MSG_DEBUG("mine", "EnableDetection - CurrentTime : %d",Time::GetInstance()->ReadSec() );
     attente = Time::GetInstance()->ReadSec() + cfg.timeout;
@@ -234,7 +234,12 @@ void Mine::Add(int x, int y)
   projectile->SetXY(Point2i(x, y));
   projectile->SetOverlappingObject(&ActiveCharacter());
 
-  projectile -> SetSpeedXY (ActiveCharacter().GetSpeedXY());
+  // add the character speed
+  if(ActiveCharacter().GetDirection() == 1)
+    projectile->SetSpeed(1.0, -M_PI_4);
+  else
+    projectile->SetSpeed(1.0, -3.0 * M_PI_4);
+
   ObjectsList::GetRef().AddObject (projectile);
   projectile = NULL;
   ReloadLauncher();
@@ -250,16 +255,6 @@ std::string Mine::GetWeaponWinString(const char *TeamName, uint items_count ) co
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-
-MineConfig * MineConfig::singleton = NULL;
-
-MineConfig * MineConfig::GetInstance()
-{
-  if (singleton == NULL) {
-    singleton = new MineConfig();
-  }
-  return singleton;
-}
 
 MineConfig& Mine::cfg()
 {

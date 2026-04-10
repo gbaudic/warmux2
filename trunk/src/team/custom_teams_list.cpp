@@ -35,13 +35,7 @@ CustomTeamsList::CustomTeamsList()
 
 CustomTeamsList::~CustomTeamsList()
 {
-  if (!singleton) {
-    fprintf(stderr, "Destructor still called on unexisting CustomTeamsList\n");
-    return;
-  }
-
   Clear();
-  singleton = NULL;
 }
 
 void CustomTeamsList::Clear()
@@ -101,7 +95,7 @@ void CustomTeamsList::LoadOneTeam(const std::string &dir, const std::string &cus
   if (custom_team_name[0] == '.') return;
 
   // Is it a directory ?
-  if (!IsFolderExist(dir + custom_team_name)) return;
+  if (!DoesFolderExist(dir + custom_team_name)) return;
 
   // Add the team
   try {

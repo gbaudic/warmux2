@@ -27,7 +27,7 @@
 #include <iostream>
 #include <sys/types.h>
 #include <errno.h>
-
+#include "extSDL_net.h"
 //-----------------------------------------------------------------------------
 
 static const int MAX_PACKET_SIZE = 250*1024;
@@ -131,7 +131,8 @@ WSocket::WSocket(TCPsocket _socket, WSocketSet* _socket_set) :
   socket(_socket),
   socket_set(_socket_set),
   lock(SDL_CreateMutex()),
-  using_tmp_socket_set(false)
+  using_tmp_socket_set(false),
+  packet_size(0)
 {
   int r;
   r = socket_set->AddSocket(this);
@@ -145,7 +146,8 @@ WSocket::WSocket(TCPsocket _socket):
   socket(_socket),
   socket_set(NULL),
   lock(SDL_CreateMutex()),
-  using_tmp_socket_set(false)
+  using_tmp_socket_set(false),
+  packet_size(0)
 {
 }
 
@@ -153,7 +155,8 @@ WSocket::WSocket():
   socket(NULL),
   socket_set(NULL),
   lock(SDL_CreateMutex()),
-  using_tmp_socket_set(false)
+  using_tmp_socket_set(false),
+  packet_size(0)
 {
 }
 
@@ -362,7 +365,6 @@ void WSocket::UnLock()
   SDL_UnlockMutex(lock);
 }
 
-
 // Static methods usefull to communicate without action
 // (index server, handshake, ...)
 
@@ -376,7 +378,7 @@ bool WSocket::SendInt_NoLock(const int& nbr)
   Uint32 u_nbr = *((const Uint32*)&nbr);
 
   SDLNet_Write32(u_nbr, packet);
-  int len = SDLNet_TCP_Send(socket, packet, sizeof(packet));
+  int len = SDLNet_TCP_Send_noBlocking(socket, packet, sizeof(packet));
   if (len < int(sizeof(packet))) {
     print_net_error("SDLNet_TCP_Send");
     return false;
@@ -402,7 +404,7 @@ bool WSocket::SendStr_NoLock(const std::string &str)
   if (!r)
     return false;
 
-  int len = SDLNet_TCP_Send(socket, (void*)str.c_str(), str.size());
+  int len = SDLNet_TCP_Send_noBlocking(socket, (void*)str.c_str(), str.size());
   if (len < int(str.size())) {
     print_net_error("SDLNet_TCP_Send");
     return false;
@@ -428,7 +430,7 @@ bool WSocket::SendBuffer_NoLock(const void* data, size_t len)
     return false;
 
   // cast is needed to please SDL that does not use const keyword.
-  int size = SDLNet_TCP_Send(socket, (void*)(data), len);
+  int size = SDLNet_TCP_Send_noBlocking(socket, (void*)(data), len);
   if (size < int(len)) {
     print_net_error("SDLNet_TCP_Send");
     return false;
@@ -446,6 +448,18 @@ bool WSocket::SendBuffer(const void* data, size_t len)
   UnLock();
 
   return r;
+}
+
+bool WSocket::NbBytesAvailable(size_t& _nb_bytes)
+{
+  int nb_bytes;
+
+  nb_bytes = SDLNet_TCP_NbBytesAvailable(socket);
+  if (nb_bytes < 0)
+    return false;
+
+  _nb_bytes = nb_bytes;
+  return true;
 }
 
 bool WSocket::ReceiveBuffer_NoLock(void* data, size_t len)
@@ -592,7 +606,7 @@ uint32_t WSocket::ComputeCRC(const void* data, size_t len)
   return crc;
 }
 
-bool WSocket::SendPacket(const void* data, size_t len)
+bool WSocket::SendPacket(const char* data, size_t len)
 {
   bool r;
   uint32_t crc;
@@ -617,27 +631,72 @@ bool WSocket::SendPacket(const void* data, size_t len)
   return r;
 }
 
-bool WSocket::ReceivePacket(void* &data, size_t& len)
+// ReceivePacket may return true with *data = NULL and len = 0
+// That means that client is still valid BUT there are not enough data CURRENTLY
+bool WSocket::ReceivePacket(char** data, size_t& len)
 {
   bool r;
 
   Lock();
 
-  int packet_size;
   int crc;
   char* packet;
+  size_t nbbytes;
+  bool tested = false;
 
-  // Firstly, we read the size of the incoming packet
-  r = ReceiveInt_NoLock(packet_size);
+  if (packet_size == 0) {
+
+    // First check there is enough data to read the size of the packet
+    r = NbBytesAvailable(nbbytes);
+    if (!r) {
+      goto err_no_free;
+    }
+
+    // There is nodata to read but the caller has (at least must have)
+    // checked for activity. It means that the socket is disconnected.
+    if (nbbytes == 0) {
+      goto err_no_free;
+    }
+
+    tested = true;
+
+    // there is not enough data to read the packet size but the
+    // client is still valid
+    if (nbbytes < sizeof(uint32_t)) {
+      goto err_not_enough_data;
+    }
+
+    // Firstly, we read the size of the incoming packet
+    r = ReceiveInt_NoLock(packet_size);
+    if (!r) {
+      goto err_no_free;
+    }
+
+    if (packet_size > MAX_PACKET_SIZE) {
+      fprintf(stderr, "ERROR: network packet is too big\n");
+      goto err_no_free;
+    }
+  }
+
+  // Before allocating buffer, check the data (+crc) are already there
+  r = NbBytesAvailable(nbbytes);
   if (!r) {
     goto err_no_free;
   }
 
-  if (packet_size > MAX_PACKET_SIZE) {
-    fprintf(stderr, "ERROR: network packet is too big\n");
+  // There is nodata to read but the caller has (at least must have)
+  // checked for activity. It means that the socket is disconnected.
+  if (!tested && nbbytes == 0) {
     goto err_no_free;
   }
 
+  // there is not enough data to read the packet size but the
+  // client is still valid
+  if (nbbytes < packet_size + sizeof(uint32_t)) {
+    goto err_not_enough_data;
+  }
+
+  // Alloc buffer to receive the data
   packet = (char*)malloc(packet_size);
   if (!packet) {
     fprintf(stderr, "ERROR: memory allocation failed (%d bytes)\n", packet_size);
@@ -657,10 +716,12 @@ bool WSocket::ReceivePacket(void* &data, size_t& len)
     goto error;
   }
 
-  data = packet;
+  *data = packet;
   len = packet_size;
 
-  if (uint32_t(crc) != ComputeCRC(data, len)) {
+  packet_size = 0;
+
+  if (uint32_t(crc) != ComputeCRC(packet, len)) {
     fprintf(stderr, "ERROR: wrong CRC check\n");
     goto error;
   }
@@ -672,24 +733,36 @@ bool WSocket::ReceivePacket(void* &data, size_t& len)
  error:
   free(packet);
   packet = NULL;
+  packet_size = 0;
 
  err_no_free:
   r = false;
   goto out_unlock;
+
+ err_not_enough_data:
+  *data = NULL;
+  len = 0;
+  r = true;
+  goto out_unlock;
 }
 
-bool WSocket::IsReady(int timeout) const
+bool WSocket::IsReady(int timeout, bool force_check_activity) const
 {
   if (socket == NULL)
     return false;
 
-  if (timeout != 0) {
+  if (timeout != 0 || force_check_activity) {
     ASSERT(socket_set != NULL);
     if (socket_set->CheckActivity(timeout) == 0)
       return false;
   }
 
   return SDLNet_SocketReady(socket);
+}
+
+bool WSocket::IsReady(int timeout) const
+{
+  return IsReady(timeout, false);
 }
 
 std::string WSocket::GetAddress() const

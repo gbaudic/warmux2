@@ -115,7 +115,9 @@ void ApplyExplosion_common (const Point2i &pos,
 
       if ( force > highest_force )
       {
-        fastest_character = &(*character);
+        if(!(*character).IsDead()){
+          fastest_character = &(*character);
+        }
         highest_force = force;
       }
 
@@ -137,7 +139,7 @@ void ApplyExplosion_common (const Point2i &pos,
   }
 
   if(fastest_character != NULL)
-    Camera::GetInstance()->FollowObject (fastest_character, true);
+    Camera::GetInstance()->FollowObject(fastest_character);
 
   // Apply the blast on physical objects.
   FOR_EACH_OBJECT(it)
@@ -181,8 +183,6 @@ void ApplyExplosion_common (const Point2i &pos,
          else
            angle = -M_PI_2;
 
-         if(fastest_character != NULL)
-           Camera::GetInstance()->FollowObject (obj, true);
          ASSERT( obj->GetMass() != 0.0);
 
 	 MSG_DEBUG("explosion", "!! blasting object %s", network_id.c_str());

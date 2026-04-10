@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8.4], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8.5], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -49,6 +49,17 @@ dnl === Options for users                                                   =
 dnl =========================================================================
 
 AX_CFLAGS_WARN_ALL([CXXFLAGS])
+
+AC_ARG_ENABLE([servers],
+              [AS_HELP_STRING([--enable-servers],
+                              [Enable building the index and game servers @<:@default=no@:>@])],
+              [],
+              [enable_servers=no])
+AM_CONDITIONAL([BUILD_SERVERS], [test "$enable_servers" = "yes"])
+
+if ! test "$enable_servers" = "yes"; then
+  AC_MSG_WARN([Building of servers is disabled. If you want build the index and servers, please use configure with this option : --enable-servers])
+fi
 
 AC_ARG_ENABLE([debug],
               [  --enable-debug          Enable debug in Wormux],
@@ -389,6 +400,7 @@ AC_SUBST([BUILD_ENV])
 AC_CONFIG_FILES([Makefile
                  data/Makefile
                  src/Makefile
+		 lib/Makefile
 		 lib/wormux/Makefile
 		 lib/wormux-server/Makefile
                  doc/Makefile
@@ -403,6 +415,7 @@ AM_CONFIG_HEADER(src/config.h)
 
 AC_OUTPUT
 
+echo "***********************************************************"
 echo "Configuration complete"
 echo ""
 if test "$enable_autopackage" = "yes"; then
@@ -414,7 +427,9 @@ else
    echo ""
    echo "* [[Optional]] Bi-directional rendering (fribidi) : ${enable_fribidi:-no}"
    echo "* [[Optional]] Internationalisation (gettext)     : ${USE_NLS:-no}"
+   echo "* [[Optional]] Index and game servers             : ${enable_servers:-no}"
 fi
+echo "***********************************************************"
 echo ""
 echo "Execute make to compile then execute make install to install..."
 

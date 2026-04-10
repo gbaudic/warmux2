@@ -54,12 +54,14 @@
 #include "team/team.h"
 #include "sound/jukebox.h"
 #include "weapon/construct.h"
-#include "weapon/weapon_launcher.h"
+#include "weapon/explosion.h"
+#include "weapon/gnu.h"
 #include "weapon/grapple.h"
+#include "weapon/polecat.h"
 #include "weapon/supertux.h"
 #include "weapon/weapon.h"
+#include "weapon/weapon_launcher.h"
 #include "weapon/weapons_list.h"
-#include "weapon/explosion.h"
 
 // #############################################################################
 // #############################################################################
@@ -109,10 +111,6 @@ static void Action_Network_ClientChangeState (Action *a)
     break;
 
   case WNet::NETWORK_PLAYING:
-    a->GetCreator()->SetState(DistantComputer::STATE_NEXT_GAME);
-    ASSERT(client_state == WNet::NETWORK_NEXT_GAME);
-    break;
-
   case WNet::NETWORK_NEXT_GAME:
     if (client_state == WNet::NETWORK_MENU_OK) {
       a->GetCreator()->SetState(DistantComputer::STATE_INITIALIZED);
@@ -141,8 +139,10 @@ static void Action_Network_MasterChangeState (Action *a)
 
   switch (Network::GetInstance()->GetState()) {
   case WNet::NETWORK_MENU_OK:
-    Network::GetInstance()->SetState(WNet::NETWORK_LOADING_DATA);
-    ASSERT(server_state == WNet::NETWORK_LOADING_DATA);
+    if (server_state == WNet::NETWORK_LOADING_DATA)
+      Network::GetInstance()->SetState(WNet::NETWORK_LOADING_DATA);
+    ASSERT(server_state == WNet::NETWORK_LOADING_DATA
+	   || server_state == WNet::NETWORK_NEXT_GAME);
     break;
 
   case WNet::NETWORK_READY_TO_PLAY:
@@ -152,6 +152,10 @@ static void Action_Network_MasterChangeState (Action *a)
 
   case WNet::NETWORK_NEXT_GAME:
     break;
+
+  case WNet::NETWORK_PLAYING:
+    if (Game::GetInstance()->IsGameFinished())
+      break;
 
   default:
     NET_ASSERT(false)
@@ -303,7 +307,7 @@ static void Action_Player_ChangeCharacter (Action *a)
   JukeBox::GetInstance()->Play("default", "character/change_in_same_team");
   Character::RetrieveCharacterFromAction(a);       // Retrieve current character's information
   Character::RetrieveCharacterFromAction(a);       // Retrieve next character information
-  Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter(),true);
 }
 
 static void Action_Game_NextTeam (Action *a)
@@ -314,6 +318,8 @@ static void Action_Game_NextTeam (Action *a)
   Character::RetrieveCharacterFromAction(a);       // Retrieve current character's information
 
   ASSERT (!ActiveCharacter().IsDead());
+
+  Camera::GetInstance()->FollowObject(&ActiveCharacter());
 
   // Are we turn master for next turn ?
   if (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
@@ -349,8 +355,15 @@ static void Action_DropBonusBox (Action *a)
 static void Action_Game_SetState (Action *a)
 {
   // to re-synchronize random number generator
-  uint seed = a->PopInt();
-  RandomSync().SetRand(seed);
+  uint seed = (uint)(a->PopInt());
+#ifdef DEBUG
+  if (IsLOGGING("random")) {
+    uint nb = RandomSync().GetSeed();
+    MSG_DEBUG("random.get", "Action_Game_SetState(...): %d", nb);
+    ASSERT(nb == seed);
+  }
+#endif
+  RandomSync().SetSeed(seed);
 
   Game::game_loop_state_t state = Game::game_loop_state_t(a->PopInt());
   Game::GetInstance()->Really_SetState(state);
@@ -537,7 +550,7 @@ static void _Action_DelTeam(Player *player, const std::string& team_id)
   }
 
   MSG_DEBUG("action_handler.menu", "- %s", team_id.c_str());
-  if (Game::GetInstance()->IsGameLaunched() && Network::GetInstance()->IsGameMaster()) {
+  if (Game::IsRunning() && Network::GetInstance()->IsGameMaster()) {
     int i;
     Team* the_team = GetTeamsList().FindById(team_id, i);
     if (the_team == &ActiveTeam()) // we have loose the turn master!!
@@ -602,21 +615,21 @@ void SyncCharacters()
 
 static void Action_Character_Jump (Action */*a*/)
 {
-  Game::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->SetCharacterChosen(true);
   ASSERT(!ActiveTeam().IsLocal());
   ActiveCharacter().Jump();
 }
 
 static void Action_Character_HighJump (Action */*a*/)
 {
-  Game::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->SetCharacterChosen(true);
   ASSERT(!ActiveTeam().IsLocal());
   ActiveCharacter().HighJump();
 }
 
 static void Action_Character_BackJump (Action */*a*/)
 {
-  Game::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->SetCharacterChosen(true);
   ASSERT(!ActiveTeam().IsLocal());
   ActiveCharacter().BackJump();
 }
@@ -653,7 +666,7 @@ void SendActiveCharacterInfo(bool can_be_dropped)
 {
   uint current_time = Time::GetInstance()->Read();
 
-  if (!can_be_dropped || last_time + 50 < Time::GetInstance()->Read()) {
+  if (!can_be_dropped || last_time + 100 < Time::GetInstance()->Read()) {
     last_time = current_time;
     SendCharacterInfo(ActiveCharacter().GetTeamIndex(), ActiveCharacter().GetCharacterIndex());
   }
@@ -693,19 +706,6 @@ static void Action_Weapon_SetTimeout (Action *a)
   launcher->GetProjectile()->m_timeout_modifier = a->PopInt();
 }
 
-static void Action_Weapon_Supertux (Action *a)
-{
-  NET_ASSERT(ActiveTeam().GetWeaponType() == Weapon::WEAPON_SUPERTUX)
-  {
-    return;
-  }
-  TuxLauncher* launcher = static_cast<TuxLauncher*>(&(ActiveTeam().AccessWeapon()));
-
-  double angle = a->PopDouble();
-  Point2d pos(a->PopPoint2d());
-  launcher->RefreshFromNetwork(angle, pos);
-}
-
 static void Action_Weapon_Construction (Action *a)
 {
   Construct* construct_weapon = dynamic_cast<Construct*>(&(ActiveTeam().AccessWeapon()));
@@ -715,6 +715,18 @@ static void Action_Weapon_Construction (Action *a)
   }
 
   construct_weapon->SetAngle(a->PopDouble());
+}
+
+static void Action_Weapon_Gnu (Action *a)
+{
+  GnuLauncher* launcher = dynamic_cast<GnuLauncher*>(&(ActiveTeam().AccessWeapon()));
+  NET_ASSERT(launcher != NULL)
+  {
+    return;
+  }
+
+  Point2d pos(a->PopPoint2d());
+  launcher->ExplosionFromNetwork(pos);
 }
 
 static void Action_Weapon_Grapple (Action *a)
@@ -756,6 +768,40 @@ static void Action_Weapon_Grapple (Action *a)
   }
 }
 
+static void Action_Weapon_Polecat (Action *a)
+{
+  PolecatLauncher* launcher = dynamic_cast<PolecatLauncher*>(&(ActiveTeam().AccessWeapon()));
+  NET_ASSERT(launcher != NULL)
+  {
+    return;
+  }
+
+  Point2d pos(a->PopPoint2d());
+  launcher->ExplosionFromNetwork(pos);
+}
+
+static void Action_Weapon_Supertux (Action *a)
+{
+  TuxLauncher* launcher = dynamic_cast<TuxLauncher*>(&(ActiveTeam().AccessWeapon()));
+  NET_ASSERT(launcher != NULL)
+  {
+    return;
+  }
+
+  int subaction = a->PopInt();
+
+  if (subaction == 0) {
+    double angle = a->PopDouble();
+    Point2d pos(a->PopPoint2d());
+    launcher->RefreshFromNetwork(angle, pos);
+  } else if (subaction == 1) {
+    Point2d pos(a->PopPoint2d());
+    launcher->ExplosionFromNetwork(pos);
+  } else {
+    ASSERT(false);
+  }
+}
+
 // ########################################################
 
 static void Action_Wind (Action *a)
@@ -766,7 +812,7 @@ static void Action_Wind (Action *a)
 static void Action_Network_RandomInit (Action *a)
 {
   MSG_DEBUG("random", "Initialization from network");
-  RandomSync().SetRand(a->PopInt());
+  RandomSync().SetSeed(a->PopInt());
 }
 
 static void Action_Network_SyncBegin (Action */*a*/)
@@ -796,11 +842,14 @@ static void _Info_ConnectHost(const std::string& hostname, const std::string& ni
 
   ChatLogger::LogMessageIfOpen(msg);
 
-  if (Game::GetInstance()->IsGameLaunched())
+  if (Game::IsRunning())
     GameMessages::GetInstance()->Add(msg);
   else if (Network::GetInstance()->network_menu != NULL)
     //Network Menu
     AppWormux::GetInstance()->ReceiveMsgCallback(msg);
+
+  if (Config::GetInstance()->GetWarnOnNewPlayer())
+    JukeBox::GetInstance()->Play("default", "menu/newcomer");
 }
 
 static inline void add_team_config_to_action(Action& a, const ConfigTeam& team)
@@ -900,7 +949,7 @@ static void _Info_DisconnectHost(const std::string& hostname, const std::string&
 
   ChatLogger::LogMessageIfOpen(msg);
 
-  if (Game::GetInstance()->IsGameLaunched())
+  if (Game::IsRunning())
     GameMessages::GetInstance()->Add(msg);
   else if (Network::GetInstance()->network_menu != NULL)
     //Network Menu
@@ -1023,9 +1072,11 @@ void Action_Handler_Init()
   ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_SET_TARGET, "WEAPON_set_target", &Action_Weapon_SetTarget);
 
   // Special weapon options
-  ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_SUPERTUX, "WEAPON_supertux", &Action_Weapon_Supertux);
   ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_CONSTRUCTION, "WEAPON_construction", &Action_Weapon_Construction);
+  ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_GNU, "WEAPON_gnu", &Action_Weapon_Gnu);
   ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_GRAPPLE, "WEAPON_grapple", &Action_Weapon_Grapple);
+  ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_POLECAT, "WEAPON_polecat", &Action_Weapon_Polecat);
+  ActionHandler::GetInstance()->Register (Action::ACTION_WEAPON_SUPERTUX, "WEAPON_supertux", &Action_Weapon_Supertux);
 
   // Bonus box
   ActionHandler::GetInstance()->Register (Action::ACTION_NEW_BONUS_BOX, "BONUSBOX_new_box", &Action_NewBonusBox);
@@ -1062,22 +1113,25 @@ void ActionHandler::ExecActions()
 {
   Action * a;
   std::list<Action*>::iterator it;
+  Lock();
   for (it = queue.begin(); it != queue.end() ;)
   {
-    Lock();
     a = (*it);
     //Time::GetInstance()->RefreshMaxTime((*it)->GetTimestamp());
     // If action is in the future, wait for next refresh
     if (a->GetTimestamp() > Time::GetInstance()->Read()) {
-      UnLock();
       it++;
       continue;
     }
-    UnLock();
 
     // Do not execute actions from Network if we are not connected anymore
     if (!a->GetCreator()
 	|| Network::IsConnected()) {
+
+      MSG_DEBUG("action_time", "-> Action %s (action time: %u, time: %u)",
+		GetActionName(a->GetType()).c_str(), a->GetTimestamp(),
+		Time::GetInstance()->Read());
+
       Exec (a);
 
       // To refresh the menu even if it is waiting in SDL_WaitEvent
@@ -1087,6 +1141,7 @@ void ActionHandler::ExecActions()
     delete *it;
     it = queue.erase(it);
   }
+  UnLock();
 }
 
 void ActionHandler::NewAction(Action* a, bool repeat_to_network)

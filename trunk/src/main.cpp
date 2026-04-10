@@ -241,7 +241,7 @@ Menu* AppWormux::GetCurrentMenu() const
 
 void AppWormux::RefreshDisplay()
 {
-  if (Game::GetInstance()->IsGameLaunched()) {
+  if (Game::IsRunning()) {
     GetWorld().DrawSky(true);
     GetWorld().Draw(true);
   }
@@ -254,7 +254,7 @@ void AppWormux::DisplayError(const std::string &msg)
 {
   std::cerr << msg << std::endl;
 
-  if (Game::GetInstance()->IsGameLaunched()) {
+  if (Game::IsRunning()) {
     // nothing to do
   } else if (singleton->GetCurrentMenu()) {
     singleton->GetCurrentMenu()->DisplayError(msg);
@@ -263,7 +263,7 @@ void AppWormux::DisplayError(const std::string &msg)
 
 void AppWormux::ReceiveMsgCallback(const std::string& msg)
 {
-  if (Game::GetInstance()->IsGameLaunched()) {
+  if (Game::IsRunning()) {
     //Add message to chat session in Game
     Game::GetInstance()->chatsession.NewMessage(msg);
   } else if (GetCurrentMenu()) {
@@ -285,7 +285,7 @@ void AppWormux::End() const
   SaveStatToXML("stats.xml");
 #endif
   std::cout << "o " << _("If you found a bug or have a feature request "
-                    "send us a email (in english, please):")
+                    "send us an email (in english, please):")
     << " " << Constants::EMAIL << std::endl;
 }
 

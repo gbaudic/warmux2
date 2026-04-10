@@ -62,7 +62,7 @@ protected:
   virtual ~Game();
 
 private:
-  static std::string  current_mode_name;
+  static std::string  current_rules;
 
   bool                isGameLaunched;
   ObjBox              *current_ObjBox;
@@ -78,7 +78,10 @@ private:
   // Time to compute the next physic engine frame
   uint                time_of_next_phy_frame;
 
+  bool                character_already_chosen;
+
   static uint         last_unique_id;
+  uint                m_current_turn;
 
   void Draw();        // Draw to screen
   void MessageLoading() const;
@@ -95,6 +98,8 @@ private:
   // Refresh all objects (position, state ...)
   void RefreshObject() const;
 
+  void RefreshActions() const;
+
   PhysicalObj* GetMovingObject() const;
 
   void MessageEndOfGame() const;
@@ -107,19 +112,25 @@ private:
   virtual void __SetState_HAS_PLAYED() = 0;
   virtual void __SetState_END_TURN() = 0;
 
+  bool IsGameLaunched() const;
+
 public:
   static Game * GetInstance();
   static std::string GetUniqueId();
   static void ResetUniqueIds();
+  static bool IsRunning();
+  uint GetCurrentTurn();
 
-  bool                character_already_chosen;
   Chat                chatsession;
 
   // Set mode
-  static Game * UpdateGameMode();
+  static Game * UpdateGameRules();
 
   void Start();
   void Init();
+
+  bool IsCharacterAlreadyChosen() const;
+  void SetCharacterChosen(bool chosen);
 
   // Get remaining time to play
   virtual uint GetRemainingTime() const = 0;
@@ -129,7 +140,6 @@ public:
   // Read/Set State
   game_loop_state_t ReadState() const { return state; }
   void SetState(game_loop_state_t new_state, bool begin_game=false) const;
-  bool IsGameLaunched() const;
 
   void UserAsksForMenu() { ask_for_menu = true; };
   void Really_SetState(game_loop_state_t new_state); // called by the action_handler

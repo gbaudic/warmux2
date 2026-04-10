@@ -88,6 +88,8 @@ SuperTux::SuperTux(SuperTuxWeaponConfig& cfg,
 {
   swimming = false;
   explode_colliding_character = true;
+  camera_follow_closely = true;
+
   SetSize(image->GetSize());
   SetTestRect(1, 1, 2, 2);
 }
@@ -99,6 +101,9 @@ void SuperTux::Shoot(double strength)
   // during WeaponProjectile::Shoot (#bug 10241)
   swimming = false;
   flying_sound.Play("default","weapon/supertux_flying", -1);
+
+  if (strength == 0)
+    strength = 1; // To please the camera with follow_closely
 
   WeaponProjectile::Shoot(strength);
   angle_rad = ActiveCharacter().GetFiringAngle();
@@ -124,6 +129,7 @@ void SuperTux::Refresh()
   if(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
   {
     Action a(Action::ACTION_WEAPON_SUPERTUX);
+    a.Push(0); // to ask for a position refresh
     a.Push(angle_rad);
     a.Push(GetPos());
     Network::GetInstance()->SendActionToAll(a);
@@ -133,6 +139,9 @@ void SuperTux::Refresh()
     particle_engine.AddPeriodic(GetPosition(), particle_STAR, false, angle_rad, 0);
   // else
   // particle_engine.AddPeriodic(GetPosition(), particle_WATERBUBBLE, false, angle_rad, 0);
+
+  Camera::GetInstance()->FollowObject(this, camera_follow_closely);
+
 }
 
 void SuperTux::turn_left()
@@ -173,13 +182,10 @@ void SuperTux::SignalGoingOutOfWater()
 
 void SuperTux::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("Bye bye tux..."));
+  GameMessages::GetInstance()->Add (_("Bye bye Tux..."));
   WeaponProjectile::SignalOutOfMap();
 
   flying_sound.Stop();
-
-  // To go further in the game loop
-  static_cast<TuxLauncher *>(launcher)->EndOfTurn();
 }
 
 void SuperTux::Explosion()
@@ -187,9 +193,6 @@ void SuperTux::Explosion()
   WeaponProjectile::Explosion();
 
   flying_sound.Stop();
-
-  // To go further in the game loop
-  static_cast<TuxLauncher *>(launcher)->EndOfTurn();
 }
 
 //-----------------------------------------------------------------------------
@@ -214,6 +217,7 @@ TuxLauncher::TuxLauncher() :
 
   m_category = SPECIAL;
   current_tux = NULL;
+  tux_death_time = 0;
   ReloadLauncher();
 
   // unit will be used when the supertux disappears
@@ -238,75 +242,203 @@ WeaponProjectile * TuxLauncher::GetProjectileInstance()
 
 bool TuxLauncher::p_Shoot ()
 {
-  if (current_tux != NULL)
+  if (current_tux || tux_death_time)
     return false;
 
   current_tux = static_cast<SuperTux *>(projectile);
+  tux_death_time = 0;
   bool r = WeaponLauncher::p_Shoot();
 
   return r;
 }
 
-void TuxLauncher::EndOfTurn() const
+void TuxLauncher::Refresh()
 {
-  // To go further in the game loop
-  Game::GetInstance()->SetState(Game::HAS_PLAYED);
+  if (current_tux)
+    return;
+
+  if (tux_death_time && tux_death_time + 2000 < Time::GetInstance()->Read()) {
+    UseAmmoUnit();
+    tux_death_time = 0;
+  }
 }
 
 bool TuxLauncher::IsInUse() const
 {
-  return current_tux != NULL;
+  return (current_tux || tux_death_time);
 }
 
 void TuxLauncher::SignalEndOfProjectile()
 {
+  if (!current_tux)
+    return;
+
   current_tux = NULL;
+  tux_death_time = Time::GetInstance()->Read();
+}
+
+void TuxLauncher::HandleKeyPressed_Shoot(bool shift)
+{
+  if (current_tux || tux_death_time)
+    return;
+
+  Weapon::HandleKeyPressed_Shoot(shift);
+}
+
+void TuxLauncher::HandleKeyRefreshed_Shoot(bool shift)
+{
+  if (current_tux || tux_death_time)
+    return;
+
+  Weapon::HandleKeyRefreshed_Shoot(shift);
+}
+
+void TuxLauncher::HandleKeyReleased_Shoot(bool shift)
+{
+  if (current_tux) {
+    Action* a = new Action(Action::ACTION_WEAPON_SUPERTUX);
+    a->Push(1); // to ask for an explosion
+    a->Push(current_tux->GetPos());
+    ActionHandler::GetInstance()->NewAction(a);
+    return;
+  } else if (!tux_death_time)
+    Weapon::HandleKeyReleased_Shoot(shift);
 }
 
 // Move right
 void TuxLauncher::HandleKeyPressed_MoveRight(bool shift)
 {
-  if (current_tux != NULL)
+  if (current_tux)
     current_tux->turn_right();
-  else
+  else if (!tux_death_time)
     ActiveCharacter().HandleKeyPressed_MoveRight(shift);
 }
 
 void TuxLauncher::HandleKeyRefreshed_MoveRight(bool shift)
 {
-  if (current_tux != NULL)
+  if (current_tux)
     current_tux->turn_right();
-  else
+  else if (!tux_death_time)
     ActiveCharacter().HandleKeyRefreshed_MoveRight(shift);
 }
 
 void TuxLauncher::HandleKeyReleased_MoveRight(bool shift)
 {
-  if (current_tux == NULL)
+  if (!current_tux && !tux_death_time)
     ActiveCharacter().HandleKeyReleased_MoveRight(shift);
 }
 
 // Move left
 void TuxLauncher::HandleKeyPressed_MoveLeft(bool shift)
 {
-  if (current_tux != NULL)
+  if (current_tux)
     current_tux->turn_left();
-  else
+  else if (!tux_death_time)
     ActiveCharacter().HandleKeyPressed_MoveLeft(shift);
 }
 
 void TuxLauncher::HandleKeyRefreshed_MoveLeft(bool shift)
 {
-  if (current_tux != NULL)
+  if (current_tux)
     current_tux->turn_left();
-  else
+  else if (!tux_death_time)
     ActiveCharacter().HandleKeyRefreshed_MoveLeft(shift);
 }
 
 void TuxLauncher::HandleKeyReleased_MoveLeft(bool shift)
 {
-  if (current_tux == NULL)
+  if (!current_tux && !tux_death_time)
     ActiveCharacter().HandleKeyReleased_MoveLeft(shift);
+}
+
+void TuxLauncher::HandleKeyPressed_Up(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyPressed_Up(shift);
+}
+
+void TuxLauncher::HandleKeyRefreshed_Up(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyRefreshed_Up(shift);
+}
+
+void TuxLauncher::HandleKeyReleased_Up(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyReleased_Up(shift);
+}
+
+void TuxLauncher::HandleKeyPressed_Down(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyPressed_Down(shift);
+}
+
+void TuxLauncher::HandleKeyRefreshed_Down(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyRefreshed_Down(shift);
+}
+
+void TuxLauncher::HandleKeyReleased_Down(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyReleased_Down(shift);
+}
+
+void TuxLauncher::HandleKeyPressed_Jump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyPressed_Jump(shift);
+}
+
+void TuxLauncher::HandleKeyRefreshed_Jump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyRefreshed_Jump(shift);
+}
+
+void TuxLauncher::HandleKeyReleased_Jump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyReleased_Jump(shift);
+}
+
+void TuxLauncher::HandleKeyPressed_HighJump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyPressed_HighJump(shift);
+}
+
+void TuxLauncher::HandleKeyRefreshed_HighJump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyRefreshed_HighJump(shift);
+}
+
+void TuxLauncher::HandleKeyReleased_HighJump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyReleased_HighJump(shift);
+}
+
+void TuxLauncher::HandleKeyPressed_BackJump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyPressed_BackJump(shift);
+}
+
+void TuxLauncher::HandleKeyRefreshed_BackJump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyRefreshed_BackJump(shift);
+}
+
+void TuxLauncher::HandleKeyReleased_BackJump(bool shift)
+{
+  if (!current_tux && !tux_death_time)
+    ActiveCharacter().HandleKeyReleased_BackJump(shift);
 }
 
 std::string TuxLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
@@ -320,11 +452,20 @@ std::string TuxLauncher::GetWeaponWinString(const char *TeamName, uint items_cou
 void TuxLauncher::RefreshFromNetwork(double angle, Point2d pos)
 {
   // Fix bug #9815 : Crash when changing tux angle in network mode.
-  if(current_tux == NULL)
+  if (!current_tux)
     return;
   current_tux->SetAngle(angle);
   current_tux->SetPhysXY(pos);
   current_tux->SetSpeedXY(Point2d(0,0));
+}
+
+void TuxLauncher::ExplosionFromNetwork(Point2d tux_pos)
+{
+  if (!current_tux)
+    return;
+
+  current_tux->SetPhysXY(tux_pos);
+  current_tux->Explosion();
 }
 
 SuperTuxWeaponConfig& TuxLauncher::cfg()

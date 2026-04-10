@@ -19,12 +19,9 @@
  * WeaponLauncher: generic weapon to launch a projectile
  *****************************************************************************/
 
-#include "weapon/weapon_launcher.h"
-#include "weapon/weapon_cfg.h"
-
 #include <sstream>
+#include <WORMUX_debug.h>
 
-#include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
@@ -38,9 +35,11 @@
 #include "team/macro.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include <WORMUX_debug.h>
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
+#include "weapon/weapon_launcher.h"
 
 #ifdef DEBUG
 //#define DEBUG_EXPLOSION_CONFIG
@@ -70,7 +69,7 @@ void WeaponBullet::SignalOutOfMap()
 {
   WeaponProjectile::SignalOutOfMap();
   launcher->IncMissedShots();
-  Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter());
 }
 
 void WeaponBullet::SignalObjectCollision(const Point2d& my_speed_before,
@@ -126,7 +125,7 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
   explode_with_timeout = true;
   explode_with_collision = true;
   can_drown = true;
-  camera_in_advance = true;
+  camera_follow_closely = false;
 
   image = GetResourceManager().LoadSprite( weapons_res_profile, name);
   image->EnableRotationCache(32);
@@ -163,7 +162,6 @@ void WeaponProjectile::Shoot(double strength)
   // Set the initial position.
   SetOverlappingObject(&ActiveCharacter(), 100);
   ObjectsList::GetRef().AddObject(this);
-  Camera::GetInstance()->FollowObject(this, true, camera_in_advance);
 
   double angle = ActiveCharacter().GetFiringAngle();
   RandomizeShoot(angle, strength);
@@ -190,6 +188,11 @@ void WeaponProjectile::Shoot(double strength)
   Point2d f_hole_position(hole_position.GetX() / PIXEL_PER_METER, hole_position.GetY() / PIXEL_PER_METER);
   SetXY(hand_position);
   SetSpeed(strength, angle);
+
+  // Camera::FollowObject must be called after setting initial speed else
+  // camera_follow_closely will have no effect
+  Camera::GetInstance()->FollowObject(this, camera_follow_closely);
+
   collision_t collision = NotifyMove(f_hand_position, f_hole_position);
   if (collision == NO_COLLISION) {
     // Set the initial position and speed.

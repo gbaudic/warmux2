@@ -41,11 +41,7 @@
 void AIMovementModule::MakeStep() const
 {
   if(ActiveCharacter().IsImmobile()) {
-    if (ActiveCharacter().GetDirection() == DIRECTION_RIGHT) {
-      MoveActiveCharacterRight(false);
-    }  else {
-      MoveActiveCharacterLeft(false);
-    }
+    ActiveCharacter().Move(ActiveCharacter().GetDirection(), false);
   }
 }
 

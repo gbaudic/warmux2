@@ -42,6 +42,8 @@ const std::string& NetworkGame::GetPassword() const
 void NetworkGame::AddCpu(DistantComputer* cpu)
 {
   cpulist.push_back(cpu);
+  DPRINT(INFO, "[Game %s] New client connected: %s - total: %zd", game_name.c_str(),
+	 cpu->ToString().c_str(), cpulist.size());
 }
 
 std::list<DistantComputer*>& NetworkGame::GetCpus()
@@ -57,7 +59,6 @@ const std::list<DistantComputer*>& NetworkGame::GetCpus() const
 bool NetworkGame::AcceptNewComputers() const
 {
   if (game_started || cpulist.size() >= 4) {
-    DPRINT(INFO, "Game %s denies connexion", game_name.c_str());
     return false;
   }
 
@@ -68,10 +69,14 @@ std::list<DistantComputer*>::iterator
 NetworkGame::CloseConnection(std::list<DistantComputer*>::iterator closed)
 {
   std::list<DistantComputer*>::iterator it;
+  DistantComputer *host = *closed;
 
   it = cpulist.erase(closed);
-  delete *closed;
 
+  DPRINT(INFO, "[Game %s] Client disconnected: %s - total: %zd", game_name.c_str(),
+	 host->ToString().c_str(), cpulist.size());
+
+  delete host;
 
   return it;
 }
@@ -102,7 +107,8 @@ void NetworkGame::ElectGameMaster()
 
   DistantComputer* host = cpulist.front();
 
-  DPRINT(INFO, "New game master: %s", host->GetAddress().c_str());
+  DPRINT(INFO, "[Game %s] New game master: %s", game_name.c_str(),
+	 host->ToString().c_str());
 
   Action a(Action::ACTION_NETWORK_SET_GAME_MASTER);
   SendActionToOne(a, host);
@@ -129,7 +135,7 @@ void NetworkGame::SendActionToAllExceptOne(const Action& a, DistantComputer* cli
 // if (!clt_as_rcver) sending to all EXCEPT client 'client'
 void NetworkGame::SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver) const
 {
-  char* packet;
+  char *packet;
   int size;
 
   a.WriteToPacket(packet, size);
@@ -152,7 +158,26 @@ void NetworkGame::SendAction(const Action& a, DistantComputer* client, bool clt_
   free(packet);
 }
 
-void NetworkGame::ForwardPacket(void * buffer, size_t len, DistantComputer* sender)
+void NetworkGame::StartGame()
+{
+  DPRINT(INFO, "[Game %s] started with %zd players", game_name.c_str(), cpulist.size());
+
+  std::list<DistantComputer*>::iterator it;
+  int i = 0;
+  for (it = cpulist.begin(); it != cpulist.end(); it++, i++) {
+    DPRINT(INFO, "[Game %s] \t\t %d) %s", game_name.c_str(), i, (*it)->ToString().c_str());
+  }
+
+  game_started = true;
+}
+
+void NetworkGame::StopGame()
+{
+  DPRINT(INFO, "[Game %s] finished with %zd players", game_name.c_str(), cpulist.size());
+  game_started = false;
+}
+
+void NetworkGame::ForwardPacket(const char *buffer, size_t len, DistantComputer* sender)
 {
   std::list<DistantComputer*>::iterator it;
 
@@ -164,13 +189,15 @@ void NetworkGame::ForwardPacket(void * buffer, size_t len, DistantComputer* send
   }
 
   if (sender == cpulist.front()) {
-    Action a(reinterpret_cast<const char*>(buffer), sender);
+    Action a(buffer, sender);
     if (a.GetType() == Action::ACTION_NETWORK_MASTER_CHANGE_STATE) {
       int net_state = a.PopInt();
-      if (net_state == WNet::NETWORK_LOADING_DATA)
-	game_started = true;
-      else if (net_state == WNet::NETWORK_NEXT_GAME)
-	game_started = false;
+      if (net_state == WNet::NETWORK_LOADING_DATA) {
+	StartGame();
+      }
+      else if (net_state == WNet::NETWORK_NEXT_GAME) {
+	StopGame();
+      }
     }
   }
 }
@@ -192,12 +219,12 @@ void GameServer::CreateGame(uint game_id)
   NetworkGame netgame(gamename_str, password);
   games.insert(std::make_pair(game_id, netgame));
 
-  DPRINT(INFO, "Game - %s - created", gamename_str.c_str());
+  DPRINT(INFO, "[Game %s] created", gamename_str.c_str());
 }
 
 void GameServer::DeleteGame(std::map<uint, NetworkGame>::iterator gamelst_it)
 {
-  DPRINT(INFO, "Game - %s - deleted", gamelst_it->second.GetName().c_str());
+  DPRINT(INFO, "[Game %s] deleted", gamelst_it->second.GetName().c_str());
   games.erase(gamelst_it);
 }
 
@@ -254,10 +281,10 @@ bool GameServer::RegisterToIndexServer(bool is_public)
   connection_state_t conn = IndexServer::GetInstance()->Connect(PACKAGE_VERSION);
   if (conn != CONNECTED) {
     if (conn == CONN_WRONG_VERSION) {
-      fprintf(stderr, Format(_("Sorry, your version is not supported anymore. "
-			       "Supported version are %s. "
-			       "You can download a updated version "
-			       "on http://www.wormux.org/wiki/download.php"),
+      fprintf(stderr,"%s", Format(_("Sorry, your version is not supported anymore. "
+			       "Supported versions are %s. "
+			       "You can download an updated version "
+			       "from http://www.wormux.org/wiki/download.php"),
 			     IndexServer::GetInstance()->GetSupportedVersions().c_str()).c_str());
     } else {
       fprintf(stderr, "ERROR: Fail to connect to the index server");
@@ -267,7 +294,9 @@ bool GameServer::RegisterToIndexServer(bool is_public)
 
   bool r = IndexServer::GetInstance()->SendServerStatus(game_name, password != "", port);
   if (!r) {
-    fprintf(stderr, Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %u must accept connection from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %u must be forwarded on your computer."), port, port).c_str());
+    char port_str[8];
+    snprintf(port_str, 8, "%d", port);
+    fprintf(stderr, "%s", Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connections from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port_str, port_str).c_str());
     IndexServer::GetInstance()->Disconnect();
     return false;
   }
@@ -311,9 +340,14 @@ bool GameServer::HandShake(uint game_id, WSocket& client_socket, std::string& ni
   if (GetCpus(game_id).empty())
     client_will_be_master = true;
 
-  DPRINT(INFO, "%s will be master ? %d", client_socket.GetAddress().c_str(), client_will_be_master);
-  return WNet::Server_HandShake(client_socket, GetGame(game_id).GetName(), GetGame(game_id).GetPassword(),
-				nickname, player_id, client_will_be_master);
+  bool r = WNet::Server_HandShake(client_socket, GetGame(game_id).GetName(), GetGame(game_id).GetPassword(),
+				  nickname, player_id, client_will_be_master);
+
+  if (r && client_will_be_master)
+    DPRINT(INFO, "[Game %s] %s (%s) will be game master", GetGame(game_id).GetName().c_str(),
+	   nickname.c_str(), client_socket.GetAddress().c_str());
+
+  return r;
 }
 
 void GameServer::RejectIncoming()
@@ -385,7 +419,7 @@ void GameServer::RunLoop()
  loop:
   while (true) {
 
-    IndexServer::GetInstance()->Refresh();
+    IndexServer::GetInstance()->Refresh(true);
 
     WaitClients();
 
@@ -394,9 +428,12 @@ void GameServer::RunLoop()
     if (num_ready == -1) { // Means an error
       fprintf(stderr, "SDLNet_CheckSockets: %s\n", SDLNet_GetError());
       continue; //Or break?
+    } else if (num_ready == 0) {
+      // nothing to do
+      continue;
     }
 
-    void * buffer;
+    char *buffer;
     size_t packet_size;
 
     std::map<uint, NetworkGame>::iterator gamelst_it;
@@ -410,7 +447,7 @@ void GameServer::RunLoop()
 
 	if ((*dst_cpu)->SocketReady()) {// Check if this socket contains data to receive
 
-	  if (!(*dst_cpu)->ReceiveData(reinterpret_cast<void* &>(buffer), packet_size)) {
+	  if (!(*dst_cpu)->ReceiveData(&buffer, packet_size)) {
 	    // An error occured during the reception
 
 	    bool turn_master_lost = (dst_cpu == gamelst_it->second.GetCpus().begin());
@@ -433,15 +470,16 @@ void GameServer::RunLoop()
 	      goto loop;
 	    }
 
-	  } else {
-
+	  } else if (buffer && packet_size) {
+	    // buffer may be NULL and packet_size equal to zero if there is not yet
+	    // enough data to read a packet.
 	    GetGame(gamelst_it->first).ForwardPacket(buffer, packet_size, *dst_cpu);
 	    free(buffer);
 	  }
 	}
-      }
-    } // for
-  }
+      } // loop on distant cpu
+    } // loop on games
+  } // while (true)
 }
 
 uint Action_TimeStamp()
@@ -454,8 +492,6 @@ void WORMUX_ConnectHost(DistantComputer& host)
   std::string hostname = host.GetAddress();
   std::string nicknames = host.GetNicknames();
 
-  DPRINT(INFO, "New client connected: %s (%s)", nicknames.c_str(), hostname.c_str());
-
   Action a(Action::ACTION_INFO_CLIENT_CONNECT);
   a.Push(hostname);
   a.Push(nicknames);
@@ -467,8 +503,6 @@ void WORMUX_DisconnectHost(DistantComputer& host)
 {
   std::string hostname = host.GetAddress();
   std::string nicknames = host.GetNicknames();
-
-  DPRINT(INFO, "Client disconnected: %s (%s)", nicknames.c_str(), hostname.c_str());
 
   Action a(Action::ACTION_INFO_CLIENT_DISCONNECT);
   a.Push(hostname);

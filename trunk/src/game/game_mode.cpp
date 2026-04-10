@@ -20,39 +20,41 @@
  * value here. They should all be modifiable using the xml config file
  *****************************************************************************/
 
-#include "game/game_mode.h"
 #include <iostream>
 #include <cstdio>
+#include <WORMUX_file_tools.h>
 #include "game/config.h"
 #include "game/game.h"
+#include "game/game_mode.h"
 #include "object/medkit.h"
 #include "object/bonus_box.h"
-#include <WORMUX_file_tools.h>
 #include "tool/xml_document.h"
 #include "weapon/weapons_list.h"
 
 GameMode::GameMode():
-  nb_characters(6),
-  max_teams(4),
-  duration_turn(60),
-  duration_move_player(3),
-  duration_exchange_player(2),
-  duration_before_death_mode(20 * 60),
-  damage_per_turn_during_death_mode(5),
-  gravity(9.81),
-  safe_fall(10),
-  damage_per_fall_unit(7),
-  death_explosion_cfg(),
-  barrel_explosion_cfg(),
-  bonus_box_explosion_cfg(),
-  character(),
-  auto_change_character(true),
-  allow_character_selection(BEFORE_FIRST_ACTION),
-  m_current("classic"),
-  doc_objects(new XmlReader)
+  doc_objects(NULL)
 {
-  character.init_energy = 100; /* overwritten when reading XML */
-  character.max_energy = 100; /* overwritten when reading XML */
+  m_current = "classic";
+
+  LoadDefaultValues();
+}
+
+void GameMode::LoadDefaultValues()
+{
+  rules = "none";
+  nb_characters = 6;
+  max_teams = 4;
+  duration_turn = 60;
+  duration_move_player = 3;
+  duration_exchange_player = 2;
+  duration_before_death_mode = 20 * 60;
+  damage_per_turn_during_death_mode = 5;
+  gravity = 9.81;
+  safe_fall = 10;
+  damage_per_fall_unit = 7;
+
+  character.init_energy = 100;
+  character.max_energy = 100;
   character.mass = 100;
   character.air_resist_factor = 1.0;
   character.jump_strength = 8;
@@ -62,6 +64,15 @@ GameMode::GameMode():
   character.back_jump_strength = 9;
   character.back_jump_angle = -100;
   character.walking_pause = 50;
+
+  auto_change_character = true;
+
+  allow_character_selection = BEFORE_FIRST_ACTION;
+
+  if (doc_objects)
+    delete doc_objects;
+
+  doc_objects = new XmlReader();
 }
 
 GameMode::~GameMode()
@@ -77,6 +88,14 @@ const std::string& GameMode::GetName() const
 // Load data options from the selected game_mode
 bool GameMode::LoadXml(const xmlNode* xml)
 {
+  bool r;
+
+  r = XmlReader::ReadString(xml, "rules", rules);
+  if (!r) {
+    fprintf(stderr, "Game mode: missing <rules>\n");
+    return false;
+  }
+
   XmlReader::ReadBool(xml, "auto_change_character", auto_change_character);
 
   std::string txt;
@@ -146,7 +165,7 @@ bool GameMode::LoadXml(const xmlNode* xml)
 
   // Barrel explosion
   const xmlNode* barrel_xml = XmlReader::GetMarker(xml, "barrel");
-  if(barrel_xml != NULL) {
+  if (barrel_xml != NULL) {
     const xmlNode* barrel_explosion = XmlReader::GetMarker(barrel_xml, "explosion");
     if (barrel_explosion != NULL)
       barrel_explosion_cfg.LoadXml(barrel_explosion);
@@ -154,20 +173,13 @@ bool GameMode::LoadXml(const xmlNode* xml)
 
   //=== Weapons ===
   const xmlNode* weapons_xml = XmlReader::GetMarker(xml, "weapons");
-  if (weapons_xml != NULL)
-  {
-    std::list<Weapon*> l_weapons_list = WeaponsList::GetInstance()->GetList() ;
-    std::list<Weapon*>::iterator
-      itw = l_weapons_list.begin(),
-      end = l_weapons_list.end();
-
-    for (; itw != end ; ++itw)
-      (*itw)->LoadXml(weapons_xml);
+  if (weapons_xml != NULL) {
+    WeaponsList::LoadXml(weapons_xml);
   }
 
   // Bonus box explosion - must be loaded after the weapons.
   const xmlNode* bonus_box_xml = XmlReader::GetMarker(xml, "bonus_box");
-  if(bonus_box_xml != NULL) {
+  if (bonus_box_xml != NULL) {
     BonusBox::LoadXml(bonus_box_xml);
 
     const xmlNode* bonus_box_explosion = XmlReader::GetMarker(bonus_box_xml, "explosion");
@@ -177,7 +189,7 @@ bool GameMode::LoadXml(const xmlNode* xml)
 
   // Medkit - reuses the bonus_box explosion.
   const xmlNode* medkit_xml = XmlReader::GetMarker(xml, "medkit");
-  if(medkit_xml != NULL) {
+  if (medkit_xml != NULL) {
     Medkit::LoadXml(medkit_xml);
   }
 
@@ -186,43 +198,22 @@ bool GameMode::LoadXml(const xmlNode* xml)
 
 bool GameMode::Load(void)
 {
-  std::string fullname;
   Config * config = Config::GetInstance();
   m_current = config->GetGameMode();
 
+  LoadDefaultValues();
+
   // Game mode objects configuration file
-  fullname = config->GetPersonalDataDir() + GetObjectsFilename();
-
-  if(!DoesFileExist(fullname))
-    fullname = config->GetDataDir() + GetObjectsFilename();
-
-  if(!DoesFileExist(fullname)) {
-    Error(Format("Can not find file %s", fullname.c_str()));
+  if(!doc_objects->Load(GetObjectsFilename()))
     return false;
-  }
-
-  if(!doc_objects->Load(fullname))
-    return false;
-  MSG_DEBUG("game_mode", "successful loading of %s\n", fullname.c_str());
 
   // Game mode file
   XmlReader doc;
-  fullname = config->GetPersonalDataDir() + GetFilename();
 
-  if(!DoesFileExist(fullname))
-    fullname = config->GetDataDir() + GetFilename();
-
-  if(!DoesFileExist(fullname)) {
-    Error(Format("Can not find file %s", fullname.c_str()));
-    return false;
-  }
-
-  if(!doc.Load(fullname))
+  if(!doc.Load(GetFilename()))
     return false;
   if(!LoadXml(doc.GetRoot()))
     return false;
-
-  MSG_DEBUG("game_mode", "successful loading of %s\n", fullname.c_str());
 
   return true;
 }
@@ -250,15 +241,10 @@ bool GameMode::LoadFromString(const std::string& game_mode_name,
 
 bool GameMode::ExportFileToString(const std::string& filename, std::string& contents) const
 {
-  std::string fullname;
   contents = "";
 
   XmlReader doc;
-  fullname = Config::GetInstance()->GetPersonalDataDir() + filename;
-
-  if (!DoesFileExist(fullname))
-    fullname = Config::GetInstance()->GetDataDir() + filename;
-  if (!doc.Load(fullname))
+  if (!doc.Load(filename))
     return false;
 
   contents = doc.ExportToString();
@@ -293,7 +279,7 @@ bool GameMode::AllowCharacterSelection() const
     break;
 
   case GameMode::BEFORE_FIRST_ACTION:
-    return (Game::GetInstance()->ReadState() == Game::PLAYING) && !Game::GetInstance()->character_already_chosen;
+    return (Game::GetInstance()->ReadState() == Game::PLAYING) && !Game::GetInstance()->IsCharacterAlreadyChosen();
 
   case GameMode::NEVER:
     return false;
@@ -304,22 +290,87 @@ bool GameMode::AllowCharacterSelection() const
 
 std::string GameMode::GetFilename() const
 {
-  std::string filename =
-    std::string("game_mode" PATH_SEPARATOR)
+  Config * config = Config::GetInstance();
+  std::string filename = std::string("game_mode" PATH_SEPARATOR)
     + m_current
     + std::string(".xml");
+
+  std::string fullname = config->GetPersonalDataDir() + filename;
+
+  if(!DoesFileExist(fullname))
+    fullname = config->GetDataDir() + filename;
+
+  if(!DoesFileExist(fullname)) {
+    Error(Format("Can not find file %s", fullname.c_str()));
+  }
+
+  return fullname;
+}
+
+std::string GameMode::GetDefaultObjectsFilename() const
+{
+  std::string filename =
+    std::string("game_mode" PATH_SEPARATOR "default_objects.xml");
 
   return filename;
 }
 
 std::string GameMode::GetObjectsFilename() const
 {
-  std::string filename =
-    std::string("game_mode" PATH_SEPARATOR)
+  Config * config = Config::GetInstance();
+  std::string filename = std::string("game_mode" PATH_SEPARATOR)
     + m_current
     + std::string("_objects.xml");
 
-  return filename;
+  std::string fullname = config->GetPersonalDataDir() + filename;
+
+  if(!DoesFileExist(fullname))
+    fullname = config->GetDataDir() + filename;
+
+  if(!DoesFileExist(fullname)) {
+    fprintf(stderr, "Game mode: File %s does not exist, use the default one instead.\n",
+	    fullname.c_str());
+  }
+
+  fullname = config->GetDataDir() + GetDefaultObjectsFilename();
+  if (!DoesFileExist(fullname)) {
+    Error(Format("Can not find file %s", fullname.c_str()));
+  }
+
+  return fullname;
 }
 
+// Static method
+std::vector<std::pair<std::string, std::string> > GameMode::ListGameModes()
+{
+  std::vector<std::pair<std::string, std::string> > game_modes;
+  game_modes.push_back(std::pair<std::string, std::string>("classic", _("Classic")));
+  game_modes.push_back(std::pair<std::string, std::string>("unlimited", _("Unlimited")));
+  game_modes.push_back(std::pair<std::string, std::string>("blitz", _("Blitz")));
+#ifdef DEBUG
+  game_modes.push_back(std::pair<std::string, std::string>("skin_viewer", "Skin Viewer"));
+#endif
 
+  std::string personal_dir = Config::GetInstance()->GetPersonalDataDir() +
+    std::string("game_mode" PATH_SEPARATOR);
+
+  FolderSearch *f = OpenFolder(personal_dir);
+  if (f) {
+    const char *name;
+    while ((name = FolderSearchNext(f)) != NULL) {
+      std::string filename(name);
+
+      if (filename.size() >= 5
+	  && filename.compare(filename.size()-4, 4, ".xml") == 0
+	  && (filename.size() < 12
+	      || filename.compare(filename.size()-12, 12, "_objects.xml") != 0)) {
+
+	std::string game_mode_name = filename.substr(0, filename.size()-4);
+	game_modes.push_back(std::pair<std::string, std::string>(game_mode_name, game_mode_name));
+      }
+    }
+    CloseFolder(f);
+  }
+
+  return game_modes;
+}

@@ -96,7 +96,7 @@ bool Parachute::IsInUse() const
 
 bool Parachute::p_Shoot()
 {
-  GameMessages::GetInstance()->Add(_("Parachute is activated automatically."));
+  GameMessages::GetInstance()->Add(_("The parachute is activated automatically."));
   return false;
 }
 
@@ -126,12 +126,12 @@ void Parachute::Refresh()
         img->Start();
         ActiveCharacter().SetSpeedXY(Point2d(0,0));
         ActiveCharacter().SetMovement("parachute");
-        Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
+        Camera::GetInstance()->FollowObject(&ActiveCharacter());
       }
     }
   } else { // We are on the ground
-    ActiveCharacter().SetMovement("walk");
-    if(open) { // The parachute is opened
+    if (open) { // The parachute is opened
+      ActiveCharacter().SetMovement("walk");
       if (!closing) { // We have just hit the ground. Start closing animation
         img->animation.SetPlayBackward(true);
         img->animation.SetShowOnFinish(SpriteAnimation::show_blank);

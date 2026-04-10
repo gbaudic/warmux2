@@ -27,6 +27,7 @@
 #include <WORMUX_singleton.h>
 #include "graphic/surface.h"
 #include "map/water.h"
+#include "tool/xml_document.h"
 
 // Forward declarations
 class Action;
@@ -63,6 +64,8 @@ private:
 
   Surface img_ground, img_sky;
   Surface preview;
+  std::vector<Surface> sky_layer;
+  XmlReader doc;
 
   uint nb_mine;
   uint nb_barrel;
@@ -74,7 +77,7 @@ private:
   Point2i upper_left_pad;
   Point2i lower_right_pad;
   Island_type island_type;
-  Water::Water_type water_type;
+  std::string water_type;
 
   struct s_wind wind;
 
@@ -98,6 +101,8 @@ public:
 
   Surface& ReadImgGround();
   Surface& ReadImgSky();
+  std::vector<Surface>& ReadSkyLayer();
+
   const Surface& ReadPreview() { LoadBasicInfo(); return preview; }
 
   const struct s_wind& GetWind() const { return wind; }
@@ -108,7 +113,7 @@ public:
 
   bool IsOpened() { LoadBasicInfo(); return is_opened; }
   bool IsRandomGenerated() { LoadBasicInfo(); return random_generated; }
-  const Water::Water_type& GetWaterType() { return water_type; }
+  const std::string& GetWaterType() { return water_type; }
 
   Point2i GetUpperLeftPad() { return upper_left_pad; }
   Point2i GetLowerRightPad() { return lower_right_pad; }

@@ -26,10 +26,10 @@
 #include "graphic/sprite.h"
 #include "object/objects_list.h"
 #include "tool/resource_manager.h"
-#include <WORMUX_random.h>
 #include <WORMUX_point.h>
 #include "weapon/explosion.h"
 #include "map/map.h"
+#include "network/randomsync.h"
 
 #include "particles/body_member.h"
 #include "particles/teleport_member.h"
@@ -128,7 +128,8 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
   uint time = Time::GetInstance()->Read() - m_last_refresh;
   uint tmp = Time::GetInstance()->Read();
 
-  uint delta = uint(m_time_between_add * double(RandomLocal().GetLong(3, 40)) / 10);
+  MSG_DEBUG("random.get", "ParticleEngine::AddPeriodic(...)");
+  uint delta = uint(m_time_between_add * double(RandomSync().GetLong(3, 40)) / 10);
   if (time >= delta) {
     m_last_refresh = tmp;
     ParticleEngine::AddNow(position, 1, type, upper, angle, norme);
@@ -147,6 +148,7 @@ void ParticleEngine::Load()
   Profile *res = GetResourceManager().LoadXMLProfile( "weapons.xml", false);
   particle_sprite[SMOKE_spr] = GetResourceManager().LoadSprite(res,"smoke");
   particle_sprite[EXPLOSION_SMOKE_spr] = GetResourceManager().LoadSprite(res,"smoke_explosion");
+  particle_sprite[EXPLOSION_BIG_SMOKE_spr] = GetResourceManager().LoadSprite(res,"smoke_big_explosion");
   particle_sprite[ILL_BUBBLE_spr] = GetResourceManager().LoadSprite(res,"ill_bubble");
   particle_sprite[FIRE_spr]  = GetResourceManager().LoadSprite(res,"fire_particle");
   particle_sprite[STAR_spr]  = GetResourceManager().LoadSprite(res,"star_particle");
@@ -160,7 +162,7 @@ void ParticleEngine::Load()
   particle_sprite[BULLET_spr] = GetResourceManager().LoadSprite(res,"bullet_particle");
   particle_sprite[BULLET_spr]->EnableRotationCache(6);
   particle_sprite[POLECAT_FART_spr] = GetResourceManager().LoadSprite(res,"polecat_fart");
-  particle_sprite[WATER_spr] = GetResourceManager().LoadSprite(res,"water_drop");
+  particle_sprite[CLEARWATER_spr] = GetResourceManager().LoadSprite(res,"water_drop");
   particle_sprite[LAVA_spr] = GetResourceManager().LoadSprite(res,"lava_drop");
   particle_sprite[RADIOACTIVE_spr] = GetResourceManager().LoadSprite(res,"radioactive_drop");
   particle_sprite[DIRTYWATER_spr] = GetResourceManager().LoadSprite(res,"dirtywater_drop");
@@ -224,6 +226,8 @@ void ParticleEngine::AddNow(const Point2i &position,
       break;
     case particle_WATER : particle = new WaterParticle();
       break;
+    case particle_CLEARWATER : particle = new ClearWaterParticle();
+      break;
     case particle_LAVA: particle = new LavaParticle();
       break;
     case particle_RADIOACTIVE: particle = new RadioactiveParticle();
@@ -239,15 +243,19 @@ void ParticleEngine::AddNow(const Point2i &position,
 
     if (particle != NULL) {
 
-      if( norme == -1 )
-        tmp_norme = double(RandomLocal().GetLong(0, 5000))/100;
-      else
+      if( norme == -1 ) {
+        MSG_DEBUG("random.get", "ParticleEngine::AddNow(...) speed vector length");
+        tmp_norme = double(RandomSync().GetLong(0, 5000))/100;
+      } else {
         tmp_norme = norme;
+      }
 
-      if( angle == -1 )
-        tmp_angle = - double(RandomLocal().GetLong(0, 3000))/1000;
-      else
+      if( angle == -1 ) {
+        MSG_DEBUG("random.get", "ParticleEngine::AddNow(...) speed vector angle");
+        tmp_angle = - double(RandomSync().GetLong(0, 3000))/1000;
+      } else {
         tmp_angle = angle;
+      }
 
       particle->SetXY(position);
       particle->SetOnTop(upper);
@@ -273,7 +281,7 @@ void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
   //Add many little smoke particles
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
-  const uint little_partic_nbr = 10;
+  const uint little_partic_nbr = 1;
   const float little_cos[] = { 1.000000, 0.809017, 0.309017, -0.309017, -0.809017, -1.000000, -0.809017, -0.309017, 0.309017, 0.809017 };
   const float little_sin[] = { 0.000000, 0.587785, 0.951057, 0.951056, 0.587785, -0.000000, -0.587785, -0.951056, -0.951056, -0.587785 };
 
@@ -284,7 +292,7 @@ void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
   for(uint i=0; i < little_partic_nbr ; i++)
   {
 //      angle = (float) i * M_PI * 2.0 / (float) little_partic_nbr;
-      size = uint(radius / 1.5);
+      size = radius *2;
       norme = 2.5 * radius / 3.0;
 
       particle = new ExplosionSmoke(size);
@@ -305,7 +313,7 @@ void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius
     return;
 
   //Add a few big smoke particles
-  const uint big_partic_nbr = 5;
+  const uint big_partic_nbr = 1;
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
   const float big_cos[] = { 1.000000, -0.809017, 0.309017, 0.309017, -0.809017 };
@@ -338,8 +346,13 @@ void ParticleEngine::AddExplosionSmoke(const Point2i &position, const uint &radi
     return;
 
   if(style == NoESmoke) return;
-  AddLittleESmoke (position, radius);
-  if(style == BigESmoke) AddBigESmoke (position, radius);
+
+
+  if(style == BigESmoke){
+    AddBigESmoke (position, radius);
+  }else{
+    AddLittleESmoke (position, radius);
+  }
 }
 
 void ParticleEngine::Draw(bool upper)

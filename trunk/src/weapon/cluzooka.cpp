@@ -57,7 +57,7 @@ protected:
         // fake explosion 
         JukeBox::GetInstance()->Play( "default", "weapon/cluzooka_shot" );
         ParticleEngine::AddExplosionSmoke( pos, 
-            50, 
+            50,
             ParticleEngine::LittleESmoke );
 
         ClusterType * cluster;
@@ -136,7 +136,7 @@ void CluzookaCluster::Shoot(const Point2i & start_pos, double strength, double a
   recurse_times = 0; // to keep compiler happy
 #endif
 
-  Camera::GetInstance()->FollowObject(this, true);
+  Camera::GetInstance()->FollowObject(this);
   ResetConstants();
   SetCollisionModel(true, true, false ); // a bit hackish...
   // we do need to collide with objects, but if we allow for this, the clusters
@@ -386,7 +386,7 @@ WeaponProjectile * Cluzooka::GetProjectileInstance()
 void Cluzooka::UpdateTranslationStrings()
 {
   m_name = _("Cluzooka");
-  m_help = _("Initial fire angle : Up/Down\nFire : keep space key pressed until the desired strength\nan ammo per turn");
+  m_help = _("Initial fire angle : Up/Down\nFire : keep the space key pressed until the desired strength\nan ammo per turn");
 }
 
 std::string Cluzooka::GetWeaponWinString(const char *TeamName, uint items_count ) const

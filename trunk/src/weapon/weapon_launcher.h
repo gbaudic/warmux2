@@ -37,7 +37,7 @@ class WeaponProjectile : public PhysicalObj
     bool explode_with_timeout;
     bool explode_with_collision;
     bool can_drown;
-    bool camera_in_advance;
+    bool camera_follow_closely;
     uint begin_time;
 
     ExplosiveWeaponConfig& cfg;
@@ -126,7 +126,7 @@ class WeaponLauncher : public Weapon
     virtual void p_Select();
     virtual WeaponProjectile * GetProjectileInstance() = 0;
     virtual bool ReloadLauncher();
-    void Refresh() { };
+    virtual void Refresh() { };
   private:
     void DirectExplosion();
     void NetworkSetTimeoutProjectile() const;

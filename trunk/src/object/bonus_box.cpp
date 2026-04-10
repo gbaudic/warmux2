@@ -60,7 +60,8 @@ void BonusBox::PickRandomWeapon()
   weapon_num = 0;
   int nb_try = 0;
   do {
-    double num = RandomLocal().GetDouble(0, total_probability);
+    MSG_DEBUG("random.get", "BonusBox::PickRandomWeapon()");
+    double num = RandomSync().GetDouble(0, total_probability);
     double total_bf_weapon = 0, total_after_weapon = 0;
 
     for (uint i=0; i < weapon_list.size(); i++) {
@@ -138,7 +139,12 @@ void BonusBox::LoadXml(const xmlNode* object)
   total_probability = 0;
   struct WeaponProba w;
 
-  XmlReader::ReadInt(object, "life_points", start_life_points);
+  weapon_list.clear();
+
+  bool r = XmlReader::ReadInt(object, "life_points", start_life_points);
+  if (!r)
+    start_life_points = 41;
+
   const xmlNode* node = XmlReader::GetMarker(object, "probability");
   std::list<Weapon*> l_weapons_list = WeaponsList::GetInstance()->GetList();
   std::list<Weapon*>::iterator

@@ -53,10 +53,9 @@ class OptionMenu : public Menu
    ComboBox *cbox_video_mode;
    ListBox *lbox_languages;
    CheckBox *opt_display_wind_particles;
+   CheckBox *opt_display_multisky;
    CheckBox *opt_display_energy;
    CheckBox *opt_display_name;
-   CheckBox *opt_scroll_on_border;
-   SpinButtonWithPicture * opt_scroll_border_size;
 #ifndef __APPLE__
    CheckBox *full_screen;
 #endif
@@ -74,6 +73,9 @@ class OptionMenu : public Menu
 
    /* Misc options controllers */
    CheckBox *opt_updates;
+   CheckBox *opt_lefthanded_mouse;
+   CheckBox *opt_scroll_on_border;
+   SpinButtonWithPicture * opt_scroll_border_size;
 
    void SaveOptions();
    void OnClick(const Point2i &mousePosition, int button);

@@ -100,12 +100,14 @@ bool DistantComputer::SocketReady() const
   return sock->IsReady();
 }
 
-bool DistantComputer::ReceiveData(void* & data, size_t & len)
+// ReceiveData may return true with *data = NULL and len = 0
+// That means that client is still valid BUT there are not enough data CURRENTLY
+bool DistantComputer::ReceiveData(char** data, size_t & len)
 {
   return sock->ReceivePacket(data, len);
 }
 
-bool DistantComputer::SendData(const void* data, size_t len)
+bool DistantComputer::SendData(const char* data, size_t len)
 {
   return sock->SendPacket(data, len);
 }

@@ -21,7 +21,7 @@
 
 #include <sstream>
 #include <iostream>
-#include "character/body.h"
+#include <WORMUX_random.h>
 #include "character/character.h"
 #include "character/move.h"
 #include "character/damage_stats.h"
@@ -43,7 +43,6 @@
 #include "team/custom_team.h"
 #include "team/macro.h"
 #include "tool/math_tools.h"
-#include <WORMUX_random.h>
 #include "tool/string_tools.h"
 #include "weapon/explosion.h"
 
@@ -82,6 +81,9 @@ const uint HAUT_ENERGIE = 6;
 // Delta angle used to move the crosshair
 const double DELTA_CROSSHAIR = 0.035; /* ~1 degree */
 
+// Pause between changing direction
+const uint PAUSE_CHG_DIRECTION = 80; // ms
+
 /* FIXME This methode is really strange, all this should probably be done in
  * constructor of Body...*/
 void Character::SetBody(Body* char_body)
@@ -91,9 +93,17 @@ void Character::SetBody(Body* char_body)
   SetClothe("normal");
   SetMovement("breathe");
 
-  SetDirection(RandomLocal().GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
-  body->SetFrame(RandomLocal().GetLong(0, body->GetFrameCount() - 1));
+  MSG_DEBUG("random.get", "Character::SetBody(...) direction");
+  SetDirection(RandomSync().GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
+  MSG_DEBUG("random.get", "Character::SetBody(...) body frame");
+  body->SetFrame(RandomSync().GetLong(0, body->GetFrameCount() - 1));
   SetSize(body->GetSize());
+}
+
+static uint GetRandomAnimationTimeValue()
+{
+  MSG_DEBUG("random.get", "Character::SetBody(...) body frame");
+  return Time::GetInstance()->Read() + RandomSync().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
 }
 
 Character::Character (Team& my_team, const std::string &name, Body *char_body) :
@@ -114,7 +124,7 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   rl_motion_pause(0),
   do_nothing_time(0),
   walking_time(0),
-  animation_time(Time::GetInstance()->Read() + RandomLocal().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX)),
+  animation_time(GetRandomAnimationTimeValue()),
   lost_energy(0),
   hidden(false),
   channel_step(-1),
@@ -202,7 +212,7 @@ Character::~Character()
 void Character::SignalDrowning()
 {
   // Follow character
-  Camera::GetInstance()->FollowObject(this, true);
+  Camera::GetInstance()->FollowObject(this);
 
   // Set energy
   SetEnergy(0);
@@ -344,6 +354,7 @@ void Character::Die()
   }
 
   damage_stats->SetDeathTime(Time::GetInstance()->Read());
+  Camera::GetInstance()->StopFollowingObj(this);
 }
 
 void Character::Draw()
@@ -367,47 +378,6 @@ void Character::Draw()
       || IsDead())
     draw_loosing_energy = false;
 
-  if (Game::GetInstance()->ReadState() == Game::END_TURN && body->IsWalking())
-    body->ResetWalk();
-
-  if (Time::GetInstance()->Read() > animation_time && !IsActiveCharacter() && !IsDead()
-      && body->GetMovement().substr(0,9) != "animation"
-      &&  body->GetClothe().substr(0,9) != "animation")
-  {
-    body->PlayAnimation();
-    animation_time = Time::GetInstance()->Read() + body->GetMovementDuration() + RandomLocal().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
-  }
-
-  // Stop the animation or the black skin if we are playing
-  if (IsActiveCharacter()
-      && Game::GetInstance()->ReadState() == Game::PLAYING
-      && (body->GetMovement().substr(0,9) == "animation"
-	  || body->GetClothe().substr(0,9) == "animation"
-	  || body->GetClothe() == "black"))
-  {
-    SetClothe("normal");
-    SetMovement("breathe");
-  }
-
-  // Stop flying if we don't go fast enough
-  double n, a;
-  GetSpeed(n, a);
-  if (body->GetMovement() == "fly" && n < MIN_SPEED_TO_FLY)
-    SetMovement("breathe");
-
-
-  // Refresh the body (needed to determine if "weapon-*-begin-shoot" is finnished)
-  body->Build();
-
-  if (prepare_shoot)
-  {
-    if (body->GetMovement() != "weapon-" + ActiveTeam().GetWeapon().GetID() + "-begin-shoot")
-    {
-      // if the movement is finnished, shoot !
-      DoShoot();
-      prepare_shoot = false;
-    }
-  }
 
   Point2i pos = GetPosition();
   body->Draw(pos);
@@ -470,7 +440,7 @@ void Character::Draw()
 
 void Character::Jump(double strength, double angle /*in radian */)
 {
-  Camera::GetInstance()->FollowObject(this, true);
+  Camera::GetInstance()->FollowObject(this);
 
   UpdateLastMovingTime();
   walking_time = Time::GetInstance()->Read();
@@ -527,10 +497,12 @@ void Character::PrepareShoot()
 
 void Character::DoShoot()
 {
-  if (Game::GetInstance()->ReadState() != Game::PLAYING)
+  if (Game::GetInstance()->ReadState() != Game::PLAYING) {
+    MSG_DEBUG("weapon.shoot", "DoShoot cancelled! time: %u", Time::GetInstance()->Read());
     return; // hack related to bugs 8656 and 9462
+  }
 
-  MSG_DEBUG("weapon.shoot", "-> begin");
+  MSG_DEBUG("weapon.shoot", "-> begin at time %u", Time::GetInstance()->Read());
   SetMovementOnce("weapon-" + ActiveTeam().GetWeapon().GetID() + "-end-shoot");
   body->Build(); // Refresh the body
   body->UpdateWeaponPosition(GetPosition());
@@ -556,7 +528,12 @@ void Character::Refresh()
 
   // center on character who is falling
   if (FootsInVacuum()) {
-    Camera::GetInstance()->FollowObject(this, true);
+    bool closely = false;
+    if (IsActiveCharacter() &&
+	(ActiveTeam().GetWeaponType() == Weapon::WEAPON_JETPACK
+	 || ActiveTeam().GetWeaponType() == Weapon::WEAPON_PARACHUTE))
+      closely = true;
+    Camera::GetInstance()->FollowObject(this, closely);
   }
 
   if (IsDiseased())
@@ -612,6 +589,49 @@ void Character::Refresh()
     rotation = M_PI * speed.y / speed_init;
     body->SetRotation(rotation);
   }
+
+  if (Game::GetInstance()->ReadState() == Game::END_TURN && body->IsWalking())
+    body->ResetWalk();
+
+  if (Time::GetInstance()->Read() > animation_time && !IsActiveCharacter() && !IsDead()
+      && body->GetMovement().substr(0,9) != "animation"
+      &&  body->GetClothe().substr(0,9) != "animation")
+  {
+    body->PlayAnimation();
+    MSG_DEBUG("random.get", "Character::Refresh()");
+    animation_time = Time::GetInstance()->Read() + body->GetMovementDuration() + RandomSync().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
+  }
+
+  // Stop the animation or the black skin if we are playing
+  if (IsActiveCharacter()
+      && Game::GetInstance()->ReadState() == Game::PLAYING
+      && (body->GetMovement().substr(0,9) == "animation"
+	  || body->GetClothe().substr(0,9) == "animation"
+	  || body->GetClothe() == "black"))
+  {
+    SetClothe("normal");
+    SetMovement("breathe");
+  }
+
+  // Stop flying if we don't go fast enough
+  double n, a;
+  GetSpeed(n, a);
+  if (body->GetMovement() == "fly" && n < MIN_SPEED_TO_FLY)
+    SetMovement("breathe");
+
+
+  // Refresh the body (needed to determine if "weapon-*-begin-shoot" is finnished)
+  body->Build();
+
+  if (prepare_shoot)
+  {
+    if (body->GetMovement() != "weapon-" + ActiveTeam().GetWeapon().GetID() + "-begin-shoot")
+    {
+      // if the movement is finnished, shoot !
+      DoShoot();
+      prepare_shoot = false;
+    }
+  }
 }
 
 // Prepare a new turn
@@ -630,13 +650,13 @@ bool Character::CanMoveRL() const
 
 void Character::BeginMovementRL(uint pause, bool slowly)
 {
-  Camera::GetInstance()->FollowObject(this, true);
+  Camera::GetInstance()->FollowObject(this);
 
   walking_time = Time::GetInstance()->Read();
   UpdateLastMovingTime();
-  if (!slowly) {
+  if (!slowly)
     SetMovement("walk");
-  }
+
   CharacterCursor::GetInstance()->Hide();
   step_sound_played = true;
   rl_motion_pause = Time::GetInstance()->Read()+pause;
@@ -651,6 +671,44 @@ bool Character::CanStillMoveRL(uint pause)
     return true;
   }
   return false;
+}
+
+void Character::StartWalk(bool slowly)
+{
+  BeginMovementRL(GameMode::GetInstance()->character.walking_pause, slowly);
+  body->StartWalk();
+}
+
+void Character::StopWalk()
+{
+  body->StopWalk();
+}
+
+bool Character::IsWalking() const
+{
+  return body->IsWalking();
+}
+
+void Character::Move(enum BodyDirection direction, bool slowly)
+{
+  // character is ready to move ?
+  if (!CanMoveRL()) return;
+
+  if (!IsWalking()) StartWalk(slowly);
+
+  if (GetDirection() == direction) {
+    MoveCharacter(*this, slowly);
+  } else {
+    SetDirection(direction);
+    BeginMovementRL(PAUSE_CHG_DIRECTION, slowly);
+  }
+
+  ASSERT(&ActiveCharacter() == this);
+
+  //Refresh skin position across network
+  if (!Network::GetInstance()->IsLocal()
+      && (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI()))
+    SendActiveCharacterInfo();
 }
 
 // Signal the end of a fall
@@ -957,9 +1015,24 @@ void Character::GetValueFromAction(Action *a)
   if (a->PopInt()) { // If active characters, retrieve stored animation
     if (GetTeam().IsActiveTeam())
       ActiveTeam().SelectCharacter(this);
-    SetClothe(a->PopString());
-    SetMovement(a->PopString());
-    GetBody()->SetFrame((uint)(a->PopInt()));
+
+    std::string clothe = a->PopString();
+    std::string movement = a->PopString();
+    uint frame = a->PopInt();
+
+    fprintf(stderr,
+	    "Character::GetValueFromAction: Animation for %s\n"
+	    "        - Clothe %s (current: %s)\n"
+	    "        - Movement %s (current: %s)\n"
+	    "        - Frame %d (current: %d)\n",
+	    GetName().c_str(),
+	    clothe.c_str(), GetBody()->GetClothe().c_str(),
+	    movement.c_str(), GetBody()->GetMovement().c_str(),
+	    frame, GetBody()->GetFrame());
+
+    SetClothe(clothe, true);
+    SetMovement(movement, true);
+    GetBody()->SetFrame(frame);
 
     GetBody()->UpdateWeaponPosition(GetPosition());
   }
@@ -967,7 +1040,7 @@ void Character::GetValueFromAction(Action *a)
   // If the player has moved, the camera should follow it!
   Point2d current_position = Physics::GetPos();
   if (IsActiveCharacter() && prev_position != current_position) {
-    Camera::GetInstance()->FollowObject(this, true);
+    Camera::GetInstance()->FollowObject(this);
     HideGameInterface();
   }
 }
@@ -1022,46 +1095,54 @@ void Character::SetCustomName(const std::string name)
 // #################### MOVE_RIGHT
 void Character::HandleKeyPressed_MoveRight(bool shift)
 {
-  BeginMovementRL(GameMode::GetInstance()->character.walking_pause, shift);
-  body->StartWalk();
+  StartWalk(shift);
 
   HandleKeyRefreshed_MoveRight(shift);
 }
 
-void Character::HandleKeyRefreshed_MoveRight(bool shift) const
+void Character::HandleKeyRefreshed_MoveRight(bool shift)
 {
   HideGameInterface();
 
-  if (ActiveCharacter().IsImmobile())
-    MoveActiveCharacterRight(shift);
+  ActiveTeam().crosshair.Hide();
+
+  if (IsImmobile())
+    Move(DIRECTION_RIGHT, shift);
 }
 
 void Character::HandleKeyReleased_MoveRight(bool)
 {
-  body->StopWalk();
+  StopWalk();
+
+  ActiveTeam().crosshair.Show();
+
   SendActiveCharacterInfo();
 }
 
 // #################### MOVE_LEFT
 void Character::HandleKeyPressed_MoveLeft(bool shift)
 {
-  BeginMovementRL(GameMode::GetInstance()->character.walking_pause, shift);
-  body->StartWalk();
+  StartWalk(shift);
 
   HandleKeyRefreshed_MoveLeft(shift);
 }
 
-void Character::HandleKeyRefreshed_MoveLeft(bool shift) const
+void Character::HandleKeyRefreshed_MoveLeft(bool shift)
 {
   HideGameInterface();
 
-  if (ActiveCharacter().IsImmobile())
-    MoveActiveCharacterLeft(shift);
+  ActiveTeam().crosshair.Hide();
+
+  if (IsImmobile())
+    Move(DIRECTION_LEFT, shift);
 }
 
 void Character::HandleKeyReleased_MoveLeft(bool)
 {
   body->StopWalk();
+
+  ActiveTeam().crosshair.Show();
+
   SendActiveCharacterInfo();
 }
 
@@ -1069,16 +1150,15 @@ void Character::HandleKeyReleased_MoveLeft(bool)
 void Character::HandleKeyRefreshed_Up(bool shift)
 {
   HideGameInterface();
-  if (ActiveCharacter().IsImmobile())
+
+  ActiveTeam().crosshair.Show();
+
+  if (IsImmobile())
     {
-      if (ActiveTeam().crosshair.enable)
-        {
-	  UpdateLastMovingTime();
-          CharacterCursor::GetInstance()->Hide();
-          if (shift) AddFiringAngle(-DELTA_CROSSHAIR/10.0);
-          else       AddFiringAngle(-DELTA_CROSSHAIR);
-          SendActiveCharacterInfo();
-        }
+      UpdateLastMovingTime();
+      CharacterCursor::GetInstance()->Hide();
+      if (shift) AddFiringAngle(-DELTA_CROSSHAIR/10.0);
+      else       AddFiringAngle(-DELTA_CROSSHAIR);
     }
 }
 
@@ -1086,16 +1166,16 @@ void Character::HandleKeyRefreshed_Up(bool shift)
 void Character::HandleKeyRefreshed_Down(bool shift)
 {
   HideGameInterface();
-  if(ActiveCharacter().IsImmobile())
+
+  ActiveTeam().crosshair.Show();
+
+  if (IsImmobile())
     {
-      if (ActiveTeam().crosshair.enable)
-        {
-	  UpdateLastMovingTime();
-          CharacterCursor::GetInstance()->Hide();
-          if (shift) AddFiringAngle(DELTA_CROSSHAIR/10.0);
-          else       AddFiringAngle(DELTA_CROSSHAIR);
-          SendActiveCharacterInfo();
-        }
+      UpdateLastMovingTime();
+      CharacterCursor::GetInstance()->Hide();
+      if (shift) AddFiringAngle(DELTA_CROSSHAIR/10.0);
+      else       AddFiringAngle(DELTA_CROSSHAIR);
+      SendActiveCharacterInfo();
     }
 }
 
@@ -1104,7 +1184,10 @@ void Character::HandleKeyRefreshed_Down(bool shift)
 void Character::HandleKeyPressed_Jump(bool)
 {
   HideGameInterface();
-  if (ActiveCharacter().IsImmobile()) {
+
+  ActiveTeam().crosshair.Hide();
+
+  if (IsImmobile()) {
     Action a(Action::ACTION_CHARACTER_JUMP);
     SendActiveCharacterAction(a);
     Jump();
@@ -1115,7 +1198,10 @@ void Character::HandleKeyPressed_Jump(bool)
 void Character::HandleKeyPressed_HighJump(bool)
 {
   HideGameInterface();
-  if (ActiveCharacter().IsImmobile()) {
+
+  ActiveTeam().crosshair.Hide();
+
+  if (IsImmobile()) {
     Action a(Action::ACTION_CHARACTER_HIGH_JUMP);
     SendActiveCharacterAction(a);
     HighJump();
@@ -1126,7 +1212,10 @@ void Character::HandleKeyPressed_HighJump(bool)
 void Character::HandleKeyPressed_BackJump(bool)
 {
   HideGameInterface();
-  if (ActiveCharacter().IsImmobile()) {
+
+  ActiveTeam().crosshair.Hide();
+
+  if (IsImmobile()) {
     Action a(Action::ACTION_CHARACTER_BACK_JUMP);
     SendActiveCharacterAction(a);
     BackJump();

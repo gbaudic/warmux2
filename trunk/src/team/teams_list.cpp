@@ -25,7 +25,6 @@
 #include "character/body_list.h"
 #include "include/action.h"
 #include "game/config.h"
-#include "game/game_mode.h"
 #include "network/network.h"
 #include "network/randomsync.h"
 #include "team/team.h"
@@ -47,36 +46,23 @@ TeamsList::TeamsList():
 
 TeamsList::~TeamsList()
 {
-  /* The teamslist was never built... nothing to delete.
-   * FIXME This is needed because we are lead to delete things even if they
-   * were not created completely. IMHO, this reflects the fact that the object
-   * life time is not well known...
-   * Actually, this is not that bad whereas free(NULL) is accepted... but it
-   * remains spurious. */
-  if (!singleton)
-  {
-    fprintf(stderr, "Destructor still called on unexisting TeamsList\n");
-    return;
-  }
-
   UnloadGamingData();
   Clear();
   for(full_iterator it = full_list.begin(); it != full_list.end(); ++it)
     delete (*it);
   full_list.clear();
-  singleton = NULL;
 }
 
 //-----------------------------------------------------------------------------
 
 void TeamsList::NextTeam ()
 {
+  ActiveCharacter().StopPlaying();
+
   Team* next = GetNextTeam();
   SetActive(next->GetId());
 
-  if (GameMode::GetInstance()->auto_change_character) {
-    ActiveTeam().NextCharacter();
-  }
+  ActiveTeam().NextCharacter(true);
 
   Action a(Action::ACTION_GAMELOOP_NEXT_TEAM, next->GetId());
   Character::StoreActiveCharacter(&a);
@@ -118,7 +104,7 @@ void TeamsList::LoadOneTeam(const std::string &dir, const std::string &team_name
   if (team_name[0] == '.') return;
 
   // Is it a directory ?
-  if (!IsFolderExist(dir+team_name)) return;
+  if (!DoesFolderExist(dir+team_name)) return;
 
   // Add the team
   try {
@@ -173,7 +159,7 @@ void TeamsList::LoadList()
 
   // We need at least 2 teams
   if (full_list.size() < 2)
-    Error(_("You need at least two valid teams !"));
+    Error(_("You need at least two valid teams!"));
 
   // Default selection
   std::list<uint> nv_selection;
@@ -208,6 +194,7 @@ void TeamsList::LoadGamingData()
 void TeamsList::RandomizeFirstPlayer()
 {
   active_team = playing_list.begin();
+  MSG_DEBUG("random.get", "TeamList::RandomizeFirstPlayer()");
   int skip = RandomSync().GetLong(0, playing_list.size() - 1);
   for(int i = 0; i < skip; i++)
     active_team++;

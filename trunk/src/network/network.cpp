@@ -72,8 +72,9 @@ bool NetworkThread::stop_thread = false;
 
 int NetworkThread::ThreadRun(void* /*no_param*/)
 {
-  MSG_DEBUG("network", "Thread created: %u", SDL_ThreadID());
+  MSG_DEBUG("network.thread", "Thread created: %u", SDL_ThreadID());
   ReceiveActions();
+  MSG_DEBUG("network.thread", "Thread finished: %u", SDL_ThreadID());
   return 0;
 }
 
@@ -113,8 +114,6 @@ void NetworkThread::ReceiveActions()
 
   while (Continue()) // While the connection is up
   {
-    IndexServer::GetInstance()->Refresh();
-
     if (net->GetState() == WNet::NETWORK_PLAYING && cpu.empty())
     {
       // If while playing everybody disconnected, just quit
@@ -124,6 +123,8 @@ void NetworkThread::ReceiveActions()
     //Loop while nothing is received
     while (Continue())
     {
+      IndexServer::GetInstance()->Refresh();
+
       // Check forced disconnections
       dst_cpu = cpu.begin();
       while (Continue() && dst_cpu != cpu.end()) {
@@ -163,11 +164,16 @@ void NetworkThread::ReceiveActions()
     {
       if((*dst_cpu)->SocketReady()) {// Check if this socket contains data to receive
 
-	if (!(*dst_cpu)->ReceiveData(reinterpret_cast<void* &>(buffer), packet_size)) {
+	if (!(*dst_cpu)->ReceiveData(&buffer, packet_size)) {
 	  // An error occured during the reception
           (*dst_cpu)->ForceDisconnection();
           continue;
         }
+
+	if (!buffer && !packet_size) {
+	  // Client is valid but there is not yet enough data to read an action
+	  continue;
+	}
 
 #ifdef LOG_NETWORK
         if (fin != 0) {
@@ -432,7 +438,9 @@ connection_state_t Network::ClientStart(const std::string& host,
   } else if (prev != NULL) {
     delete prev;
   }
-  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION + " - Client mode");
+  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") +
+						     Constants::WORMUX_VERSION + " - " +
+						     _("Client mode"));
   return error;
 }
 
@@ -460,7 +468,9 @@ connection_state_t Network::ServerStart(const std::string& port, const std::stri
   }
 
   if (error == CONNECTED) {
-    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION + " - Server mode");
+    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") +
+						       Constants::WORMUX_VERSION + " - " +
+						       _("Server mode"));
   }
 
   return error;

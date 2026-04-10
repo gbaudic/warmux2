@@ -75,19 +75,14 @@ OptionMenu::OptionMenu() :
   opt_display_wind_particles = new PictureTextCBox(_("Wind particles?"), "menu/display_wind_particles", option_size);
   graphic_options->AddWidget(opt_display_wind_particles);
 
+  opt_display_multisky = new PictureTextCBox(_("Multi-layer sky?"), "menu/multisky", option_size);
+  graphic_options->AddWidget(opt_display_multisky);
+
   opt_display_energy = new PictureTextCBox(_("Player energy?"), "menu/display_energy", option_size);
   graphic_options->AddWidget(opt_display_energy);
 
   opt_display_name = new PictureTextCBox(_("Player's name?"), "menu/display_name", option_size);
   graphic_options->AddWidget(opt_display_name);
-
-  opt_scroll_on_border = new PictureTextCBox(_("Scroll on border"), "menu/scroll_on_border", option_size);
-  graphic_options->AddWidget(opt_scroll_on_border);
-
-  opt_scroll_border_size = new SpinButtonWithPicture(_("Scroll border size"), "menu/scroll_on_border",
-						     option_size,
-						     50, 5, 5, 80);
-  graphic_options->AddWidget(opt_scroll_border_size);
 
 #ifndef __APPLE__
   full_screen = new PictureTextCBox(_("Fullscreen?"), "menu/fullscreen", option_size);
@@ -120,7 +115,7 @@ OptionMenu::OptionMenu() :
                                  video_resolutions, current_resolution);
   graphic_options->AddWidget(cbox_video_mode);
 
-  tabs->AddNewTab("unused", _("Graphic"), graphic_options);
+  tabs->AddNewTab("unused", _("Graphics"), graphic_options);
 
   /* Language selection */
   lbox_languages = new ListBox(option_size);
@@ -129,7 +124,7 @@ OptionMenu::OptionMenu() :
   /* Team editor */
 
   // bug #12193 : Missed assertion in game option (custom team editor) while playing
-  if (Game::GetInstance()->IsGameFinished()) {
+  if (!Game::IsRunning()) {
     Box * teams_editor = new HBox(option_size.x, false, true);
     Box * teams_editor_inf = new VBox(max_width - option_size.x - 10, true, false);
 
@@ -200,6 +195,20 @@ OptionMenu::OptionMenu() :
                                     "menu/ico_update", option_size);
   misc_options->AddWidget(opt_updates);
 
+  opt_lefthanded_mouse = new PictureTextCBox(_("Left-handed mouse?"),
+					     "menu/ico_lefthanded_mouse", option_size);
+  misc_options->AddWidget(opt_lefthanded_mouse);
+
+  opt_scroll_on_border = new PictureTextCBox(_("Scroll on border"), "menu/scroll_on_border", option_size);
+  misc_options->AddWidget(opt_scroll_on_border);
+
+  opt_scroll_border_size = new SpinButtonWithPicture(_("Scroll border size"), "menu/scroll_on_border",
+						     option_size,
+						     50, 5, 5, 80);
+  misc_options->AddWidget(opt_scroll_border_size);
+
+
+
   tabs->AddNewTab("unused", _("Misc"), misc_options);
 
 
@@ -253,10 +262,9 @@ OptionMenu::OptionMenu() :
   // Values initialization
   opt_max_fps->SetValue(app->video->GetMaxFps());
   opt_display_wind_particles->SetValue(config->GetDisplayWindParticles());
+  opt_display_multisky->SetValue(config->GetDisplayMultiLayerSky());
   opt_display_energy->SetValue(config->GetDisplayEnergyCharacter());
   opt_display_name->SetValue(config->GetDisplayNameCharacter());
-  opt_scroll_on_border->SetValue(config->GetScrollOnBorder());
-  opt_scroll_border_size->SetValue(config->GetScrollBorderSize());
 #ifndef __APPLE__
   full_screen->SetValue(app->video->IsFullScreen());
 #endif
@@ -284,6 +292,7 @@ OptionMenu::OptionMenu() :
   lbox_languages->AddItem(config->GetLanguage() == "he",    "עברית (Hebrew)",      "he");
   lbox_languages->AddItem(config->GetLanguage() == "hu",    "Magyar",              "hu");
   lbox_languages->AddItem(config->GetLanguage() == "it",    "Italiano",            "it");
+  lbox_languages->AddItem(config->GetLanguage() == "ja_JP", "日本語 (japanese)",   "ja_JP");
   lbox_languages->AddItem(config->GetLanguage() == "kw",    "Kernewek",            "kw");
   lbox_languages->AddItem(config->GetLanguage() == "lv",    "latviešu valoda",     "lv");
   lbox_languages->AddItem(config->GetLanguage() == "nb",    "Norsk (bokmål)",      "nb");
@@ -300,9 +309,12 @@ OptionMenu::OptionMenu() :
   lbox_languages->AddItem(config->GetLanguage() == "sv",    "Svenska",             "sv");
   lbox_languages->AddItem(config->GetLanguage() == "tr",    "Türkçe",              "tr");
   lbox_languages->AddItem(config->GetLanguage() == "zh_CN", "汉语 (hànyǔ)",        "zh_CN");
-  lbox_languages->AddItem(config->GetLanguage() == "zh_TW", "闽语 (mǐnyǔ)",        "zh_TW");
+  lbox_languages->AddItem(config->GetLanguage() == "zh_TW", "闽语 (mǐnyǔ)",              "zh_TW");
 
   opt_updates->SetValue(config->GetCheckUpdates());
+  opt_lefthanded_mouse->SetValue(config->GetLeftHandedMouse());
+  opt_scroll_on_border->SetValue(config->GetScrollOnBorder());
+  opt_scroll_border_size->SetValue(config->GetScrollBorderSize());
 
   GetResourceManager().UnLoadXMLProfile(res);
 
@@ -358,9 +370,10 @@ void OptionMenu::SaveOptions()
   // Graphic options
   config->SetDisplayWindParticles(opt_display_wind_particles->GetValue());
   // bug #11826 : Segmentation fault while exiting the menu.
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     Wind::GetRef().Reset();
 
+  config->SetDisplayMultiLayerSky(opt_display_multisky->GetValue());
   config->SetDisplayEnergyCharacter(opt_display_energy->GetValue());
   config->SetDisplayNameCharacter(opt_display_name->GetValue());
   config->SetScrollOnBorder(opt_scroll_on_border->GetValue());
@@ -368,6 +381,7 @@ void OptionMenu::SaveOptions()
 
   // Misc options
   config->SetCheckUpdates(opt_updates->GetValue());
+  config->SetLeftHandedMouse(opt_lefthanded_mouse->GetValue());
 
   // Sound settings - volume already saved
   config->SetSoundFrequency(cbox_sound_freq->GetIntValue());
@@ -409,7 +423,7 @@ void OptionMenu::SaveOptions()
   config->Save();
 
   //Team editor
-  if (Game::GetInstance()->IsGameFinished()) {
+  if (!Game::IsRunning()) {
     if (!lbox_teams->IsSelectedItem()) {
       AddTeam();
     }
@@ -446,7 +460,7 @@ void OptionMenu::CheckUpdates()
       const char  *cur_version   = Constants::GetInstance()->WORMUX_VERSION.c_str();
       if (latest_version != cur_version) {
 	Question new_version;
-	std::string txt = Format(_("A new version %s is available, while your version is %s."
+	std::string txt = Format(_("A new version %s is available, while your version is %s. "
 				   "You may want to check whether an update is available for your OS!"),
 				 latest_version.c_str(), cur_version);
 	new_version.Set(txt, true, 0);
@@ -487,7 +501,7 @@ bool OptionMenu::TeamInfoValid()
 
 void OptionMenu::AddTeam()
 {
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     return;
 
   if (!TeamInfoValid())
@@ -505,7 +519,7 @@ void OptionMenu::AddTeam()
 
 void OptionMenu::DeleteTeam()
 {
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     return;
 
   if (selected_team) {
@@ -522,7 +536,7 @@ void OptionMenu::DeleteTeam()
 
 void OptionMenu::LoadTeam()
 {
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     return;
 
   if (selected_team) {
@@ -544,7 +558,7 @@ void OptionMenu::LoadTeam()
 
 void OptionMenu::ReloadTeamList()
 {
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     return;
 
   lbox_teams->ClearItems();
@@ -571,7 +585,7 @@ void OptionMenu::ReloadTeamList()
 
 bool OptionMenu::SaveTeam()
 {
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     return false;
 
   if (!TeamInfoValid())
@@ -592,7 +606,7 @@ bool OptionMenu::SaveTeam()
 
 void OptionMenu::SelectTeam()
 {
-  if (!Game::GetInstance()->IsGameFinished())
+  if (Game::IsRunning())
     return;
 
   if (lbox_teams->IsSelectedItem()) {

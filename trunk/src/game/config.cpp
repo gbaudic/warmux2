@@ -99,9 +99,8 @@ Config::Config():
   display_energy_character(true),
   display_name_character(true),
   display_wind_particles(true),
+  display_multi_layer_sky(true),
   default_mouse_cursor(false),
-  disable_joystick(true),
-  disable_mouse(false),
   video_width(800),
   video_height(600),
   video_fullscreen(false),
@@ -114,6 +113,7 @@ Config::Config():
   sound_frequency(44100),
   warn_on_new_player(true),
   check_updates(false),
+  lefthanded_mouse(false),
   m_network_client_host("localhost"),
   m_network_client_port(WORMUX_NETWORK_PORT),
   m_network_server_game_name("Wormux party"),
@@ -258,7 +258,15 @@ bool Config::MkdirPersonalConfigDir() const
 
 bool Config::MkdirPersonalDataDir() const
 {
-  return CreateFolder(personal_data_dir);
+  bool r = CreateFolder(personal_data_dir);
+
+  if (r) {
+    CreateFolder(personal_data_dir + "map");
+    CreateFolder(personal_data_dir + "team");
+    CreateFolder(personal_data_dir + "game_mode");
+  }
+
+  return r;
 }
 
 bool Config::RemovePersonalConfigFile() const
@@ -347,7 +355,7 @@ void Config::LoadDefaultValue()
   m_default_config = GetDataDir() + "wormux_default_config.xml";
   Profile *res = GetResourceManager().LoadXMLProfile(m_default_config, true);
 
-  std::cout << "o " << _("Reading default config file") << std::endl;
+  std::cout << "o " << _("Reading the default config file") << std::endl;
   std::ostringstream section;
   Point2i tmp;
 
@@ -396,7 +404,7 @@ void Config::LoadXml(const xmlNode *xml)
 {
   const xmlNode *elem;
 
-  std::cout << "o " << _("Reading personal config file") << std::endl;
+  std::cout << "o " << _("Reading the personal config file") << std::endl;
 
   //=== Map ===
   XmlReader::ReadString(xml, "map", map_name);
@@ -432,13 +440,12 @@ void Config::LoadXml(const xmlNode *xml)
     XmlReader::ReadBool(elem, "bling_bling_interface", bling_bling_interface);
     XmlReader::ReadUint(elem, "max_fps", max_fps);
     XmlReader::ReadBool(elem, "display_wind_particles", display_wind_particles);
+    XmlReader::ReadBool(elem, "display_multi_layer_sky", display_multi_layer_sky);
     XmlReader::ReadBool(elem, "display_energy_character", display_energy_character);
     XmlReader::ReadBool(elem, "display_name_character", display_name_character);
     XmlReader::ReadBool(elem, "default_mouse_cursor", default_mouse_cursor);
     XmlReader::ReadBool(elem, "scroll_on_border", scroll_on_border);
     XmlReader::ReadUint(elem, "scroll_border_size", scroll_border_size);
-    XmlReader::ReadBool(elem, "disable_mouse", disable_mouse);
-    XmlReader::ReadBool(elem, "disable_joystick", disable_joystick);
     XmlReader::ReadUint(elem, "width", video_width);
     XmlReader::ReadUint(elem, "height", video_height);
     XmlReader::ReadBool(elem, "full_screen", video_fullscreen);
@@ -495,6 +502,7 @@ void Config::LoadXml(const xmlNode *xml)
   if ((elem = XmlReader::GetMarker(xml, "misc")) != NULL)
   {
     XmlReader::ReadBool(elem, "check_updates", check_updates);
+    XmlReader::ReadBool(elem, "left-handed_mouse", lefthanded_mouse);
   }
 
   //=== game mode ===
@@ -579,14 +587,13 @@ bool Config::SaveXml(bool save_current_teams)
   Video * video = AppWormux::GetInstance()->video;
   xmlNode* video_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"video"));
   doc.WriteElement(video_node, "display_wind_particles", ulong2str(display_wind_particles));
+  doc.WriteElement(video_node, "display_multi_layer_sky", ulong2str(display_multi_layer_sky));
   doc.WriteElement(video_node, "display_energy_character", ulong2str(display_energy_character));
   doc.WriteElement(video_node, "display_name_character", ulong2str(display_name_character));
   doc.WriteElement(video_node, "bling_bling_interface", ulong2str(bling_bling_interface));
   doc.WriteElement(video_node, "default_mouse_cursor", ulong2str(default_mouse_cursor));
   doc.WriteElement(video_node, "scroll_on_border", ulong2str(scroll_on_border));
   doc.WriteElement(video_node, "scroll_border_size", ulong2str(scroll_border_size));
-  doc.WriteElement(video_node, "disable_mouse", ulong2str(disable_mouse));
-  doc.WriteElement(video_node, "disable_joystick", ulong2str(disable_joystick));
   doc.WriteElement(video_node, "width", ulong2str(video->window.GetWidth()));
   doc.WriteElement(video_node, "height", ulong2str(video->window.GetHeight()));
   doc.WriteElement(video_node, "full_screen",
@@ -640,6 +647,7 @@ bool Config::SaveXml(bool save_current_teams)
   //=== Misc ===
   xmlNode *misc_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"misc"));
   doc.WriteElement(misc_node, "check_updates", ulong2str(check_updates));
+  doc.WriteElement(misc_node, "left-handed_mouse", ulong2str(lefthanded_mouse));
 
   //=== game mode ===
   doc.WriteElement(root, "game_mode", m_game_mode);

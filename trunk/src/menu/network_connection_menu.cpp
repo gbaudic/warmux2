@@ -81,6 +81,55 @@ public:
   const std::string& GetPort() { return ((GameInfoBox*)m_items[selected_item])->port; }
 };
 
+struct shared_net_info {
+  SDL_Thread* thread_refresh;
+  SDL_sem* lock;
+  std::list<GameServerInfo> lst_games;
+  connection_state_t index_conn_state;
+  bool todisplay;
+};
+
+struct shared_net_info net_info;
+
+void InitNetInfo()
+{
+  net_info.thread_refresh = NULL;
+  net_info.lst_games.clear();
+  net_info.index_conn_state = CONNECTED;
+  net_info.lock = SDL_CreateSemaphore(1);
+  net_info.todisplay = false;
+}
+
+int RefreshNetInfo(void *)
+{
+  MSG_DEBUG("network.refresh_games_list", "Begin");
+
+  // Connect to the index server
+  connection_state_t conn = IndexServer::GetInstance()->Connect(Constants::WORMUX_VERSION);
+  if (conn != CONNECTED) {
+    SDL_SemWait(net_info.lock);
+    net_info.index_conn_state = conn;
+    net_info.thread_refresh = NULL;
+    SDL_SemPost(net_info.lock);
+    return -1;
+  }
+
+  std::list<GameServerInfo> lst = IndexServer::GetInstance()->GetHostList();
+  IndexServer::GetInstance()->Disconnect();
+
+  SDL_SemWait(net_info.lock);
+  net_info.lst_games = lst;
+  net_info.todisplay = true;
+  net_info.thread_refresh = NULL;
+  SDL_SemPost(net_info.lock);
+
+  // make sure the list will be updated right now
+  Menu::WakeUpOnCallback();
+
+  MSG_DEBUG("network.refresh_games_list", "End");
+  return 0;
+}
+
 NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
   Menu("menu/bg_network", vOkCancel)
 {
@@ -240,6 +289,9 @@ NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
 
   GetResourceManager().UnLoadXMLProfile(res);
 
+  // ************************************************************************
+  InitNetInfo();
+
   switch (action) {
   case NET_HOST:
     tabs->SelectTab(1);
@@ -248,12 +300,15 @@ NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
     tabs->SelectTab(0);
     break;
   default:
+    ThreadRefreshList();
     break;
   }
 }
 
 NetworkConnectionMenu::~NetworkConnectionMenu()
 {
+  SDL_SemWait(net_info.lock);
+  SDL_DestroySemaphore(net_info.lock);
 }
 
 void NetworkConnectionMenu::OnClickUp(const Point2i &mousePosition, int button)
@@ -261,7 +316,7 @@ void NetworkConnectionMenu::OnClickUp(const Point2i &mousePosition, int button)
   Widget* w = widgets.ClickUp(mousePosition, button);
 
   if (w == cl_refresh_net_games || w == refresh_net_games_label)
-    RefreshList();
+    ThreadRefreshList();
 }
 
 void NetworkConnectionMenu::OnClick(const Point2i &mousePosition, int button)
@@ -269,29 +324,16 @@ void NetworkConnectionMenu::OnClick(const Point2i &mousePosition, int button)
   widgets.Click(mousePosition, button);
 }
 
-std::list<GameServerInfo> NetworkConnectionMenu::GetList()
+void NetworkConnectionMenu::__RefreshList()
 {
-  std::list<GameServerInfo> lst;
-
-  // Connect to the index server
-  connection_state_t conn = IndexServer::GetInstance()->Connect(Constants::WORMUX_VERSION);
-  if (conn != CONNECTED) {
-    DisplayNetError(conn);
-    msg_box->NewMessage(_("Error: Unable to contact the index server to search for an internet game"), c_red);
-    return lst;
+  SDL_SemWait(net_info.lock);
+  if (!net_info.todisplay) {
+    SDL_SemPost(net_info.lock);
+    return;
   }
 
-  lst = IndexServer::GetInstance()->GetHostList();
-  IndexServer::GetInstance()->Disconnect();
+  net_info.todisplay = false;
 
-  if (lst.empty()) {
-    Menu::DisplayError(_("Sorry, currently, no game is waiting for players"));
-  }
-  return lst;
-}
-
-void NetworkConnectionMenu::RefreshList()
-{
   // Save the currently selected address
   int current = cl_net_games_lst->GetSelectedItem();
   if (current == -1) current = 0;
@@ -302,33 +344,69 @@ void NetworkConnectionMenu::RefreshList()
     cl_net_games_lst->RemoveSelected();
   }
 
-  std::list<GameServerInfo> lst = GetList();
-  if (lst.empty()) {
+  if (net_info.index_conn_state != CONNECTED) {
+    DisplayNetError(net_info.index_conn_state);
+    SDL_SemPost(net_info.lock);
+    msg_box->NewMessage(_("Error: Unable to contact the index server to search for an internet game"), c_red);
     return;
   }
 
-  for (std::list<GameServerInfo>::iterator it = lst.begin(); it != lst.end(); ++it) {
+  if (net_info.lst_games.empty()) {
+      Menu::DisplayError(_("Sorry, currently, no game is waiting for players"));
+      SDL_SemPost(net_info.lock);
+      return;
+  }
+
+  for (std::list<GameServerInfo>::iterator it = net_info.lst_games.begin();
+       it != net_info.lst_games.end(); ++it) {
     cl_net_games_lst->AddItem(false, it->passworded, it->ip_address,
                               it->port, it->dns_address, it->game_name);
   }
+  SDL_SemPost(net_info.lock);
+
   if (cl_net_games_lst->Size() != 0)
     cl_net_games_lst->Select( current );
+
   cl_net_games_lst->NeedRedrawing();
 }
 
-void NetworkConnectionMenu::Draw(const Point2i &/*mousePosition*/){}
+void NetworkConnectionMenu::ThreadRefreshList()
+{
+  SDL_SemWait(net_info.lock);
+
+  if (net_info.thread_refresh != NULL) {
+    MSG_DEBUG("network.refresh_games_list", "A thread is already running");
+    SDL_SemPost(net_info.lock);
+    return;
+  }
+  SDL_SemPost(net_info.lock);
+
+  net_info.thread_refresh = SDL_CreateThread(RefreshNetInfo, NULL);
+}
+
+void NetworkConnectionMenu::Draw(const Point2i &/*mousePosition*/) {}
+
+void NetworkConnectionMenu::HandleEvent(const SDL_Event& event)
+{
+  __RefreshList();
+  Menu::HandleEvent(event);
+}
 
 void NetworkConnectionMenu::DisplayNetError(connection_state_t conn)
 {
+  std::string error_msg;
+
   if (conn == CONN_WRONG_VERSION) {
-    AppWormux::DisplayError(Format(_("Sorry, your version is not supported anymore. "
-				     "Supported version are %s. "
-				     "You can download a updated version "
-				     "on http://www.wormux.org/wiki/download.php"),
-				   IndexServer::GetInstance()->GetSupportedVersions().c_str()));
+    error_msg = Format(_("Sorry, your version is not supported anymore. "
+			 "Supported versions are %s. "
+			 "You can download an updated version "
+			 "from http://www.wormux.org/wiki/download.php"),
+		       IndexServer::GetInstance()->GetSupportedVersions().c_str());
   } else {
-    Menu::DisplayError(NetworkErrorToString(conn));
+    error_msg = NetworkErrorToString(conn);
   }
+
+  Menu::DisplayError(error_msg);
 }
 
 bool NetworkConnectionMenu::HostingServer(const std::string& port,
@@ -364,13 +442,13 @@ bool NetworkConnectionMenu::HostingServer(const std::string& port,
   r = IndexServer::GetInstance()->SendServerStatus(game_name, password != "", net_port);
   if (false == r) {
     DisplayNetError(CONN_BAD_PORT);
-    msg_box->NewMessage(Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connection from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port.c_str(), port.c_str()),
+    msg_box->NewMessage(Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connections from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port.c_str(), port.c_str()),
                         c_red);
     goto out;
   }
 
   if (!Network::GetInstance()->IsConnected()) {
-    msg_box->NewMessage(_("Error: Unable to start server"), c_red);
+    msg_box->NewMessage(_("Error: Unable to start the server"), c_red);
     goto out;
   }
   r = true;
@@ -456,12 +534,15 @@ bool NetworkConnectionMenu::signal_ok()
     Network::GetInstance()->network_menu = NULL;
     IndexServer::GetInstance()->Disconnect();
 
-    // back to main menu after playing
     Network::Disconnect();
-    return true;
+
+    // Don't go back to main menu after playing
+    Menu::RedrawMenu();
+    ThreadRefreshList();
+
+    return false;
   }
 
-  r = true;
  out:
   Network::Disconnect();
   return r;
