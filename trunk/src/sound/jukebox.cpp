@@ -34,6 +34,9 @@
 #include "sound/sound_sample.h"
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
+#ifdef HAVE_LIBRESOURCE
+#include "maemo/resource.h"
+#endif
 
 JukeBox::JukeBox()
   : music(NULL)
@@ -112,12 +115,24 @@ bool JukeBox::OpenDevice()
     End();
     return false;
   }
+#ifdef HAVE_LIBRESOURCE
+  if (!Resource::AcquireResources())
+    return false;
+#endif
 
   /* Initialize the SDL library */
   if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
     std::cerr << "* Couldn't initialize SDL: "<< SDL_GetError() << std::endl;
     return false;
   }
+
+#if SDL_MIXER_MAJOR_VERSION*1000 + SDL_MIXER_MINOR_VERSION*100 + SDL_MIXER_PATCHLEVEL > 1209
+  if (Mix_Init(MIX_INIT_OGG) ^ MIX_INIT_OGG) {
+    std::cerr << "* Couldn't initialize SDL_mixer: "<< SDL_GetError() << std::endl;
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    return false;
+  }
+#endif
   m_init = true;
 
   Uint16 audio_format = MIX_DEFAULT_FORMAT;
@@ -145,7 +160,15 @@ void JukeBox::CloseDevice()
   if (!m_init)
     return;
 
+#ifdef HAVE_LIBRESOURCE
+  Resource::ReleaseResources();
+#endif
+
   Mix_CloseAudio();
+
+#if SDL_MIXER_MAJOR_VERSION*1000 + SDL_MIXER_MINOR_VERSION*100 + SDL_MIXER_PATCHLEVEL > 1209
+  Mix_Quit();
+#endif
 
   if (SDL_WasInit(SDL_INIT_AUDIO))
     SDL_QuitSubSystem(SDL_INIT_AUDIO);

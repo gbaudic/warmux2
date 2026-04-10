@@ -146,7 +146,7 @@ void GameClassic::__SetState_PLAYING()
   Interface::GetInstance()->EnableDisplayTimer(true);
   last_clock_update = GameTime::GetInstance()->Read();
 
-  Wind::GetRef().ChooseRandomVal();
+  Wind::GetRef().UpdateStrength();
 
   SetCharacterChosen(false);
 
@@ -209,5 +209,5 @@ void GameClassic::ApplyDeathMode () const
 
 bool GameClassic::IsGameFinished() const
 {
-  return (NbrRemainingTeams() <= 1);
+  return (RemainingGroups() <= 1);
 }

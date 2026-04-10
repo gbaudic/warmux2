@@ -83,6 +83,7 @@ Team::Team(XmlReader& doc, Profile* res,
   , active_weapon(NULL)
   , abandoned(false)
   , team_color(white_color)
+  , group(0)
   , energy(this)
 {
   // Load team color
@@ -202,7 +203,7 @@ uint Team::ReadEnergy() const
   return total_energy;
 }
 
-void Team::SelectCharacter(const Character * c)
+void Team::SelectCharacter(Character * c)
 {
   ASSERT(c != NULL);
 
@@ -210,7 +211,7 @@ void Team::SelectCharacter(const Character * c)
     ActiveCharacter().StopPlaying();
 
     active_character = characters.begin();
-    while (!c->IsActiveCharacter() && active_character != characters.end())
+    while (c != &(*active_character) && active_character != characters.end())
       active_character++;
 
     ASSERT(active_character != characters.end());
@@ -218,7 +219,7 @@ void Team::SelectCharacter(const Character * c)
 
   // StartPlaying (if needed) even if c was already ActiveCharacter() thanks to
   // the team change...
-  ActiveCharacter().StartPlaying();
+  c->StartPlaying();
 }
 
 void Team::NextCharacter(bool newturn)
@@ -391,10 +392,14 @@ void Team::UnloadGamingData()
 void Team::LoadAI()
 {
   ASSERT(IsLocalAI());
-  if (ai) {
+  if (ai)
     delete ai;
-  }
-  ai = new AIStupidPlayer(this);
+
+  float accuracy;
+  if (ai_name == DEFAULT_AI_NAME) accuracy = 0.9f;
+  if (ai_name == DUMB_AI_NAME)    accuracy = 0.8f;
+  if (ai_name == STRONG_AI_NAME)  accuracy = 0.95f;
+  ai = new AIStupidPlayer(this, accuracy);
 }
 
 void Team::RefreshAI()

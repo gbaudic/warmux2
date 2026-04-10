@@ -33,16 +33,16 @@ class SpinButtonWithPicture;
 class Label;
 class PictureWidget;
 class TextBox;
+class NullWidget;
 
 class TeamBox : public HBox
 {
   std::string previous_player_name; // only for network
-  std::string ai_name;
+  int         ai_level;
+  uint        group;
 
-  Surface player_local_ai_surf;
-  Surface player_local_human_surf;
-  Surface player_remote_ai_surf;
-  Surface player_remote_human_surf;
+  Surface player_local[4];
+  Surface player_remote[4];
 
   Team * associated_team;
   PictureWidget *team_logo, *player_type;
@@ -51,6 +51,7 @@ class TeamBox : public HBox
   Button * next_custom_team;
   Button * previous_custom_team;
   SpinButtonWithPicture * nb_characters;
+  NullWidget *nullw;
 
   std::vector<CustomTeam *> custom_team_list;
   unsigned custom_team_current_id;
@@ -60,11 +61,11 @@ class TeamBox : public HBox
 
   void UpdatePlayerNameColor();
 
- public:
-  TeamBox(const std::string& player_name, const Point2i &size);
+public:
+  TeamBox(const std::string& player_name, const Point2i &size, uint group=0);
 
   void SetTeam(Team& _team, bool read_team_values=false);
-  void SetAIName(const std::string name);
+  void SetAILevel(uint i) { ai_level = i; UpdatePlayerType(); }
   void UpdatePlayerType();
   void ClearTeam();
   Team* GetTeam() const { return associated_team; }
@@ -73,13 +74,18 @@ class TeamBox : public HBox
 
   bool IsLocal() const;
 
+  uint GetGroup() const { return group; }
+  void SetGroup(uint group);
+
   virtual bool Update(const Point2i &mousePosition,
                       const Point2i &lastMousePosition);
 
-  virtual Widget* Click(const Point2i &mousePosition, uint button);
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
   void SwitchPlayerType();
+
+  bool IsTeamSwitcherAt(const Point2i &mousePosition) const;
+  bool IsAISwitcherAt(const Point2i &mousePosition) const;
 };
 
 #endif

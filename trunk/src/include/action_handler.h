@@ -34,6 +34,7 @@
 struct SDL_mutex;
 class Player;
 class ConfigTeam;
+class Team;
 class Action;
 
 class ActionHandler : public Singleton<ActionHandler>, public WActionHandler
@@ -44,12 +45,13 @@ class ActionHandler : public Singleton<ActionHandler>, public WActionHandler
 
 public:
   void NewAction(Action* a, bool repeat_to_network=true);
-  void NewActionActiveCharacter(int index=-1); // send infos (on the network) about active character
+  void NewActionActiveCharacter(const Team* team = NULL, int index=-1); // send infos (on the network) about active character
 
   void NewRequestTeamAction(const ConfigTeam & team);
 
   void ExecFrameLessActions();
   bool ExecActionsForOneFrame();
+  void AddActionsFrames(uint nb, DistantComputer* cpu);
 };
 
 void Action_Handler_Init();

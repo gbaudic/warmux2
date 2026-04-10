@@ -589,15 +589,25 @@ XmlWriter::~XmlWriter()
   Reset();
 }
 
+xmlNode *XmlWriter::AddNode(xmlNode* x, const char* name)
+{
+  return xmlAddChild(x, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)name));
+}
+
 xmlNode *XmlWriter::WriteElement(xmlNode* x,
                                  const std::string &name,
-                                 const std::string &value)
+                                 const std::string &value,
+                                 bool attr)
 {
-  xmlNode *node = xmlAddChild(x, xmlNewNode(NULL /* empty prefix */,
-                                            (const xmlChar*)name.c_str()));
+  m_save = false;
+  if (attr) {
+    xmlSetProp(x, (const xmlChar*)name.c_str(), (const xmlChar*)value.c_str());
+    return x;
+  }
+
+  xmlNode *node = AddNode(x, name.c_str());
   xmlNode *text = xmlNewText((const xmlChar*)value.c_str());
   xmlAddChild(node, text);
-  m_save = false;
   return node;
 }
 
@@ -632,6 +642,7 @@ xmlNode* XmlWriter::GetRoot() const
 
 bool XmlWriter::Save()
 {
+  if (m_filename == "") return false;
   if (m_save) return true;
   m_save = true;
   int result = xmlSaveFormatFileEnc(m_filename.c_str(), m_doc,
@@ -647,8 +658,7 @@ std::string XmlWriter::SaveToString() const
   xmlDocDumpFormatMemoryEnc(m_doc, &buffer, &length, NULL, 0);
   ASSERT(buffer);
 
-  std::string ret;
-  ret.copy((char *)buffer, length);
+  std::string ret((char *)buffer, length);
   xmlFree(buffer);
   return ret;
 }

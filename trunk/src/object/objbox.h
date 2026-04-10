@@ -31,6 +31,7 @@ class Sprite;
 class Surface;
 typedef struct _xmlNode xmlNode;
 class Action;
+class XmlWriter;
 
 class ObjBox : public PhysicalObj //it would be nice to name this "Box", but that was already taken...
 {
@@ -44,7 +45,6 @@ public:
   ~ObjBox();
 
   void DropBox();
-  static void LoadXml(const xmlNode*  /*object*/){};
 
   void Draw();
   virtual void Refresh();
@@ -57,7 +57,6 @@ public:
 protected:
   bool parachute;
   Sprite *anim;
-  static int start_life_points;
   void Explode();
 
   virtual void SignalGroundCollision(const Point2d& my_speed_before, const Double& contactAngle);

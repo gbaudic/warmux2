@@ -28,7 +28,13 @@ typedef unsigned int     uint;
 typedef int ssize_t;
 #endif
 
-typedef struct fp::fixed_point<16> Double;
+#ifdef _WIN32
+#  define SIZET_FORMAT  "%I"
+#else
+#  define SIZET_FORMAT  "%z"
+#endif
+
+typedef struct fixedpoint::fixed_point<16> Double;
 
 static const Double QUARTER_PI = 0.25*M_PI;
 static const Double HALF_PI    = 0.5*M_PI;

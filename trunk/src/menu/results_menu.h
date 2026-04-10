@@ -36,6 +36,7 @@ class TextBox;
 class FileListBox;
 class PictureWidget;
 class Button;
+class SocialPanel;
 
 class ResultsMenu : public Menu
 {
@@ -59,6 +60,10 @@ class ResultsMenu : public Menu
   TextBox     *replay_name;
   TextBox     *comment;
 
+#if defined(HAVE_FACEBOOK) || defined(HAVE_TWITTER)
+  SocialPanel *social_panel;
+#endif
+
   bool signal_ok();
   void key_ok();
 
@@ -69,6 +74,16 @@ class ResultsMenu : public Menu
 
   void Draw(const Point2i &mousePosition);
   void OnClickUp(const Point2i &mousePosition, int button);
+
+#if defined(HAVE_FACEBOOK) || defined(HAVE_TWITTER)
+  std::string StringMessagge();
+#endif
+#ifdef HAVE_FACEBOOK
+  void Facepalm(const std::string& user, const std::string& pwd);
+#endif
+#ifdef HAVE_TWITTER
+  void Tweet(const std::string& user, const std::string& pwd);
+#endif
 
 public:
   ResultsMenu(std::vector<TeamResults*>& v, bool disconnected = false);

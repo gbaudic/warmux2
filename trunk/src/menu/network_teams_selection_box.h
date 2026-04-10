@@ -30,18 +30,21 @@ class Team;
 
 class NetworkTeamsSelectionBox : public TeamsSelectionBox
 {
+  std::vector<Team *> team_list;
+
   void RemoveLocalTeam(uint i);
   void SetLocalTeam(uint i, Team& team);
 
   const std::string GetLocalPlayerName();
 
-  void PrevTeam(uint i);
-  void NextTeam(uint i);
-
   bool IsSelected(Team * team);
 
   void RequestTeamRemoval();
   void UpdateNbTeams();
+
+protected:
+  virtual void PrevTeam(uint i);
+  virtual void NextTeam(uint i);
 
 public:
   NetworkTeamsSelectionBox(const Point2i &size, bool w_border);
@@ -52,8 +55,17 @@ public:
   void AddTeamCallback(const std::string& team_id);
   void UpdateTeamCallback(const std::string& old_team_id, const std::string& team_id);
   void DelTeamCallback(const std::string& team_id);
-  Team * FindUnusedTeam(const std::string default_team_id);
+  Team * FindUnusedTeam(const std::string& default_team_id);
+  Team * FindById(const std::string& id, int &index);
+  int FindByPointer(const Team* team)
+  {
+    for (uint i=0; i<team_list.size(); i++)
+      if (team_list[i] == team)
+        return i;
+    return -1;
+  }
   bool HasOpenTeamSlot();
   void RequestTeam();
+  void ChangeTeamListCallback(const std::vector<uint>& list);
 };
 #endif

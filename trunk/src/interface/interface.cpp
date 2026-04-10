@@ -22,6 +22,7 @@
 #include "include/action_handler.h"
 #include "interface/interface.h"
 #include "interface/weapon_help.h"
+#include "interface/keyboard.h"
 #include "interface/mouse.h"
 #include "character/character.h"
 #include "game/config.h"
@@ -107,12 +108,12 @@ void Interface::LoadDataInternal(Profile *res)
   // Labels
   uint fsize = Font::FONT_SMALL*powf(zoom, 0.85f)+0.5f;
   if (fsize < 10) fsize = 10;
-  t_character_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
-  t_team_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
-  t_player_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
-  t_weapon_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
-  t_weapon_stock = new Text("0", m_text_color, fsize, Font::FONT_BOLD, false);
-  t_character_energy = new Text("Dead", m_energy_text_color, fsize, Font::FONT_BOLD);
+  t_character_name = new Text("None", m_text_color, fsize);
+  t_team_name = new Text("None", m_text_color, fsize);
+  t_player_name = new Text("None", m_text_color, fsize);
+  t_weapon_name = new Text("None", m_text_color, fsize);
+  t_weapon_stock = new Text("0", m_text_color, fsize);
+  t_character_energy = new Text("Dead", m_energy_text_color, fsize, Font::FONT_BOLD, true);
 
   // Replay labels
   if (replay) {
@@ -122,8 +123,8 @@ void Interface::LoadDataInternal(Profile *res)
   }
 
   // Timer
-  global_timer = new Text("0", gray_color, Font::FONT_BIG*zoom+0.5f, Font::FONT_BOLD, false);
-  timer = new Text("0", black_color, Font::FONT_MEDIUM*zoom+0.5f, Font::FONT_BOLD, false);
+  global_timer = new Text("0", gray_color, Font::FONT_BIG*zoom+0.5f);
+  timer = new Text("0", black_color, Font::FONT_MEDIUM*zoom+0.5f);
 
   wind_bar.InitPos(0, 0, 82*zoom-1.5f, 15*zoom-1.5f);
 }
@@ -704,17 +705,20 @@ void AbsoluteDraw(const Surface &s, const Point2i& pos)
 
 bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
 {
+  Character *active_char = &ActiveCharacter();
+  Game      *game        = Game::GetInstance();
+
   // Make sure we don't go in there while we shouldn't
   if (!ActiveTeam().IsLocalHuman()
-      || ActiveCharacter().IsDead()
-      || (Game::GetInstance()->ReadState() != Game::PLAYING
+      || active_char->IsDead()
+      || (game->ReadState() != Game::PLAYING
           // movement should be possible just after shooting
-          && Game::GetInstance()->ReadState() != Game::HAS_PLAYED))
+          && game->ReadState() != Game::HAS_PLAYED))
     return false;
 
-  Character *active_char = &ActiveCharacter();
   Point2i button_size(56*zoom, control_toolbar.GetHeight());
   Point2i mouse_rel_pos = mouse_pos-bottom_bar_pos;
+  int mods = Keyboard::GetModifierBits();
 
   old_mouse_pos -= bottom_bar_pos;
 
@@ -723,15 +727,15 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-        active_char->HandleKeyPressed_MoveLeft(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyPressed_MoveLeft(false);
+        active_char->HandleKeyPressed_MoveLeft(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_MoveLeft(mods & SHIFT_BIT);
         }
         break;
       case CLICK_TYPE_UP:
-        active_char->HandleKeyReleased_MoveLeft(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyReleased_MoveLeft(false);
+        active_char->HandleKeyReleased_MoveLeft(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_MoveLeft(mods & SHIFT_BIT);
         }
         break;
     }
@@ -743,16 +747,16 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-        active_char->HandleKeyPressed_MoveRight(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyPressed_MoveRight(false);
+        active_char->HandleKeyPressed_MoveRight(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_MoveRight(mods & SHIFT_BIT);
         }
         break;
 
       case CLICK_TYPE_UP:
-        active_char->HandleKeyReleased_MoveRight(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyReleased_MoveRight(false);
+        active_char->HandleKeyReleased_MoveRight(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_MoveRight(mods & SHIFT_BIT);
         }
         break;
     }
@@ -766,15 +770,29 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
         if (!jump_button.Contains(old_mouse_pos))
           return false;
         active_char->HandleKeyPressed_HighJump();
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+        if (game->ReadState() == Game::PLAYING) {
           ActiveTeam().AccessWeapon().HandleKeyPressed_HighJump();
         }
         break;
       case CLICK_TYPE_DOWN: return false; // Needed to allow long clicks
       case CLICK_TYPE_UP:
-        active_char->HandleKeyPressed_Jump();
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyPressed_Jump();
+        // Active character
+        if (mods & SHIFT_BIT)
+          active_char->HandleKeyPressed_HighJump();
+        else if (mods & CONTROL_BIT)
+          active_char->HandleKeyPressed_BackJump();
+        else
+          active_char->HandleKeyPressed_Jump();
+
+        // Check for active team
+        if (game->ReadState() == Game::PLAYING) {
+          Weapon& current = ActiveTeam().AccessWeapon();
+          if (mods & SHIFT_BIT)
+            current.HandleKeyPressed_HighJump();
+          else if (mods & CONTROL_BIT)
+            current.HandleKeyPressed_BackJump();
+          else
+            current.HandleKeyPressed_Jump();
         }
         break;
     }
@@ -806,16 +824,16 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-        active_char->HandleKeyPressed_Up(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyPressed_Up(false);
+        active_char->HandleKeyPressed_Up(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_Up(mods & SHIFT_BIT);
         }
         break;
 
       case CLICK_TYPE_UP:
-        active_char->HandleKeyReleased_Up(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyReleased_Up(false);
+        active_char->HandleKeyReleased_Up(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_Up(mods & SHIFT_BIT);
         }
         break;
     }
@@ -827,16 +845,16 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-        active_char->HandleKeyPressed_Down(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyPressed_Down(false);
+        active_char->HandleKeyPressed_Down(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_Down(mods & SHIFT_BIT);
         }
         break;
 
       case CLICK_TYPE_UP:
-        active_char->HandleKeyReleased_Down(false);
-        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-          ActiveTeam().AccessWeapon().HandleKeyReleased_Down(false);
+        active_char->HandleKeyReleased_Down(mods & SHIFT_BIT);
+        if (game->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_Down(mods & SHIFT_BIT);
         }
         break;
     }
@@ -846,8 +864,11 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
   // Check if we clicked the shoot icon: start firing!
   Rectanglei shoot_button(Point2i(546*zoom, 0), button_size);
   if (shoot_button.Contains(mouse_rel_pos)) {
-    if (Game::GetInstance()->ReadState() != Game::PLAYING)
-      return false;
+    if (game->ReadState() == Game::END_TURN) {
+      game->RequestBonusBoxDrop();
+      return true;
+    }
+    // state can only be Game::PLAYING now
 
     switch (type) {
       case CLICK_TYPE_LONG: break;
@@ -1099,6 +1120,8 @@ bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click
       ActiveCharacter().HandleKeyReleased_MoveRight(false);
       ActiveCharacter().HandleKeyReleased_Up(false);
       ActiveCharacter().HandleKeyReleased_Down(false);
+      if (weapon_strength_bar.IsVisible())
+        ActiveTeam().AccessWeapon().HandleKeyReleased_Shoot();
     }
 
     Rectanglei menu_button(Point2i(), default_toolbar.GetSize());
@@ -1147,6 +1170,15 @@ bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click
   }
 
   return false;
+}
+
+bool Interface::ActionDoubleClick(const Point2i &/*mouse_pos*/) {
+  // Drop Bonusbox if double click happened outside interface area
+  if (Game::GetInstance()->GetCurrentBox()) {
+    Game::GetInstance()->RequestBonusBoxDrop();
+  }
+
+  return true;
 }
 
 bool Interface::Intersect(const Point2i &mouse_pos)

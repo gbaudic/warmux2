@@ -26,6 +26,9 @@
 #include <WARMUX_types.h>
 //-----------------------------------------------------------------------------
 
+typedef struct _xmlNode xmlNode;
+class XmlWriter;
+
 class ObjectConfig
 {
 public:

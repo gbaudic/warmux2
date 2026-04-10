@@ -17,8 +17,8 @@
 #endif
 
 1 VERSIONINFO
-FILEVERSION 0,11,4,0
-PRODUCTVERSION 0,11,4,0
+FILEVERSION 0,9,3,0
+PRODUCTVERSION 0,9,3,0
 FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
 FILEFLAGS VS_FF_DEBUG | VS_FF_SPECIALBUILD
@@ -42,7 +42,7 @@ FILETYPE VFT_APP
             VALUE "OriginalFilename", "warmux.exe"
             VALUE "ProductName", "warmux"
             VALUE "ProductVersion", PACKAGE_VERSION
-            VALUE "SpecialBuild", "$Revision: 9893 $, build on " __DATE__ ", " __TIME__ " with compiler version " __VERSION__
+            VALUE "SpecialBuild", "$Revision: 9750 $, build on " __DATE__ ", " __TIME__ " with compiler version " __VERSION__
         }
     }
     BLOCK "VarFileInfo"

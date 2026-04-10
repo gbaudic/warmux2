@@ -23,6 +23,7 @@
 
 #include "menu/network_menu.h"
 
+#include "menu/game_mode_editor.h"
 #include "menu/network_teams_selection_box.h"
 #include "menu/map_selection_box.h"
 #include "game/config.h"
@@ -36,6 +37,7 @@
 #include "gui/label.h"
 #include "gui/msg_box.h"
 #include "gui/picture_widget.h"
+#include "gui/question.h"
 #include "gui/spin_button.h"
 #include "gui/tabs.h"
 #include "gui/talk_box.h"
@@ -83,8 +85,13 @@ NetworkMenu::NetworkMenu()
     mapsHeight = mainBoxHeight - 60;
     team_box_height = mainBoxHeight - 60;
   }
+  float   factor = mainBoxHeight / 480.0f;
+  Font::font_size_t fsmall  = Font::GetFixedSize(Font::FONT_SMALL*factor+0.5f);
+  Font::font_size_t fmedium = Font::GetFixedSize(Font::FONT_MEDIUM*factor+0.5f);
+  Font::font_size_t fadapt  = (fmedium > Font::FONT_BIG) ? Font::FONT_BIG : fmedium;
+  fadapt  = (fadapt < Font::FONT_MEDIUM) ? Font::FONT_MEDIUM : fadapt;
 
-  tabs = new MultiTabs(Point2i(mainBoxWidth, mainBoxHeight));
+  tabs = new MultiTabs(Point2i(mainBoxWidth, mainBoxHeight), fadapt);
 
   // ################################################
   // ##  TEAM AND MAP SELECTION
@@ -92,7 +99,7 @@ NetworkMenu::NetworkMenu()
   team_box = new NetworkTeamsSelectionBox(Point2i(multitabsWidth-4, team_box_height), multitabs);
 
   map_box = new MapSelectionBox(Point2i(multitabsWidth, mapsHeight),
-				 multitabs, !Network::GetInstance()->IsGameMaster());
+                                multitabs, !Network::GetInstance()->IsGameMaster());
 
   if (!multitabs) {
     tabs->AddNewTab("TAB_Team", _("Teams"), team_box);
@@ -120,19 +127,19 @@ NetworkMenu::NetworkMenu()
 
   Box* options_box = new VBox(200, true, true);
 
-  mode_label = new Label("", 0, Font::FONT_MEDIUM, Font::FONT_BOLD,
+  mode_label = new Label("", 0, fmedium, Font::FONT_BOLD,
                          primary_red_color, Text::ALIGN_LEFT_TOP, true);
   options_box->AddWidget(mode_label);
 
   play_in_loop = new CheckBox(_("Play several times"), W_UNDEF, true);
   options_box->AddWidget(play_in_loop);
 
-  connected_players = new Label(Format(ngettext("%i player connected", "%i players connected", 0), 0),
-                                0, Font::FONT_SMALL, Font::FONT_BOLD);
+  connected_players = new Label(Format(_("%i player connected"), 0),
+                                0, fsmall, Font::FONT_BOLD);
   options_box->AddWidget(connected_players);
 
   initialized_players = new Label(Format(ngettext("%i player ready", "%i players ready", 0), 0),
-                                  0, Font::FONT_SMALL, Font::FONT_BOLD);
+                                  0, fsmall, Font::FONT_BOLD);
   options_box->AddWidget(initialized_players);
 
   options_box->Pack();
@@ -143,7 +150,7 @@ NetworkMenu::NetworkMenu()
   // ################################################
 
   msg_box = new TalkBox(Point2i(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, chat_box_height),
-                        Font::FONT_SMALL, Font::FONT_BOLD);
+                        fsmall, Font::FONT_BOLD);
   msg_box->SetPosition(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
                        options_box->GetPositionY());
 
@@ -170,8 +177,8 @@ NetworkMenu::NetworkMenu()
 
   } else if (Network::GetInstance()->IsServer()) {
     // Server Mode
-    AddGameModeTab();
     mode_label->SetText(_("Server mode"));
+    AddGameModeTab();
   } else {
     // The first player to connect to a headless server assumes the game master role
     SetGameMasterCallback();
@@ -181,20 +188,10 @@ NetworkMenu::NetworkMenu()
 
 void NetworkMenu::AddGameModeTab()
 {
-  ASSERT(!opt_game_mode);
-
-  Box *box = new GridBox(4, 4, 0, false);
-
-  Point2i option_size(114, 114);
-  std::string selected_gamemode = Config::GetInstance()->GetGameMode();
-
-  // Using the game mode editor but currently we are not able to send
-  // custom parameters to client
-  opt_game_mode = new ComboBox(_("Game mode"), "menu/game_mode", option_size,
-				 GameMode::ListGameModes(), selected_gamemode);
-  box->AddWidget(opt_game_mode);
-
-  tabs->AddNewTab("TAB_Game", _("Game"), box);
+  ASSERT(opt_game_mode == NULL);
+  opt_game_mode = new GameModeEditor(Point2i(tabs->GetSizeX()-8, tabs->GetSizeY()-tabs->GetHeaderHeight()-4),
+                                      (tabs->GetSizeY()-8)/420.0f, false);
+  tabs->AddNewTab("TAB_Game", _("Game"), opt_game_mode );
 }
 
 void NetworkMenu::signal_begin_run()
@@ -229,7 +226,7 @@ void NetworkMenu::SaveOptions()
 //  Config::GetInstance()->Save();
 
   if (Network::GetInstance()->IsGameMaster()) {
-    Config::GetInstance()->SetGameMode(opt_game_mode->GetValue());
+    opt_game_mode->ValidGameMode();
   }
 }
 
@@ -241,23 +238,46 @@ void NetworkMenu::PrepareForNewGame()
   Network::GetInstance()->SetState(WNet::NETWORK_NEXT_GAME);
   Network::GetInstance()->SendNetworkState();
 
-  // to choose another random map
-  if (Network::GetInstance()->IsGameMaster())
-    map_box->ChangeMapDelta(0);
-
   RedrawMenu();
 }
 
 bool NetworkMenu::signal_ok()
 {
+  const std::vector<Team*>& playing_list = GetTeamsList().playing_list;
+  std::vector<Team*>::const_iterator it  = playing_list.begin();
+  bool found       = false;
+  uint first_group;
+
+  if (playing_list.size() <= 1) {
+    Question q(Question::WARNING);
+    uint num = playing_list.size();
+    q.Set(Format(ngettext("There is only %u team.", "There are only %u teams.", num),
+                 num), true, 0);
+    q.Ask();
+    goto error;
+  }
+
+  first_group = (*it)->GetGroup();
+  for (; it != playing_list.end(); it++) {
+    if ((*it)->GetGroup() != first_group) {
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    Question q(Question::WARNING);
+    q.Set(_("Please select a group different from your opponent!"), true, 0);
+    q.Ask();
+    goto error;
+  }
+
   if (!Network::GetInstance()->IsGameMaster()) {
     // Check the user have selected a team:
-    bool found = false;
+    found = false;
 
-    for (std::vector<Team*>::iterator team = GetTeamsList().playing_list.begin();
-         team != GetTeamsList().playing_list.end();
-         team++) {
-      if ((*team)->IsLocalHuman()) {
+    for (it = playing_list.begin(); it != playing_list.end(); it++) {
+      if ((*it)->IsLocalHuman()) {
         found = true;
         break;
       }
@@ -276,13 +296,6 @@ bool NetworkMenu::signal_ok()
     }
 
   } else {
-    if (GetTeamsList().playing_list.size() <= 1) {
-      msg_box->NewMessage(Format(ngettext("There is only %i team.",
-                                          "There are only %i teams.",
-                                          GetTeamsList().playing_list.size()),
-                                 GetTeamsList().playing_list.size()), c_red);
-      goto error;
-    }
     if (Network::GetInstance()->GetNbPlayersConnected() == 0) {
       msg_box->NewMessage(_("You are alone. :-/"), c_red);
       goto error;
@@ -453,7 +466,12 @@ void NetworkMenu::SetMapsCallback(const std::vector<uint>& list)
   map_box->ChangeMapListCallback(list);
 }
 
-Team * NetworkMenu::FindUnusedTeam(const std::string default_team_id)
+void NetworkMenu::SetTeamsCallback(const std::vector<uint>& list)
+{
+  team_box->ChangeTeamListCallback(list);
+}
+
+Team * NetworkMenu::FindUnusedTeam(const std::string& default_team_id)
 {
   return team_box->FindUnusedTeam(default_team_id);
 }

@@ -23,6 +23,7 @@
 #include "graphic/video.h"
 #include "gui/button.h"
 #include "gui/label.h"
+#include "gui/null_widget.h"
 #include "gui/picture_widget.h"
 #include "gui/spin_button_picture.h"
 #include "gui/text_box.h"
@@ -31,55 +32,81 @@
 #include "include/action_handler.h"
 #include "network/network.h"
 #include "team/team.h"
+#include "team/team_group.h"
 #include "team/custom_team.h"
 #include "team/custom_teams_list.h"
 #include "tool/resource_manager.h"
 
-TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
-  HBox(_size.y, false, false, false),
-  ai_name(NO_AI_NAME)
+#define CHAR_COUNT_WIDGET_SIZE  120
+
+static const std::string ai_names[] = { NO_AI_NAME, DEFAULT_AI_NAME, DUMB_AI_NAME, STRONG_AI_NAME };
+
+
+TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size, uint g)
+  : HBox(_size.y, false, false, false)
+  , ai_level(0)
+  , group(g)
 {
   associated_team = NULL;
 
   SetMargin(2);
-  SetNoBorder();
+  SetBorder(transparent_color, 4);
   Widget::SetBackgroundColor(transparent_color);
 
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
 
-  /********        Logos: team mascott, player type icon      ********/
-  Box * tmp_logo_box = new VBox(W_UNDEF, false, false, false);
-  tmp_logo_box->SetMargin(1);
-  tmp_logo_box->SetNoBorder();
+  player_local[0] = LOAD_RES_IMAGE("menu/player_local_human");
+  player_local[1] = LOAD_RES_IMAGE("menu/player_local_ai");
+  player_local[2] = LOAD_RES_IMAGE("menu/player_local_ai_dumb");
+  player_local[3] = LOAD_RES_IMAGE("menu/player_local_ai_strong");
 
-  team_logo = new PictureWidget(Point2i(38, 38));
-  tmp_logo_box->AddWidget(team_logo);
+  player_remote[0] = LOAD_RES_IMAGE("menu/player_remote_human");
+  player_remote[1] = LOAD_RES_IMAGE("menu/player_remote_ai");
+  player_remote[2] = LOAD_RES_IMAGE("menu/player_remote_ai_dumb");
+  player_remote[3] = LOAD_RES_IMAGE("menu/player_remote_ai_strong");
 
-  player_local_ai_surf = GetResourceManager().LoadImage(res, "menu/player_local_ai");
-  player_local_human_surf = GetResourceManager().LoadImage(res, "menu/player_local_human");
-  player_remote_ai_surf = GetResourceManager().LoadImage(res, "menu/player_remote_ai");
-  player_remote_human_surf = GetResourceManager().LoadImage(res, "menu/player_remote_human");
-
-  player_type =  new PictureWidget(Point2i(38, 30));
-  player_type->SetSurface(player_local_ai_surf);
-  tmp_logo_box->AddWidget(player_type);
-
-  AddWidget(tmp_logo_box);
-
-  /********    Center box: team name, commander   *********/
-  int width = _size.x - (2*2+(38+2*2)+(110+2*2));
-  Box * tmp_player_box = new VBox(_size.y, false, false, false);
-  tmp_player_box->SetMargin(0);
+  int width = _size.x - (CHAR_COUNT_WIDGET_SIZE+2*margin+2*border_size);
+  Box * tmp_player_box = new VBox(_size.y-2*border_size, false, false, false);
+  tmp_player_box->SetMargin(4);
   tmp_player_box->SetNoBorder();
+  AddWidget(tmp_player_box);
+
+  tmp_player_box->AddWidget(new NullWidget(Point2i(width, 20)));
+
+  /********   Box for team logo, commander, custom team, ai & group  *******/
+  HBox *hbox = new HBox(W_UNDEF, false, false, false);
+  hbox->SetMargin(0);
+  hbox->SetNoBorder();
+  tmp_player_box->AddWidget(hbox);
+
+  /****    AI    ****/
+  player_type =  new PictureWidget(Point2i(40, 40));
+  player_type->SetSurface(player_local[ai_level]);
+  hbox->AddWidget(player_type);
+
+  /****    Team Logo    ****/
+  team_logo = new PictureWidget(Point2i(40, 40));
+  hbox->AddWidget(team_logo);
+
+  /****     Team name/commander    ****/
+  VBox *vbox = new VBox(W_UNDEF, false, false, false);
+  vbox->SetMargin(0);
+  vbox->SetNoBorder();
+  hbox->AddWidget(vbox);
 
   previous_player_name = "team";
-  team_name = new Label(previous_player_name, width,
+  team_name = new Label(previous_player_name, width - (40*2 + 60),
                         Font::FONT_MEDIUM, Font::FONT_BOLD);
-  tmp_player_box->AddWidget(team_name);
+  vbox->AddWidget(team_name);
 
-  /********    Names: "Head commander" + text/custom team    *******/
-  tmp_player_box->AddWidget(new Label(_("Head commander"), width,
-                                      Font::FONT_SMALL, Font::FONT_BOLD));
+  /****    Names: "Head commander" + text/custom team    ****/
+  vbox->AddWidget(new Label(_("Head commander"), width - (40*2 + 60),
+                            Font::FONT_SMALL, Font::FONT_BOLD));
+
+  /****  Group selection box ****/
+  nullw = new NullWidget(Point2i(60, 40));
+  nullw->SetBackgroundColor(TeamGroup::Colors[g]);
+  hbox->AddWidget(nullw);
 
   custom_team_list = GetCustomTeamsList().GetList();
   custom_team_current_id = 0;
@@ -93,10 +120,10 @@ TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
     previous_custom_team = NULL;
 
   } else {
-    next_custom_team = new Button(res, "menu/plus");
-    previous_custom_team = new Button(res, "menu/minus");
+    next_custom_team = new Button(res, "menu/big_plus");
+    previous_custom_team = new Button(res, "menu/big_minus");
 
-    player_name = new TextBox(_player_name, width - 2 * (next_custom_team->GetSizeY() + 2),
+    player_name = new TextBox(_player_name, width - 2 * (next_custom_team->GetSizeX() + 2),
                               Font::FONT_SMALL, Font::FONT_BOLD);
 
     Box * tmp_name_box = new HBox(player_name->GetSizeY(), false, false, false);
@@ -108,19 +135,18 @@ TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
     tmp_name_box->AddWidget(next_custom_team);
     tmp_player_box->AddWidget(tmp_name_box);
   }
-  AddWidget(tmp_player_box);
-
 
   /**********     Number of characters        **********/
   nb_characters = new SpinButtonWithPicture(_("Number of characters"), "menu/ico_play",
-                                            Point2i(110, 120), 6, 1, 1, 10);
+                                            Point2i(CHAR_COUNT_WIDGET_SIZE, 110), 6, 1, 1, 10);
   AddWidget(nb_characters);
+  Pack();
 }
 
 void TeamBox::ClearTeam()
 {
   associated_team = NULL;
-  ai_name = NO_AI_NAME;
+  ai_level = 0;
 
   NeedRedrawing();
 }
@@ -196,6 +222,17 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
     if (w == player_name) {
       return w;
     }
+    if (w == nullw) {
+      if (button == Mouse::BUTTON_LEFT()) {
+        if (group == MAX_TEAM_GROUPS-1) group = 0;
+        else                            group++;
+      } else {
+        if (group == 0) group = MAX_TEAM_GROUPS-1;
+        else            group--;
+      }
+      SetGroup(group);
+      UpdateTeam(associated_team->GetId());
+    }
 
     if (!w) {
       return w;
@@ -228,11 +265,6 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
   return NULL;
 }
 
-Widget* TeamBox::Click(const Point2i &/*mousePosition*/, uint /*button*/)
-{
-  return NULL;
-}
-
 void TeamBox::SetTeam(Team& _team, bool read_team_values)
 {
   Team* old_team = associated_team;
@@ -261,10 +293,18 @@ void TeamBox::SetTeam(Team& _team, bool read_team_values)
   UpdatePlayerType();
   team_logo->SetSurface(_team.GetFlag());
 
+  // Update group
+  SetGroup(_team.GetGroup());
+
   if (read_team_values) {
     player_name->SetText(_team.GetPlayerName());
     nb_characters->SetValue(_team.GetNbCharacters());
-    SetAIName(_team.GetAIName());
+    for (uint i=0; i<4; i++) {
+      if (ai_names[i] == _team.GetAIName()) {
+        SetAILevel(i);
+        break;
+      }
+    }
   } else if (old_team) {
     UpdateTeam(old_team->GetId());
   }
@@ -273,28 +313,10 @@ void TeamBox::SetTeam(Team& _team, bool read_team_values)
   NeedRedrawing();
 }
 
-void TeamBox::SetAIName(const std::string name)
-{
-  ai_name = name;
-  UpdatePlayerType();
-}
-
 void TeamBox::UpdatePlayerType()
 {
-  bool is_human = ai_name == NO_AI_NAME;
-  if (associated_team->IsLocal()) {
-    if (is_human) {
-      player_type->SetSurface(player_local_human_surf);
-    } else {
-      player_type->SetSurface(player_local_ai_surf);
-    }
-  } else {
-    if (is_human) {
-      player_type->SetSurface(player_remote_human_surf);
-    } else {
-      player_type->SetSurface(player_remote_ai_surf);
-    }
-  }
+  Surface *icons = (associated_team->IsLocal()) ? player_local : player_remote;
+  player_type->SetSurface(icons[ai_level]);
 }
 
 void TeamBox::UpdateTeam(const std::string& old_team_id) const
@@ -305,7 +327,8 @@ void TeamBox::UpdateTeam(const std::string& old_team_id) const
   // set the player name
   associated_team->SetPlayerName(player_name->GetText());
 
-  associated_team->SetAIName(ai_name);
+  associated_team->SetAIName(ai_names[ai_level]);
+  associated_team->SetGroup(group);
 
   // change only for local teams...
   if (associated_team->IsLocal()) {
@@ -326,8 +349,9 @@ void TeamBox::UpdateTeam(const std::string& old_team_id) const
       a->Push(associated_team->GetPlayerName());
       a->Push(int(associated_team->GetNbCharacters()));
       a->Push(associated_team->GetAIName());
+      a->Push(group);
       associated_team->PushCustomCharactersNamesIntoAction(a);
-      ActionHandler::GetInstance()->NewAction (a);
+      ActionHandler::GetInstance()->NewAction(a);
     }
   }
 }
@@ -339,7 +363,7 @@ void TeamBox::ValidOptions() const
 
 bool TeamBox::IsLocal() const
 {
-  if (associated_team != NULL && associated_team->IsLocal()) {
+  if (associated_team && associated_team->IsLocal()) {
     return true;
   }
 
@@ -351,8 +375,29 @@ void TeamBox::SwitchPlayerType()
   if (!associated_team)
     return;
 
-  SetAIName((ai_name == NO_AI_NAME) ? DEFAULT_AI_NAME : NO_AI_NAME);
+  ai_level++;
+  if (ai_level > 3)
+    ai_level = 0;
+  UpdatePlayerType();
   if (Network::GetInstance()->IsConnected()) {
     ValidOptions();
   }
+}
+
+void TeamBox::SetGroup(uint g)
+{
+  assert(g < MAX_TEAM_GROUPS);
+
+  group = g;
+  nullw->SetBackgroundColor(TeamGroup::Colors[g]);
+}
+
+bool TeamBox::IsTeamSwitcherAt(const Point2i& mousePosition) const
+{
+  return team_logo->Contains(mousePosition);
+}
+
+bool TeamBox::IsAISwitcherAt(const Point2i& mousePosition) const
+{
+  return player_type->Contains(mousePosition);
 }

@@ -35,7 +35,6 @@
 
 class NetworkGame
 {
-private:
   std::string      game_name;
   std::string      password;
   bool             game_started;
@@ -58,8 +57,8 @@ private:
 public:
   NetworkGame(const std::string& game_name, const std::string& password);
 
-  const std::string& GetName() const;
-  const std::string& GetPassword() const;
+  const std::string& GetName() const { return game_name; }
+  const std::string& GetPassword() const { return password; }
 
   void AddCpu(DistantComputer* cpu);
   std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator closed);
@@ -82,11 +81,12 @@ public:
   bool IsGameMaster(std::list<DistantComputer*>::const_iterator& cpu) const { return cpu == cpulist.begin(); }
   bool IsGameMaster(std::list<DistantComputer*>::iterator& cpu) { return cpu == cpulist.begin(); }
   void SendMapsList(DistantComputer *host);
+
+  void InformDisconnection(DistantComputer *host);
 };
 
 class GameServer : public Singleton<GameServer>
 {
-private:
   friend class Singleton<GameServer>;
   GameServer();
 

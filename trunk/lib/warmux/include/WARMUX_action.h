@@ -75,9 +75,13 @@ public:
     ACTION_GAME_REQUEST_TEAM,
     ACTION_GAME_REQUEST_TEAM_REMOVAL,
 
+    ACTION_GAME_SET_TEAM_LIST,
+    ACTION_GAME_FORCE_TEAM_LIST,
+
+    // Other interactions
     ACTION_INFO_CLIENT_CONNECT,
     ACTION_INFO_CLIENT_DISCONNECT,
-
+ 
     ACTION_NETWORK_RANDOM_INIT,
     LAST_FRAME_LESS_ACTION = ACTION_NETWORK_RANDOM_INIT,
 
@@ -85,6 +89,7 @@ public:
     // ########################################################
     // ########################################################
     ACTION_GAME_CALCULATE_FRAME,
+    ACTION_GAME_PACK_CALCULATED_FRAMES,
     ACTION_PLAYER_CHANGE_WEAPON,
     ACTION_PLAYER_CHANGE_CHARACTER,
 
@@ -130,7 +135,10 @@ public:
     ACTION_NETWORK_VERIFY_RANDOM_SYNC,
     ACTION_TIME_VERIFY_SYNC,
     // ########################################################
+    ACTION_END_ENUM
   } Action_t;
+  static const uint NUM_ACTIONS = ACTION_END_ENUM;
+  static const uint MAX_FRAMES  = 10;
 
 #pragma pack(push)  /* push current alignment to stack */
 #pragma pack(1)     /* set alignment to 1 byte boundary */
@@ -196,6 +204,7 @@ public:
   void WriteToPacket(char* & packet, int & size) const;
 
   DistantComputer* GetCreator() const { return m_creator; }
+  void SetCreator(DistantComputer* creator) { m_creator = creator; }
   Action_t GetType() const { return (Action_t)m_header.type; }
   bool IsFrameLess() const { return m_header.type <= LAST_FRAME_LESS_ACTION; }
 

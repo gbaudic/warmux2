@@ -64,12 +64,18 @@
 #include <WARMUX_random.h>
 #include "tool/stats.h"
 #include "weapon/weapons_list.h"
+#ifdef ENABLE_VKEYBD
+#include "vkeybd/virtual-keyboard.h"
+#include "gui/button.h"
+using namespace Common;
+Button *openvkb_button;
+#endif
 
 // Uncomment this to get an image during the game
 // DON'T USE THIS IF YOU INTEND TO PLAY NETWORKED GAMES!
 bool force_refresh = false;
 
-#define MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS   500
+#define MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS   1000
 
 std::string Game::current_rules = "none";
 
@@ -202,6 +208,16 @@ void Game::InitEverything()
   // Reset time at end of initialisation, so that the first player doesn't loose a few seconds.
   GameTime::GetInstance()->Reset();
 
+#ifdef ENABLE_VKEYBD
+  if(!VirtualKeyboard::GetInstance()->isLoaded())
+    VirtualKeyboard::GetInstance()->loadKeyboardPack("vkeybd_default");
+  VirtualKeyboard::GetInstance()->setSubmitCallback(&Chat::ProcessSendMessage);
+  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml",false);
+  openvkb_button = new Button(res, "menu/send_txt");
+  openvkb_button->SetPosition(1,1);
+  openvkb_button->SetVisible(false);
+#endif
+
   std::cout << std::endl;
   std::cout << "[ " << _("Starting a new game") << " ]" << std::endl;
 }
@@ -281,14 +297,12 @@ void Game::EndInitGameData_NetClient()
 void Game::InitWeapons()
 {
   if (current_mode != GameMode::GetRef().GetName()) {
-    delete weapons_list;
     weapons_list = NULL;
     current_mode = GameMode::GetRef().GetName();
   }
 
   if (!weapons_list) {
-    weapons_list = new WeaponsList(GameMode::GetInstance()->GetWeaponsXml());
-    //weapons_list->UpdateTranslation();
+    weapons_list = GameMode::GetInstance()->GetWeaponsList();
   }
 }
 
@@ -296,6 +310,7 @@ void Game::InitMap()
 {
   GetWorld().Reset();
   ObjectsList::GetRef().PlaceBarrels();
+  Wind::GetRef().ChooseRandomVal();
 }
 
 void Game::InitTeams()
@@ -479,8 +494,6 @@ Game::~Game()
 {
   if (fps)
     delete fps;
-  if (weapons_list)
-    delete weapons_list;
 }
 
 // ####################################################################
@@ -525,6 +538,15 @@ void Game::RefreshInput()
         ask_for_end = true;
       }
     } else {
+#ifdef ENABLE_VKEYBD
+      if (VirtualKeyboard::GetInstance()->isDisplaying())
+        if (VirtualKeyboard::GetInstance()->handleEvent(evnt))
+          continue;
+      if (evnt.type == SDL_MOUSEBUTTONUP && openvkb_button->ClickUp(Mouse::GetInstance()->GetPosition(),0)) {
+        VirtualKeyboard::GetInstance()->show(false);
+        continue;
+      }
+#endif
       // Mouse event
       if (Mouse::GetInstance()->HandleEvent(evnt))
         continue;
@@ -637,6 +659,20 @@ void Game::Draw()
   StatStart("GameDraw:interface");
   Interface::GetInstance()->Draw();
   StatStop("GameDraw:interface");
+
+#ifdef ENABLE_VKEYBD
+  // Draw virtual keyboard
+  if (Network::IsConnected()) {
+    if (ActiveTeam().IsLocalHuman())
+      openvkb_button->SetVisible(false);
+    else
+      openvkb_button->SetVisible(true);
+  }
+
+  if (VirtualKeyboard::GetInstance()->isDisplaying())
+    VirtualKeyboard::GetInstance()->handleDraw();
+  openvkb_button->Draw(Mouse::GetInstance()->GetPosition());
+#endif
 
   // Draw game messages
   StatStart("GameDraw::game_messages");
@@ -792,8 +828,11 @@ void Game::MessageEndOfGame() const
 
 void Game::MainLoop()
 {
-  static bool draw = true;
-  GameTime *time = GameTime::GetInstance();
+  static bool    draw   = true;
+  GameTime      *time   = GameTime::GetInstance();
+  Replay        *replay = Replay::GetInstance();
+  ActionHandler *ah     = ActionHandler::GetInstance();
+  Network       *net    = Network::GetInstance();
 
   // One time honouring of the pause request - check GameTime::IsPaused to get the state
   if (request_pause == START_PAUSE) {
@@ -838,9 +877,9 @@ void Game::MainLoop()
         character->GetBody()->RefreshSprites();
       }
 
-      ActionHandler::GetInstance()->ExecFrameLessActions();
+      ah->ExecFrameLessActions();
 
-      bool actions_executed = ActionHandler::GetInstance()->ExecActionsForOneFrame();
+      bool actions_executed = ah->ExecActionsForOneFrame();
       ASSERT(actions_executed);
 
       if (actions_executed) {
@@ -873,7 +912,7 @@ void Game::MainLoop()
   }
 
   // Generally linked to replay: do minimal refresh
-  if (Replay::GetConstInstance()->IsPlaying() && time->IsPaused()) {
+  if (replay->IsPlaying() && time->IsPaused()) {
     RefreshInput();
     if (time_of_next_frame < SDL_GetTicks()) {
       //printf("Drawing as %u < %u\n", time_of_next_frame, SDL_GetTicks());
@@ -910,23 +949,23 @@ void Game::MainLoop()
         character->GetBody()->RefreshSprites();
       }
 
-      if (Network::GetInstance()->IsTurnMaster() && !Replay::GetConstInstance()->IsPlaying()) {
+      if (!replay->IsPlaying() && net->IsTurnMaster()) {
+        if (!net->HasPendingFrames()) {
         // The action which verifies the random seed must be the first action scheduled!
         // Otherwise the following could happen:
         // 1. Action C gets scheduled which draws values from the random source.
         // 2. Action V gets scheduled which verifies that random seed is X.
         // 3. Action C gets executed: As a result the random seed has changed to another value Y.
         // 4. Action V gets executed: It fails as the random seed is no longer X but Y.
-        RandomSync().Verify();
+          RandomSync().Verify();
 
-#ifdef DEBUG
-        Action* action = new Action(Action::ACTION_TIME_VERIFY_SYNC);
-        action->Push((int)time->Read());
-        ActionHandler::GetInstance()->NewAction(action);
-#endif
+  #ifdef DEBUG
+          ah->NewAction( new Action(Action::ACTION_TIME_VERIFY_SYNC, time->Read()) );
+  #endif
+        }
       }
 
-      if (time->Read() % 1000 == 20 && Network::GetInstance()->IsGameMaster())
+      if (time->Read() % 4096 == 20 && net->IsGameMaster())
         PingClient();
     }
     StatStart("Game:RefreshInput()");
@@ -934,15 +973,15 @@ void Game::MainLoop()
     StatStop("Game:RefreshInput()");
     if (draw)
       ActiveTeam().RefreshAI();
-    ActionHandler::GetInstance()->ExecFrameLessActions();
+    ah->ExecFrameLessActions();
 
-    bool is_turn_master = Network::GetInstance()->IsTurnMaster();
+    bool is_turn_master = net->IsTurnMaster();
     if (is_turn_master) {
       time->SetWaitingForNetwork(false);
       Action *a = new Action(Action::ACTION_GAME_CALCULATE_FRAME);
-      ActionHandler::GetInstance()->NewAction(a);
+      ah->NewAction(a);
     }
-    bool actions_executed = ActionHandler::GetInstance()->ExecActionsForOneFrame();
+    bool actions_executed = ah->ExecActionsForOneFrame();
     ASSERT(actions_executed || !is_turn_master);
     time->SetWaitingForNetwork(!actions_executed);
 
@@ -966,8 +1005,8 @@ void Game::MainLoop()
       if (ActiveTeam().IsAbandoned()) {
         const std::string & team_id = ActiveTeam().GetId();
         GetTeamsList().DelTeam(team_id);
-        if (Network::GetInstance()->network_menu)
-          Network::GetInstance()->network_menu->DelTeamCallback(team_id);
+        if (net->network_menu)
+          net->network_menu->DelTeamCallback(team_id);
       }
     }
 
@@ -1019,14 +1058,11 @@ bool Game::NewBox()
 
   // Type of box : 1 = MedKit, 2 = Bonus Box.
   ObjBox * box;
-  int type;
   MSG_DEBUG("random.get", "Game::NewBox(...) box type?");
   if (RandomSync().GetBool()) {
     box = new Medkit();
-    type = 1;
   } else {
     box = new BonusBox(weapons_list->GetRandomWeaponToDrop());
-    type = 2;
   }
   // Randomize container
   box->Randomize();
@@ -1247,12 +1283,20 @@ void Game::ApplyDiseaseDamage() const
   }
 }
 
-int Game::NbrRemainingTeams() const
+uint Game::RemainingGroups() const
 {
   uint nbr = 0;
+  const TeamsList::GroupList& glist = TeamsList::GetInstance()->GetGroupList();
+  for (TeamsList::GroupList::const_iterator git = glist.begin(); git != glist.end(); ++git) {
+    bool has = false;
+    for (TeamGroup::const_iterator it = git->second.begin(); it != git->second.end(); ++it) {
+      if ((*it)->NbAliveCharacter()) {
+        has = true;
+        break;
+      }
+    }
 
-  FOR_EACH_TEAM(team) {
-    if ((*team)->NbAliveCharacter() > 0)
+    if (has)
       nbr++;
   }
 

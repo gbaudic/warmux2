@@ -19,6 +19,7 @@
  * A factory for AI strategies. It contains no turn specfic data.
  *****************************************************************************/
 
+#include <WARMUX_random.h>
 #include "ai/ai_idea.h"
 #include "ai/trajectory.h"
 #include "character/character.h"
@@ -118,7 +119,7 @@ float AIIdea::RateExplosion(const Character & shooter, const Point2i& position,
   return rating;
 }
 
-AIStrategy * SkipTurnIdea::CreateStrategy() const
+AIStrategy * SkipTurnIdea::CreateStrategy(float) const
 {
   const WeaponsList * weapons_list = Game::GetInstance()->GetWeaponsList();
   const Weapon * weapon = weapons_list->GetWeapon(Weapon::WEAPON_SKIP_TURN);
@@ -127,7 +128,7 @@ AIStrategy * SkipTurnIdea::CreateStrategy() const
   return new SkipTurnStrategy();
 }
 
-AIStrategy * WasteAmmoUnitsIdea::CreateStrategy() const
+AIStrategy * WasteAmmoUnitsIdea::CreateStrategy(float) const
 {
   if (ActiveTeam().GetWeapon().CanChangeWeapon())
     return NULL;
@@ -163,7 +164,6 @@ ShootDirectlyAtEnemyIdea::ShootDirectlyAtEnemyIdea(const WeaponsWeighting & weap
   : AIShootIdea(weapons_weighting, shooter, enemy, weapon_type)
   , max_sq_distance(max_distance*max_distance)
 {
-  // do nothing
 }
 
 static const PhysicalObj* GetObjectAt(const Point2i & pos)
@@ -283,7 +283,7 @@ static bool ShotMisses(const Character *shooter, const Character *enemy,
   return false;
 }
 
-AIStrategy * ShootDirectlyAtEnemyIdea::CreateStrategy() const {
+AIStrategy * ShootDirectlyAtEnemyIdea::CreateStrategy(float accuracy) const {
   if (enemy.IsDead())
     return NULL;
 
@@ -301,9 +301,10 @@ AIStrategy * ShootDirectlyAtEnemyIdea::CreateStrategy() const {
   // which will be select.
   // TODO: Please find an alternative to solve this tempory solution
   Point2i departure = shooter.GetCenter();
-  Point2i arrival = enemy.GetCenter();
+  Point2i arrival   = enemy.GetCenter();
+  int     sq_dist   = departure.SquareDistance(arrival);
 
-  if (departure.SquareDistance(arrival) > max_sq_distance)
+  if (sq_dist > max_sq_distance)
     return NULL;
 
   float original_angle = departure.ComputeAngleFloat(arrival);
@@ -329,7 +330,18 @@ AIStrategy * ShootDirectlyAtEnemyIdea::CreateStrategy() const {
   int damage = used_ammo_units * damage_per_ammo_unit;
 
   float rating = RateDamageDoneToEnemy(damage, enemy);
-  rating = rating * weapons_weighting.GetFactor(weapon_type);
+  float confidence = sqrtf((max_sq_distance - sq_dist) / (float)max_sq_distance);
+  rating *= confidence * weapons_weighting.GetFactor(weapon_type);
+
+  // Apply our accuracy
+  if (accuracy>0.0f && accuracy<1.0f) {
+    // stddev is 0 for accuracy and increases when it decreases
+    shoot_angle += RandomLocal().GetGaussianfloat(0.0f, (1-accuracy)*M_PI*0.1f);
+    // Revalidate value
+    if (!weapon->IsAngleValid(shoot_angle))
+      return NULL;
+  }
+
   return new ShootWithGunStrategy(rating, shooter, weapon_type, direction,
                                   shoot_angle, used_ammo_units);
 }
@@ -341,8 +353,9 @@ FireMissileWithFixedDurationIdea::FireMissileWithFixedDurationIdea(const Weapons
   : AIShootIdea(weapons_weighting, shooter, enemy, weapon_type)
   , duration(duration)
   , timeout(timeout)
+  // Weight for the rating according to distance/flight duration
+  , confidence((duration > 1.0f) ? 1.0f / duration : 1.0f)
 {
-  // do nothing
 }
 
 static bool IsPositionEmpty(const Character & character_to_ignore,
@@ -378,7 +391,7 @@ static const Point2i GetFirstContact(const Character & character_to_ignore,
   return pos;
 }
 
-AIStrategy * FireMissileWithFixedDurationIdea::CreateStrategy() const
+AIStrategy * FireMissileWithFixedDurationIdea::CreateStrategy(float accuracy) const
 {
   if (enemy.IsDead())
     return NULL;
@@ -391,7 +404,7 @@ AIStrategy * FireMissileWithFixedDurationIdea::CreateStrategy() const
 
   if (!CanUseWeapon(weapon))
     return NULL;
-  float g = GameMode::GetInstance()->gravity.tofloat();
+  float g = GameMode::GetInstance()->gravity;
   float wind_factor = weapon->GetWindFactor().tofloat();
   float mass = weapon->GetMass().tofloat();
   Point2f f(Wind::GetRef().GetStrength().tofloat() * wind_factor, g * mass);
@@ -433,6 +446,17 @@ AIStrategy * FireMissileWithFixedDurationIdea::CreateStrategy() const
   } else {
     return NULL;
   }
-  rating = rating * weapons_weighting.GetFactor(weapon_type);
+  rating *= confidence * weapons_weighting.GetFactor(weapon_type);
+
+  // Apply our accuracy
+  if (accuracy>0.0f && accuracy<1.0f) {
+    // stddev is 0 for accuracy and increases when it decreases
+    // stddev smaller compared to straight shot because it can more easily fail
+    shoot_angle += RandomLocal().GetGaussianfloat(0.0f, (1-accuracy)*M_PI*0.1f);
+    // Revalidate value
+    if (!weapon->IsAngleValid(shoot_angle))
+      return NULL;
+  }
+
   return new LoadAndFireStrategy(rating, shooter, weapon_type, direction, shoot_angle, strength, timeout);
 }

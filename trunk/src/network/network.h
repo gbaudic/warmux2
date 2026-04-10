@@ -49,7 +49,7 @@ class DistantComputer;
 class NetworkServer;
 class NetworkMenu;
 class WSocketSet;
-
+class Team;
 
 class NetworkThread
 {
@@ -70,6 +70,7 @@ public:
 class Network : public Singleton<Network>
 {
   static int num_objects;
+  static uint frames;
 
   std::list<DistantComputer*> cpu; // list of the connected computer
   SDL_mutex *cpus_lock;
@@ -79,6 +80,10 @@ class Network : public Singleton<Network>
 
   Player player;
   bool turn_master_player;
+
+  void CheckOneHostTeams(Player& player, DistantComputer* new_host,
+                         const std::vector<Team*>& local_list,
+                         const std::vector<uint>& common_list);
 
 protected:
   bool game_master_player;
@@ -93,11 +98,12 @@ protected:
   int fin;
 #endif
 
-  virtual void SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver) const;
+  virtual void SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver, bool lock=true) const;
 
   void DisconnectNetwork();
 
   void SetGameName(const std::string& _game_name) { game_name = _game_name; }
+
 public:
   NetworkMenu* network_menu;
 
@@ -144,9 +150,9 @@ public:
   virtual void CloseConnection(std::list<DistantComputer*>::iterator closed) = 0;
 
   // Action handling
-  void SendActionToAll(const Action& action) const;
-  void SendActionToOne(const Action& action, DistantComputer* client) const;
-  void SendActionToAllExceptOne(const Action& action, DistantComputer* client) const;
+  void SendActionToAll(const Action& action, bool lock=true) const;
+  void SendActionToOne(const Action& action, DistantComputer* client, bool lock=true) const;
+  void SendActionToAllExceptOne(const Action& action, DistantComputer* client, bool lock=true) const;
 
   // Manage network state
   void SetState(WNet::net_game_state_t state);
@@ -157,9 +163,14 @@ public:
 
   uint GetNbPlayersConnected() const;
   uint GetNbPlayersWithState(Player::State player_state) const;
-  std::vector<uint> GetCommonMaps();
 
+  std::vector<uint> GetCommonMaps();
   void SendMapsList();
+
+  std::vector<uint> GetCommonTeams();
+  void SendTeamsList();
+
+  bool HasPendingFrames() const { return frames; }
 };
 
 //-----------------------------------------------------------------------------

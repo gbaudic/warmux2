@@ -116,7 +116,7 @@ public:
   // Get{X,Y} used to depend on Get{X,Y}Double, but this seems unnecessary Double roundtrips
   Double GetXDouble() const { return GetX(); };
   Double GetYDouble() const { return GetY(); };
-  const Point2d GetPosition() const { return Point2d(GetXDouble(), GetYDouble()) ;};
+  Point2d GetPosition() const { return Point2d(GetXDouble(), GetYDouble()) ;};
 
   // Set/Get size
   void SetSize(const Point2i &newSize);
@@ -147,8 +147,8 @@ public:
 
   int GetCenterX() const { return GetX() +m_test_left +GetTestWidth()/2; };
   int GetCenterY() const { return GetY() +m_test_top +GetTestHeight()/2; };
-  const Point2i GetCenter() const { return Point2i(GetCenterX(), GetCenterY()); };
-  const Rectanglei GetRect() const { return Rectanglei( GetX(), GetY(), m_width, m_height); };
+  Point2i GetCenter() const { return Point2i(GetCenterX(), GetCenterY()); };
+  Rectanglei GetRect() const { return Rectanglei( GetX(), GetY(), m_width, m_height); };
   bool CollidesWithGround() const { return m_collides_with_ground; }
   // This is a hack
   bool CanBeBlasted() const { return m_collides_with_ground && !m_go_through_objects; }
@@ -212,6 +212,7 @@ public:
   bool IsDrowned() const { return m_alive == DROWNED; };
   bool IsDead() const { return IsGhost() || IsDrowned() || m_alive==DEAD; };
   bool IsFire() const { return m_is_fire; }
+  virtual bool IsBullet() const { return false; }
 
   // Are the two object in contact ? (uses test rectangles)
   bool Overlapse(const PhysicalObj &b) const { return GetTestRect().Intersect( b.GetTestRect() ); };
@@ -242,7 +243,7 @@ private:
   // Directly after a rebound, if we are stuck in a wall, we stop moving
   void CheckRebound();
 
-  void Collide(collision_t collision, PhysicalObj* collided_obj, const Point2d& position);
+  void Collide(collision_t collision, PhysicalObj* collided_obj, const Point2d& position, Point2d& contactPos, Double& contactAngle);
 
   void ContactPointAngleOnGround(const Point2d& oldPos,
                                  Point2d& contactPos,

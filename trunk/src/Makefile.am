@@ -121,6 +121,8 @@ warmux_SOURCES = \
         gui/scroll_box.h \
         gui/select_box.cpp \
         gui/select_box.h \
+        gui/social_panel.cpp \
+        gui/social_panel.h \
         gui/spin_button.cpp \
         gui/spin_button.h \
         gui/spin_button_picture.cpp \
@@ -313,14 +315,20 @@ warmux_SOURCES = \
         team/team.h \
         team/team_energy.cpp \
         team/team_energy.h \
+        team/team_group.cpp \
+        team/team_group.h \
         team/teams_list.cpp \
         team/teams_list.h \
         tool/affine_transform.cpp \
         tool/affine_transform.h \
         tool/ansi_convert.cpp \
         tool/ansi_convert.h \
+        tool/config_element.cpp \
+        tool/config_element.h \
         tool/copynpaste.cpp \
         tool/copynpaste.h \
+        tool/eventtimer.h \
+        tool/eventtimer.cpp \
         tool/isnan.h \
         tool/math_tools.h \
         tool/resource_manager.cpp \
@@ -406,6 +414,8 @@ warmux_SOURCES = \
         weapon/supertux.h \
         weapon/syringe.cpp \
         weapon/syringe.h \
+        weapon/target_launcher.cpp \
+        weapon/target_launcher.h \
         weapon/teleportation.cpp \
         weapon/teleportation.h \
         weapon/weapon.cpp \
@@ -417,7 +427,19 @@ warmux_SOURCES = \
         weapon/weapon_strength_bar.cpp \
         weapon/weapon_strength_bar.h \
         weapon/weapons_list.cpp \
-        weapon/weapons_list.h
+        weapon/weapons_list.h \
+        vkeybd/virtual-keyboard.cpp \
+        vkeybd/virtual-keyboard.h \
+        vkeybd/virtual-keyboard-gui.cpp \
+        vkeybd/virtual-keyboard-gui.h \
+        vkeybd/virtual-keyboard-parser.cpp \
+        vkeybd/virtual-keyboard-parser.h \
+        vkeybd/image-map.cpp \
+        vkeybd/image-map.h \
+        vkeybd/vkpolygon.cpp \
+        vkeybd/vkpolygon.h \
+        vkeybd/types.h \
+        vkeybd/keycode-descriptions.h
 
 warmux_LDFLAGS = -Wl,--as-needed
 
@@ -434,7 +456,17 @@ warmux_SOURCES += warmux.rc
 endif
 
 if MAEMO
+warmux_SOURCES += maemo/glib.cpp maemo/glib.h
+warmux_SOURCES += maemo/maemo.cpp maemo/maemo.h
+endif
+if HAVE_LIBOSSO
 warmux_SOURCES += maemo/osso.cpp maemo/osso.h
+endif
+if HAVE_LIBRESOURCE
+warmux_SOURCES += maemo/resource.cpp maemo/resource.h
+endif
+if HAVE_LIBCONIC
+warmux_SOURCES += maemo/conic.cpp maemo/conic.h
 endif
 
 LIBS+=@LIBINTL@

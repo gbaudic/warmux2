@@ -32,7 +32,8 @@ Text::Text(const std::string & text,
            Font::font_style_t fontStyle,
            bool isShadowed,
            const Color & _shadowColor,
-           bool _dummy) :
+           bool _dummy,
+           Alignment align) :
   surf(),
   background(),
   txt(text),
@@ -44,8 +45,10 @@ Text::Text(const std::string & text,
   shadowColor(_shadowColor),
   font_size((Font::font_size_t)fontSize),
   font_style(fontStyle),
-  offset(0)
+  offset(0),
+  align(align)
 {
+  center = (align==ALIGN_CENTER || align==ALIGN_CENTER_TOP || align==ALIGN_CENTER_BOTTOM);
   Init();
 }
 
@@ -61,7 +64,9 @@ Text::Text() :
   shadowColor(),
   font_size(Font::FONT_SMALL),
   font_style(Font::FONT_NORMAL),
-  offset(0)
+  offset(0),
+  center(false),
+  align(ALIGN_CENTER)
 {
 }
 
@@ -266,7 +271,8 @@ void Text::RenderMultiLines()
   // for all remaining lines
   for (uint i = 1; i < ret_lines.size(); i++) {
     tmp = font->CreateSurface(ret_lines[i], color);
-    surf.Blit(tmp, Point2i(0, GetLineHeight(font)*i));
+    int x = (center) ? (size.x-tmp.GetWidth())/2 : 0;
+    surf.Blit(tmp, Point2i(x, GetLineHeight(font)*i));
   }
 
   // Render the shadow !
@@ -286,7 +292,8 @@ void Text::RenderMultiLines()
   // for each lines
   for (uint i = 1; i < ret_lines.size(); i++) {
     tmp = font->CreateSurface(ret_lines[i], black_color);
-    background.Blit(tmp, Point2i(0, GetLineHeight(font)*i));
+    int x = (center) ? (size.x-tmp.GetWidth())/2 : 0;
+    background.Blit(tmp, Point2i(x, GetLineHeight(font)*i));
   }
 #else
   surf = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
@@ -294,7 +301,8 @@ void Text::RenderMultiLines()
   // for each line
   for (uint i = 0; i < ret_lines.size(); i++) {
     Surface tmp = font->CreateSurface(ret_lines[i], color);
-    surf.MergeSurface(tmp, Point2i(0, GetLineHeight(font)*i));
+    int x = (center) ? (size.x-tmp.GetWidth())/2 : 0;
+    surf.MergeSurface(tmp, Point2i(x, GetLineHeight(font)*i));
   }
 
   // Render the shadow !
@@ -307,7 +315,8 @@ void Text::RenderMultiLines()
   // for each lines
   for (uint i = 0; i < ret_lines.size(); i++) {
     Surface tmp = font->CreateSurface(ret_lines[i], black_color);
-    background.MergeSurface(tmp, Point2i(0, GetLineHeight(font)*i));
+    int x = (center) ? (size.x-tmp.GetWidth())/2 : 0;
+    background.MergeSurface(tmp, Point2i(x, GetLineHeight(font)*i));
   }
 #endif
 }

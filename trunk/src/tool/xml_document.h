@@ -1,13 +1,11 @@
-/*
- * Exemple d'utilisation de la librairie libxml++ version 1.0.
- */
-
 #ifndef XML_DOCUMENT_H
 #define XML_DOCUMENT_H
 
-#include <WARMUX_base.h>
 #include <string>
 #include <vector>
+
+#include <WARMUX_base.h>
+#include "tool/string_tools.h"
 
 // Forward declaration
 typedef struct _xmlNode xmlNode;
@@ -144,9 +142,11 @@ public:
 
   xmlNode *GetRoot() const;
 
+  static xmlNode *AddNode(xmlNode* x, const char* name);
+
   xmlNode *WriteElement(xmlNode* x,
                         const std::string &name,
-                        const std::string &value);
+                        const std::string &value, bool attr=false);
 
   void WriteComment(xmlNode* x,
                     const std::string& comment);
@@ -156,4 +156,4 @@ public:
   std::string SaveToString() const;
 };
 
-#endif /* XML_DOCUMENT_H */
+#endif // XML_DOCUMENT_H

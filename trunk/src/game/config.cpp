@@ -146,6 +146,14 @@ Config::Config()
 #else
   , quality(QUALITY_32BPP)
 #endif
+#ifdef HAVE_FACEBOOK
+  , fb_email("")
+  , fb_save_pwd(false)
+#endif
+#ifdef HAVE_TWITTER
+  , twit_user("")
+  , twit_save_pwd(false)
+#endif
 {
   // Set audio volume
   volume_music = JukeBox::GetMaxVolume()/2;
@@ -450,6 +458,30 @@ void Config::LoadDefaultValue()
   GetResourceManager().UnLoadXMLProfile(res);
 }
 
+void Config::ReadTeams(std::list<ConfigTeam>& teams, const xmlNode* elem)
+{
+  uint i = 0;
+  const xmlNode *team;
+
+  while ((team = XmlReader::GetMarker(elem, "team_" + int2str(i)))) {
+    ConfigTeam one_team;
+    XmlReader::ReadString(team, "id", one_team.id);
+    XmlReader::ReadString(team, "player_name", one_team.player_name);
+    XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+    // The ai element needs a defaut as it has been added afterwards:
+    if (!XmlReader::ReadString(team, "ai", one_team.ai)) {
+      one_team.ai = (i == 1) ? DEFAULT_AI_NAME : NO_AI_NAME;
+    }
+    if (!XmlReader::ReadUint(team, "group", one_team.group))
+      one_team.group = i;
+
+    teams.push_back(one_team);
+
+    // get next team
+    i++;
+  }
+}
+
 // Read personal config file
 void Config::LoadXml(const xmlNode *xml)
 {
@@ -467,27 +499,8 @@ void Config::LoadXml(const xmlNode *xml)
 #endif
 
   //=== Teams ===
-  if ((elem = XmlReader::GetMarker(xml, "teams"))) {
-    int i = 0;
-
-    const xmlNode *team;
-
-    while ((team = XmlReader::GetMarker(elem, "team_" + int2str(i)))) {
-      ConfigTeam one_team;
-      XmlReader::ReadString(team, "id", one_team.id);
-      XmlReader::ReadString(team, "player_name", one_team.player_name);
-      XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
-      // The ai element needs a defaut as it has been added afterwards:
-      if (!XmlReader::ReadString(team, "ai", one_team.ai)) {
-        one_team.ai = (i == 1) ? DEFAULT_AI_NAME : NO_AI_NAME;
-      }
-
-      teams.push_back(one_team);
-
-      // get next team
-      i++;
-    }
-  }
+  if ((elem = XmlReader::GetMarker(xml, "teams")))
+    ReadTeams(teams, elem);
 
   //=== Video ===
   if ((elem = XmlReader::GetMarker(xml, "video"))) {
@@ -510,8 +523,8 @@ void Config::LoadXml(const xmlNode *xml)
 
     uint qual;
     if (XmlReader::ReadUint(elem, "quality", qual)) {
-	if (qual>QUALITY_MAX-1) qual=QUALITY_MAX-1;
-	quality = (Quality)qual;
+	    if (qual>QUALITY_MAX-1) qual=QUALITY_MAX-1;
+	    quality = (Quality)qual;
     }
   }
 
@@ -541,32 +554,30 @@ void Config::LoadXml(const xmlNode *xml)
     }
 
     //=== personal teams used in last network game ===
-    if ((sub_elem = XmlReader::GetMarker(elem, "local_teams"))) {
-      int i = 0;
-      const xmlNode *team;
-
-      while ((team = XmlReader::GetMarker(sub_elem, "team_" + int2str(i)))) {
-        ConfigTeam one_team;
-        XmlReader::ReadString(team, "id", one_team.id);
-        XmlReader::ReadString(team, "player_name", one_team.player_name);
-        XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
-        // The ai element needs a defaut as it has been added afterwards:
-        if (!XmlReader::ReadString(team, "ai", one_team.ai)) {
-          one_team.ai = NO_AI_NAME;
-        }
-
-        network_local_teams.push_back(one_team);
-
-        // get next team
-        i++;
-      }
-    }
+    if ((sub_elem = XmlReader::GetMarker(elem, "local_teams")))
+      ReadTeams(network_local_teams, sub_elem);
   }
 
   //=== misc ===
   if ((elem = XmlReader::GetMarker(xml, "misc"))) {
     XmlReader::ReadBool(elem, "check_updates", check_updates);
     XmlReader::ReadBool(elem, "left-handed_mouse", lefthanded_mouse);
+  }
+
+  //=== Social ===
+  if ((elem = XmlReader::GetMarker(xml, "social"))) {
+#ifdef HAVE_FACEBOOK
+    XmlReader::ReadString(elem, "facebook_email", fb_email);
+    XmlReader::ReadBool(elem, "facebook_savepwd", fb_save_pwd);
+    if (fb_save_pwd)
+      XmlReader::ReadString(elem, "facebook_password", fb_pwd);
+#endif
+#ifdef HAVE_TWITTER
+    XmlReader::ReadString(elem, "twitter_user", twit_user);
+    XmlReader::ReadBool(elem, "twitter_savepwd", twit_save_pwd);
+    if (twit_save_pwd)
+      XmlReader::ReadString(elem, "twitter_password", twit_pwd);
+#endif
   }
 
   //=== game mode ===
@@ -597,6 +608,24 @@ bool Config::Save(bool save_current_teams)
   }
 
   return SaveXml(save_current_teams);
+}
+
+void Config::WriteTeams(const std::list<ConfigTeam>& teams, XmlWriter& doc, xmlNode* xml)
+{
+  std::list<ConfigTeam>::const_iterator
+    it = teams.begin(),
+    end = teams.end();
+
+  for (uint i=0; it!=end; ++it, i++) {
+    std::string name = "team_"+uint2str(i);
+    xmlNode* a_team = xmlAddChild(xml,
+                                  xmlNewNode(NULL /* empty prefix */, (const xmlChar*)name.c_str()));
+    doc.WriteElement(a_team, "id", (*it).id);
+    doc.WriteElement(a_team, "player_name", (*it).player_name);
+    doc.WriteElement(a_team, "nb_characters", uint2str((*it).nb_characters));
+    doc.WriteElement(a_team, "ai", (*it).ai);
+    doc.WriteElement(a_team, "group", uint2str((*it).group));
+  }
 }
 
 bool Config::SaveXml(bool save_current_teams)
@@ -633,24 +662,13 @@ bool Config::SaveXml(bool save_current_teams)
         config.player_name = (**it).GetPlayerName();
         config.nb_characters = (**it).GetNbCharacters();
         config.ai = (**it).GetAIName();
+        config.group = (**it).GetGroup();
 
         teams.push_back(config);
       }
     }
 
-    std::list<ConfigTeam>::iterator
-      it = teams.begin(),
-      end = teams.end();
-
-    for (int i=0; it!=end; ++it, i++) {
-       std::string name = "team_"+int2str(i);
-       xmlNode* a_team = xmlAddChild(team_elements,
-                                     xmlNewNode(NULL /* empty prefix */, (const xmlChar*)name.c_str()));
-       doc.WriteElement(a_team, "id", (*it).id);
-       doc.WriteElement(a_team, "player_name", (*it).player_name);
-       doc.WriteElement(a_team, "nb_characters", uint2str((*it).nb_characters));
-       doc.WriteElement(a_team, "ai", (*it).ai);
-    }
+    WriteTeams(teams, doc, team_elements);
   }
 
   //=== Video ===
@@ -696,24 +714,29 @@ bool Config::SaveXml(bool save_current_teams)
 
   // personal teams used durint last network game
   xmlNode *net_teams = xmlAddChild(net_node, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"local_teams"));
-  std::list<ConfigTeam>::iterator
-    it = network_local_teams.begin(),
-    end = network_local_teams.end();
-
-  for (int i=0; it != end; ++it, i++) {
-    std::string name = "team_"+int2str(i);
-    xmlNode* a_team = xmlAddChild(net_teams,
-                                  xmlNewNode(NULL /* empty prefix */, (const xmlChar*)name.c_str()));
-    doc.WriteElement(a_team, "id", (*it).id);
-    doc.WriteElement(a_team, "player_name", (*it).player_name);
-    doc.WriteElement(a_team, "nb_characters", uint2str((*it).nb_characters));
-    doc.WriteElement(a_team, "ai", (*it).ai);
-  }
+  WriteTeams(network_local_teams, doc, net_teams);
 
   //=== Misc ===
   xmlNode *misc_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"misc"));
   doc.WriteElement(misc_node, "check_updates", bool2str(check_updates));
   doc.WriteElement(misc_node, "left-handed_mouse", bool2str(lefthanded_mouse));
+
+  //=== Social ===
+#if defined(HAVE_FACEBOOK) || defined(HAVE_TWITTER)
+  xmlNode *social_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"social"));
+#endif
+#ifdef HAVE_FACEBOOK
+  doc.WriteElement(social_node, "facebook_email", fb_email);
+  doc.WriteElement(social_node, "facebook_savepwd", bool2str(fb_save_pwd));
+  if (fb_save_pwd)
+    doc.WriteElement(social_node, "facebook_password", fb_pwd);
+#endif
+#ifdef HAVE_TWITTER
+  doc.WriteElement(social_node, "twitter_user", twit_user);
+  doc.WriteElement(social_node, "twitter_savepwd", bool2str(twit_save_pwd));
+  if (twit_save_pwd)
+    doc.WriteElement(social_node, "twitter_password", twit_pwd);
+#endif
 
   //=== game mode ===
   doc.WriteElement(root, "game_mode", m_game_mode);
@@ -749,13 +772,16 @@ uint Config::GetMaxVolume()
 const std::string& Config::GetTtfFilename() const
 {
 #ifdef ENABLE_NLS
-  if (fonts.find(default_language) == fonts.end())
-    return ttf_filename;
-  else {
-    std::map<std::string, std::string>::const_iterator it = fonts.find(default_language);
-    ASSERT(it != fonts.end());
-    return it->second;
+  std::map<std::string, std::string>::const_iterator it = fonts.begin();
+  while (it != fonts.end()) {
+    const std::string& lang = it->first;
+    if (!lang.compare(0, lang.size(), default_language)) {
+      printf("Matched %s to %s\n", default_language.c_str(), lang.c_str());
+      return it->second;
+    }
+    ++it;
   }
+  return ttf_filename;
 #else
   return ttf_filename;
 #endif
@@ -777,6 +803,7 @@ void Config::SetNetworkLocalTeams()
       config.player_name = (**it).GetPlayerName();
       config.nb_characters = (**it).GetNbCharacters();
       config.ai = (**it).GetAIName();
+      config.group = (**it).GetGroup();
       network_local_teams.push_back(config);
     }
   }

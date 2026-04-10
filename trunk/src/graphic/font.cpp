@@ -80,7 +80,7 @@ Font::Font(int size):
   surface_text_table(),
   m_font(NULL)
 {
-  const std::string filename = Config::GetConstInstance()->GetTtfFilename();
+  const std::string& filename = Config::GetConstInstance()->GetTtfFilename();
 
   if (DoesFileExist(filename)) {
     m_font = TTF_OpenFont(filename.c_str(), size);
@@ -157,7 +157,7 @@ void Font::Write(const Point2i & pos,
 Surface Font::CreateSurface(const std::string & txt,
                             const Color & color)
 {
-#ifdef HAVE_HANDHELD // would be HAVE_HANDHELD if ANDROID didn't misteriously crash because of it
+#ifdef HAVE_HANDHELD
   SDL_Surface *surf = TTF_RenderUTF8_Solid(m_font, txt.c_str(), color.GetSDLColor());
 #else
   SDL_Surface *surf = TTF_RenderUTF8_Blended(m_font, txt.c_str(), color.GetSDLColor());
@@ -167,9 +167,9 @@ Surface Font::CreateSurface(const std::string & txt,
     // SDL_ttf or freetype might be missing some feature, report it
     Error(Format("Unable to render text: %s", TTF_GetError()));
   }
-  
+
 #ifdef HAVE_HANDHELD
-  return Surface(surf).DisplayFormat();
+  return Surface(surf); //.DisplayFormat();
 #else
   return Surface(surf).DisplayFormatAlpha();
 #endif

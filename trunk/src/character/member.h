@@ -30,26 +30,26 @@
 
 typedef struct attachment
 {
-  Point2d point;
+  Point2i point;
   Double  radius;
   Double  angle;
 
-  attachment(const Point2d& val)
-    : point(val), radius(ZERO), angle(ZERO) { }
+  attachment(const Point2i& val)
+    : point(val), radius(0), angle(ZERO) { }
 
-  void SetAnchor(const Point2d& anchor)
+  void SetAnchor(const Point2i& anchor)
   {
-    Point2d child_delta = point - anchor;
-    radius = child_delta.x*child_delta.x + child_delta.y*child_delta.y;
-    if (radius.IsNotZero()) {
-      radius = sqrt_approx(radius);
-      angle = child_delta.ComputeAngle();
+    Point2i child_delta = point - anchor;
+    uint r = child_delta.x*child_delta.x + child_delta.y*child_delta.y;
+    if (r) {
+      radius = sqrt_approx(Double(r));
+      angle  = child_delta.ComputeAngle();
     }
   }
 
-  void Propagate(Point2d& pos, const Double& mvt_angle, const Double& angle_rad) const
+  void Propagate(Point2i& pos, const Double& mvt_angle, const Double& angle_rad) const
   {
-    if (radius.IsNotZero()) {
+    if (radius) {
       Double angle_init = angle + angle_rad;
       Double angle_new  = angle_init + mvt_angle;
       pos.x  += radius * (cos(angle_new) - cos(angle_init));
@@ -61,7 +61,7 @@ typedef struct attachment
 class v_attached : public std::vector<attachment>
 {
 public:
-  void SetAnchor(const Point2d& anchor)
+  void SetAnchor(const Point2i& anchor)
   {
     std::vector<attachment>::iterator it = begin();
     for (; it != end(); ++it)
@@ -102,7 +102,7 @@ private:
   Double  alpha;
   bool    go_through_ground;
   AttachTypeMap   attached_types;
-  Point2d pos;
+  Point2i pos;
   Point2d scale;
 
   typedef std::vector< std::pair<Member*, const v_attached*> > AttachMemberMap;
@@ -112,7 +112,7 @@ protected:
   Sprite*     spr;
   std::string name;
   MemberType  type;
-  Point2d     anchor;
+  Point2i     anchor;
 
 public:
 
@@ -133,16 +133,15 @@ public:
   void SetAngle(const Double & angle) { angle_rad = angle; }
   void RefreshSprite(LRDirection direction);
 
-  void SetPos(const Point2d & _pos) { pos = _pos; }
+  void SetPos(const Point2i & _pos) { pos = _pos; }
 
   const Sprite & GetSprite() const { return *spr; }
   Sprite & GetSprite() { return *spr; }
   bool MustRefresh() const;
 
-  Point2i GetPos() const { return Point2i(pos.x, pos.y); }
-  const Point2d & GetPosFloat() const { return pos; }
+  const Point2i & GetPos() const { return pos; }
 
-  const Point2i GetAnchorPos() const { return Point2i(anchor.x, anchor.y); }
+  const Point2i& GetAnchorPos() const { return anchor; }
 
   const std::string & GetName() const { return name; }
   const MemberType& GetType() const { return type; }

@@ -193,7 +193,7 @@ void NetworkThread::ReceiveActions()
         free(buffer);
 
         MSG_DEBUG("network.traffic", "Received action %s",
-                  ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+                  ActionHandler::GetActionName(a->GetType()).c_str());
         net->HandleAction(a, *dst_cpu);
       }
     }
@@ -203,6 +203,7 @@ void NetworkThread::ReceiveActions()
 //-----------------------------------------------------------------------------
 
 int  Network::num_objects = 0;
+uint Network::frames      = 0;
 
 Network * Network::GetInstance()
 {
@@ -319,6 +320,8 @@ Player * Network::LockRemoteHostsAndGetPlayer(uint player_id)
 // Static method
 void Network::Disconnect()
 {
+  frames = 0;
+
   // restore Windows title
   AppWarmux::GetInstance()->video->SetWindowCaption(std::string("WarMUX ") + Constants::WARMUX_VERSION);
 
@@ -364,36 +367,66 @@ void Network::DisconnectNetwork()
 //-----------------------------------------------------------------------------
 
 // Send Messages
-void Network::SendActionToAll(const Action& a) const
+void Network::SendActionToAll(const Action& a, bool lock) const
 {
-  MSG_DEBUG("network.traffic", "Send action %s to all remote computers",
-            ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str());
+  if (0) {
+  if (a.GetType() == Action::ACTION_GAME_CALCULATE_FRAME) {
+    frames++;
+    if (frames == Action::MAX_FRAMES) {
+      Action b(Action::ACTION_GAME_PACK_CALCULATED_FRAMES, Action::MAX_FRAMES);
+      SendAction(b, NULL, false, lock);
+      printf("Sending pack for %u frames\n", Action::MAX_FRAMES);
+      frames = 0;
+    }
+    return;
+  }
+  
+  if (frames>0 && !a.IsFrameLess()) {
+    // This should have arrived here
+    assert(a.GetType()!=Action::ACTION_TIME_VERIFY_SYNC ||
+           a.GetType()!=Action::ACTION_NETWORK_VERIFY_RANDOM_SYNC);
 
-  SendAction(a, NULL, false);
+    // The clients must have seen all previous frames for this to occur
+    Action b(Action::ACTION_GAME_PACK_CALCULATED_FRAMES, frames);
+    SendAction(b, NULL, false, lock);
+    printf("Sending pack for %u frames because of action '%s'\n",
+           frames, ActionHandler::GetActionName(a.GetType()).c_str());
+    frames = 0;
+  }
+
+  if (a.GetType()==Action::ACTION_TIME_VERIFY_SYNC ||
+      a.GetType()==Action::ACTION_NETWORK_VERIFY_RANDOM_SYNC)
+    printf("Sending %u\n", (uint)a.GetType());
+  }
+
+  MSG_DEBUG("network.traffic", "Send action %s to all remote computers",
+            ActionHandler::GetActionName(a.GetType()).c_str());
+
+  SendAction(a, NULL, false, lock);
 }
 
-void Network::SendActionToOne(const Action& a, DistantComputer* client) const
+void Network::SendActionToOne(const Action& a, DistantComputer* client, bool lock) const
 {
   MSG_DEBUG("network.traffic", "Send action %s to %s",
-            ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str(),
+            ActionHandler::GetActionName(a.GetType()).c_str(),
             client->ToString().c_str());
 
-  SendAction(a, client, true);
+  SendAction(a, client, true, lock);
 }
 
-void Network::SendActionToAllExceptOne(const Action& a, DistantComputer* client) const
+void Network::SendActionToAllExceptOne(const Action& a, DistantComputer* client, bool lock) const
 {
   MSG_DEBUG("network.traffic","Send action %s to all EXCEPT %s",
-            ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str(),
+            ActionHandler::GetActionName(a.GetType()).c_str(),
             client->ToString().c_str());
 
-  SendAction(a, client, false);
+  SendAction(a, client, false, lock);
 }
 
 // if (client == NULL) sending to every clients
 // if (clt_as_rcver) sending only to client 'client'
 // if (!clt_as_rcver) sending to all EXCEPT client 'client'
-void Network::SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver) const
+void Network::SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver, bool lock) const
 {
   char* packet;
   int size;
@@ -415,7 +448,7 @@ void Network::SendAction(const Action& a, DistantComputer* client, bool clt_as_r
     client->SendData(packet, size);
   } else {
 
-    SDL_LockMutex(cpus_lock);
+    if (lock) SDL_LockMutex(cpus_lock);
     for (std::list<DistantComputer*>::const_iterator it = cpu.begin();
          it != cpu.end(); it++) {
 
@@ -423,7 +456,7 @@ void Network::SendAction(const Action& a, DistantComputer* client, bool clt_as_r
         (*it)->SendData(packet, size);
       }
     }
-    SDL_UnlockMutex(cpus_lock);
+    if (lock) SDL_UnlockMutex(cpus_lock);
   }
 
   free(packet);
@@ -571,26 +604,27 @@ std::vector<uint> Network::GetCommonMaps()
   return list;
 }
 
-
 void Network::SendMapsList()
 {
   MapsList *map_list = MapsList::GetInstance();
-  std::list<DistantComputer*> &list = GetRemoteHosts();
-  if (list.empty())
+  SDL_LockMutex(cpus_lock);
+  if (cpu.empty()) {
+    SDL_UnlockMutex(cpus_lock);
     return;
+  }
 
   if (IsGameMaster()) {
     // We are the game master: the received list must be used to determine
     // the common list and inform *all* distant computers
     // Furthermore, there should be no additional integer for the currently selected
-    std::vector<uint> common_list = GetCommonMaps();
+    std::vector<uint> common_list = DistantComputer::GetCommonMaps(cpu);
     if (common_list.empty()) {
       // No host, create a ful list list for ourselves at least
       common_list.resize(map_list->lst.size());
       for (uint i=0; i<map_list->lst.size(); i++)
         common_list[i] = i;
     }
-    MSG_DEBUG("action_handler.map", "Common list has now %u maps\n", common_list.size());
+    MSG_DEBUG("action_handler.map", "Common list has now "SIZET_FORMAT"u maps\n", common_list.size());
 
     int index = map_list->GetActiveMapIndex();
     if (map_list->IsRandom()) {
@@ -608,7 +642,8 @@ void Network::SendMapsList()
       a.Push(map_list->lst[common_list[i]]->GetRawName());
     //map_list->FillActionMenuSetMap(a);
 
-    SendActionToAll(a);
+    SendActionToAll(a, false);
+    SDL_UnlockMutex(cpus_lock); // Done playing with cpus
 
     if (network_menu) {
       // Apply locally: list and current active one
@@ -619,7 +654,7 @@ void Network::SendMapsList()
 
     return;
   }
-  DistantComputer* host = list.front();
+  DistantComputer* host = cpu.front();
   MSG_DEBUG("action_handler.map", "Sending list to %p\n", host);
   Action a(Action::ACTION_GAME_SET_MAP_LIST);
   a.Push(map_list->lst.size());
@@ -627,5 +662,135 @@ void Network::SendMapsList()
     a.Push(map_list->lst[i]->GetRawName());
 
   // We only send to game master, which should be the only one anyway
-  SendActionToOne(a, host);
+  SendActionToOne(a, host, false);
+  SDL_UnlockMutex(cpus_lock); // Done playing with cpus
+}
+
+std::vector<uint> Network::GetCommonTeams()
+{
+  SDL_LockMutex(cpus_lock);
+  std::vector<uint> list = DistantComputer::GetCommonTeams(cpu);
+  SDL_UnlockMutex(cpus_lock);
+
+  return list;
+}
+
+void Network::CheckOneHostTeams(Player& player, DistantComputer* new_host,
+                                const std::vector<Team*>& local_list,
+                                const std::vector<uint>& common_list)
+{
+  const std::list<ConfigTeam>& configs         = player.GetTeams();
+  std::list<ConfigTeam>::const_iterator config = configs.begin();
+
+  // Check current player list of teams
+  while (config != configs.end()) {
+
+    // Search if the common list holds current team
+    bool found = false;
+    for (uint i=0; i<common_list.size(); i++) {
+      if (config->id == local_list[common_list[i]]->GetId()) {
+        found = true;
+        break;
+      }
+    }
+
+    // If not found, remove corresponding team
+    if (!found) {
+      std::string id = config->id;
+      MSG_DEBUG("action_handler.team", "Deleting team %s!\n", id.c_str());
+
+      Action *a = new Action(Action::ACTION_GAME_DEL_TEAM);
+      a->Push(int(player.GetId()));
+      a->Push(id);
+
+      SendActionToAllExceptOne(*a, new_host, false);
+
+      // We need to immediately remove the team, but this invalidates
+      // the current iterator, so we increment it before the config is removed
+      ++config;
+      player.RemoveTeam(id);
+      GetTeamsList().DelTeam(id);
+      if (network_menu)
+        network_menu->DelTeamCallback(id);
+    } else
+      ++config;
+  }
+}
+
+void Network::SendTeamsList()
+{
+  TeamsList *team_list = TeamsList::GetInstance();
+  SDL_LockMutex(cpus_lock);
+  if (cpu.empty()) {
+    SDL_UnlockMutex(cpus_lock);
+    return;
+  }
+
+  // Build vector of teams
+  std::vector<Team*> local_list;
+  const std::list<Team *>& flist = team_list->full_list;
+  for (std::list<Team *>::const_iterator it = flist.begin(); it != flist.end(); ++it)
+    local_list.push_back(*it);
+
+  DistantComputer* host = cpu.back();
+  if (IsGameMaster()) {
+    // We are the game master: the received list must be used to determine
+    // the common list and inform *all* distant computers
+    // Furthermore, there should be no additional integer for the currently selected
+    std::vector<uint> common_list = DistantComputer::GetCommonTeams(cpu);
+    if (common_list.empty()) {
+      uint nb = team_list->full_list.size();
+      // No host, create a ful list list for ourselves at least
+      common_list.resize(nb);
+      for (uint i=0; i<nb; i++)
+        common_list[i] = i;
+    }
+    MSG_DEBUG("action_handler.team", "Common list has now "SIZET_FORMAT"u teams\n", common_list.size());
+
+    // Browse the hosts
+    std::list<DistantComputer*>::iterator it = cpu.begin();
+    for (; it != cpu.end(); it++) {
+      std::list<Player>&          players = (*it)->GetPlayers();
+      std::list<Player>::iterator cur     = players.begin();
+
+      // Check current host' players
+      for (; cur != players.end(); cur++)
+        CheckOneHostTeams(*cur, host, local_list, common_list);
+    }
+
+    // Check also ourselves
+    CheckOneHostTeams(player, host, local_list, common_list);
+
+    // All teams/player removal have been requested, maybe we should run
+    // the action handler now, but we'll do that latter
+
+    if (network_menu)
+      network_menu->SetTeamsCallback(common_list);
+
+    Action a(Action::ACTION_GAME_FORCE_TEAM_LIST);
+
+    a.Push(common_list.size());
+    for (uint i=0; i<common_list.size(); i++)
+      a.Push(local_list[common_list[i]]->GetId());
+
+    SendActionToAll(a, false);
+    int id = host->GetPlayers().back().GetId();
+    SDL_UnlockMutex(cpus_lock); // Done playing with cpus
+    SendInitialGameInfo(host, id);
+
+    return;
+  }
+
+  SDL_UnlockMutex(cpus_lock);
+
+  MSG_DEBUG("action_handler.team", "Sending list of %u elements to %p\n",
+            (uint)local_list.size(), host);
+  Action a(Action::ACTION_GAME_SET_TEAM_LIST);
+  a.Push(local_list.size());
+  for (uint i=0; i<local_list.size(); i++)
+    a.Push(local_list[i]->GetId());
+
+  // We only send to game master, which should be the only one anyway
+  SendActionToOne(a, host, false);
+  SDL_UnlockMutex(cpus_lock); // Done playing with cpus
 }

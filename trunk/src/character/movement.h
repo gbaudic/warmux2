@@ -37,29 +37,28 @@ class member_mvt
   MemberType type;
   Double angle_rad; // angle in radian
 public:
-  Point2d pos;
+  Point2i pos;
   Point2d scale;
   /* SetAngle take radian values */
   void SetAngle(Double angle) { angle_rad = RestrictAngle(angle); }
   /* GetAngle returns radian values */
   const Double &GetAngle() const { return angle_rad; }
   Double alpha;
-  int follow_cursor_limit;
-  bool follow_cursor;
+  int follow_cursor_square_limit;
   bool follow_crosshair;
   bool follow_half_crosshair;
   bool follow_speed;
   bool follow_direction;
   member_mvt(const std::string& name = DUMMY_MEMBER)
     : type(name)
-    , angle_rad(ZERO), pos(ZERO, ZERO), scale(ONE, ONE), alpha(ONE)
-    , follow_cursor_limit(0), follow_cursor(false)
+    , angle_rad(ZERO), pos(0, 0), scale(ONE, ONE), alpha(ONE)
+    , follow_cursor_square_limit(0)
     , follow_crosshair(false), follow_half_crosshair(false)
     , follow_speed(false), follow_direction(false)
   { };
   operator const MemberType& () const { return type; }
   bool operator==(const MemberType& other) const { return type == other; }
-  bool operator!=(const MemberType& other) const { return type == other; }
+  bool operator!=(const MemberType& other) const { return type != other; }
 };
 
 class Movement

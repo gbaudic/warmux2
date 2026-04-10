@@ -38,10 +38,27 @@ class Downloader : public Singleton<Downloader>
 #ifdef HAVE_LIBCURL
   void* curl;
   char* curl_error_buf;
+  void FillCurlError(int r);
+#endif
+
+  static bool FindPair(std::string& value, const std::string& value_name,
+                       const std::string& name, const std::string& html);
+  static bool FindNameValue(std::string& value, const std::string& name, const std::string& html);
+
+#ifdef HAVE_FACEBOOK
+  bool        fb_logged;
+  std::string fb_dtsg, post_form_id, form, m_ts;
+#endif
+#ifdef HAVE_TWITTER
+  bool        twitter_logged;
+  std::string auth;
 #endif
 
   // Return true if the download was successful
-  bool Get(const char* url, FILE* file);
+  bool HttpMethod(const std::string& url, std::string* out, int option);
+  bool GetUrl(const std::string& url, std::string* out);
+  bool Post(const std::string& url, std::string* out, const std::string& fields = "");
+  std::string UrlEncode(const std::string& str);
 
 protected:
   friend class Singleton<Downloader>;
@@ -49,6 +66,14 @@ protected:
   ~Downloader();
 
 public:
+#ifdef HAVE_FACEBOOK
+  bool FacebookLogin(const std::string& email, const std::string& pwd);
+  bool FacebookStatus(const std::string& text);
+#endif
+#ifdef HAVE_FACEBOOK
+  bool TwitterLogin(const std::string& user, const std::string& pwd);
+  bool Tweet(const std::string& text);
+#endif
   bool GetLatestVersion(std::string& line);
   bool GetServerList(std::map<std::string, int>& server_lst, const std::string& list_name);
 

@@ -28,8 +28,7 @@
 
 class RandomGenerator
 {
-private:
-  uint next;
+  uint32_t next;
   bool initialized;
 
 protected:
@@ -43,7 +42,7 @@ public:
   virtual void InitRandom();
 
   void UnRandom();
-  uint GetSeed();
+  uint GetSeed() const { return next; }
   void SetSeed(uint seed);
 
   bool GetBool();
@@ -54,6 +53,7 @@ public:
   float  Getfloat();
   float  Getfloat(float max) { return max * Getfloat(); }
   float  Getfloat(float min, float max) { return min + Getfloat(max - min); }
+  float  GetGaussianfloat(float mean, float stddev);
 
   int32_t GetInt(int32_t min, int32_t max) { return min + (int32_t)GetDouble(max - min + 1); }
   uint GetUint(uint32_t min, uint32_t max) { return (uint)GetInt(min, max); }

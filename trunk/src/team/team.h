@@ -31,8 +31,10 @@
 #include "weapon/crosshair.h"
 #include "weapon/weapon.h"
 
-const std::string NO_AI_NAME = "none";
-const std::string DEFAULT_AI_NAME = "default";
+#define NO_AI_NAME       "none"
+#define DEFAULT_AI_NAME  "default"
+#define DUMB_AI_NAME     "dumb"
+#define STRONG_AI_NAME   "strong"
 
 class AIPlayer;
 class Body;
@@ -76,6 +78,7 @@ private:
 
   // Colors
   Color team_color;
+  uint  group;
 
   bool LoadCharacters();
 
@@ -111,7 +114,7 @@ public:
   // Switch to next worm.
   void NextCharacter(bool new_turn = false);
   void PreviousCharacter();
-  void SelectCharacter(const Character * c);
+  void SelectCharacter(Character * c);
 
   // Prepare turn.
   void PrepareTurn();
@@ -190,7 +193,7 @@ public:
 
   void SetRemote(bool value) { remote = value; }
   void SetAIName(const std::string value) { ai_name = value; }
-  const std::string GetAIName() { return ai_name; }
+  const std::string& GetAIName() { return ai_name; }
   void LoadAI();
 
   // reset characters number, type_of_player and player name
@@ -207,6 +210,10 @@ public:
 
   // Color management
   const Color& GetColor() const { return team_color; };
+
+  // Group management
+  uint GetGroup() const { return group; }
+  void SetGroup(uint g) { group = g; }
 };
 
 #endif /* TEAM_H */

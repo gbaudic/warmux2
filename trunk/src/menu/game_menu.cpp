@@ -29,9 +29,12 @@
 #include "game/game_mode.h"
 #include "graphic/video.h"
 #include "gui/tabs.h"
+#include "gui/question.h"
 #include "gui/combo_box.h"
 #include "include/app.h"
 #include "tool/resource_manager.h"
+#include "team/team.h"
+#include "team/teams_list.h"
 
 static const uint MARGIN_TOP    = 5;
 static const uint MARGIN_SIDE   = 5;
@@ -68,7 +71,7 @@ GameMenu::GameMenu() :
   // ##  TEAM AND MAP SELECTION
   // ################################################
 
-  team_box = new LocalTeamsSelectionBox(Point2i(multitabsWidth, team_box_height), multitabs);
+  team_box = new LocalTeamsSelectionBox(Point2i(multitabsWidth-4, team_box_height), multitabs);
 
   map_box = new MapSelectionBox(Point2i(multitabsWidth-4, mapsHeight), multitabs);
 
@@ -88,24 +91,14 @@ GameMenu::GameMenu() :
   // ################################################
   // ##  GAME OPTIONS
   // ################################################
-  Point2i option_size(114, 114);
-
-  game_options = new GameModeEditor(mainBoxWidth, option_size, false);
+  game_options = new GameModeEditor(Point2i(multitabsWidth-8, mainBoxHeight-tabs->GetHeaderHeight()-4),
+                                    (mainBoxHeight-8)/420.0f, false);
   tabs->AddNewTab("TAB_Game", _("Game"), game_options);
 
   tabs->SetPosition(MARGIN_SIDE, MARGIN_TOP);
 
   widgets.AddWidget(tabs);
   widgets.Pack();
-}
-
-void GameMenu::OnClickUp(const Point2i &mousePosition, int button)
-{
-  Widget *w = widgets.ClickUp(mousePosition, button);
-
-  if (w == game_options->GetGameModeComboBox()) {
-    game_options->LoadGameMode();
-  }
 }
 
 void GameMenu::SaveOptions()
@@ -125,17 +118,36 @@ void GameMenu::SaveOptions()
 bool GameMenu::signal_ok()
 {
   SaveOptions();
+
+  const std::vector<Team*>& playing_list = GetTeamsList().playing_list;
+  std::vector<Team*>::const_iterator it  = playing_list.begin();
+
+  if (playing_list.size() <= 1) {
+    Question q(Question::WARNING);
+    uint num = playing_list.size();
+    q.Set(Format(ngettext("There is only %u team.", "There are only %u teams.", num),
+                 num), true, 0);
+    q.Ask();
+    return false;
+  }
+
+  bool found       = false;
+  uint first_group = (*it)->GetGroup();
+  for (; it != playing_list.end(); it++) {
+    if ((*it)->GetGroup() != first_group) {
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    Question q(Question::WARNING);
+    q.Set(_("Please select a group different from your opponent!"), true, 0);
+    q.Ask();
+    return false;
+  }
+
   play_ok_sound();
   Game::UpdateGameRules()->Start();
   return true;
-}
-
-void GameMenu::key_left()
-{
-  map_box->ChangeMapDelta(-1);
-}
-
-void GameMenu::key_right()
-{
-  map_box->ChangeMapDelta(1);
 }

@@ -22,16 +22,14 @@
 #ifndef WEAPON_CONFIGURATION_H
 #define WEAPON_CONFIGURATION_H
 //-----------------------------------------------------------------------------
+#include <list>
 #include <WARMUX_base.h>
-typedef struct _xmlNode xmlNode;
+#include "tool/xml_document.h"
+#include "tool/config_element.h"
 
 //-----------------------------------------------------------------------------
-
-class EmptyWeaponConfig
+class EmptyWeaponConfig : public ConfigElementList
 {
-public:
-   virtual ~EmptyWeaponConfig() {};
-   virtual void LoadXml(const xmlNode* elem) = 0;
 };
 
 //-----------------------------------------------------------------------------
@@ -40,10 +38,9 @@ class WeaponConfig : public EmptyWeaponConfig
 {
 public:
   uint damage;
+
 public:
   WeaponConfig();
-  virtual ~WeaponConfig() {};
-  virtual void LoadXml(const xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------
@@ -51,17 +48,16 @@ public:
 class ExplosiveWeaponConfig : public WeaponConfig
 {
 public:
-  uint timeout;
-  bool allow_change_timeout;
-  Double blast_range ;
-  Double blast_force ;
+  uint   timeout;
+  bool   allow_change_timeout;
+  Double blast_range;
+  Double blast_force;
   Double explosion_range;
   Double particle_range;
   Double speed_on_hit;
+
 public:
   ExplosiveWeaponConfig();
-  virtual ~ExplosiveWeaponConfig() {};
-  virtual void LoadXml(const xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------

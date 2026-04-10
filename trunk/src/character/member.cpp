@@ -79,8 +79,8 @@ Member::Member(const xmlNode *     xml,
     XmlReader::ReadIntAttr(el, "dx", dx);
     XmlReader::ReadIntAttr(el, "dy", dy);
     MSG_DEBUG("body", "   Member %s has anchor (%i,%i)\n", name.c_str(), dx, dy);
-    anchor = Point2d(dx, dy);
-    spr->SetRotation_HotSpot(Point2i(dx, dy));
+    anchor = Point2i(dx, dy);
+    spr->SetRotation_HotSpot(anchor);
   } else {
     MSG_DEBUG("body", "   Member %s has no anchor\n", name.c_str());
   }
@@ -94,7 +94,7 @@ Member::Member(const xmlNode *     xml,
   std::string att_type;
   int         dx = 0;
   int         dy = 0;
-  Point2d     d;     // TODO: Rename !!
+  Point2i     d;     // TODO: Rename !!
   std::string frame_str;
 
   for (; it != itEnd; ++it) {
@@ -126,7 +126,7 @@ Member::Member(const xmlNode *     xml,
 
       if (attached_types.find(type) == attached_types.end()) {
         v_attached rot_spot;
-        rot_spot.resize(spr->GetFrameCount(), Point2d(0.0, 0.0));
+        rot_spot.resize(spr->GetFrameCount(), Point2i(0.0, 0.0));
         attached_types[type] = rot_spot;
       }
       (attached_types.find(type)->second)[frame] = d;
@@ -152,7 +152,7 @@ Member::Member(const Member & m)
   , type(m.type)
   , anchor(m.anchor)
 {
-  spr->SetRotation_HotSpot(Point2i(anchor.x, anchor.y));
+  spr->SetRotation_HotSpot(anchor);
 
   for (AttachTypeMap::const_iterator it = m.attached_types.begin();
        it != m.attached_types.end();
@@ -333,7 +333,7 @@ void Member::BuildAttachMemberMap(const std::vector<junction*> & skel_lst)
       }
     }
   }
-  MSG_DEBUG("body", "Mapped %u/%u members to member %p of type %i!\n",
+  MSG_DEBUG("body", "Mapped "SIZET_FORMAT"u/"SIZET_FORMAT"u members to member %p of type %i!\n",
             attached_members.size(), attached_types.size(), this, (int)type);
 }
 

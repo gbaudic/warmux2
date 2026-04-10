@@ -21,45 +21,42 @@
 
 #include <sstream>
 
-#include "character/character.h"
 #include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
-#include "interface/game_msg.h"
 #include "interface/mouse.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "network/network.h"
 #include "object/objects_list.h"
 #include "sound/jukebox.h"
+#include "team/team.h"
 #include "team/teams_list.h"
-#include "tool/math_tools.h"
 #include "weapon/weapon_cfg.h"
 #include "weapon/anvil.h"
-#include "weapon/explosion.h"
+//#include "weapon/explosion.h"
 
 //-----------------------------------------------------------------------------
 
 class Anvil : public WeaponProjectile
 {
-  private:
-    uint merge_time;
-    SoundSample falling_sound;
-  public:
-    Anvil(ExplosiveWeaponConfig& cfg,
-          WeaponLauncher * p_launcher);
-    ~Anvil();
-    void Refresh();
+  uint merge_time;
+  SoundSample falling_sound;
+public:
+  Anvil(ExplosiveWeaponConfig& cfg,
+        WeaponLauncher * p_launcher);
+  ~Anvil();
+  void Refresh();
 
-    void PlayFallSound();
-    void PlayCollisionSound();
-    void SetEnergyDelta(int /*delta*/, bool /*do_report = true*/) { };
-  protected:
-    virtual void SignalGroundCollision(const Point2d& /* speed_before */, const Double& /*contactAngle*/);
-    virtual void SignalObjectCollision(const Point2d& /* my_speed_before */,
-               PhysicalObj * obj,
-               const Point2d& /* obj_speed_before */);
-    virtual void SignalOutOfMap();
+  void PlayFallSound();
+  void PlayCollisionSound();
+  void SetEnergyDelta(int /*delta*/, bool /*do_report = true*/) { };
+protected:
+  virtual void SignalGroundCollision(const Point2d& /* speed_before */, const Double& /*contactAngle*/);
+  virtual void SignalObjectCollision(const Point2d& /* my_speed_before */,
+              PhysicalObj * obj,
+              const Point2d& /* obj_speed_before */);
+  virtual void SignalOutOfMap();
 };
 
 Anvil::Anvil(ExplosiveWeaponConfig& cfg,
@@ -103,7 +100,7 @@ void Anvil::SignalOutOfMap()
 
 void Anvil::Refresh()
 {
-  if(merge_time != 0 && merge_time < GameTime::GetInstance()->Read()) {
+  if (merge_time && merge_time < GameTime::GetInstance()->Read()) {
     GetWorld().MergeSprite(GetPosition(), image);
     Ghost();
   } else {
@@ -125,7 +122,7 @@ void Anvil::PlayCollisionSound()
 //-----------------------------------------------------------------------------
 
 AnvilLauncher::AnvilLauncher() :
-    WeaponLauncher(WEAPON_ANVIL, "anvil_launcher", new ExplosiveWeaponConfig())
+    TargetLauncher(WEAPON_ANVIL, "anvil_launcher", new ExplosiveWeaponConfig())
 {
   UpdateTranslationStrings();
 
@@ -133,7 +130,6 @@ AnvilLauncher::AnvilLauncher() :
   mouse_character_selection = false;
   can_be_used_on_closed_map = false;
   ReloadLauncher();
-  target_chosen = false;
 }
 
 void AnvilLauncher::UpdateTranslationStrings()
@@ -144,26 +140,25 @@ void AnvilLauncher::UpdateTranslationStrings()
 
 void AnvilLauncher::ChooseTarget(Point2i mouse_pos)
 {
-  target.x = mouse_pos.x - (projectile->GetWidth() / 2);
+  Point2i tmp(mouse_pos.x - (projectile->GetWidth()>>1),
+              // using 1 allows to detect when the ground goes at the very top of the sky
+              // in that case, the current target is rejected (fix bug #12369)
+              1 - projectile->GetHeight());
 
-  // using 1 allows to detect when the ground goes at the very top of the sky
-  // in that case, the current target is rejected (fix bug #12369)
-  target.y = 1 - projectile->GetHeight();
-
-  if (!GetWorld().ParanoiacRectIsInVacuum(Rectanglei(target, projectile->GetSize())) ||
-     !projectile->IsInVacuumXY(target))
+  if (!projectile->IsInVacuumXY(tmp) ||
+      !GetWorld().ParanoiacRectIsInVacuum(Rectanglei(tmp, projectile->GetSize())))
     return;
 
-  target_chosen = true;
-  Shoot();
+  TargetLauncher::ChooseTarget(mouse_pos);
 }
 
-bool AnvilLauncher::p_Shoot ()
+bool AnvilLauncher::p_Shoot()
 {
-  if (!target_chosen)
+  if (!m_target.selected)
     return false;
 
-  projectile->SetXY(target);
+  Point2i tmp(m_target.pos.x, 1 - projectile->GetHeight());
+  projectile->SetXY(tmp);
   ((Anvil*)projectile)->PlayFallSound();
   ObjectsList::GetRef().AddObject(projectile);
   Camera::GetInstance()->FollowObject(projectile);
@@ -174,14 +169,8 @@ bool AnvilLauncher::p_Shoot ()
   if (Network::GetInstance()->IsTurnMaster())
     Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
 
-  target_chosen = false; // ensure next shoot cannot be done pressing key space
+  m_target.selected = false; // ensure next shoot cannot be done pressing key space
   return true;
-}
-
-void AnvilLauncher::p_Select()
-{
-  if (Network::GetInstance()->IsTurnMaster())
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_AIM);
 }
 
 WeaponProjectile * AnvilLauncher::GetProjectileInstance()
@@ -191,13 +180,7 @@ WeaponProjectile * AnvilLauncher::GetProjectileInstance()
 
 std::string AnvilLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
-  return Format(ngettext(
-            "%s team has won %u anvil! Splat them all!",
-            "%s team has won %u anvils! Splat them all!",
-            items_count), TeamName, items_count);
-}
-
-bool AnvilLauncher::ShouldBeDrawn()
-{
-  return !IsOnCooldownFromShot();
+  return Format(ngettext("%s team has won %u anvil! Splat them all!",
+                         "%s team has won %u anvils! Splat them all!",
+                         items_count), TeamName, items_count);
 }

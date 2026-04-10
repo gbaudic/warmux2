@@ -40,6 +40,7 @@
 
 // Forward declarations
 class ObjectConfig;
+class XmlWriter;
 typedef struct _xmlNode xmlNode;
 
 //-----------------------------------------------------------------------------
@@ -127,6 +128,19 @@ public:
 
   bool GetLeftHandedMouse() const { return lefthanded_mouse; }
   void SetLeftHandedMouse(const bool left) { lefthanded_mouse = left; }
+
+#ifdef HAVE_FACEBOOK
+  bool GetFaceBookSave() const { return fb_save_pwd; }
+  void SetFaceBookSave(bool b) { fb_save_pwd = b; }
+  void GetFaceBookCreds(std::string& email, std::string& pwd) const { email = fb_email; pwd = fb_pwd; }
+  void SetFaceBookCreds(const std::string& email, const std::string& pwd) { fb_email = email; fb_pwd = pwd; }
+#endif
+#ifdef HAVE_TWITTER
+  bool GetTwitterSave() const { return twit_save_pwd; }
+  void SetTwitterSave(bool b) { twit_save_pwd = b; }
+  void GetTwitterCreds(std::string& user, std::string& pwd) const { user = twit_user; pwd = twit_pwd; }
+  void SetTwitterCreds(const std::string& user, const std::string& pwd) { twit_user = user; twit_pwd = pwd; }
+#endif
 
   std::list<ConfigTeam> & AccessTeamList() { return teams; };
   const std::string & GetMapName() const { return map_name; };
@@ -237,6 +251,18 @@ protected:
 
   Quality quality;
 
+  // Social stuff
+#ifdef HAVE_FACEBOOK
+  std::string fb_email;
+  bool        fb_save_pwd;
+  std::string fb_pwd;
+#endif
+#ifdef HAVE_TWITTER
+  std::string twit_user;
+  bool        twit_save_pwd;
+  std::string twit_pwd;
+#endif
+
   friend class Singleton<Config>;
   Config();
   ~Config() { RemoveAllObjectConfigs(); singleton = NULL; }
@@ -245,6 +271,8 @@ private:
   bool DoLoading(void);
   void LoadDefaultValue();
   void LoadXml(const xmlNode* xml);
+  void ReadTeams(std::list<ConfigTeam>& l, const xmlNode* xml);
+  void WriteTeams(const std::list<ConfigTeam>& l, XmlWriter& doc, xmlNode* xml);
 
   /* this is mutable in order to be able to load config on fly when calling
    * GetObjectConfig() witch is not supposed to modify the object itself */

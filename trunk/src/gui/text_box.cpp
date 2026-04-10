@@ -32,6 +32,11 @@
 #include "gui/text_box.h"
 #include "tool/text_handling.h"
 #include "tool/copynpaste.h"
+#ifdef ENABLE_VKEYBD
+#include "include/app.h"
+#include "menu/menu.h"
+#include "vkeybd/virtual-keyboard.h"
+#endif
 
 TextBox::TextBox(const std::string &label, uint width,
                  Font::font_size_t fsize, Font::font_style_t fstyle) :
@@ -55,7 +60,7 @@ TextBox::TextBox(Profile * profile,
 
 bool TextBox::LoadXMLConfiguration()
 {
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return false;
   }
 
@@ -138,6 +143,13 @@ Widget * TextBox::ClickUp(const Point2i & mousePosition, uint button)
   if (SDL_ANDROID_GetScreenKeyboardTextInput(buffer, 256)) {
     SetText(buffer);
   }
+#elif defined(ENABLE_VKEYBD)
+  Common::VirtualKeyboard vkb = Common::VirtualKeyboard();
+  if (!vkb.loadKeyboardPack("vkeybd_default"))
+    printf("loadKeyboardPack failed\n");
+  vkb.setString(GetText());
+  if (vkb.show())
+    SetText(vkb.getString());
 #else
   if (button == SDL_BUTTON_MIDDLE) {
     std::string new_txt = GetText();
@@ -147,7 +159,7 @@ Widget * TextBox::ClickUp(const Point2i & mousePosition, uint button)
       BasicSetText(new_txt);
     return used ? this : NULL;
   } else if (button == SDL_BUTTON_LEFT) {
-    const std::string      cur_txt = GetText();
+    const std::string&     cur_txt = GetText();
     const Font*            font    = Font::GetInstance(GetFontSize(), GetFontStyle());
     std::string            txt     = "";
     std::string::size_type pos     = 0;
@@ -169,21 +181,6 @@ Widget * TextBox::ClickUp(const Point2i & mousePosition, uint button)
 
   // Om nom nom
   return this;
-}
-
-
-PasswordBox::PasswordBox(const std::string & label,
-                         uint max_width,
-                         Font::font_size_t fsize,
-                         Font::font_style_t fstyle) :
-  TextBox(label, max_width, fsize, fstyle)
-{
-}
-
-PasswordBox::PasswordBox(Profile * profile,
-                         const xmlNode * passwordBoxNode) :
-  TextBox(profile, passwordBoxNode)
-{
 }
 
 void PasswordBox::BasicSetText(std::string const & new_txt)

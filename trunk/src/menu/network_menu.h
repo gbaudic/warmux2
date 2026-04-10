@@ -32,6 +32,7 @@ class MapSelectionBox;
 class CheckBox;
 class ComboBox;
 class MultiTabs;
+class GameModeEditor;
 
 class NetworkMenu : public Menu
 {
@@ -42,7 +43,7 @@ class NetworkMenu : public Menu
   Label* connected_players;
   Label* initialized_players;
   CheckBox* play_in_loop;
-  ComboBox *opt_game_mode;
+  GameModeEditor *opt_game_mode;
 
   /* Chat controller */
   TalkBox* msg_box;
@@ -58,9 +59,7 @@ class NetworkMenu : public Menu
   void PrepareForNewGame();
   void SaveOptions();
   void WaitingForGameMaster();
-
   void AddGameModeTab();
-  void ChangeGameMode();
 
   virtual void Draw(const Point2i &mousePosition);
   virtual void HandleEvent(const SDL_Event& evnt);
@@ -80,11 +79,12 @@ public:
   void DelTeamCallback(const std::string& team_id);
   void ChangeMapCallback();
   void SetGameMasterCallback();
-  Team * FindUnusedTeam(const std::string default_team_id);
+  Team * FindUnusedTeam(const std::string& default_team_id);
   bool HasOpenTeamSlot();
 
   void ReceiveMsgCallback(const std::string& msg, const Color& color);
   void SetMapsCallback(const std::vector<uint>& list);
+  void SetTeamsCallback(const std::vector<uint>& list);
 };
 
 #endif

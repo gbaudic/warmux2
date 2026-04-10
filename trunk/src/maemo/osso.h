@@ -24,8 +24,8 @@
 
 namespace Osso {
 
-int Init();
-void Process();
+  int Init();
+  void DeInit();
 
 }
 

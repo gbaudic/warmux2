@@ -75,7 +75,7 @@
 static void FAIL_IF_GAMEMASTER(Action *a)
 {
   if (!a->GetCreator()) {
-    fprintf(stderr, "%s", ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+    fprintf(stderr, "%s", ActionHandler::GetActionName(a->GetType()).c_str());
   }
 
   ASSERT(a->GetCreator());
@@ -84,7 +84,7 @@ static void FAIL_IF_GAMEMASTER(Action *a)
     fprintf(stderr,
             "Game Master received an action (%s) that is normally sent only by the game master only to a client,"
             " we are going to force disconnection of evil client: %s",
-            ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str(),
+            ActionHandler::GetActionName(a->GetType()).c_str(),
             a->GetCreator()->ToString().c_str());
 
     a->GetCreator()->ForceDisconnection();
@@ -337,10 +337,28 @@ static void Action_Player_ChangeWeapon(Action *a)
 static void Action_Player_ChangeCharacter(Action *a)
 {
   JukeBox::GetInstance()->Play("default", "character/change_in_same_team");
+  std::string id = a->PopString();
+  if (id != "")
+    TeamsList::GetInstance()->SetActive(id);
   int char_no = a->PopInt();
   Character * c = ActiveTeam().FindByIndex(char_no);
   ActiveTeam().SelectCharacter(c);
-  Camera::GetInstance()->FollowObject(&ActiveCharacter(),true);
+  Camera::GetInstance()->FollowObject(c, true);
+}
+
+static void Action_Game_Unpack(Action *a)
+{
+  int nb = a->PopInt();
+  NET_ASSERT(nb>0 && (uint)nb<=Action::MAX_FRAMES)
+  {
+    if (a->GetCreator())
+      a->GetCreator()->ForceDisconnection();
+    return;
+  }
+
+  // We received actions, act as if 
+  GameTime::GetInstance()->SetWaitingForNetwork(false);
+  ActionHandler::GetInstance()->AddActionsFrames(nb, a->GetCreator());
 }
 
 static void Action_Game_CalculateFrame(Action */*a*/)
@@ -532,6 +550,51 @@ static void Action_Game_ForceMapList(Action *a)
   //_Action_SelectMap(a);
 }
 
+static void _Action_Game_TeamList(Action *a)
+{
+  int                num        = a->PopInt();
+  TeamsList         *team_list  = TeamsList::GetInstance();
+  // We are going to directly update the DistantComputer team list
+  std::vector<uint>& index_list = a->GetCreator()->GetAvailableTeams();
+
+  index_list.clear();
+  MSG_DEBUG("action_handler.team", "Team list size for %p: %i\n", a->GetCreator(), num);
+  while (num--) {
+    std::string team_name = a->PopString();
+    int index;
+    if (team_list->FindById(team_name, index) && index!=-1) {
+      index_list.push_back((uint)index);
+      MSG_DEBUG("action_handler.team", "Adding team %s of index %i (%i left)\n", team_name.c_str(), index, num);
+    } else
+      MSG_DEBUG("action_handler.team", "Rejecting team %s  (%i left)\n", team_name.c_str(), num);
+  }
+}
+
+static void Action_Game_SetTeamList(Action *a)
+{
+  if (a)
+    _Action_Game_TeamList(a);
+  Network  *net      = Network::GetInstance();
+  if (!net->IsGameMaster()) {
+    MSG_DEBUG("action_handler.team", "Dropping message from %p\n", a->GetCreator());
+    return;
+  }
+
+  // This is NetworkServer being invoked here
+  net->SendTeamsList();
+}
+
+static void Action_Game_ForceTeamList(Action *a)
+{
+  _Action_Game_TeamList(a);
+
+  // This list should be the common list, already a subset of our own
+  // and thus we should apply it
+  Network  *net      = Network::GetInstance();
+  ASSERT(net->network_menu);
+  net->network_menu->SetTeamsCallback(a->GetCreator()->GetAvailableTeams());
+}
+
 static Player* _Action_GetPlayer(Action *a, uint player_id)
 {
   Player *player = NULL;
@@ -549,14 +612,24 @@ static Player* _Action_GetPlayer(Action *a, uint player_id)
   return player;
 }
 
-static void _Action_AddTeam(Action *a, Player* player)
+static void _Action_AddTeam(Action *a, Player* player, bool skip = false)
 {
+  if (skip) {
+    // Just skip the data
+    a->PopString();
+    a->PopString();
+    a->PopInt();
+    a->PopString();
+    return;
+  }
+
   ConfigTeam the_team;
 
   the_team.id = a->PopString();
   the_team.player_name = a->PopString();
   the_team.nb_characters = uint(a->PopInt());
   the_team.ai = a->PopString();
+  the_team.group = uint(a->PopInt());
 
   MSG_DEBUG("action_handler.menu", "+ %s", the_team.id.c_str());
 
@@ -585,14 +658,15 @@ static void Action_Game_Info(Action *a)
     uint player_id = a->PopInt();
 
     ASSERT (a->GetCreator() && a->GetCreator()->GetPlayer(player_id) == NULL);
-    ASSERT (player_id != Network::GetInstance()->GetPlayer().GetId());
-    a->GetCreator()->AddPlayer(player_id);
+    bool skip = player_id == Network::GetInstance()->GetPlayer().GetId();
+    if (!skip)
+      a->GetCreator()->AddPlayer(player_id);
 
     uint nb_teams = a->PopInt();
 
     Player* player = _Action_GetPlayer(a, player_id);
     for (uint j = 0; j < nb_teams; j++) {
-      _Action_AddTeam(a, player);
+      _Action_AddTeam(a, player, skip);
     }
   }
 }
@@ -627,6 +701,7 @@ static void Action_Game_UpdateTeam(Action *a)
   team_cfg.player_name = a->PopString();
   team_cfg.nb_characters = uint(a->PopInt());
   team_cfg.ai = a->PopString();
+  team_cfg.group = uint(a->PopInt());
 
   Team* the_team = GetTeamsList().UpdateTeam(old_team_id, team_cfg);
   ASSERT(the_team != NULL);
@@ -641,6 +716,7 @@ static void Action_Game_UpdateTeam(Action *a)
   }
 }
 
+// If you change this code, don't forget to update Network::SendTeamsList()
 static void _Action_DelTeam(Player *player, const std::string& team_id)
 {
   if (player) {
@@ -673,6 +749,7 @@ static inline void add_team_config_to_action(Action& a, const ConfigTeam& team)
   a.Push(team.player_name);
   a.Push(int(team.nb_characters));
   a.Push(team.ai);
+  a.Push(int(team.group));
 }
 
 void ActionHandler::NewRequestTeamAction(const ConfigTeam & team)
@@ -697,6 +774,7 @@ static void Action_Game_RequestTeam(Action *a)
   const std::string player_name = a->PopString();
   int nb_characters = a->PopInt();
   const std::string ai = a->PopString();
+  int group = a->PopInt();
 
   Player * player = Network::GetInstance()->LockRemoteHostsAndGetPlayer(player_id);
   if (player) {
@@ -708,6 +786,7 @@ static void Action_Game_RequestTeam(Action *a)
       action_to_send.Push(player_name);
       action_to_send.Push(nb_characters);
       action_to_send.Push(ai);
+      action_to_send.Push(group);
 
       Network::GetInstance()->SendActionToAll(action_to_send);
       // Add the team before progressing further actions,
@@ -916,6 +995,9 @@ static void Action_Network_VerifyRandomSync(Action *a)
   MSG_DEBUG("random.verify", "Verify seed: %d (local) == %d (remote)", local_seed, remote_seed);
 
   if (local_seed != remote_seed) {
+    Replay *replay = Replay::GetInstance();
+    if (replay->IsRecording())
+      replay->SaveReplay(GetHome() + PATH_SEPARATOR "bug.wrf", "I'm bugged");
 
     Question question(Question::WARNING);
     question.Set(_("Game is not synchronized anymore! This is BAD, the network game will be "
@@ -925,9 +1007,6 @@ static void Action_Network_VerifyRandomSync(Action *a)
                    true, 0);
     question.Ask();
     DisconnectOnError(WRONG_SYNC);
-    Replay *replay = Replay::GetInstance();
-    if (replay->IsRecording())
-      replay->SaveReplay(GetHome() + "bug.wrf", "I'm bugged");
   }
 }
 
@@ -935,7 +1014,7 @@ static void Action_Time_VerifySync(Action *a)
 {
   uint local_time = GameTime::GetInstance()->Read();
   uint remote_time = (uint)a->PopInt();
-  MSG_DEBUG("time.verify","Verify time: %d (local) == %d (remote)", local_time, remote_time);
+  MSG_DEBUG("time.verify", "Verify time: %d (local) == %d (remote)", local_time, remote_time);
   ASSERT(local_time == remote_time);
 }
 
@@ -1022,6 +1101,9 @@ void SendInitialGameInfo(DistantComputer* client, int added_player_id)
 
   Network::GetInstance()->UnlockRemoteHosts();
 
+  Action b(Action::ACTION_GAME_SET_MAP);
+  MapsList::GetInstance()->FillActionMenuSetMap(b);
+  Network::GetInstance()->SendActionToOne(b, client);
   Network::GetInstance()->SendActionToOne(a, client);
 }
 
@@ -1110,92 +1192,96 @@ void WARMUX_DisconnectHost(DistantComputer& host)
 
 void Action_Handler_Init()
 {
-  ActionHandler::GetInstance()->Lock();
+  ActionHandler *ah = ActionHandler::GetInstance();
+  ah->Lock();
 
   // ########################################################
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_CLIENT_CHANGE_STATE, "NETWORK_client_change_state", &Action_Network_ClientChangeState);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_MASTER_CHANGE_STATE, "NETWORK_master_change_state", &Action_Network_MasterChangeState);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_CHECK_PHASE1, "NETWORK_check1", &Action_Network_Check_Phase1);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_CHECK_PHASE2, "NETWORK_check2", &Action_Network_Check_Phase2);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_DISCONNECT_ON_ERROR, "NETWORK_disconnect_on_error", &Action_Network_Disconnect_On_Error);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_SET_GAME_MASTER, "NETWORK_set_game_master", &Action_Network_Set_GameMaster);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHAT_MENU_MESSAGE, "menu_chat_message", Action_ChatMessage);
+  ah->Register(Action::ACTION_NETWORK_CLIENT_CHANGE_STATE, "NETWORK_client_change_state", &Action_Network_ClientChangeState);
+  ah->Register(Action::ACTION_NETWORK_MASTER_CHANGE_STATE, "NETWORK_master_change_state", &Action_Network_MasterChangeState);
+  ah->Register(Action::ACTION_NETWORK_CHECK_PHASE1, "NETWORK_check1", &Action_Network_Check_Phase1);
+  ah->Register(Action::ACTION_NETWORK_CHECK_PHASE2, "NETWORK_check2", &Action_Network_Check_Phase2);
+  ah->Register(Action::ACTION_NETWORK_DISCONNECT_ON_ERROR, "NETWORK_disconnect_on_error", &Action_Network_Disconnect_On_Error);
+  ah->Register(Action::ACTION_NETWORK_SET_GAME_MASTER, "NETWORK_set_game_master", &Action_Network_Set_GameMaster);
+  ah->Register(Action::ACTION_CHAT_MENU_MESSAGE, "menu_chat_message", Action_ChatMessage);
 
   // ########################################################
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_CALCULATE_FRAME, "GAME_calculate_frame", &Action_Game_CalculateFrame);
-  ActionHandler::GetInstance()->Register(Action::ACTION_PLAYER_CHANGE_WEAPON, "PLAYER_change_weapon", &Action_Player_ChangeWeapon);
-  ActionHandler::GetInstance()->Register(Action::ACTION_PLAYER_CHANGE_CHARACTER, "PLAYER_change_character", &Action_Player_ChangeCharacter);
+  ah->Register(Action::ACTION_GAME_PACK_CALCULATED_FRAMES, "GAME_unpack_frames", &Action_Game_Unpack);
+  ah->Register(Action::ACTION_GAME_CALCULATE_FRAME, "GAME_calculate_frame", &Action_Game_CalculateFrame);
+  ah->Register(Action::ACTION_PLAYER_CHANGE_WEAPON, "PLAYER_change_weapon", &Action_Player_ChangeWeapon);
+  ah->Register(Action::ACTION_PLAYER_CHANGE_CHARACTER, "PLAYER_change_character", &Action_Player_ChangeCharacter);
 
   // ########################################################
   // To be sure that rules will be the same on each computer
-  ActionHandler::GetInstance()->Register(Action::ACTION_RULES_SET_GAME_MODE, "RULES_set_game_mode", &Action_Rules_SetGameMode);
+  ah->Register(Action::ACTION_RULES_SET_GAME_MODE, "RULES_set_game_mode", &Action_Rules_SetGameMode);
 
   // ########################################################
   // Chat message
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHAT_INGAME_MESSAGE, "ingame_chat_message", Action_ChatMessage);
-  ActionHandler::GetInstance()->Register(Action::ACTION_ANNOUNCE_PAUSE, "chat_announce_pause", Action_AnnouncePause);
+  ah->Register(Action::ACTION_CHAT_INGAME_MESSAGE, "ingame_chat_message", Action_ChatMessage);
+  ah->Register(Action::ACTION_ANNOUNCE_PAUSE, "chat_announce_pause", Action_AnnouncePause);
 
   // Initial information about the game: map, teams already selected, ...
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_INFO, "GAME_info", &Action_Game_Info);
+  ah->Register(Action::ACTION_GAME_INFO, "GAME_info", &Action_Game_Info);
 
   // Map selection in network menu
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_SET_MAP, "GAME_set_map", &Action_Game_SetMap);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_SET_MAP_LIST, "GAME_set_map_list", &Action_Game_SetMapList);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_FORCE_MAP_LIST, "GAME_set_map_list", &Action_Game_ForceMapList);
+  ah->Register(Action::ACTION_GAME_SET_MAP, "GAME_set_map", &Action_Game_SetMap);
+  ah->Register(Action::ACTION_GAME_SET_MAP_LIST, "GAME_set_map_list", &Action_Game_SetMapList);
+  ah->Register(Action::ACTION_GAME_FORCE_MAP_LIST, "GAME_set_map_list", &Action_Game_ForceMapList);
 
   // Teams selection in network menu
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_ADD_TEAM, "GAME_add_team", &Action_Game_AddTeam);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_DEL_TEAM, "GAME_del_team", &Action_Game_DelTeam);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_UPDATE_TEAM, "GAME_update_team", &Action_Game_UpdateTeam);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_REQUEST_TEAM, "GAME_request_team", &Action_Game_RequestTeam);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_REQUEST_TEAM_REMOVAL, "GAME_request_team_removal", &Action_Game_RequestTeamRemoval);
+  ah->Register(Action::ACTION_GAME_SET_TEAM_LIST, "GAME_set_map_list", &Action_Game_SetTeamList);
+  ah->Register(Action::ACTION_GAME_FORCE_TEAM_LIST, "GAME_set_map_list", &Action_Game_ForceTeamList);
+  ah->Register(Action::ACTION_GAME_ADD_TEAM, "GAME_add_team", &Action_Game_AddTeam);
+  ah->Register(Action::ACTION_GAME_DEL_TEAM, "GAME_del_team", &Action_Game_DelTeam);
+  ah->Register(Action::ACTION_GAME_UPDATE_TEAM, "GAME_update_team", &Action_Game_UpdateTeam);
+  ah->Register(Action::ACTION_GAME_REQUEST_TEAM, "GAME_request_team", &Action_Game_RequestTeam);
+  ah->Register(Action::ACTION_GAME_REQUEST_TEAM_REMOVAL, "GAME_request_team_removal", &Action_Game_RequestTeamRemoval);
 
   // ########################################################
   // Character's move
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_JUMP, "CHARACTER_jump", &Action_Character_Jump);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_HIGH_JUMP, "CHARACTER_super_jump", &Action_Character_HighJump);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_BACK_JUMP, "CHARACTER_back_jump", &Action_Character_BackJump);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_START_MOVING_LEFT, "CHARACTER_start_moving_left", &Action_Character_StartMovingLeft);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_STOP_MOVING_LEFT, "CHARACTER_stop_moving_left", &Action_Character_StopMovingLeft);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_START_MOVING_RIGHT, "CHARACTER_start_moving_right", &Action_Character_StartMovingRight);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_STOP_MOVING_RIGHT, "CHARACTER_stop_moving_right", &Action_Character_StopMovingRight);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_START_MOVING_UP, "CHARACTER_start_moving_up", &Action_Character_StartMovingUp);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_STOP_MOVING_UP, "CHARACTER_stop_moving_up", &Action_Character_StopMovingUp);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_START_MOVING_DOWN, "CHARACTER_start_moving_down", &Action_Character_StartMovingDown);
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHARACTER_STOP_MOVING_DOWN, "CHARACTER_stop_moving_down", &Action_Character_StopMovingDown);
+  ah->Register(Action::ACTION_CHARACTER_JUMP, "CHARACTER_jump", &Action_Character_Jump);
+  ah->Register(Action::ACTION_CHARACTER_HIGH_JUMP, "CHARACTER_super_jump", &Action_Character_HighJump);
+  ah->Register(Action::ACTION_CHARACTER_BACK_JUMP, "CHARACTER_back_jump", &Action_Character_BackJump);
+  ah->Register(Action::ACTION_CHARACTER_START_MOVING_LEFT, "CHARACTER_start_moving_left", &Action_Character_StartMovingLeft);
+  ah->Register(Action::ACTION_CHARACTER_STOP_MOVING_LEFT, "CHARACTER_stop_moving_left", &Action_Character_StopMovingLeft);
+  ah->Register(Action::ACTION_CHARACTER_START_MOVING_RIGHT, "CHARACTER_start_moving_right", &Action_Character_StartMovingRight);
+  ah->Register(Action::ACTION_CHARACTER_STOP_MOVING_RIGHT, "CHARACTER_stop_moving_right", &Action_Character_StopMovingRight);
+  ah->Register(Action::ACTION_CHARACTER_START_MOVING_UP, "CHARACTER_start_moving_up", &Action_Character_StartMovingUp);
+  ah->Register(Action::ACTION_CHARACTER_STOP_MOVING_UP, "CHARACTER_stop_moving_up", &Action_Character_StopMovingUp);
+  ah->Register(Action::ACTION_CHARACTER_START_MOVING_DOWN, "CHARACTER_start_moving_down", &Action_Character_StartMovingDown);
+  ah->Register(Action::ACTION_CHARACTER_STOP_MOVING_DOWN, "CHARACTER_stop_moving_down", &Action_Character_StopMovingDown);
 
   // ########################################################
   // Quite standard weapon options
 
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_START_SHOOTING, "WEAPON_start_shooting", &Action_Weapon_StartShooting);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_STOP_SHOOTING, "WEAPON_stop_shooting", &Action_Weapon_StopShooting);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_SET_TIMEOUT, "WEAPON_set_timeout", &Action_Weapon_SetTimeout);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_SET_TARGET, "WEAPON_set_target", &Action_Weapon_SetTarget);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_START_MOVING_LEFT, "WEAPON_start_moving_left", &Action_Weapon_StartMovingLeft);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_STOP_MOVING_LEFT, "WEAPON_stop_moving_left", &Action_Weapon_StopMovingLeft);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_START_MOVING_RIGHT, "WEAPON_start_moving_right", &Action_Weapon_StartMovingRight);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_STOP_MOVING_RIGHT, "WEAPON_stop_moving_right", &Action_Weapon_StopMovingRight);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_START_MOVING_UP, "WEAPON_start_moving_up", &Action_Weapon_StartMovingUp);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_STOP_MOVING_UP, "WEAPON_stop_moving_up", &Action_Weapon_StopMovingUp);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_START_MOVING_DOWN, "WEAPON_start_moving_down", &Action_Weapon_StartMovingDown);
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_STOP_MOVING_DOWN, "WEAPON_stop_moving_down", &Action_Weapon_StopMovingDown);
+  ah->Register(Action::ACTION_WEAPON_START_SHOOTING, "WEAPON_start_shooting", &Action_Weapon_StartShooting);
+  ah->Register(Action::ACTION_WEAPON_STOP_SHOOTING, "WEAPON_stop_shooting", &Action_Weapon_StopShooting);
+  ah->Register(Action::ACTION_WEAPON_SET_TIMEOUT, "WEAPON_set_timeout", &Action_Weapon_SetTimeout);
+  ah->Register(Action::ACTION_WEAPON_SET_TARGET, "WEAPON_set_target", &Action_Weapon_SetTarget);
+  ah->Register(Action::ACTION_WEAPON_START_MOVING_LEFT, "WEAPON_start_moving_left", &Action_Weapon_StartMovingLeft);
+  ah->Register(Action::ACTION_WEAPON_STOP_MOVING_LEFT, "WEAPON_stop_moving_left", &Action_Weapon_StopMovingLeft);
+  ah->Register(Action::ACTION_WEAPON_START_MOVING_RIGHT, "WEAPON_start_moving_right", &Action_Weapon_StartMovingRight);
+  ah->Register(Action::ACTION_WEAPON_STOP_MOVING_RIGHT, "WEAPON_stop_moving_right", &Action_Weapon_StopMovingRight);
+  ah->Register(Action::ACTION_WEAPON_START_MOVING_UP, "WEAPON_start_moving_up", &Action_Weapon_StartMovingUp);
+  ah->Register(Action::ACTION_WEAPON_STOP_MOVING_UP, "WEAPON_stop_moving_up", &Action_Weapon_StopMovingUp);
+  ah->Register(Action::ACTION_WEAPON_START_MOVING_DOWN, "WEAPON_start_moving_down", &Action_Weapon_StartMovingDown);
+  ah->Register(Action::ACTION_WEAPON_STOP_MOVING_DOWN, "WEAPON_stop_moving_down", &Action_Weapon_StopMovingDown);
 
   // Special weapon options
-  ActionHandler::GetInstance()->Register(Action::ACTION_WEAPON_CONSTRUCTION, "WEAPON_construction", &Action_Weapon_Construction);
+  ah->Register(Action::ACTION_WEAPON_CONSTRUCTION, "WEAPON_construction", &Action_Weapon_Construction);
 
   // Bonus box
-  ActionHandler::GetInstance()->Register(Action::ACTION_DROP_BONUS_BOX, "BONUSBOX_drop_box", &Action_DropBonusBox);
-  ActionHandler::GetInstance()->Register(Action::ACTION_REQUEST_BONUS_BOX_DROP, "BONUSBOX_request_box_drop", &Action_RequestBonusBoxDrop);
+  ah->Register(Action::ACTION_DROP_BONUS_BOX, "BONUSBOX_drop_box", &Action_DropBonusBox);
+  ah->Register(Action::ACTION_REQUEST_BONUS_BOX_DROP, "BONUSBOX_request_box_drop", &Action_RequestBonusBoxDrop);
   // ########################################################
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_PING, "NETWORK_ping", &Action_Network_Ping);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_RANDOM_INIT, "NETWORK_random_init", &Action_Network_RandomInit);
-  ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_VERIFY_RANDOM_SYNC, "NETWORK_verify_random_sync", &Action_Network_VerifyRandomSync);
-  ActionHandler::GetInstance()->Register(Action::ACTION_TIME_VERIFY_SYNC, "TIME_verify_sync", &Action_Time_VerifySync);
-  ActionHandler::GetInstance()->Register(Action::ACTION_INFO_CLIENT_DISCONNECT, "INFO_client_disconnect", &Action_Info_ClientDisconnect);
-  ActionHandler::GetInstance()->Register(Action::ACTION_INFO_CLIENT_CONNECT, "INFO_client_connect", &Action_Info_ClientConnect);
+  ah->Register(Action::ACTION_NETWORK_PING, "NETWORK_ping", &Action_Network_Ping);
+  ah->Register(Action::ACTION_NETWORK_RANDOM_INIT, "NETWORK_random_init", &Action_Network_RandomInit);
+  ah->Register(Action::ACTION_NETWORK_VERIFY_RANDOM_SYNC, "NETWORK_verify_random_sync", &Action_Network_VerifyRandomSync);
+  ah->Register(Action::ACTION_TIME_VERIFY_SYNC, "TIME_verify_sync", &Action_Time_VerifySync);
+  ah->Register(Action::ACTION_INFO_CLIENT_DISCONNECT, "INFO_client_disconnect", &Action_Info_ClientDisconnect);
+  ah->Register(Action::ACTION_INFO_CLIENT_CONNECT, "INFO_client_connect", &Action_Info_ClientConnect);
 
   // ########################################################
-  ActionHandler::GetInstance()->UnLock();
+  ah->UnLock();
 }
 
 // ########################################################
@@ -1290,9 +1376,24 @@ void ActionHandler::NewAction(Action* a, bool repeat_to_network)
   Menu::WakeUpOnCallback();
 }
 
-void ActionHandler::NewActionActiveCharacter(int index)
+void ActionHandler::AddActionsFrames(uint nb, DistantComputer* cpu)
+{
+  ASSERT(mutex);
+  printf("Adding %u frame actions\n", nb);
+
+  // We are not locking queue because the only caller already locked it!
+  while (nb) {
+    Action *a = new Action(Action::ACTION_GAME_CALCULATE_FRAME);
+    a->SetCreator(cpu);
+    queue.push_back(a);
+    nb--;
+  }
+}
+
+void ActionHandler::NewActionActiveCharacter(const Team* team, int index)
 {
   Action * next_character = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
+  next_character->Push((team) ? team->GetId() : "");
   uint next_character_index = (index<0) ? ActiveCharacter().GetCharacterIndex() : index;
   next_character->Push((int)next_character_index);
   NewAction(next_character);

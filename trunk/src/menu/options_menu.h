@@ -39,6 +39,11 @@ class CustomTeam;
 class SpinButtonWithPicture;
 class TextBox;
 class ControlConfig;
+class CheckBox;
+class VBox;
+class SocialPanel;
+
+class SocialWidget;
 
 class OptionMenu : public Menu
 {
@@ -98,8 +103,13 @@ private:
   Label *team_name;
   std::vector<TextBox *> tbox_character_name_list;
 
+  /* Social */
+#if defined(HAVE_FACEBOOK) || defined(HAVE_TWITTER)
+  SocialPanel *social_panel;
+#endif
+
 #ifdef ENABLE_NLS
-  void AddLanguageItem(const char* label, const char* value);
+  void AddLanguageItem(const char* label, const char* value, uint fsize);
 #endif
   bool TeamInfoValid();
   void AddTeam();

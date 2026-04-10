@@ -131,8 +131,11 @@ public:
   int push_force;
 
 public:
-  GrappleConfig();
-  void LoadXml(const xmlNode* elem);
+  GrappleConfig()
+  {
+    push_back(new UintConfigElement("max_rope_length", &max_rope_length, 450, 200, 800));
+    push_back(new IntConfigElement("push_force", &push_force, 10));
+  }
 };
 
 //-----------------------------------------------------------------------------
@@ -715,23 +718,7 @@ std::string Grapple::GetWeaponWinString(const char *TeamName, uint items_count) 
                          items_count), TeamName, items_count);
 }
 
-//-----------------------------------------------------------------------------
-
 GrappleConfig& Grapple::cfg()
 {
   return static_cast<GrappleConfig&>(*extra_params);
-}
-//-----------------------------------------------------------------------------
-
-GrappleConfig::GrappleConfig()
-{
-  max_rope_length = 450;
-  push_force = 10;
-}
-
-void GrappleConfig::LoadXml(const xmlNode* elem)
-{
-  EmptyWeaponConfig::LoadXml(elem);
-  XmlReader::ReadUint(elem, "max_rope_length", max_rope_length);
-  XmlReader::ReadInt(elem, "push_force", push_force);
 }

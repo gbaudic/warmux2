@@ -23,27 +23,39 @@
 #define MEDKIT_H
 //-----------------------------------------------------------------------------
 #include <WARMUX_base.h>
-#include "objbox.h"
+#include "object/objbox.h"
+#include "tool/config_element.h"
 
 class Team;
 class Character;
 class Action;
-//-----------------------------------------------------------------------------
+class XmlWriter;
 
-class Medkit : public ObjBox//public PhysicalObj
+//-----------------------------------------------------------------------------
+class MedkitSettings : public ConfigElementList
 {
-  //static bool enable;
-  static int nbr_health;
+public:
+  int nbr_health;
+  int start_points;
+  MedkitSettings()
+  {
+    push_back(new IntConfigElement("life_points", &start_points, 41));
+    push_back(new IntConfigElement("energy_boost", &nbr_health, 24));
+  }
+};
+
+class Medkit : public ObjBox
+{
   static Sprite* icon;
   static int icon_ref;
+  static MedkitSettings settings;
 
-private:
   void ApplyMedkit(Team &team, Character &character) const;
 public:
   Medkit();
   ~Medkit();
 
-  static void LoadXml(const xmlNode * object);
+  static ConfigElementList* GetConfigList() { return &settings; }
   void ApplyBonus(Character *);
   const Surface* GetIcon() const;
 };

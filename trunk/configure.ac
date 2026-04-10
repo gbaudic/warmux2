@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Warmux], [11.04], [warmux-dev@gna.org], [warmux])
+AC_INIT([Warmux], [svn], [warmux-dev@gna.org], [warmux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -107,6 +107,11 @@ AC_ARG_ENABLE([profile],
               [if test "x${enableval}" = "xyes" ; then
                    CXXFLAGS="$CXXFLAGS -pg"
                fi])
+
+AC_ARG_ENABLE(vkeybd, AC_HELP_STRING([--enable-vkeybd], [Enable Virtual Keyboard]) )
+if test "${enable_vkeybd}" = "yes"; then
+       AC_DEFINE([ENABLE_VKEYBD], [1], [Enable Virtual Keyboard])
+fi
 
 # Check whether user supplied the option to statically link binaries.
 if test "$static" = yes; then
@@ -300,25 +305,43 @@ int main(void)
 }],
   [echo "`cat conftest.out`, OK"],
   [cat conftest.out
-   AC_MSG_ERROR(Please upgrade SDL_gfx)])
+   AC_MSG_WARN(This version of SDL_gfx is outdated and prone to cause crashes, please update it.)])
 
 dnl === Check for curl =====================================================
 
 LIBCURL_CHECK_CONFIG([yes],[7.0],[check_curl=yes],[check_curl=no])
+if test "${check_curl}" = "yes"; then
+  if test "${libcurl_protocol_HTTPS}" != "yes"; then
+    AC_MSG_WARN([No HTTPS support in curl, Twitter support off])
+    social="Facebook"
+    CXXFLAGS="$CXXFLAGS -DHAVE_FACEBOOK"
+  else
+    CXXFLAGS="$CXXFLAGS -DHAVE_FACEBOOK -DHAVE_TWITTER"
+    social="Facebook Twitter"
+  fi
+else
+  AC_MSG_WARN(Absolutely no network support!)
+  social="None"
+fi
 
-dnl === Check for libosso ==================================================
+dnl === Check for Maemo ====================================================
 
 AC_ARG_ENABLE(maemo, AC_HELP_STRING([--enable-maemo], [enable Maemo support]) )
 if test "${enable_maemo}" = "yes"; then
-  PKG_CHECK_MODULES(osso, libosso,[MAEMO=yes], [AC_MSG_FAILURE([libosso not found])])
-  PKG_CHECK_MODULES(LIBGLIB, glib-2.0, [], [AC_MSG_FAILURE([glib-2.0 not found])])
-  PKG_CHECK_MODULES(LIBDBUS, dbus-1, [], [AC_MSG_FAILURE([dbus-1 not found])])
-  LIBS="$LIBS $LIBGLIB_LIBS $LIBDBUS_LIBS $osso_LIBS"
-  CFLAGS="$CFLAGS $LIBGLIB_CFLAGS $LIBDBUS_CFLAGS $osso_CFLAGS -DMAEMO"
-  CXXFLAGS="$CXXFLAGS $LIBGLIB_CFLAGS $LIBDBUS_CFLAGS $osso_CFLAGS -DMAEMO"
+  AC_DEFINE([MAEMO], [yes], [Maemo support])
+  PKG_CHECK_MODULES(GLIB, glib-2.0, [], [AC_MSG_FAILURE([libglib-2.0 not found])])
+  PKG_CHECK_MODULES(OSSO, libosso, [AC_DEFINE([HAVE_LIBOSSO], [1], [Use libosso])] use_osso=yes, [:])
+  PKG_CHECK_MODULES(RESOURCE, libresource0-glib, [AC_DEFINE([HAVE_LIBRESOURCE], [1], ["Use libresource"])] use_resource=yes, [:])
+  PKG_CHECK_MODULES(CONIC, conic, [AC_DEFINE([HAVE_LIBCONIC], [1], [Use libconic])] use_conic=yes, [:])
+  CFLAGS="$CFLAGS $GLIB_CFLAGS $RESOURCE_CFLAGS $CONIC_CFLAGS $OSSO_CFLAGS"
+  CXXFLAGS="$CXXFLAGS $GLIB_CFLAGS $RESOURCE_CFLAGS $CONIC_CFLAGS $OSSO_CFLAGS"
+  LIBS="$LIBS $GLIB_LIBS $RESOURCE_LIBS $CONIC_LIBS $OSSO_LIBS"
 fi
 
 AM_CONDITIONAL(MAEMO, test "x${enable_maemo}" = "xyes")
+AM_CONDITIONAL(HAVE_LIBOSSO, test "x${use_osso}" = "xyes")
+AM_CONDITIONAL(HAVE_LIBRESOURCE, test x${use_resource} = xyes)
+AM_CONDITIONAL(HAVE_LIBCONIC, test "x${use_conic}" = "xyes")
 
 dnl === Check for SDL image, mixer, etc. ===================================
 
@@ -433,6 +456,7 @@ echo ""
 echo "* [[Optional]] Bi-directional rendering (fribidi) : ${enable_fribidi:-no}"
 echo "* [[Optional]] Internationalisation (gettext)     : ${USE_NLS:-no}"
 echo "* [[Optional]] Index and game servers             : ${enable_servers:-no}"
+echo "* [[Optional]] Publishing to social services      : ${social}"
 echo "***********************************************************"
 echo ""
 echo "Execute make to compile then execute make install to install..."

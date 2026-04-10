@@ -19,12 +19,16 @@
  *  Starting file. (the 'main' function is here.)
  *****************************************************************************/
 
-#include <WARMUX_singleton.h>
 #include <getopt.h>
 #ifndef WIN32
 # include <signal.h>
 #endif
+
 #include <SDL.h>
+#include <SDL_gfxPrimitives.h>
+
+#include <WARMUX_singleton.h>
+
 #include "game/config.h"
 #include "game/game.h"
 #include "game/game_time.h"
@@ -51,7 +55,7 @@
 #include "sound/jukebox.h"
 #include "tool/stats.h"
 #ifdef MAEMO
-#include "maemo/osso.h"
+#include "maemo/maemo.h"
 #include "menu/pause_menu.h"
 #endif
 #ifdef WMX_LOG
@@ -295,7 +299,7 @@ void AppWarmux::End() const
 bool AppWarmux::CheckInactive(SDL_Event& evnt)
 {
 #ifdef MAEMO
-  Osso::Process();
+  Maemo::Process();
 #endif
 
 #ifdef HAVE_HANDHELD
@@ -314,7 +318,7 @@ bool AppWarmux::CheckInactive(SDL_Event& evnt)
 
     while (SDL_WaitEvent(&evnt)) {
 #ifdef MAEMO
-      Osso::Process();
+      Maemo::Process();
 #endif
       if (evnt.type == SDL_QUIT) AppWarmux::EmergencyExit();
       if (evnt.type == SDL_ACTIVEEVENT && evnt.active.gain == 1) {
@@ -564,7 +568,17 @@ extern "C" int main(int argc, char *argv[])
   }
 
 #ifdef MAEMO
-  Osso::Init();
+  Maemo::Init();
+#endif
+
+#if SDL_GFXPRIMITIVES_MAJOR>2 || SDL_GFXPRIMITIVES_MINOR>0 || SDL_GFXPRIMITIVES_MICRO>20
+#else
+  // The packager/people compiling WarMUX might choose to ignore the warning
+  // from configure, but the users of the binary should still be warned
+  // about potential problems
+  fprintf(stderr, "The version of SDL_gfx on your computer, %i.%i.%i, is known to cause crashes\n"
+          "Please update it or ask to have it updated!\n",
+          SDL_GFXPRIMITIVES_MAJOR, SDL_GFXPRIMITIVES_MINOR, SDL_GFXPRIMITIVES_MICRO);
 #endif
 
   AppWarmux::GetInstance()->Main();

@@ -39,6 +39,7 @@
 #include "network/randomsync.h"
 #include "particles/particle.h"
 #include "particles/fading_text.h"
+#include "replay/replay.h"
 #include "sound/jukebox.h"
 #include "team/team.h"
 #include "team/custom_team.h"
@@ -154,7 +155,7 @@ Character::Character(Team& my_team, const std::string &name, Body *char_body) :
   m_allow_negative_y = true;
   // Name Text object
   if (Config::GetInstance()->GetDisplayNameCharacter())
-    name_text = new Text(character_name, m_team.GetColor());
+    name_text = new Text(character_name, m_team.GetColor(), Font::FONT_SMALL, Font::FONT_BOLD, true);
   else
     name_text = NULL;
 
@@ -260,7 +261,8 @@ void Character::SignalDrowning()
   SetEnergy(0, &ActiveCharacter());
   SetMovement("drowned", true);
   JukeBox::GetInstance()->Play(GetTeam().GetSoundProfile(),"sink");
-  Game::GetInstance()->SignalCharacterDeath (this);
+  Game::GetInstance()->SignalCharacterDeath(this);
+  damage_stats->SetDeathTime(GameTime::GetInstance()->Read());
 }
 
 // Signal the character death (short life as you can notice)
@@ -269,6 +271,7 @@ void Character::SignalGhostState(bool was_dead)
 {
   // Report to damage performer this character lost all of its energy
   ActiveCharacter().damage_stats->MadeDamage(GetEnergy(), *this);
+  damage_stats->SetDeathTime(GameTime::GetInstance()->Read());
 
   MSG_DEBUG("character", "ghost");
   // Signal the death
@@ -886,6 +889,8 @@ void Character::StartPlaying()
   ActiveTeam().crosshair.Draw();
  // SetRebounding(false);
   ShowGameInterface();
+  if (!Replay::GetConstInstance()->IsPlaying())
+    Interface::GetInstance()->SetMode(ActiveTeam().IsLocalHuman() ? Interface::MODE_CONTROL : Interface::MODE_NORMAL);
   m_team.crosshair.Refresh(GetFiringAngle());
 }
 

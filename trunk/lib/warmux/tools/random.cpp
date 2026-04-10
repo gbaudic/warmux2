@@ -45,7 +45,7 @@ void RandomGenerator::InitRandom()
     MSG_DEBUG("random.set", "no, unrandom set");
     return;
   }
-  SetRand(time(NULL));
+  SetRand(uint(time(NULL)));
 }
 
 void RandomGenerator::SetRand(uint seed)
@@ -68,11 +68,6 @@ void RandomGenerator::SetSeed(uint seed)
   SetRand(seed);
 }
 
-uint RandomGenerator::GetSeed()
-{
-  return next;
-}
-
 /******************************************************************************
  * From "man 3 rand"
  * POSIX.1-2001  gives the following example of an implementation of rand() and
@@ -86,7 +81,7 @@ uint RandomGenerator::GetRand()
   ASSERT(initialized == true);
 
   next = next * 1103515245 + 12345;
-  return((uint)(next/65536) % 32768);
+  return (next>>16) & 0x7FFF;
 }
 
 #define WARMUX_RAND_MAX 32767
@@ -108,6 +103,20 @@ Double RandomGenerator::GetDouble()
 float RandomGenerator::Getfloat()
 {
   return GetRand()/(WARMUX_RAND_MAX + 1.0f);
+}
+
+float RandomGenerator::GetGaussianfloat(float mean, float stddev)
+{
+  static const float FACTOR = 1.0f/16384;
+  static const uint NUM_INPUTS = 6;
+  uint sum = 0;
+  // Do we really need a Box-Muller transform?
+  for (uint i=0; i<NUM_INPUTS; i++)
+    sum += GetRand();
+  // To do as if values were randomly between -16384 and 16383
+  sum -= 16384*NUM_INPUTS;
+
+  return sum * stddev * FACTOR + mean;
 }
 
 /**

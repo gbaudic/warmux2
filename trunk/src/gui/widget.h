@@ -99,7 +99,7 @@ public:
   void SetActionName(const std::string & _actionName) { this->actionName = _actionName; };
 
   // widget may be hidden
-  void SetVisible(bool _visible);
+  virtual void SetVisible(bool _visible);
   bool IsVisible() const { return visible; }
   virtual bool Contains(const Point2i & point) const { return (Rectanglei::Contains(point) && visible); }
 
@@ -111,25 +111,29 @@ public:
   virtual void SetHighlighted(bool focus);
 
   // border, background color
-  virtual void SetBorder(const Color & border_color, uint boder_size);
-  const Color & GetBorderColor() const { return border_color; };
+  virtual void SetNoBorder() { border_size = 0; }
+  virtual void SetBorder(uint b) { border_size = b; }
+  virtual void SetBorder(const Color & border_color, uint border_size);
+  const Color & GetBorderColor() const { return border_color; }
 
   virtual void SetBackgroundColor(const Color &background_color);
-  const Color& GetBackgroundColor() const { return background_color; };
+  const Color& GetBackgroundColor() const { return background_color; }
 
   void SetHighlightBgColor(const Color &highlight_bg_color);
-  const Color& GetHighlightBgColor() const { return highlight_bg_color; };
+  const Color& GetHighlightBgColor() const { return highlight_bg_color; }
 
-  void SetContainer(Container * _ct) { ct = _ct; };
+  void SetContainer(Container * _ct) { ct = _ct; }
 
   // to manage browsing between the widgets with keyboard
-  virtual Widget * GetFirstWidget() const { return NULL; };
-  virtual Widget * GetLastWidget() const { return NULL; };
-  virtual Widget * GetNextWidget(const Widget */*w*/, bool /*loop*/) const { return NULL; };
-  virtual Widget * GetPreviousWidget(const Widget */*w*/, bool /*loop*/) const { return NULL; };
-  virtual bool IsWidgetBrowser() const { return false; };
+  virtual Widget * GetFirstWidget() const { return NULL; }
+  virtual Widget * GetLastWidget() const { return NULL; }
+  virtual Widget * GetNextWidget(const Widget */*w*/, bool /*loop*/) const { return NULL; }
+  virtual Widget * GetPreviousWidget(const Widget */*w*/, bool /*loop*/) const { return NULL; }
+  virtual bool IsWidgetBrowser() const { return false; }
 
   virtual void Pack() = 0;
+
+  virtual bool IsScrolling() { return false; }
 
   // Clipping
   Rectanglei GetClip(Rectanglei& backup) const;

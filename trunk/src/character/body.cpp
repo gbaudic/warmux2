@@ -131,7 +131,7 @@ void Body::Init(void) {
 void Body::LoadMembers(xmlNodeArray &      nodes,
                        const std::string & main_folder)
 {
-  MSG_DEBUG("body", "Found %i sprites", nodes.size());
+  MSG_DEBUG("body", "Found "SIZET_FORMAT"u sprites", nodes.size());
   std::string                  name;
   xmlNodeArray::const_iterator it = nodes.begin();
 
@@ -157,7 +157,7 @@ void Body::LoadClothes(xmlNodeArray &  nodes,
   ASSERT(clothes);
 
   nodes = XmlReader::GetNamedChildren(clothes, "clothe");
-  MSG_DEBUG("body", "Found %i clothes", nodes.size());
+  MSG_DEBUG("body", "Found "SIZET_FORMAT"u clothes", nodes.size());
   std::string name;
   xmlNodeArray::const_iterator it = nodes.begin();
 
@@ -182,7 +182,7 @@ void Body::LoadMovements(xmlNodeArray &  nodes,
   ASSERT(aliases);
 
   nodes = XmlReader::GetNamedChildren(aliases, "alias");
-  MSG_DEBUG("body", "Found %i aliases", nodes.size());
+  MSG_DEBUG("body", "Found "SIZET_FORMAT"u aliases", nodes.size());
 
   std::map<std::string, std::string> mvt_alias;
   xmlNodeArray::const_iterator       it = nodes.begin();
@@ -201,7 +201,7 @@ void Body::LoadMovements(xmlNodeArray &  nodes,
   ASSERT(movements);
 
   nodes = XmlReader::GetNamedChildren(movements, "movement");
-  MSG_DEBUG("body", "Found %i movements", nodes.size());
+  MSG_DEBUG("body", "Found "SIZET_FORMAT"u movements", nodes.size());
   std::string name;
 
   for (it = nodes.begin(); it != nodes.end(); ++it) {
@@ -338,7 +338,7 @@ void Body::ApplyMovement(Movement * mvt,
 
       // This movement needs to know the position of the member before
       // being applied so it does a second ApplyMovement after being used
-      if (mb_mvt.follow_cursor &&
+      if (mb_mvt.follow_cursor_square_limit &&
           Mouse::GetInstance()->GetVisibility() == Mouse::MOUSE_VISIBLE) {
         ProcessFollowCursor(mb_mvt, mb);
       }
@@ -405,12 +405,10 @@ void Body::ProcessFollowDirection(member_mvt & mb_mvt)
   }
 }
 
-void Body::ProcessFollowCursor(member_mvt & mb_mvt,
-                               Member *     member)
+void Body::ProcessFollowCursor(const member_mvt& mb_mvt, Member* member)
 {
-  member_mvt angle_mvt;
-
   Point2i v = owner->GetPosition() + member->GetPos();
+  Point2i zero(0, 0);
   v += member->GetAnchorPos();
 
   if (DIRECTION_LEFT == owner->GetDirection()) {
@@ -419,13 +417,16 @@ void Body::ProcessFollowCursor(member_mvt & mb_mvt,
   }
   v = Mouse::GetInstance()->GetWorldPosition() - v;
 
-  if (v.Norm() < mb_mvt.follow_cursor_limit) {
-    Double angle = v.ComputeAngle(Point2i(0, 0));
-    angle *= owner->GetDirection();
+  if (v.SquareDistance(zero) < mb_mvt.follow_cursor_square_limit) {
+    Double angle = v.ComputeAngle(zero);
+
     if (owner->GetDirection() == DIRECTION_RIGHT) {
       angle -= PI;
+    } else {
+      angle = -angle;
     }
 
+    member_mvt angle_mvt;
     angle_mvt.SetAngle(angle);
     member->ApplyMovement(angle_mvt);
   }
@@ -437,8 +438,8 @@ void Body::ApplySqueleton()
   std::vector<junction *>::iterator member = skel_lst.begin();
 
   // The first member is the body, we set it to pos:
-  (*member)->member->SetPos(Point2d(0.0, 0.0));
-  (*member)->member->SetAngle(0.0);
+  (*member)->member->SetPos(Point2i(0, 0));
+  (*member)->member->SetAngle(ZERO);
   member++;
 
   for ( ; member != skel_lst.end();
@@ -498,27 +499,28 @@ void Body::Build()
   ApplySqueleton();
   ApplyMovement(current_mvt, current_frame);
 
-  Double y_max = ZERO;
+  int y_max = 0;
   const std::vector<Member*>& layers = current_clothe->GetNonWeaponLayers();
   for (uint lay=0; lay < layers.size(); lay++) {
     Member *member = layers[lay];
 
-    // Rotate sprite, because the next part need to know the height
-    // of the sprite once it is rotated
-    member->RotateSprite();
+    if (!member->IsGoingThroughGround()) {
+      // Rotate sprite, because the next part need to know the height
+      // of the sprite once it is rotated
+      member->RotateSprite();
 
-    // Move the members to get the lowest member at the bottom
-    // of the skin rectangle
-    Double val = member->GetPosFloat().y + member->GetSprite().GetHeightMax()
-               + member->GetSprite().GetRotationPoint().y;
-    if (val > y_max && !member->IsGoingThroughGround()) {
+      // Move the members to get the lowest member at the bottom
+      // of the skin rectangle
+      int val = member->GetPos().y + member->GetSprite().GetHeightMax()
+              + member->GetSprite().GetRotationPoint().y;
+      if (val > y_max)
         y_max = val;
     }
   }
 
   member_mvt body_mvt;
   body_mvt.pos.y = GetSize().y - y_max + current_mvt->GetTestBottom();
-  body_mvt.pos.x = ONE_HALF*(GetSize().x - skel_lst.front()->member->GetSprite().GetWidth());
+  body_mvt.pos.x = (GetSize().x - skel_lst.front()->member->GetSprite().GetWidth())>>1;
   body_mvt.SetAngle(main_rotation_rad);
   skel_lst.front()->member->ApplyMovement(body_mvt);
 

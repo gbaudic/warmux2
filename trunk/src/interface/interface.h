@@ -164,6 +164,7 @@ public:
   Point2i GetMenuPosition() const { return bottom_bar_pos; }
   bool IsDisplayed () const { return mode != MODE_SMALL; }
   Mode GetMode() const { return mode; }
+  void SetMode(Mode new_mode) { mode = new_mode; }
   void EnableDisplay(bool display)
   {
     if (mode==MODE_REPLAY) return;
@@ -183,6 +184,7 @@ public:
   bool ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click_pos);
   bool ActionLongClick(const Point2i &mouse_pos, const Point2i &old_mouse_pos);
   bool ActionClickDown(const Point2i &mouse_pos);
+  bool ActionDoubleClick(const Point2i &mouse_pos);
 
   int GetMenuHeight() const;
 };

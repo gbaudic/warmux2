@@ -40,6 +40,7 @@ private:
   // a remote computer may act as a relay for several players (this is true when it is a server)
   std::list<Player> players;
   std::vector<uint> maps;
+  std::vector<uint> teams;
   bool force_disconnection_called;
 public:
   DistantComputer(WSocket* new_sock);
@@ -63,6 +64,7 @@ public:
 
   Player* GetPlayer(uint player_id);
   const std::list<Player>& GetPlayers() const { return players; }
+  std::list<Player>& GetPlayers() { return players; }
 
   uint GetGameId() const { return game_id; } 
 
@@ -72,9 +74,12 @@ public:
   bool MustBeDisconnected() { return force_disconnection_called; }
 
   const std::string ToString() const;
-  std::vector<uint>& GetAvailableMaps() { return maps; };
 
+  std::vector<uint>& GetAvailableMaps() { return maps; };
   static std::vector<uint> GetCommonMaps(const std::list<DistantComputer*>&);
+
+  std::vector<uint>& GetAvailableTeams() { return teams; };
+  static std::vector<uint> GetCommonTeams(const std::list<DistantComputer*>&);
 };
 
 // It's up to the program using class DistantComputer to define WARMUX_[Dis]connectHost();

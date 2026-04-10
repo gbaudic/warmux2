@@ -23,6 +23,7 @@
 #define COMBO_BOX_H
 
 #include <WARMUX_base.h>
+#include "graphic/font.h"
 #include "graphic/surface.h"
 #include "widget.h"
 #include <string>
@@ -50,7 +51,9 @@ public:
            const std::string &resource_id,
            const Point2i &size,
            const std::vector<std::pair <std::string, std::string> > &choices,
-           const std::string choice);
+           const std::string& choice,
+           Font::font_size_t legend_fsize = Font::FONT_SMALL,
+           Font::font_size_t value_fsize = Font::FONT_MEDIUM);
 
   virtual ~ComboBox();
 
@@ -59,7 +62,7 @@ public:
   virtual Widget* Click(const Point2i&, uint) const { return NULL; };
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
-  const std::string GetValue() const { return m_choices[m_index].first; };
+  const std::string& GetValue() const { return m_choices[m_index].first; };
   int GetIntValue() const;
   void SetChoice(std::vector<std::string>::size_type index);
 };

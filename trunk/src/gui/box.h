@@ -42,9 +42,7 @@ public:
   void ParseXMLBoxParameters(void);
 
   void SetMargin(uint _margin) { margin = _margin; };
-
-  void SetBorder(uint b) { border_size = b; };
-  void SetNoBorder() { border_size = 0; };
+  uint GetMargin() { return margin; }
 
   virtual void Pack() = 0;
 };

@@ -45,9 +45,6 @@ protected:
   virtual bool p_Shoot();
   void p_Deselect();
 
-  // Implement this!
-  virtual WeaponProjectile * GetProjectileInstance() = 0;
-
 public:
   BaseSnipeRifle(Weapon_type type,
                  const std::string &id);
@@ -55,9 +52,6 @@ public:
   void SignalProjectileGhostState();
   void DrawBeam();
   void Draw();  // In order to draw the laser beam / and the contact point.
-
-  // Implement those!
-  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count ) const = 0;
 };
 
 class SnipeRifle : public BaseSnipeRifle
@@ -68,8 +62,8 @@ protected:
 public:
   SnipeRifle();
 
-  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
-  virtual void UpdateTranslationStrings();
+  std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
+  void UpdateTranslationStrings();
 };
 
 #endif /* SNIPE_RIFLE_H */

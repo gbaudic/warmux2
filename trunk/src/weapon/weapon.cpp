@@ -410,7 +410,7 @@ void Weapon::PosXY (int &x, int &y) const
     ASSERT(false);
 }
 
-const Point2i Weapon::GetGunHolePosition() const
+Point2i Weapon::GetGunHolePosition() const
 {
   Point2i pos;
   ActiveCharacter().GetHandPosition(pos);
@@ -423,8 +423,7 @@ const Point2i Weapon::GetGunHolePosition() const
   else
     angle += ActiveCharacter().GetFiringAngle() - PI;
 
-  return pos + Point2i(static_cast<int>(dst * cos(angle)),
-                       static_cast<int>(dst * sin(angle)));
+  return pos + Point2i(dst * cos(angle), dst * sin(angle));
 }
 
 bool Weapon::EnoughAmmo() const
@@ -457,9 +456,10 @@ void Weapon::UseAmmoUnit() const
   ASSERT(*unit >= 0);
 }
 
-void Weapon::UpdateStrength(){
+void Weapon::UpdateStrength()
+{
   if (max_strength==0 || !m_first_time_loading)
-    return ;
+    return;
 
   uint time = GameTime::GetInstance()->Read() - m_first_time_loading;
   Double val = (max_strength * time*time) / (MAX_TIME_LOADING*MAX_TIME_LOADING);
@@ -472,7 +472,8 @@ bool Weapon::IsOnCooldownFromShot() const
   return (m_last_fire_time > 0 && m_last_fire_time + m_time_between_each_shot > GameTime::GetInstance()->Read());
 }
 
-void Weapon::InitLoading(){
+void Weapon::InitLoading()
+{
   // no loading for weapon with max_strength = 0
   if (max_strength==0)
     return ;
@@ -486,13 +487,15 @@ void Weapon::InitLoading(){
   Game::GetInstance()->SetCharacterChosen(true);
 }
 
-void Weapon::StopLoading(){
+void Weapon::StopLoading()
+{
   m_first_time_loading = 0 ;
 
   loading_sound.Stop();
 }
 
-void Weapon::Draw(){
+void Weapon::Draw()
+{
   if (Game::GetInstance()->ReadState() != Game::PLAYING &&
       m_last_fire_time + 100 < GameTime::GetInstance()->Read())
     return;
@@ -530,7 +533,7 @@ void Weapon::Draw(){
 
   // Calculate position of the image
   int x,y;
-  PosXY (x, y);
+  PosXY(x, y);
 
   // Animate the display of the weapon:
   if (m_time_anim_begin + ANIM_DISPLAY_TIME > GameTime::GetInstance()->Read()) {
@@ -577,7 +580,7 @@ void Weapon::Draw(){
   if (IsLOGGING("weapon.hole")) {
     Rectanglei rect(GetGunHolePosition() - Camera::GetInstance()->GetPosition() - 1,
                     Point2i(3, 3));
-  
+
     GetWorld().ToRedrawOnMap(rect);
     GetMainWindow().RectangleColor(rect, c_red);
   }
@@ -587,7 +590,8 @@ void Weapon::Draw(){
 // Draw the weapon fire when firing
 void Weapon::DrawWeaponFire()
 {
-  if (m_weapon_fire == NULL) return;
+  if (!m_weapon_fire)
+    return;
   Point2i hand;
   ActiveCharacter().GetHandPosition(hand);
   Point2i hole(hand +  hole_delta * Point2i(ActiveCharacter().GetDirection(),1));
@@ -617,8 +621,7 @@ void Weapon::DrawAmmoUnits() const
   if (!ShouldAmmoUnitsBeDrawn())
     return;
 
-  if (m_initial_nb_unit_per_ammo > 1)
-  {
+  if (m_initial_nb_unit_per_ammo > 1) {
     Rectanglei rect;
 
     std::ostringstream ss;
@@ -687,6 +690,49 @@ bool Weapon::LoadXml(const xmlNode*  weapon)
     m_image->SetRotation_HotSpot(position);
 
   return true;
+}
+
+xmlNode* Weapon::SaveXml(XmlWriter& writer, xmlNode*  weapon) const
+{
+  xmlNode* elem = XmlWriter::AddNode(weapon, m_id.c_str());
+  if (!elem) {
+    fprintf(stderr, "Couldn't save weapon config for %s\n", m_id.c_str());
+    return NULL;
+  }
+
+  writer.WriteElement(elem, "available_after_turn", int2str(m_available_after_turn));
+  writer.WriteElement(elem, "nb_ammo", int2str(m_initial_nb_ammo));
+  if (m_initial_nb_unit_per_ammo!=1)
+    writer.WriteElement(elem, "unit_per_ammo", int2str(m_initial_nb_unit_per_ammo));
+  writer.WriteElement(elem, "ammo_per_drop", int2str(ammo_per_drop));
+  writer.WriteElement(elem, "drop_probability", Double2str(drop_probability));
+  // max strength
+  // if max_strength = 0, no strength_bar !
+  if (max_strength.IsNotZero())
+    writer.WriteElement(elem, "max_strength", Double2str(max_strength));
+
+  // change weapon after ? (for the grapple = true)
+  if (m_can_change_weapon)
+    writer.WriteElement(elem, "change_weapon", bool2str(m_can_change_weapon));
+
+  // Disable crosshair ?
+  if (m_display_crosshair)
+    writer.WriteElement(elem, "display_crosshair", bool2str(m_display_crosshair));
+  // angle of weapon when drawing
+  // if (min_angle == max_angle) no cross_hair !
+  // between -90 to 90 degrees
+  int min_angle_deg = uround(min_angle * 180 / PI);
+  int max_angle_deg = uround(max_angle * 180 / PI);
+  if (min_angle_deg || max_angle_deg) {
+    writer.WriteElement(elem, "min_angle", int2str(min_angle_deg));
+    writer.WriteElement(elem, "max_angle", int2str(max_angle_deg));
+  }
+
+  // Save extra parameters if existing
+  if (extra_params)
+    extra_params->SaveXml(writer, elem);
+
+  return elem;
 }
 
 // Handle keyboard events

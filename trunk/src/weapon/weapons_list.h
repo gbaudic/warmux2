@@ -24,21 +24,23 @@
 //-----------------------------------------------------------------------------
 #include <list>
 #include <map>
-#include "weapon.h"
 #include <WARMUX_base.h>
 #include <WARMUX_singleton.h>
+
+#include "weapon.h"
 //-----------------------------------------------------------------------------
 
 class WeaponLauncher;
+class XmlWriter;
 
 // Classe de gestion des armes
 class WeaponsList
 {
 public:
   typedef std::list<Weapon*> weapons_list_type;
-  typedef std::list<Weapon*>::const_iterator weapons_list_it;
+  typedef std::list<Weapon*>::const_iterator iterator;
   typedef std::list<WeaponLauncher*> launcher_weapons_list_type;
-  typedef std::list<WeaponLauncher*>::const_iterator launcher_weapons_list_it;
+  typedef std::list<WeaponLauncher*>::const_iterator launcher_iterator;
 
 private:
   weapons_list_type m_weapons_list;
@@ -53,9 +55,10 @@ public:
   WeaponsList(const xmlNode* weapons_xml);
   ~WeaponsList();
 
-  void Init();
+  void Init(const xmlNode* weapons_xml) const;
+  bool Save(XmlWriter& writer, xmlNode* weapons_xml) const;
 
-  void UpdateTranslation();
+  void UpdateTranslation() const;
 
   // Return a list of  weapons
   const weapons_list_type& GetList() const { return m_weapons_list; };

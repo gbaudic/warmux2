@@ -23,23 +23,19 @@
 #define ANVIL_H
 
 #include <WARMUX_base.h>
-#include "weapon/weapon_launcher.h"
+#include "weapon/target_launcher.h"
 
-class AnvilLauncher : public WeaponLauncher
+class AnvilLauncher : public TargetLauncher
 {
-  private:
-    Point2i target;
-    bool target_chosen;
-  public:
-    AnvilLauncher();
-    void ChooseTarget (Point2i mouse_pos);
-    void UpdateTranslationStrings();
-    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
-  protected:
-    WeaponProjectile * GetProjectileInstance();
-    virtual bool p_Shoot();
-    virtual void p_Select();
-    virtual bool ShouldBeDrawn();
+public:
+  AnvilLauncher();
+  void ChooseTarget(Point2i mouse_pos);
+  void UpdateTranslationStrings();
+  std::string GetWeaponWinString(const char *TeamName, uint items_count) const;
+protected:
+  WeaponProjectile * GetProjectileInstance();
+  virtual bool p_Shoot();
+  //virtual bool ShouldBeDrawn() { return !IsOnCooldownFromShot(); }
 };
 
 #endif /* ANVIL_H */

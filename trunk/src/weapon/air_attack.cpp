@@ -52,8 +52,11 @@ class AirAttackConfig : public ExplosiveWeaponConfig
 public:
   Double speed;
   uint nbr_obus;
-  AirAttackConfig();
-  virtual void LoadXml(const xmlNode* elem);
+  AirAttackConfig()
+  {
+    push_back(new UintConfigElement("nbr_obus", &nbr_obus, 3, 1, 8));
+    push_back(new DoubleConfigElement("speed", &speed, 3));
+  }
 };
 
 Obus::Obus(AirAttackConfig& cfg) :
@@ -109,15 +112,14 @@ void Plane::Shoot(Double speed, const Point2i& target)
   if (ActiveCharacter().GetDirection() == DIRECTION_RIGHT) {
     image->SetFlipped(false);
     speed_vector.SetValues(speed, 0);
-    SetX(ONE - Double(image->GetWidth()));
+    SetX(1 - image->GetWidth());
     //distance_to_release -= obus_dx;
-   if (distance_to_release > cible_x)
-     distance_to_release = 0;
-
+    if (distance_to_release > cible_x)
+      distance_to_release = 0;
   } else {
     image->SetFlipped(true);
     speed_vector.SetValues(-speed, 0) ;
-    SetX(Double(GetWorld().GetWidth() - 1));
+    SetX(GetWorld().GetWidth() - 1);
     //distance_to_release += obus_dx;
     if (distance_to_release > GetWorld().GetWidth()-cible_x - obus_dx)
       distance_to_release = 0;
@@ -125,7 +127,7 @@ void Plane::Shoot(Double speed, const Point2i& target)
 
   SetSpeedXY(speed_vector);
 
-  Camera::GetInstance()->FollowObject(this);
+  Camera::GetRef().FollowObject(this);
 
   ObjectsList::GetRef().AddObject(this);
 }
@@ -138,10 +140,11 @@ void Plane::DropBomb()
   Point2d speed_vector = GetSpeedXY();
 
   int fx = RandomSync().GetInt(FORCE_X_MIN, FORCE_X_MAX);
-  fx *= GetDirection();
+  fx    *= GetDirection();
   int fy = RandomSync().GetInt(FORCE_Y_MIN, FORCE_Y_MAX);
 
-  speed_vector.SetValues(speed_vector.x + fx/(Double)30.0, speed_vector.y + fy/(Double)30.0);
+  static const Double factor = 1/30.0;
+  speed_vector.SetValues(speed_vector.x + fx*factor, speed_vector.y + fy*factor);
   instance->SetSpeedXY(speed_vector);
 
   ObjectsList::GetRef().AddObject(instance);
@@ -150,25 +153,24 @@ void Plane::DropBomb()
   nb_dropped_bombs++;
 
   if (nb_dropped_bombs == 1)
-    Camera::GetInstance()->FollowObject(instance);
+    Camera::GetRef().FollowObject(instance);
 }
 
 void Plane::Refresh()
 {
-
   UpdatePosition();
   image->Update();
   // First shoot !!
-  if (OnTopOfTarget() && nb_dropped_bombs == 0) {
+  if (OnTopOfTarget() && !nb_dropped_bombs) {
     DropBomb();
     m_ignore_movements = true;
     MSG_DEBUG("random.get", "Plane::Refresh() first bomb");
     next_height = RandomSync().GetInt(20,100);
-  } else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {
+  } else if (nb_dropped_bombs &&  nb_dropped_bombs < cfg.nbr_obus) {
     // Get the last rocket and check the position to be sure to not collide with it
     if (!last_dropped_bomb || last_dropped_bomb->GetY() > GetY()+GetHeight()+next_height) {
       MSG_DEBUG("random.get", "Plane::Refresh() another bomb");
-      next_height = RandomSync().GetInt(20,100);
+      next_height = RandomSync().GetInt(20, 100);
       DropBomb();
     }
   }
@@ -221,7 +223,7 @@ void AirAttack::ChooseTarget(Point2i mouse_pos)
   Shoot();
 }
 
-bool AirAttack::p_Shoot ()
+bool AirAttack::p_Shoot()
 {
   MSG_DEBUG("weapon.shoot", "AirAttack p_Shoot");
   if (!target_chosen)
@@ -242,7 +244,7 @@ bool AirAttack::p_Shoot ()
 void AirAttack::p_Select()
 {
   if (Network::GetInstance()->IsTurnMaster())
-      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ATTACK);
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ATTACK);
 }
 
 AirAttackConfig& AirAttack::cfg()
@@ -252,24 +254,7 @@ AirAttackConfig& AirAttack::cfg()
 
 std::string AirAttack::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
-  return Format(ngettext(
-            "%s team has won %u air attack!",
-            "%s team has won %u air attacks!",
-            items_count), TeamName, items_count);
-}
-
-
-//-----------------------------------------------------------------------------
-
-AirAttackConfig::AirAttackConfig()
-{
-  nbr_obus = 3;
-  speed = 7;
-}
-
-void AirAttackConfig::LoadXml(const xmlNode* elem)
-{
-  ExplosiveWeaponConfig::LoadXml(elem);
-  XmlReader::ReadUint(elem, "nbr_obus", nbr_obus);
-  XmlReader::ReadDouble(elem, "speed", speed);
+  return Format(ngettext("%s team has won %u air attack!",
+                         "%s team has won %u air attacks!",
+                         items_count), TeamName, items_count);
 }

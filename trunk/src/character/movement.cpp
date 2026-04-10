@@ -51,7 +51,7 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
 
   xmlNodeArray nodes = XmlReader::GetNamedChildren(xml, "frame");
   xmlNodeArray::const_iterator it = nodes.begin(), end = nodes.end();
-  MSG_DEBUG("body.movement", "  Found %i movement frames", nodes.size());
+  MSG_DEBUG("body.movement", "  Found "SIZET_FORMAT"u movement frames", nodes.size());
   MSG_DEBUG("body.movement", "  Nb loops: %i", nb_loops);
 
   // We know the number of member frames that will be read,
@@ -60,7 +60,7 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
 
   for (; it != end; ++it) {
     xmlNodeArray members = XmlReader::GetNamedChildren(*it, "member");
-    MSG_DEBUG("body.movement", "    Found %i frame members", members.size());
+    MSG_DEBUG("body.movement", "    Found "SIZET_FORMAT"u frame members", members.size());
 
     member_def def;
     def.reserve(members.size());
@@ -73,7 +73,7 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
 
       member_mvt mvt(member_type);
       int dx = 0, dy = 0, angle_deg = 0;
-      Double scale_x = 1.0, scale_y = 1.0, tmp_alpha = 1.0;
+      Double scale_x = ONE, scale_y = ONE, tmp_alpha = ONE;
 
       XmlReader::ReadIntAttr(child, "dx", dx);
       XmlReader::ReadIntAttr(child, "dy", dy);
@@ -85,10 +85,7 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
       XmlReader::ReadBoolAttr(child, "follow_half_crosshair", mvt.follow_half_crosshair);
       XmlReader::ReadBoolAttr(child, "follow_speed", mvt.follow_speed);
       XmlReader::ReadBoolAttr(child, "follow_direction", mvt.follow_direction);
-
-      if (XmlReader::ReadBoolAttr(child, "follow_cursor", mvt.follow_cursor)
-          && !XmlReader::ReadIntAttr(child, "follow_cursor_limit", mvt.follow_cursor_limit))
-        fprintf(stderr, "Warning ! \"follow_cursor\" flag used while \"follow_cursor_limit\" isn't defined, this won't do anything!\n");
+      XmlReader::ReadIntAttr(child, "follow_cursor_square_limit", mvt.follow_cursor_square_limit);
 
       if (tmp_alpha < ZERO || tmp_alpha > ONE)
         tmp_alpha = 1.0;
@@ -97,9 +94,10 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
       mvt.pos.x = dx;
       mvt.pos.y = dy;
       mvt.alpha = tmp_alpha;
-      mvt.scale = Point2d(scale_x, scale_y);
+      mvt.scale.x = scale_x;
+      mvt.scale.y = scale_y;
 
-      always_moving |= mvt.follow_cursor;
+      always_moving |= mvt.follow_cursor_square_limit!=0;
       always_moving |= mvt.follow_crosshair;
       always_moving |= mvt.follow_half_crosshair;
       always_moving |= mvt.follow_speed;
