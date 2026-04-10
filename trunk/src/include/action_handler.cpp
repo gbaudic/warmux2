@@ -26,9 +26,11 @@
 #include "character/character.h"
 #include "character/body.h"
 #include "character/move.h"
+#include "game/config.h"
 #include "game/game_mode.h"
 #include "game/game.h"
 #include "game/time.h"
+#include "include/app.h"
 #include "include/constant.h"
 #include "interface/game_msg.h"
 #include "network/chat.h"
@@ -66,11 +68,11 @@
 
 void Action_Nickname(Action *a)
 {
-  if(Network::GetInstance()->IsServer() && a->creator)
+  if (Network::GetInstance()->IsServer() && a->GetCreator())
   {
       std::string nickname = a->PopString();
       std::cout<<"New nickname: " + nickname<< std::endl;
-      a->creator->nickname = nickname;
+      a->GetCreator()->SetNickname(nickname);
   }
 }
 
@@ -85,19 +87,34 @@ void Action_Network_ChangeState (Action *a)
     switch (Network::GetInstance()->GetState())
     {
     case Network::NO_NETWORK:
-      a->creator->SetState(DistantComputer::STATE_INITIALIZED);
+      a->GetCreator()->SetState(DistantComputer::STATE_INITIALIZED);
       ASSERT(client_state == Network::NETWORK_MENU_OK);
       break;
 
     case Network::NETWORK_LOADING_DATA:
-      a->creator->SetState(DistantComputer::STATE_READY);
+      a->GetCreator()->SetState(DistantComputer::STATE_READY);
       ASSERT(client_state == Network::NETWORK_READY_TO_PLAY);
+      break;
+
+    case Network::NETWORK_PLAYING:
+      a->GetCreator()->SetState(DistantComputer::STATE_NEXT_GAME);
+      ASSERT(client_state == Network::NETWORK_NEXT_GAME);
+      break;
+
+    case Network::NETWORK_NEXT_GAME:
+      if (client_state == Network::NETWORK_MENU_OK) {
+	a->GetCreator()->SetState(DistantComputer::STATE_INITIALIZED);
+      } else if (client_state == Network::NETWORK_NEXT_GAME) {
+	a->GetCreator()->SetState(DistantComputer::STATE_NEXT_GAME);
+      } else {
+	ASSERT(false);
+      }
       break;
 
     default:
       NET_ASSERT(false)
       {
-        if(a->creator) a->creator->force_disconnect = true;
+        if(a->GetCreator()) a->GetCreator()->force_disconnect = true;
         return;
       }
       break;
@@ -123,7 +140,7 @@ void Action_Network_ChangeState (Action *a)
     default:
        NET_ASSERT(false)
        {
-         if(a->creator) a->creator->force_disconnect = true;
+         if(a->GetCreator()) a->GetCreator()->force_disconnect = true;
          return;
        }
     }
@@ -138,6 +155,7 @@ void Action_Network_Check_Phase1 (Action */*a*/)
 
   Action b(Action::ACTION_NETWORK_CHECK_PHASE2);
   b.Push(ActiveMap()->GetRawName());
+  b.Push(int(ActiveMap()->ReadImgGround().ComputeCRC()));
 
   TeamsList::iterator it = GetTeamsList().playing_list.begin();
   for (; it != GetTeamsList().playing_list.end() ; ++it) {
@@ -145,18 +163,56 @@ void Action_Network_Check_Phase1 (Action */*a*/)
   }
 
   // send information to the server
-  Network::GetInstance()->SendAction(&b);
+  Network::GetInstance()->SendAction(b);
 }
 
-static void Error_in_Network_Check_Phase2 (Action *a)
-{
-  a->creator->force_disconnect = true;
-  std::string str = Format("Error initializing network: Client %s does not agree with you!!\n",
-			   a->creator->GetAddress().c_str());
-  std::cerr << str << std::endl;
+enum net_error {
+  WRONG_MAP_NAME,
+  WRONG_MAP_CRC,
+  WRONG_TEAM
+};
 
-  // this client has been checked, it is NOT ok, it will be disconnected
-  a->creator->SetState(DistantComputer::STATE_CHECKED); // If not, it creates a deadlock.
+static std::string NetErrorId_2_String(enum net_error error)
+{
+  std::string s;
+
+  switch (error) {
+  case WRONG_MAP_NAME:
+    s = _("Wrong map name!");
+    break;
+  case WRONG_MAP_CRC:
+    s = _("Wrong map CRC!");
+    break;
+  case WRONG_TEAM:
+    s = _("Wrong team!");
+    break;
+  }
+  return s;
+}
+
+void Action_Network_Disconnect_On_Error(Action *a)
+{
+  enum net_error error = (enum net_error)a->PopInt();
+  AppWormux::DisplayError(NetErrorId_2_String(error));
+  Network::Disconnect();
+}
+
+void DisconnectOnError(enum net_error error)
+{
+  Action a(Action::ACTION_NETWORK_DISCONNECT_ON_ERROR);
+  a.Push(int(error));
+  Network::GetInstance()->SendAction(a);
+  Network::Disconnect();
+}
+
+static void Error_in_Network_Check_Phase2 (Action *a, enum net_error error)
+{
+  std::string str = Format(_("Error initializing network: Client %s does not agree with you!! - %s"),
+			   a->GetCreator()->GetAddress().c_str(),
+			   NetErrorId_2_String(error).c_str());
+  std::cerr << str << std::endl;
+  DisconnectOnError(error);
+  AppWormux::DisplayError(str);
 }
 
 void Action_Network_Check_Phase2 (Action *a)
@@ -165,11 +221,20 @@ void Action_Network_Check_Phase2 (Action *a)
   if (Network::GetInstance()->IsClient())
     return;
 
-  // Check the map
+  // Check the map name
   std::string map = a->PopString();
   if (map != ActiveMap()->GetRawName()) {
     std::cerr << map << " != " << ActiveMap()->GetRawName() << std::endl;
-    Error_in_Network_Check_Phase2(a);
+    Error_in_Network_Check_Phase2(a, WRONG_MAP_NAME);
+    return;
+  }
+
+  // Check the map CRC
+  int crc = int(ActiveMap()->ReadImgGround().ComputeCRC());
+  int remote_crc = a->PopInt();
+  if (crc != remote_crc) {
+    std::cerr << map << " is different (crc=" << crc << ", remote crc="<< remote_crc << ")" << std::endl;
+    Error_in_Network_Check_Phase2(a, WRONG_MAP_CRC);
     return;
   }
 
@@ -179,13 +244,13 @@ void Action_Network_Check_Phase2 (Action *a)
   for (; it != GetTeamsList().playing_list.end() ; ++it) {
     team = a->PopString();
     if (team != (*it)->GetId()) {
-      Error_in_Network_Check_Phase2(a);
+      Error_in_Network_Check_Phase2(a, WRONG_TEAM);
       return;
     }
   }
 
   // this client has been checked, it's ok :-)
-  a->creator->SetState(DistantComputer::STATE_CHECKED);
+  a->GetCreator()->SetState(DistantComputer::STATE_CHECKED);
 }
 
 // ########################################################
@@ -254,7 +319,7 @@ void Action_Game_SetState (Action *a)
 {
   // to re-synchronize random number generator
   uint seed = a->PopInt();
-  randomSync.SetRand(seed);
+  RandomSync().SetRand(seed);
 
   Game::game_loop_state_t state = Game::game_loop_state_t(a->PopInt());
   Game::GetInstance()->Really_SetState(state);
@@ -266,8 +331,8 @@ void Action_Rules_SetGameMode (Action *a)
 {
   NET_ASSERT(Network::GetInstance()->IsClient())
   {
-    if (a->creator)
-      a->creator->force_disconnect = true;
+    if (a->GetCreator())
+      a->GetCreator()->force_disconnect = true;
     return;
   }
 
@@ -303,31 +368,21 @@ void SendGameMode()
 
   MSG_DEBUG("game_mode", "Sending game_mode: %s", game_mode_name.c_str());
 
-  Network::GetInstance()->SendAction(&a);
+  Network::GetInstance()->SendAction(a);
 }
 
 // ########################################################
 
 void Action_ChatMessage (Action *a)
 {
-  if(Network::GetInstance()->IsServer() && a->creator)
-  {
-    a->creator->SendChatMessage(a);
-  }
-  else
-  {
-    std::string msg = a->PopString();
-    ChatLogger::GetInstance()->LogMessage(msg);
-    if(Game::GetInstance()->IsGameLaunched())
-    {
-      //Add message to chat session in Game
-      Game::GetInstance()->chatsession.NewMessage(msg);
-    }
-    else if (Network::GetInstance()->network_menu != NULL) {
-      //Network Menu
-      Network::GetInstance()->network_menu->ReceiveMsgCallback(msg);
-    }
-  }
+  std::string nickname = a->PopString();
+  std::string message = a->PopString();
+
+  if (Network::GetInstance()->IsServer() && a->GetCreator())
+    a->GetCreator()->SetNickname(nickname);
+
+  ChatLogger::GetInstance()->LogMessage(nickname+"> "+message);
+  AppWormux::GetInstance()->ReceiveMsgCallback(nickname+"> "+message);
 }
 
 void Action_Menu_SetMap (Action *a)
@@ -346,14 +401,17 @@ void Action_Menu_SetMap (Action *a)
   }
 }
 
+void UpdateLocalNickname()
+{
+  std::string nickname = GetTeamsList().GetLocalHeadCommanders();
+  if (nickname == "")
+    nickname = Network::GetInstance()->GetDefaultNickname();
+
+  Network::GetInstance()->SetNickname(nickname);
+}
+
 void Action_Menu_AddTeam (Action *a)
 {
-  if(Network::GetInstance()->IsServer() && a->creator)
-  {
-    a->creator->ManageTeam(a);
-    return;
-  }
-
   ConfigTeam the_team;
 
   the_team.id = a->PopString();
@@ -362,50 +420,67 @@ void Action_Menu_AddTeam (Action *a)
 
   MSG_DEBUG("action_handler.menu", "+ %s", the_team.id.c_str());
 
-  GetTeamsList().AddTeam(the_team);
+  bool local_team = (!Network::IsConnected() || !a->GetCreator());
+
+  GetTeamsList().AddTeam(the_team, local_team);
 
   if (Network::GetInstance()->network_menu != NULL)
-  {
     Network::GetInstance()->network_menu->AddTeamCallback(the_team.id);
+
+  if (Network::IsConnected()) {
+    if (!local_team)
+      a->GetCreator()->AddTeam(the_team.id);
+    else
+      UpdateLocalNickname();
   }
 }
 
 void Action_Menu_UpdateTeam (Action *a)
 {
+  std::string old_team_id = a->PopString();
+
   ConfigTeam the_team;
 
   the_team.id = a->PopString();
   the_team.player_name = a->PopString();
   the_team.nb_characters = uint(a->PopInt());
 
-  GetTeamsList().UpdateTeam (the_team);
+  GetTeamsList().UpdateTeam(old_team_id, the_team);
 
   if (Network::GetInstance()->network_menu != NULL)
-    Network::GetInstance()->network_menu->UpdateTeamCallback(the_team.id);
+    Network::GetInstance()->network_menu->UpdateTeamCallback(old_team_id, the_team.id);
+
+  if (Network::IsConnected()) {
+    if (a->GetCreator())
+      a->GetCreator()->UpdateTeam(old_team_id, the_team.id);
+    else
+      UpdateLocalNickname();
+  }
 }
 
 void Action_Menu_DelTeam (Action *a)
 {
-  if (Network::GetInstance()->IsServer() && a->creator)
-  {
-    a->creator->ManageTeam(a);
-    return;
+  std::string team_id = a->PopString();
+
+  if (Network::GetInstance()->IsServer() && a->GetCreator()) {
+    a->GetCreator()->RemoveTeam(team_id);
   }
 
-  std::string team = a->PopString();
-
-  MSG_DEBUG("action_handler.menu", "- %s", team.c_str());
+  MSG_DEBUG("action_handler.menu", "- %s", team_id.c_str());
   if (Game::GetInstance()->IsGameLaunched() && Network::GetInstance()->IsServer()) {
     int i;
-    Team* t = GetTeamsList().FindById(team, i);
-    if (t == &ActiveTeam()) // we have loose the turn master!!
+    Team* the_team = GetTeamsList().FindById(team_id, i);
+    if (the_team == &ActiveTeam()) // we have loose the turn master!!
       Network::GetInstance()->SetTurnMaster(true);
   }
 
-  GetTeamsList().DelTeam (team);
+  GetTeamsList().DelTeam(team_id);
+
+  if (!a->GetCreator())
+    UpdateLocalNickname();
 
   if (Network::GetInstance()->network_menu != NULL)
-    Network::GetInstance()->network_menu->DelTeamCallback(team);
+    Network::GetInstance()->network_menu->DelTeamCallback(team_id);
 }
 
 // ########################################################
@@ -416,7 +491,7 @@ void SyncCharacters()
   ASSERT(Network::GetInstance()->IsTurnMaster());
 
   Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
-  Network::GetInstance()->SendAction(&a_begin_sync);
+  Network::GetInstance()->SendAction(a_begin_sync);
   TeamsList::iterator
     it=GetTeamsList().playing_list.begin(),
     end=GetTeamsList().playing_list.end();
@@ -435,7 +510,7 @@ void SyncCharacters()
     }
   }
   Action a_sync_end(Action::ACTION_NETWORK_SYNC_END);
-  Network::GetInstance()->SendAction(&a_sync_end);
+  Network::GetInstance()->SendAction(a_sync_end);
 }
 
 void Action_Character_Jump (Action */*a*/)
@@ -469,11 +544,11 @@ void SendActiveCharacterAction(const Action& a)
 {
   ASSERT(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
   Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
-  Network::GetInstance()->SendAction(&a_begin_sync);
+  Network::GetInstance()->SendAction(a_begin_sync);
   SendActiveCharacterInfo();
-  Network::GetInstance()->SendAction(&a);
+  Network::GetInstance()->SendAction(a);
   Action a_end_sync(Action::ACTION_NETWORK_SYNC_END);
-  Network::GetInstance()->SendAction(&a_end_sync);
+  Network::GetInstance()->SendAction(a_end_sync);
 }
 
 // Send character information over the network (it's totally stupid to send it locally ;-)
@@ -481,7 +556,7 @@ void SendCharacterInfo(int team_no, int char_no)
 {
   Action a(Action::ACTION_CHARACTER_SET_PHYSICS);
   a.StoreCharacter(team_no, char_no);
-  Network::GetInstance()->SendAction(&a);
+  Network::GetInstance()->SendAction(a);
 }
 
 uint last_time = 0;
@@ -604,7 +679,7 @@ void Action_Wind (Action *a)
 void Action_Network_RandomInit (Action *a)
 {
   MSG_DEBUG("random", "Initialization from network");
-  randomSync.SetRand(a->PopInt());
+  RandomSync().SetRand(a->PopInt());
 }
 
 void Action_Network_SyncBegin (Action */*a*/)
@@ -631,9 +706,13 @@ void Action_Network_Connect(Action *a)
   ChatLogger::LogMessageIfOpen(msg);
   if(Game::GetInstance()->IsGameLaunched())
     GameMessages::GetInstance()->Add(msg);
-  else if (Network::GetInstance()->network_menu != NULL)
-    //Network Menu
-    Network::GetInstance()->network_menu->ReceiveMsgCallback(msg);
+  else if (Network::GetInstance()->network_menu != NULL) {
+    // Play some sound to warn server player
+    if (Config::GetInstance()->GetWarnOnNewPlayer())
+      JukeBox::GetInstance()->Play("share", "menu/newcomer");
+    // Menu
+    AppWormux::GetInstance()->ReceiveMsgCallback(msg);
+  }
 }
 
 // Only used to notify clients that someone disconnected from the server
@@ -645,7 +724,7 @@ void Action_Network_Disconnect(Action *a)
     GameMessages::GetInstance()->Add(msg);
   } else if (Network::GetInstance()->network_menu != NULL)
     //Network Menu
-    Network::GetInstance()->network_menu->ReceiveMsgCallback(msg);
+    AppWormux::GetInstance()->ReceiveMsgCallback(msg);
 }
 
 void Action_Explosion (Action *a)
@@ -718,18 +797,20 @@ void ActionHandler::NewAction(Action* a, bool repeat_to_network)
   queue.push_back(a);
   //  std::cout << "  queue_size " << queue.size() << std::endl;
   SDL_UnlockMutex(mutex);
-  if (repeat_to_network) Network::GetInstance()->SendAction(a);
+
+  if (repeat_to_network)
+    Network::GetInstance()->SendAction(*a);
 }
 
 void ActionHandler::NewActionActiveCharacter(Action* a)
 {
   ASSERT(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
   Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
-  Network::GetInstance()->SendAction(&a_begin_sync);
+  Network::GetInstance()->SendAction(a_begin_sync);
   SendActiveCharacterInfo();
   NewAction(a);
   Action a_end_sync(Action::ACTION_NETWORK_SYNC_END);
-  Network::GetInstance()->SendAction(&a_end_sync);
+  Network::GetInstance()->SendAction(a_end_sync);
 }
 
 void ActionHandler::Register (Action::Action_t action,
@@ -750,7 +831,7 @@ void ActionHandler::Exec(Action *a)
   handler_it it=handler.find(a->GetType());
   NET_ASSERT(it != handler.end())
   {
-    if(a->creator) a->creator->force_disconnect = true;
+    if(a->GetCreator()) a->GetCreator()->force_disconnect = true;
     return;
   }
   (*it->second) (a);
@@ -780,6 +861,7 @@ ActionHandler::ActionHandler():
   Register (Action::ACTION_NETWORK_CHANGE_STATE, "NETWORK_change_state", &Action_Network_ChangeState);
   Register (Action::ACTION_NETWORK_CHECK_PHASE1, "NETWORK_check1", &Action_Network_Check_Phase1);
   Register (Action::ACTION_NETWORK_CHECK_PHASE2, "NETWORK_check2", &Action_Network_Check_Phase2);
+  Register (Action::ACTION_NETWORK_DISCONNECT_ON_ERROR, "NETWORK_disconnect_on_error", &Action_Network_Disconnect_On_Error);
 
   // ########################################################
   Register (Action::ACTION_PLAYER_CHANGE_WEAPON, "PLAYER_change_weapon", &Action_Player_ChangeWeapon);

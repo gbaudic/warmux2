@@ -50,7 +50,7 @@ void GameInit::InitGameData_NetServer()
 {
   Network::GetInstanceServer()->RejectIncoming();
 
-  randomSync.Init();
+  RandomSync().InitRandom();
 
   GameMode::GetInstance()->Load();
   SendGameMode();
@@ -71,7 +71,7 @@ void GameInit::EndInitGameData_NetServer()
 
   // Before playing we should check that init phase happens correctly on all clients
   Action a(Action::ACTION_NETWORK_CHECK_PHASE1);
-  Network::GetInstance()->SendAction(&a);
+  Network::GetInstance()->SendAction(a);
 
   while (Network::IsConnected()
          && Network::GetInstanceServer()->GetNbCheckedPlayers() + 1  != Network::GetInstanceServer()->GetNbConnectedPlayers())
@@ -108,8 +108,6 @@ void GameInit::InitMap()
   Camera::GetInstance()->ResetShake();
   loading_sreen.StartLoading(1, "map_icon", _("Maps"));
   world.Reset();
-  MapsList::GetInstance()->ActiveMap()->FreeData();
-
   lst_objects.PlaceBarrels();
 }
 
@@ -159,7 +157,7 @@ void GameInit::InitData()
   if (Network::GetInstance()->IsServer())
     InitGameData_NetServer();
   else if (Network::GetInstance()->IsLocal())
-    randomSync.Init();
+    RandomSync().InitRandom();
 
   // GameMode::GetInstance()->Load(); : done in the game menu to adjust some parameters for local games
   // done in action_handler for clients

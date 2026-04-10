@@ -22,6 +22,7 @@
 #ifndef _CHARACTER_H
 #define _CHARACTER_H
 
+#include <limits>
 #include <string>
 #include "gui/energy_bar.h"
 #include "include/base.h"
@@ -46,6 +47,7 @@ private:
   /**********************************************/
 
   std::string character_name;
+
   Team &m_team;
   bool step_sound_played;
   bool prepare_shoot;
@@ -54,7 +56,7 @@ private:
   double firing_angle;
 
   uint disease_damage_per_turn;
-  uint disease_duration;
+  uint disease_duration; // std::numeric_limits<uint>::max() means unlimited
   DamageStatistics *damage_stats;
   EnergyBar energy_bar;
 
@@ -63,12 +65,9 @@ private:
 
   // name
   Text* name_text;
-#ifdef DEBUG_SKIN
-  Text* skin_text;
-#endif
 
   // chrono
-  uint pause_bouge_dg;  // pause pour mouvement droite/gauche
+  uint rl_motion_pause;  // pause for left/right motion
   uint do_nothing_time;
   uint walking_time;
   uint animation_time;
@@ -81,7 +80,7 @@ private:
   // Generates green bubbles when the character is ill
   ParticleEngine *particle_engine;
 
-  // this is needed because of network to know
+  // this is needed because of network needing to know
   // if we have changed of active character
   bool is_playing;
 public:
@@ -120,7 +119,8 @@ public:
   void DisableDeathExplosion() { death_explosion = false; };
   bool IsActiveCharacter() const;
   // Disease handling
-  bool IsDiseased() const { return disease_duration > 0 && !IsDead(); };
+  bool IsDiseased() const { return (disease_duration > 0 && !IsDead()); };
+
   void SetDiseaseDamage(const uint damage_per_turn, const uint duration)
   {
     disease_damage_per_turn = damage_per_turn;
@@ -133,9 +133,10 @@ public:
       return disease_damage_per_turn;
     return GetEnergy() - 1;
   }
-  uint GetDiseaseDuration() const { return disease_duration; };
   void DecDiseaseDuration()
   {
+    if (disease_duration == std::numeric_limits<uint>::max()) return; // infinite disease duration
+
     if (disease_duration > 0) disease_duration--;
     else disease_damage_per_turn = 0;
   }
@@ -163,6 +164,9 @@ public:
   void Show() { hidden = false; };
 
   // ---- Movement  -----
+
+  void UpdateLastMovingTime();
+
   // Can we move (check a timeout)
   bool CanMoveRL() const;
   bool CanJump() const { return CanMoveRL(); };
@@ -188,10 +192,10 @@ public:
   uint GetCharacterIndex() const;
 
   // Access to character info
-  const std::string& GetName() const { return character_name; }
+  const std::string& GetName() const;
   bool IsSameAs(const Character& other) const { return (GetName() == other.GetName()); }
-
-  // Hand position
+  void SetCustomName(const std::string name);
+   // Hand position
   const Point2i & GetHandPosition() const;
 
   // Damage report

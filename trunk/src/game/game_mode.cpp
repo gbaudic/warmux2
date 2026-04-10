@@ -46,7 +46,8 @@ GameMode::GameMode():
   barrel_explosion_cfg(),
   bonus_box_explosion_cfg(),
   character(),
-  allow_character_selection(BEFORE_FIRST_ACTION_AND_END_TURN),
+  auto_change_character(true),
+  allow_character_selection(BEFORE_FIRST_ACTION),
   m_current("classic"),
   doc_objects(new XmlReader)
 {
@@ -74,8 +75,10 @@ const std::string& GameMode::GetName() const
 }
 
 // Load data options from the selected game_mode
-bool GameMode::LoadXml(xmlNode* xml)
+bool GameMode::LoadXml(const xmlNode* xml)
 {
+  XmlReader::ReadBool(xml, "auto_change_character", auto_change_character);
+
   std::string txt;
   if (XmlReader::ReadString(xml, "allow_character_selection", txt))
   {
@@ -83,12 +86,10 @@ bool GameMode::LoadXml(xmlNode* xml)
       allow_character_selection = ALWAYS;
     else if (txt == "never")
       allow_character_selection = NEVER;
-    else if (txt == "change_on_end_turn")
-      allow_character_selection = CHANGE_ON_END_TURN;
-    else if (txt == "before_first_action_and_end_turn")
-      allow_character_selection = BEFORE_FIRST_ACTION_AND_END_TURN;
     else if (txt == "before_first_action")
       allow_character_selection = BEFORE_FIRST_ACTION;
+    else
+      fprintf(stderr, "%s is not a valid option for \"allow_character_selection\"\n", txt.c_str());
   }
 
   XmlReader::ReadUint(xml, "duration_turn", duration_turn);
@@ -103,10 +104,10 @@ bool GameMode::LoadXml(xmlNode* xml)
   XmlReader::ReadDouble(xml, "damage_per_fall_unit", damage_per_fall_unit);
 
   // Character options
-  xmlNode* character_xml = XmlReader::GetMarker(xml, "character");
+  const xmlNode* character_xml = XmlReader::GetMarker(xml, "character");
   if (character_xml != NULL)
   {
-    xmlNode* item = XmlReader::GetMarker(character_xml, "energy");
+    const xmlNode* item = XmlReader::GetMarker(character_xml, "energy");
     if (item != NULL) {
       XmlReader::ReadUintAttr(item, "initial", character.init_energy);
       XmlReader::ReadUintAttr(item, "maximum", character.max_energy);
@@ -138,21 +139,21 @@ bool GameMode::LoadXml(xmlNode* xml)
       character.back_jump_angle = static_cast<double>(angle_deg) * M_PI / 180;
     }
     XmlReader::ReadUint(character_xml, "walking_pause", character.walking_pause);
-    xmlNode* explosion = XmlReader::GetMarker(character_xml, "death_explosion");
+    const xmlNode* explosion = XmlReader::GetMarker(character_xml, "death_explosion");
     if (explosion != NULL)
       death_explosion_cfg.LoadXml(explosion);
   }
 
   // Barrel explosion
-  xmlNode* barrel_xml = XmlReader::GetMarker(xml, "barrel");
+  const xmlNode* barrel_xml = XmlReader::GetMarker(xml, "barrel");
   if(barrel_xml != NULL) {
-    xmlNode* barrel_explosion = XmlReader::GetMarker(barrel_xml, "explosion");
+    const xmlNode* barrel_explosion = XmlReader::GetMarker(barrel_xml, "explosion");
     if (barrel_explosion != NULL)
       barrel_explosion_cfg.LoadXml(barrel_explosion);
   }
 
   //=== Weapons ===
-  xmlNode* weapons_xml = XmlReader::GetMarker(xml, "weapons");
+  const xmlNode* weapons_xml = XmlReader::GetMarker(xml, "weapons");
   if (weapons_xml != NULL)
   {
     std::list<Weapon*> l_weapons_list = WeaponsList::GetInstance()->GetList() ;
@@ -165,17 +166,17 @@ bool GameMode::LoadXml(xmlNode* xml)
   }
 
   // Bonus box explosion - must be loaded after the weapons.
-  xmlNode* bonus_box_xml = XmlReader::GetMarker(xml, "bonus_box");
+  const xmlNode* bonus_box_xml = XmlReader::GetMarker(xml, "bonus_box");
   if(bonus_box_xml != NULL) {
     BonusBox::LoadXml(bonus_box_xml);
 
-    xmlNode* bonus_box_explosion = XmlReader::GetMarker(bonus_box_xml, "explosion");
+    const xmlNode* bonus_box_explosion = XmlReader::GetMarker(bonus_box_xml, "explosion");
     if (bonus_box_explosion != NULL)
       bonus_box_explosion_cfg.LoadXml(bonus_box_explosion);
   }
 
   // Medkit - reuses the bonus_box explosion.
-  xmlNode* medkit_xml = XmlReader::GetMarker(xml, "medkit");
+  const xmlNode* medkit_xml = XmlReader::GetMarker(xml, "medkit");
   if(medkit_xml != NULL) {
     Medkit::LoadXml(medkit_xml);
   }
@@ -188,7 +189,7 @@ bool GameMode::Load(void)
   std::string fullname;
   Config * config = Config::GetInstance();
   m_current = config->GetGameMode();
-  
+
   // Game mode objects configuration file
   fullname = config->GetPersonalDataDir() + GetObjectsFilename();
 
@@ -196,7 +197,7 @@ bool GameMode::Load(void)
     fullname = config->GetDataDir() + GetObjectsFilename();
 
   if(!DoesFileExist(fullname)) {
-    Error(Format("Can not find file %s\n", fullname.c_str()));
+    Error(Format("Can not find file %s", fullname.c_str()));
     return false;
   }
 
@@ -212,7 +213,7 @@ bool GameMode::Load(void)
     fullname = config->GetDataDir() + GetFilename();
 
   if(!DoesFileExist(fullname)) {
-    Error(Format("Can not find file %s\n", fullname.c_str()));
+    Error(Format("Can not find file %s", fullname.c_str()));
     return false;
   }
 
@@ -288,15 +289,14 @@ bool GameMode::AllowCharacterSelection() const
 {
   switch (allow_character_selection)
   {
-  case GameMode::ALWAYS: break;
+  case GameMode::ALWAYS:
+    break;
 
   case GameMode::BEFORE_FIRST_ACTION:
-  case GameMode::BEFORE_FIRST_ACTION_AND_END_TURN:
-          return (Game::GetInstance()->ReadState() == Game::PLAYING) && !Game::GetInstance()->character_already_chosen;
+    return (Game::GetInstance()->ReadState() == Game::PLAYING) && !Game::GetInstance()->character_already_chosen;
 
-  case GameMode::CHANGE_ON_END_TURN:
   case GameMode::NEVER:
-          return false;
+    return false;
   }
 
   return true;

@@ -40,13 +40,13 @@
   {                                                                     \
     if((LEVEL) >= LOG_LEVEL )                                           \
       {                                                                 \
-        printf("%s| %10s,%3i : ", wx_clock.TimeStr(),__FILE__,__LINE__); \
+        printf("%s %s| %14s,%4i : ", wx_clock.DateStr(), wx_clock.TimeStr(),__FILE__,__LINE__); \
         printf(ARGS);                                                   \
         printf("\n");                                                   \
       }                                                                 \
   }
 #else
-#define DPRINT(LEVEL, ARGS...)
+#define DPRINT(LEVEL, ARGS...) do {} while (0)
 #endif
 
 #define TELL_ERROR         \

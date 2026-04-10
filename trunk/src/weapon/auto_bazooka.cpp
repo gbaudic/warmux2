@@ -49,7 +49,7 @@ class AutomaticBazookaConfig : public ExplosiveWeaponConfig {
     double fuel_time;
     double rocket_force;
     AutomaticBazookaConfig();
-    void LoadXml(xmlNode* elem);
+    void LoadXml(const xmlNode* elem);
 };
 
 class RPG : public WeaponProjectile
@@ -71,7 +71,7 @@ public:
   void Shoot(double strength);
   void Explosion();
   void SetTarget (int x,int y);
-  
+
 protected:
   void SignalOutOfMap();
   void SignalDrowning();
@@ -290,7 +290,7 @@ void AutomaticBazooka::DrawTarget() const
 {
   if( !m_target->selected ) return;
 
-  AppWormux::GetInstance()->video->window.Blit(m_target->image, m_target->pos - m_target->image.GetSize()/2 - Camera::GetInstance()->GetPosition());
+  GetMainWindow().Blit(m_target->image, m_target->pos - m_target->image.GetSize()/2 - Camera::GetInstance()->GetPosition());
 
   world.ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
                                  m_target->pos.y-m_target->image.GetHeight()/2,
@@ -315,7 +315,7 @@ AutomaticBazookaConfig::AutomaticBazookaConfig() {
     rocket_force = 2500;
 }
 
-void AutomaticBazookaConfig::LoadXml(xmlNode* elem) {
+void AutomaticBazookaConfig::LoadXml(const xmlNode* elem) {
     ExplosiveWeaponConfig::LoadXml(elem);
     XmlReader::ReadDouble(elem, "uncontrolled_turn_speed", uncontrolled_turn_speed);
     XmlReader::ReadDouble(elem, "max_controlled_turn_speed", max_controlled_turn_speed);

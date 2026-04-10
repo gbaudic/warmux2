@@ -114,6 +114,8 @@ public:
   uint GetVolumeEffects() const { return volume_effects; }
   void SetVolumeEffects(uint vol) { volume_effects = vol; }
   static uint GetMaxVolume();
+  bool GetWarnOnNewPlayer() const { return warn_on_new_player; }
+  void SetWarnOnNewPlayer(bool w) { warn_on_new_player = w; }
 
   bool GetCheckUpdates() const { return check_updates; }
   void SetCheckUpdates(const bool check) { check_updates = check; }
@@ -129,16 +131,34 @@ public:
   std::string GetDataDir() const { return data_dir; };
   std::string GetLocaleDir() const { return locale_dir; };
   std::string GetPersonalDataDir() const { return personal_data_dir; };
+  std::string GetPersonalConfigDir() const { return personal_config_dir; };
   std::string GetChatLogDir() const { return chat_log_dir; };
 
   bool Save(bool save_current_teams = false);
   const std::string &GetGameMode() const { return m_game_mode; }
   void SetGameMode(std::string s) { m_game_mode = s; }
 
-  const std::string &GetNetworkHost() const { return m_network_host; }
-  void SetNetworkHost(std::string s) { m_network_host = s; }
-  const std::string &GetNetworkPort() const { return m_network_port; }
-  void SetNetworkPort(std::string s) { m_network_port = s; }
+  const std::string &GetNetworkClientHost() const { return m_network_client_host; }
+  void SetNetworkClientHost(std::string s) { m_network_client_host = s; }
+  const std::string &GetNetworkClientPort() const { return m_network_client_port; }
+  void SetNetworkClientPort(std::string s) { m_network_client_port = s; }
+
+  const std::string &GetNetworkServerPort() const { return m_network_server_port; }
+  void SetNetworkServerPort(std::string s) { m_network_server_port = s; }
+  const std::string &GetNetworkServerGameName() const { return m_network_server_game_name; }
+  void SetNetworkServerGameName(std::string s) { m_network_server_game_name = s; }
+  bool GetNetworkServerPublic() const { return m_network_server_public; }
+  void SetNetworkServerPublic(bool b) { m_network_server_public = b; }
+
+  void SetNetworkLocalTeams();
+  const std::list<ConfigTeam>& AccessNetworkTeamsList() const { return network_local_teams; };
+
+  // return true if the directory is created
+  bool MkdirPersonalConfigDir() const;
+  bool MkdirPersonalDataDir() const;
+  bool MkdirChatLogDir() const;
+
+  bool RemovePersonalConfigFile() const;
 
 protected:
   bool SaveXml(bool save_current_teams);
@@ -146,8 +166,6 @@ protected:
 
   std::string default_language;
   std::string m_game_mode;
-  std::string m_network_host;
-  std::string m_network_port;
   std::string m_filename;
 
   // Code setting it must make sure it ends with the path separator
@@ -182,10 +200,22 @@ protected:
   uint sound_frequency;
   uint volume_music;
   uint volume_effects;
+  bool warn_on_new_player;
 
   // network
-  bool enable_network;
   bool check_updates;
+
+  // network previous connection as client
+  std::string m_network_client_host;
+  std::string m_network_client_port;
+
+  // network previous connection as server
+  std::string m_network_server_game_name;
+  std::string m_network_server_port;
+  bool m_network_server_public;
+
+  // personal teams used durint last network game
+  std::list<ConfigTeam> network_local_teams;
 
   // Font setting
   std::map<std::string, std::string>  fonts;
@@ -201,12 +231,7 @@ protected:
 private:
   bool DoLoading(void);
   void LoadDefaultValue();
-  void LoadXml(xmlNode* xml);
-
-  // return true if the directory is created
-  bool MkdirPersonalConfigDir();
-  bool MkdirPersonalDataDir();
-  bool MkdirChatLogDir();
+  void LoadXml(const xmlNode* xml);
 
   /* this is mutable in order to be able to load config on fly when calling
    * GetObjectConfig() witch is not supposed to modify the object itself */

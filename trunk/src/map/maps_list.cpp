@@ -21,6 +21,7 @@
 
 #include "include/action.h"
 #include "map/maps_list.h"
+#include "map/water.h"
 #include "game/config.h"
 #include "graphic/surface.h"
 #include "tool/resource_manager.h"
@@ -28,6 +29,7 @@
 #include "tool/file_tools.h"
 #include "tool/i18n.h"
 #include "tool/random.h"
+#include "tool/string_tools.h"
 #include "tool/xml_document.h"
 #include <iostream>
 #include <algorithm>
@@ -52,6 +54,7 @@ InfoMap::InfoMap(const std::string &map_name,
   random_generated(false),
   island_type(RANDOM_GENERATED),
   water_type(Water::NO_WATER),
+  water_name(),
   res_profile(NULL)
 {
   wind.nb_sprite = 0;
@@ -84,11 +87,17 @@ void InfoMap::LoadBasicInfo()
   MSG_DEBUG("map.load", "Map loaded: %s", m_map_name.c_str());
 }
 
-bool InfoMap::ProcessXmlData(xmlNode *xml)
+bool InfoMap::ProcessXmlData(const xmlNode *xml)
 {
+    uint tmpisle = (uint) island_type;
+
   XmlReader::ReadBool(xml, "random", random_generated);
+
+  XmlReader::ReadUint(xml, "generator", tmpisle);
+  island_type = (Island_type) tmpisle;
+
   // Read author informations
-  xmlNode *author = XmlReader::GetMarker(xml, "author");
+  const xmlNode *author = XmlReader::GetMarker(xml, "author");
   if (author != NULL) {
     std::string
       a_name,
@@ -124,11 +133,8 @@ bool InfoMap::ProcessXmlData(xmlNode *xml)
   XmlReader::ReadBool(xml, "is_open", is_opened);
 
   // reading water type
-  water_type = Water::NO_WATER;
-  uint wtype;
-  XmlReader::ReadUint(xml, "water", wtype);
-  if (wtype < uint(Water::MAX_WATER_TYPE))
-    water_type = Water::Water_type(wtype);
+  XmlReader::ReadString(xml, "water", water_name);
+  water_type = (Water::Water_type)Water::GetWaterType(water_name);
 
   // Load padding value
   bool add_pad = false;
@@ -138,7 +144,7 @@ bool InfoMap::ProcessXmlData(xmlNode *xml)
     lower_right_pad = resource_manager.LoadPoint2i(res_profile, "lower_right_pad");
   }
 
-  xmlNode* xmlwind = XmlReader::GetMarker(xml, "wind");
+  const xmlNode* xmlwind = XmlReader::GetMarker(xml, "wind");
   if (xmlwind != NULL)
   {
     double rot_speed=0.0;
@@ -304,7 +310,7 @@ void MapsList::SelectMapByName (const std::string &name)
 {
   // Random map!!
   if (name == "random") {
-    active_map_index = Random::GetLong(0, lst.size()-1);
+    active_map_index = RandomLocal().GetLong(0, lst.size()-1);
 
     MSG_DEBUG("map.random", "select %u", active_map_index);
     random_map = true;
@@ -362,3 +368,21 @@ InfoMap* ActiveMap()
 {
   return MapsList::GetInstance()->ActiveMap();
 }
+
+std::string InfoMap::GetWaterName()
+{
+  LoadBasicInfo();
+  int water;
+  if(str2int(water_name, water) && water < Water::MAX_WATER_TYPE) {
+    if(water == Water::WATER) {
+      return "water";
+    } else if(water == Water::LAVA) {
+      return "lava";
+    } else if(water == Water::RADIOACTIVE) {
+      return "radioactive";
+    }
+  }
+  // not an old water definition or invalid type
+  return water_name;
+}
+

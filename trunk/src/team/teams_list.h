@@ -48,6 +48,10 @@ private:
   void LoadOneTeam (const std::string &dir, const std::string &file);
   void LoadList();
 
+  void AddTeam(Team* the_team, int pos, const ConfigTeam& the_team_cfg, bool is_local);
+  void UpdateTeam(Team* the_team, const ConfigTeam &the_team_cfg);
+  void DelTeam(Team* the_team);
+
 protected:
   friend class Singleton<TeamsList>;
   TeamsList();
@@ -64,11 +68,11 @@ public:
   void RandomizeFirstPlayer();
 
   // Add a new team to playing, and change active team
-  void AddTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
-  void UpdateTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
-  void DelTeam (const std::string &id);
+  void AddTeam(const ConfigTeam& the_team_cfg, bool is_local, bool generate_error = true);
+  void UpdateTeam(const std::string &old_team_id, const ConfigTeam& the_team_cfg);
+  void DelTeam(const std::string &id);
   void SetActive(const std::string &id);
-  void InitList (const std::list<ConfigTeam> &lst);
+  void InitList(const std::list<ConfigTeam> &lst);
   void InitEnergy ();
   void RefreshEnergy (); //Refresh energy bar
   void RefreshSort (); //Refresh energy bar position
@@ -82,6 +86,9 @@ public:
   // Find a team by its id or index (in playing full_list)
   Team* FindPlayingById(const std::string &id, int &index);
   Team* FindPlayingByIndex(uint index);
+
+  // returns name1+name2+name3
+  std::string GetLocalHeadCommanders() const;
 };
 
 //-----------------------------------------------------------------------------

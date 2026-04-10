@@ -84,7 +84,7 @@ public:
   uint m_angle_dispersion;
 
   CluzookaConfig();
-  virtual void LoadXml(xmlNode *elem);
+  virtual void LoadXml(const xmlNode *elem);
 };
 
 CluzookaConfig::CluzookaConfig() :
@@ -94,7 +94,7 @@ CluzookaConfig::CluzookaConfig() :
 {
 }
 
-void CluzookaConfig::LoadXml(xmlNode *elem)
+void CluzookaConfig::LoadXml(const xmlNode *elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "nb_fragments", m_fragments);
@@ -149,7 +149,7 @@ void CluzookaCluster::Shoot(const Point2i & start_pos, double strength, double a
   m_time_before_spawn = 750;
   // make time a bit random to unsychronize particles
 
-  m_time_before_spawn += randomSync.GetDouble( -300, 100 );
+  m_time_before_spawn += RandomSync().GetDouble( -300, 100 );
 }
 
 void CluzookaCluster::Refresh()

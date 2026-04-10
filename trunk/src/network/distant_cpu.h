@@ -38,7 +38,8 @@ class DistantComputer
     STATE_ERROR,
     STATE_INITIALIZED,
     STATE_READY,
-    STATE_CHECKED
+    STATE_CHECKED,
+    STATE_NEXT_GAME
   } state_t;
 
  private:
@@ -56,6 +57,8 @@ class DistantComputer
   int packet_size;
   int packet_received;
   char* packet;
+  std::string nickname;
+
 public:
   bool force_disconnect;
 
@@ -67,10 +70,13 @@ public:
   void SendDatas(char* paket, int size);
 
   std::string GetAddress();
-  std::string nickname;
 
-  void ManageTeam(Action* team);
-  void SendChatMessage(Action* a) const;
+  void SetNickname(const std::string& nickname);
+  const std::string& GetNickname() const;
+
+  bool AddTeam(const std::string& team_id);
+  bool RemoveTeam(const std::string& team_id);
+  bool UpdateTeam(const std::string& old_team_id, const std::string& team_id);
 
   void SetState(DistantComputer::state_t _state);
   DistantComputer::state_t GetState() const;

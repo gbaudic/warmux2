@@ -78,9 +78,13 @@ void GameClassic::RefreshClock()
 	  SetState(END_TURN);
         } else {
           duration--;
-          Interface::GetInstance()->UpdateTimer(duration);
-	  if (duration <= 5) {
-	    JukeBox::GetInstance()->Play("share", "time/bip");
+	  if (duration == 12) {
+	    countdown_sample.Play("share", "countdown-end_turn");
+	  }
+	  if (duration > 10) {
+	    Interface::GetInstance()->UpdateTimer(duration, black_color);
+	  } else {
+	    Interface::GetInstance()->UpdateTimer(duration, primary_red_color);
 	  }
         }
         break;
@@ -99,7 +103,7 @@ void GameClassic::RefreshClock()
 
           if (IsAnythingMoving()) {
             duration = 1;
-            // Hack to be sure that nothing is moving since enough time
+            // Hack to be sure that nothing is moving since long enough
             // it avoids giving hand to another team during the end of an explosion for example
             break;
           }
@@ -131,7 +135,7 @@ uint GameClassic::GetRemainingTime() const
   return duration;
 }
 
-// Begining of a new turn
+// Beginning of a new turn
 void GameClassic::__SetState_PLAYING()
 {
   MSG_DEBUG("game.statechange", "Playing" );
@@ -158,8 +162,7 @@ void GameClassic::__SetState_PLAYING()
     {
       GetTeamsList().NextTeam();
 
-      if ( GameMode::GetInstance()->allow_character_selection==GameMode::CHANGE_ON_END_TURN
-           || GameMode::GetInstance()->allow_character_selection==GameMode::BEFORE_FIRST_ACTION_AND_END_TURN)
+      if ( GameMode::GetInstance()->auto_change_character)
         {
           ActiveTeam().NextCharacter();
         }
@@ -168,10 +171,10 @@ void GameClassic::__SetState_PLAYING()
 
       if ( Network::GetInstance()->IsTurnMaster() )
         {
-          // Tell to clients which character in the team is now playing
+          // Tell clients which character in the team is now playing
           Action playing_char(Action::ACTION_GAMELOOP_CHANGE_CHARACTER);
           playing_char.StoreActiveCharacter();
-          Network::GetInstance()->SendAction(&playing_char);
+          Network::GetInstance()->SendAction(playing_char);
 
           printf("Action_ChangeCharacter:\n");
           printf("char_index = %i\n",ActiveCharacter().GetCharacterIndex());
@@ -187,7 +190,7 @@ void GameClassic::__SetState_PLAYING()
         Network::GetInstance()->SetTurnMaster(false);
     }
 
-  give_objbox = true; //hack make it so no more than one objbox per turn
+  give_objbox = true; //hack: make it so that there is no more than one objbox per turn
 }
 
 void GameClassic::__SetState_HAS_PLAYED()
@@ -202,6 +205,7 @@ void GameClassic::__SetState_HAS_PLAYED()
 void GameClassic::__SetState_END_TURN()
 {
   MSG_DEBUG("game.statechange", "End of turn");
+  countdown_sample.Stop();
   ActiveTeam().AccessWeapon().SignalTurnEnd();
   ActiveTeam().AccessWeapon().Deselect();
   CharacterCursor::GetInstance()->Hide();

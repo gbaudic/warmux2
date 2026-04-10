@@ -57,7 +57,7 @@ public:
   bool go_through_ground;
 
   virtual ~Member();
-  Member(xmlNode* xml, const Profile* res);
+  Member(const xmlNode* xml, const Profile* res);
   Member(const Member& m);
   virtual void Draw(const Point2i & _pos, int flip_x, int direction);
   void RotateSprite();
@@ -71,7 +71,7 @@ public:
     scale.y = 1.0;
   }
   void ApplySqueleton(Member* parent_member);
-  void ApplyMovement(const member_mvt& mvt, std::vector<class c_junction>& squel_lst);
+  void ApplyMovement(const member_mvt& mvt, std::vector<class c_junction>& skel_lst);
   const Point2i GetPos() { return Point2i((int)pos.x, (int)pos.y); };
   const Point2i GetAnchorPos() { return Point2i((int)anchor.x, (int)anchor.y); };
   void SetAngle(const double &angle) { angle_rad = angle; };

@@ -27,8 +27,7 @@
 // Forward declarations
 class TeamsSelectionBox;
 class MapSelectionBox;
-class SpinButtonWithPicture;
-class CheckBox;
+class GameModeEditor;
 
 class GameMenu : public Menu
 {
@@ -44,9 +43,7 @@ class GameMenu : public Menu
    MapSelectionBox * map_box;
 
    /* Game options controllers */
-   Box * game_options;
-   SpinButtonWithPicture *opt_duration_turn;
-   SpinButtonWithPicture *opt_energy_ini;
+   GameModeEditor * game_options;
 
    void SaveOptions();
    void OnClick(const Point2i &mousePosition, int button);

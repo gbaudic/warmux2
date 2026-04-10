@@ -42,13 +42,8 @@ public:
     END_TURN = 2
   } game_loop_state_t;
 
-  typedef enum {
-    CLASSIC = 0,
-    BLITZ   = 1
-  } game_mode_t;
-
 protected:
-  virtual void Run();         // Main loop
+  virtual bool Run();         // Main loop
 
   bool IsAnythingMoving() const;
   void MainLoop();
@@ -65,12 +60,11 @@ protected:
   virtual ~Game();
 
 private:
-  static game_mode_t  mode;
-
+  static std::string  current_mode_name;
 
   bool                isGameLaunched;
   ObjBox              *current_ObjBox;
-  // Set the user requested a pause/end of the game
+  // Set that the user requested a pause/end of the game
   bool                ask_for_menu;
 
   FramePerSecond      *fps;
@@ -86,7 +80,7 @@ private:
 
   void Draw();        // Draw to screen
   void MessageLoading() const;
-  void UnloadDatas() const;
+  void UnloadDatas(bool game_finished) const;
 
   // Input management (keyboard/mouse)
   void RefreshInput();
@@ -113,12 +107,14 @@ private:
 
 public:
   static Game * GetInstance();
-  static void SetMode(game_mode_t m) { CleanUp(); mode = m; };
   static std::string GetUniqueId();
   static void ResetUniqueIds();
 
   bool                character_already_chosen;
   Chat                chatsession;
+
+  // Set mode
+  static Game * UpdateGameMode();
 
   void Start();
   void Init();

@@ -76,11 +76,27 @@ void WeaponBullet::SignalOutOfMap()
 
 void WeaponBullet::SignalObjectCollision(PhysicalObj * obj, const Point2d& my_speed_before)
 {
+#if 1
   if (!obj->IsCharacter())
     Explosion();
   obj->SetEnergyDelta(-(int)cfg.damage);
   obj->AddSpeed(cfg.speed_on_hit, my_speed_before.ComputeAngle());
   Ghost();
+#else
+  // multiply by ten to get something more funny
+  double bullet_mass = GetMass()/* * 10*/;
+  double total_mass = bullet_mass + obj->GetMass();
+  // computing new speed of character
+  Point2d v2 = (my_speed_before * (1 + 0.8) * bullet_mass +
+                obj->GetSpeed() * (obj->GetMass() - 0.8 * bullet_mass)) / total_mass;
+  // Pushing a little upward character to allow him to be pushed by the projectile
+  obj->SetXY(Point2i(obj->GetX(), obj->GetY() - 3));
+  obj->SetSpeedXY(v2);
+  obj->SetEnergyDelta(-(int)cfg.damage);
+  if (!obj->IsCharacter())
+    Explosion();
+  Ghost();
+#endif
 }
 
 void WeaponBullet::Refresh()
@@ -196,7 +212,7 @@ void WeaponProjectile::Refresh()
   }
   SetSize(image->GetSizeMax());
   // Explose after timeout
-  double tmp = Time::GetInstance()->Read() - begin_time;
+  int tmp = Time::GetInstance()->Read() - begin_time;
 
   if(cfg.timeout && tmp > 1000 * (GetTotalTimeout())) SignalTimeout();
 }
@@ -232,10 +248,10 @@ void WeaponProjectile::Draw()
   {
     Rectanglei test_rect(GetTestRect());
     test_rect.SetPosition(test_rect.GetPosition() - Camera::GetInstance()->GetPosition());
-    AppWormux::GetInstance()->video->window.RectangleColor(test_rect, primary_red_color, 1);
+    GetMainWindow().RectangleColor(test_rect, primary_red_color, 1);
 
     Rectanglei rect(GetPosition() - Camera::GetInstance()->GetPosition(), image->GetSizeMax());
-    AppWormux::GetInstance()->video->window.RectangleColor(rect, primary_blue_color, 1);
+    GetMainWindow().RectangleColor(rect, primary_blue_color, 1);
   }
 #endif
 }
@@ -455,11 +471,11 @@ void WeaponLauncher::Draw()
   {
     Point2i p = ActiveCharacter().GetHandPosition() - Camera::GetInstance()->GetPosition();
     // Red color for the blast range (should be superior to the explosion_range)
-    AppWormux::GetInstance()->video->window.CircleColor(p.x, p.y, (int)cfg->blast_range, c_red);
+    GetMainWindow().CircleColor(p.x, p.y, (int)cfg->blast_range, c_red);
     // Yellow color for the blast range (should be superior to the explosion_range)
-    AppWormux::GetInstance()->video->window.CircleColor(p.x, p.y, (int)cfg->explosion_range, c_black);
+    GetMainWindow().CircleColor(p.x, p.y, (int)cfg->explosion_range, c_black);
   }
-  AppWormux::GetInstance()->video->window.CircleColor(GetGunHolePosition().x-Camera::GetInstance()->GetPositionX(), GetGunHolePosition().y-Camera::GetInstance()->GetPositionY(), 5, c_black);
+  GetMainWindow().CircleColor(GetGunHolePosition().x-Camera::GetInstance()->GetPositionX(), GetGunHolePosition().y-Camera::GetInstance()->GetPositionY(), 5, c_black);
 #endif
 }
 

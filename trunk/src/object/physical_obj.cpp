@@ -66,6 +66,7 @@ PhysicalObj::PhysicalObj (const std::string &name, const std::string &xml_config
   m_minimum_overlapse_time(0),
   m_ignore_movements(false),
   m_is_character(false),
+  m_is_fire(false),
   m_name(name),
   m_test_left(0),
   m_test_right(0),
@@ -95,21 +96,7 @@ PhysicalObj::~PhysicalObj ()
 
 void PhysicalObj::SetXY(const Point2i &position)
 {
-  CheckOverlapping();
-
-  if( IsOutsideWorldXY( position ) )
-  {
-    Point2d physPos(position.x, position.y);
-    SetPhysXY( physPos / PIXEL_PER_METER );
-    Ghost();
-    SignalOutOfMap();
-  }
-  else
-  {
-    Point2d physPos(position.x, position.y);
-    SetPhysXY( physPos / PIXEL_PER_METER );
-    if( FootsInVacuum() ) StartMoving();
-  }
+  SetXY(Point2d(double(position.x), double(position.y)));
 }
 
 void PhysicalObj::SetXY(const Point2d &position)
@@ -117,20 +104,23 @@ void PhysicalObj::SetXY(const Point2d &position)
   CheckOverlapping();
 
   if( IsOutsideWorldXY( Point2i(int(position.x), int(position.y)) ) )
-  {
-    SetPhysXY( position / PIXEL_PER_METER );
-    Ghost();
-    SignalOutOfMap();
-  }
+    {
+      SetPhysXY( position / PIXEL_PER_METER );
+      Ghost();
+      SignalOutOfMap();
+    }
   else
-  {
-    SetPhysXY( position / PIXEL_PER_METER );
-    if( FootsInVacuum() ) StartMoving();
-  }
+    {
+      SetPhysXY( position / PIXEL_PER_METER );
+      if( FootsInVacuum() ) StartMoving();
+    }
 }
 
-int PhysicalObj::GetX() const { return (int)round(GetPhysX() * PIXEL_PER_METER); };
-int PhysicalObj::GetY() const { return (int)round(GetPhysY() * PIXEL_PER_METER); };
+double PhysicalObj::GetXdouble() const { return round(GetPhysX() * PIXEL_PER_METER); };
+double PhysicalObj::GetYdouble() const { return round(GetPhysY() * PIXEL_PER_METER); };
+
+int PhysicalObj::GetX() const { return (int)GetXdouble(); };
+int PhysicalObj::GetY() const { return (int)GetYdouble(); };
 
 void PhysicalObj::SetSize(const Point2i &newSize){
   if( newSize == Point2i(0, 0) )
@@ -556,8 +546,11 @@ void PhysicalObj::Drown()
   if (EqualsZero(GetGravityFactor()))
     SetGravityFactor(0.1);
 
+  // If fire, do smoke...
+  if (m_is_fire)
+    world.water.Smoke(GetPosition());
   // make a splash in the water :-)
-  if (GetMass() >= 2)
+  else if (GetMass() >= 2)
     world.water.Splash(GetPosition());
 
   StopMoving();
@@ -657,8 +650,12 @@ bool PhysicalObj::IsInVacuumXY(const Point2i &position, bool check_object) const
   if( check_object && CollidedObjectXY(position) )
     return false;
 
+  int width = m_width - m_test_right - m_test_left;
+  int height = m_height -m_test_bottom - m_test_top;
+  width = (width == 0 ? 1 : width);
+  height = (height == 0 ? 1 : height);
   Rectanglei rect(position.x + m_test_left, position.y + m_test_top,
-                  m_width - m_test_right - m_test_left, m_height -m_test_bottom - m_test_top);
+                  width, height);
 
   return world.RectIsInVacuum (rect);
 }
@@ -741,7 +738,7 @@ bool PhysicalObj::IsInWater () const
 void PhysicalObj::DirectFall()
 {
   while (!IsGhost() && !IsInWater() && FootsInVacuum())
-    SetY((int)(GetY()+1.0));
+    SetY(GetYdouble()+1.0);
 }
 
 bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
@@ -829,15 +826,15 @@ bool PhysicalObj::PutRandomly(bool on_top_of_world, double min_dst_with_characte
     if (on_top_of_world) {
       // Give a random position for x
       if(net_sync)
-        position.x = randomSync.GetLong(0, world.GetWidth() - GetWidth());
+        position.x = RandomSync().GetLong(0, world.GetWidth() - GetWidth());
       else
-        position.x = Random::GetLong(0, world.GetWidth() - GetWidth());
+        position.x = RandomLocal().GetLong(0, world.GetWidth() - GetWidth());
       position.y = -GetHeight()+1;
     } else {
       if(net_sync)
-        position = randomSync.GetPoint(world.GetSize() - GetSize() + 1);
+        position = RandomSync().GetPoint(world.GetSize() - GetSize() + 1);
       else
-        position = Random::GetPoint(world.GetSize() - GetSize() + 1);
+        position = RandomLocal().GetPoint(world.GetSize() - GetSize() + 1);
     }
     SetXY(position);
     MSG_DEBUG("physic.position", "%s (try %u/%u) - Test in %d, %d",

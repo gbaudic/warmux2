@@ -73,7 +73,7 @@ GameBlitz::time_iterator GameBlitz::KillTeam(GameBlitz::time_iterator cur)
   return times.end();
 }
 
-void GameBlitz::Run()
+bool GameBlitz::Run()
 {
   // Make sure map is empty
   times.clear();
@@ -83,7 +83,7 @@ void GameBlitz::Run()
   }
 
   counter = 0;;
-  Game::Run();
+  return Game::Run();
 }
 
 void GameBlitz::RefreshClock()
@@ -99,6 +99,7 @@ void GameBlitz::RefreshClock()
       counter--;
     } else {
       time_iterator cur = GetCurrentTeam();
+
       uint duration = cur->second;
 
       switch (state) {
@@ -147,7 +148,8 @@ void GameBlitz::RefreshClock()
         }
       } // switch
 
-      cur->second = duration;
+      if (cur != times.end())
+        cur->second = duration;
     }// if !counter
   }
 }
@@ -157,7 +159,7 @@ uint GameBlitz::GetRemainingTime() const
   return times.find(&ActiveTeam())->second;
 }
 
-// Begining of a new turn
+// Beginning of a new turn
 void GameBlitz::__SetState_PLAYING()
 {
   MSG_DEBUG("game.statechange", "Playing" );
@@ -178,8 +180,7 @@ void GameBlitz::__SetState_PLAYING()
     {
       GetTeamsList().NextTeam();
 
-      if ( GameMode::GetInstance()->allow_character_selection==GameMode::CHANGE_ON_END_TURN
-           || GameMode::GetInstance()->allow_character_selection==GameMode::BEFORE_FIRST_ACTION_AND_END_TURN)
+      if ( GameMode::GetInstance()->auto_change_character )
         {
           ActiveTeam().NextCharacter();
         }
@@ -188,10 +189,10 @@ void GameBlitz::__SetState_PLAYING()
 
       if ( Network::GetInstance()->IsTurnMaster() )
         {
-          // Tell to clients which character in the team is now playing
+          // Tell clients which character in the team is now playing
           Action playing_char(Action::ACTION_GAMELOOP_CHANGE_CHARACTER);
           playing_char.StoreActiveCharacter();
-          Network::GetInstance()->SendAction(&playing_char);
+          Network::GetInstance()->SendAction(playing_char);
 
           printf("Action_ChangeCharacter:\n");
           printf("char_index = %i\n",ActiveCharacter().GetCharacterIndex());
@@ -212,7 +213,7 @@ void GameBlitz::__SetState_PLAYING()
   Interface::GetInstance()->EnableDisplayTimer(true);
   pause_seconde = Time::GetInstance()->Read();
 
-  give_objbox = true; //hack make it so no more than one objbox per turn
+  give_objbox = true; //hack: make it so that no more than one objbox per turn
 }
 
 void GameBlitz::__SetState_HAS_PLAYED()
@@ -239,12 +240,10 @@ bool GameBlitz::IsGameFinished() const
   uint num = 0;
 
   for (std::map<Team*, uint>::const_iterator it = times.begin(); it != times.end(); ++it) {
-    if (it->second != 0)
+    if (it->second != 0 && it->first->NbAliveCharacter())
       num++;
-
-    // If more than one team with time left > 0, not finished
-    if (num>1)
-      return false;
   }
-  return true;
+
+  // If more than one team with time left > 0 and alive character, game not finished
+  return (num < 2);
 }

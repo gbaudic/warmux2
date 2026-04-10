@@ -35,13 +35,15 @@
 #include "tool/debug.h"
 //-----------------------------------------------------------------------------
 
+static const int MAX_PACKET_SIZE = 250*1024;
+
 DistantComputer::DistantComputer(TCPsocket new_sock) :
   sock_lock(SDL_CreateMutex()),
   sock(new_sock),
   owned_teams(),
   state(DistantComputer::STATE_ERROR),
-  force_disconnect(false),
-  nickname("this is not initialized")
+  nickname("this is not initialized"),
+  force_disconnect(false)
 {
   packet_size = 0;
   packet_received = 0;
@@ -59,7 +61,7 @@ DistantComputer::DistantComputer(TCPsocket new_sock) :
 
     Action a(Action::ACTION_MENU_SET_MAP);
     MapsList::GetInstance()->FillActionMenuSetMap(a);
-    a.WritePacket(pack, size);
+    a.WriteToPacket(pack, size);
     SendDatas(pack, size);
     free(pack);
 
@@ -73,7 +75,7 @@ DistantComputer::DistantComputer(TCPsocket new_sock) :
       Action b(Action::ACTION_MENU_ADD_TEAM, (*team)->GetId());
       b.Push((*team)->GetPlayerName());
       b.Push((int)(*team)->GetNbCharacters());
-      b.WritePacket(pack, size);
+      b.WriteToPacket(pack, size);
       SendDatas(pack, size);
       free(pack);
     }
@@ -130,7 +132,18 @@ int DistantComputer::ReceiveDatas(char* & buf)
       return -1;
     }
 
+    if (packet_size > MAX_PACKET_SIZE)
+    {
+        MSG_DEBUG("network", "packet is too big");
+        return -1;
+    }
+
     packet = (char*)malloc(packet_size);
+    if (!packet)
+    {
+        MSG_DEBUG("network", "memory allocated failed");
+        return -1;
+    }
   }
 
 
@@ -202,61 +215,62 @@ std::string DistantComputer::GetAddress()
   return address;
 }
 
-void DistantComputer::ManageTeam(Action* team)
+void DistantComputer::SetNickname(const std::string& _nickname)
 {
-  std::string name = team->PopString();
-  if(team->GetType() == Action::ACTION_MENU_ADD_TEAM)
-  {
-    owned_teams.push_back(name);
-
-    int index = 0;
-    Team * tmp = GetTeamsList().FindById(name, index);
-    if (tmp != NULL)
-    {
-      tmp->SetRemote();
-
-      Action* copy = new Action(Action::ACTION_MENU_ADD_TEAM, name);
-      copy->Push( team->PopString() );
-      copy->Push( team->PopInt() );
-      ActionHandler::GetInstance()->NewAction(copy, false);
-    }
-    else
-    {
-      std::cerr << "Team "<< name << "does not exist!" << std::endl;
-      ASSERT(false);
-    }
-  }
-  else if(team->GetType() == Action::ACTION_MENU_DEL_TEAM)
-  {
-    std::list<std::string>::iterator it;
-    it = find(owned_teams.begin(), owned_teams.end(), name);
-    NET_ASSERT(it != owned_teams.end())
-    {
-      force_disconnect = true;
-      return;
-    }
-    if (it != owned_teams.end())
-    {
-      owned_teams.erase(it);
-      ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_MENU_DEL_TEAM, name), false);
-    }
-  }
-  else
-    ASSERT(false);
+  nickname = _nickname;
 }
 
-void DistantComputer::SendChatMessage(Action* a) const
+const std::string& DistantComputer::GetNickname() const
 {
-  std::string txt = a->PopString();
-  if (txt == "") return;
-  if(Network::GetInstance()->IsServer())
-  {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, nickname + "> "+txt));
+  return nickname;
+}
+
+bool DistantComputer::AddTeam(const std::string& team_id)
+{
+  int index = 0;
+  Team * the_team = GetTeamsList().FindById(team_id, index);
+
+  if (the_team) {
+    owned_teams.push_back(team_id);
+    return true;
   }
-  else
-  {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, txt), false);
+
+  force_disconnect = true;
+
+  std::cerr << "Team "<< team_id << "does not exist!" << std::endl;
+  ASSERT(false);
+  return false;
+}
+
+bool DistantComputer::RemoveTeam(const std::string& team_id)
+{
+  std::list<std::string>::iterator it;
+  it = find(owned_teams.begin(), owned_teams.end(), team_id);
+  printf("size of owned teams: %d\n", (int)owned_teams.size());
+
+  if (it != owned_teams.end()) {
+    owned_teams.erase(it);
+    return true;
   }
+
+  force_disconnect = true;
+
+  ASSERT(false);
+  return false;
+}
+
+bool DistantComputer::UpdateTeam(const std::string& old_team_id, const std::string& team_id)
+{
+  if (old_team_id == team_id) // nothing to do !
+    return true;
+
+  if (!RemoveTeam(old_team_id))
+    return false;
+
+  if (!AddTeam(team_id))
+    return false;
+
+  return true;
 }
 
 void DistantComputer::SetState(DistantComputer::state_t _state)

@@ -31,11 +31,23 @@
 #include "net_data.h"
 #include "debug.h"
 
+#ifdef WIN32
+# define SOCKET_PARAM    char
+#else
+typedef int SOCKET;
+# define SOCKET_PARAM    void
+# define SOCKET_ERROR    (-1)
+# define INVALID_SOCKET  (-1)
+# define closesocket(fd) close(fd)
+#endif
+
 NetData::NetData()
   : str(NULL)
   , str_size(0)
   , msg_size(0)
+  , fd(INVALID_SOCKET)
   , ping_sent(false)
+  , bytes_received(0)
   , msg_id(TS_NO_MSG)
   , connected(false)
 {
@@ -45,8 +57,18 @@ NetData::NetData()
 NetData::~NetData()
 {
   // WARNING: potential bug here... to clean!!
-  // if (connected)
-  //  close(fd);
+  if (fd != INVALID_SOCKET)
+    {
+      if (connected) {
+        DPRINT(INFO, "Certainly leaking FD %i: still connected", fd);
+      } else {
+        DPRINT(INFO, "Probably leaking FD %i: not connected", fd);
+      }
+    }
+  else if (connected) {
+    DPRINT(INFO, "Inconsistant state: connected but no FD");
+  }
+
   DPRINT(CONN, "Disconnected.");
 }
 
@@ -56,6 +78,67 @@ void NetData::Host(const int & client_fd, const unsigned int & ip)
   ip_address = *(int*)&ip;
   connected = true;
 }
+
+int NetData::GetConnection(const char* host, int prt)
+{
+  struct hostent* hostinfo;
+  hostinfo = gethostbyname(host);
+  if( ! hostinfo )
+    {
+      DPRINT(INFO, "Couldn't get a socket");
+      return -1 /*CONN_BAD_HOST*/;
+    }
+
+  SOCKET lfd = socket(AF_INET, SOCK_STREAM, 0);
+  if( lfd == INVALID_SOCKET )
+    {
+      DPRINT(INFO, "Couldn't get a socket");
+      return -1 /*CONN_BAD_SOCKET*/;
+    }
+
+  // Set the timeout
+#ifdef WIN32
+  int timeout = 5000; //ms
+#else
+  struct timeval timeout;
+  memset(&timeout, 0, sizeof(timeout));
+  timeout.tv_sec = 5; // 5seconds timeout
+#endif
+  if (setsockopt(lfd, SOL_SOCKET, SO_RCVTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
+    {
+      DPRINT(INFO, "Setting receive timeout on socket failed\n");
+      goto error /*CONN_BAD_SOCKET*/;
+    }
+
+  if (setsockopt(lfd, SOL_SOCKET, SO_SNDTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
+    {
+      DPRINT(INFO, "Setting send timeout on socket failed\n");
+      goto error /*CONN_BAD_SOCKET*/;
+    }
+
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(prt);
+#ifndef WIN32
+  addr.sin_addr.s_addr = *(in_addr_t*)*hostinfo->h_addr_list;
+#else
+  addr.sin_addr.s_addr = inet_addr(inet_ntoa (*(struct in_addr *)*hostinfo->h_addr_list));
+#endif
+
+  if( connect(lfd, (struct sockaddr*) &addr, sizeof(addr)) == SOCKET_ERROR )
+    {
+      DPRINT(INFO, "Connection to %s:%i : failed", host, prt);
+      goto error /*GetError()*/;
+    }
+
+  return lfd;
+
+error:
+  closesocket(lfd);
+  return -1;
+}
+
 
 bool NetData::ConnectTo(const std::string & address, const int & port)
 {
@@ -68,21 +151,8 @@ bool NetData::ConnectTo(const std::string & address, const int & port)
       return false;
     }
 
-  fd = socket(AF_INET, SOCK_STREAM, 0);
-
+  fd = GetConnection(address.c_str(), port);
   if(fd == -1)
-    {
-      PRINT_ERROR;
-      DPRINT(INFO, "Rejected");
-      return false;
-    }
-
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = *(in_addr_t*)*hostinfo->h_addr_list;
-  addr.sin_port = htons(port);
-
-  if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) != 0 )
     {
       PRINT_ERROR;
       return false;
@@ -97,16 +167,16 @@ bool NetData::ConnectTo(const std::string & address, const int & port)
 bool NetData::ReceiveInt(int & nbr)
 {
   uint32_t packet;
-  if( read(fd, &packet, sizeof(packet)) == -1 )
-    {
-      PRINT_ERROR;
-      return false;
-    }
+
+  if (recv(fd, &packet, sizeof(packet), MSG_DONTWAIT) != sizeof(packet)) {
+    PRINT_ERROR;
+    return false;
+  }
 
   unsigned int u_nbr = ntohl(packet);
   nbr = *((int*)&u_nbr);
   DPRINT(TRAFFIC, "Received int: %i", nbr);
-  received -= 4;
+  bytes_received -= sizeof(uint32_t);
   UpdatePing();
   return true;
 }
@@ -118,12 +188,12 @@ bool NetData::ReceiveStr(std::string & full_str)
   if (str_size == 0)
     {
       // We don't know the string size -> read it
-      if (received < 4) {
-        DPRINT(TRAFFIC, "Not enough data to store string length: %i", received);
+      if (bytes_received < sizeof(uint32_t)) {
+        DPRINT(TRAFFIC, "Not enough data to store string length: %zu", bytes_received);
         return false;
       }
 
-      int size;
+      int size = 0;
       if (!ReceiveInt(size))
         return false;
 
@@ -135,32 +205,24 @@ bool NetData::ReceiveStr(std::string & full_str)
       memset(str, 0, str_size+1);
     }
 
-  // Check if the string is already arrived
- //  if (received == 0)
-//     {
-//       printf("the string is already arrived\n");
-//       full_str = "";
-//       return true;
-//     }
-
   unsigned int old_size = strlen(str);
   unsigned int to_receive = str_size - old_size;
   int str_received;
 
-  str_received = read(fd, str + old_size, to_receive);
+  str_received = recv(fd, str + old_size, to_receive, MSG_DONTWAIT);
 
-  if( str_received == -1 )
+  if (str_received == -1 )
     {
       PRINT_ERROR;
-      return false;
+      goto err_rcv;
     }
 
   // Check the client is not sending some 0
   // that could lock us
   if( strlen(str) != old_size + str_received )
-    return false;
+    goto err_rcv;
 
-  received -= str_received;
+  bytes_received -= str_received;
   DPRINT(TRAFFIC, "Received string: %s", str);
 
   if(strlen(str) == str_size)
@@ -171,6 +233,10 @@ bool NetData::ReceiveStr(std::string & full_str)
     }
   UpdatePing();
   return true;
+
+ err_rcv:
+  delete []str;
+  return false;
 }
 
 bool NetData::SendInt(const int &nbr)
@@ -180,11 +246,10 @@ bool NetData::SendInt(const int &nbr)
   unsigned int u_nbr = *((unsigned int*)&nbr);
   packet = htonl(u_nbr);
 
-  if( write(fd, &packet, sizeof(packet)) == -1 )
-    {
-      PRINT_ERROR;
-      return false;
-    }
+  if ( send(fd, &packet, sizeof(packet), MSG_NOSIGNAL) != sizeof(packet) ) {
+    PRINT_ERROR;
+    return false;
+  }
 
   DPRINT(TRAFFIC, "Sent int: %i", nbr);
   UpdatePing();
@@ -193,14 +258,13 @@ bool NetData::SendInt(const int &nbr)
 
 bool NetData::SendStr(const std::string &full_str)
 {
-  if( ! SendInt((int)full_str.size()) )
+  if (!SendInt((int)full_str.size()))
     return false;
 
-  if( write(fd, full_str.c_str(), full_str.size()) == -1 )
-    {
-      PRINT_ERROR;
-      return false;
-    }
+  if ( send(fd, full_str.c_str(), full_str.size(), MSG_NOSIGNAL) != ssize_t(full_str.size()) ) {
+    PRINT_ERROR;
+    return false;
+  }
 
   DPRINT(TRAFFIC, "Sent string: %s", full_str.c_str());
   UpdatePing();
@@ -223,11 +287,14 @@ bool NetData::ReceiveData()
       DPRINT(TRAFFIC, "Nothing received");
       return false;
     }
-  received += packet_size;
+  bytes_received += packet_size;
 
   return true;
 }
 
+/*
+ * returns false if client must be disconnected
+ */
 bool NetData::Receive()
 {
   int r = true;
@@ -237,39 +304,49 @@ bool NetData::Receive()
 
   // Get the ID of the message
   // if we don't already know it
-  if(msg_id == TS_NO_MSG)
+  if (msg_id == TS_NO_MSG)
     {
-      int id;
-      if( !ReceiveInt(id) )
+
+      // Waiting for the msg id + size
+      if (bytes_received <= 2 * sizeof(uint32_t))
+        {
+          DPRINT(TRAFFIC, "Not yet ready to read (msg id + size)!");
+          return true;
+        }
+
+      int id = 0;
+      if (!ReceiveInt(id) )
         {
           DPRINT(TRAFFIC, "Didn't received msg id!");
           return false;
         }
       msg_id = (IndexServerMsg)id;
 
-      int lsize;
-      if( !ReceiveInt(lsize) )
+      int lsize = 0;
+      if (!ReceiveInt(lsize))
         {
           DPRINT(TRAFFIC, "Didn't received msg size!");
           return false;
         }
 
       // Message is at least id+length
-      if (lsize<8 || lsize > 65535)
+      if (lsize < 8 || lsize > 65535)
         {
           DPRINT(TRAFFIC, "Incorrect msg size of %i!", lsize);
           return false;
         }
 
       msg_size = lsize;
-      DPRINT(TRAFFIC, "Message of id %i and size %u\n", id, msg_size);
+      DPRINT(TRAFFIC, "Message of id %i and size %zu\n", id, msg_size);
     }
 
   // Check that enough data has been received
-  if (received < msg_size-8)
-    return false;
+  if (bytes_received + 2*sizeof(uint32_t) < msg_size) {
+    DPRINT(TRAFFIC, "Not enough data: %zu / %zu", bytes_received + 2*sizeof(uint32_t), msg_size);
+    return true;
+  }
 
-  switch(msg_id) {
+  switch (msg_id) {
   case TS_MSG_PING:
     r = SendInt(TS_MSG_PONG);
     break;
@@ -299,8 +376,10 @@ void NetData::CheckState()
       return;
     }
 
-  SendInt(TS_MSG_PING);
-  ping_sent = true;
+  if (SendInt(TS_MSG_PING))
+    ping_sent = true;
+  else
+    ping_sent = false;
 }
 
 void NetData::UpdatePing()

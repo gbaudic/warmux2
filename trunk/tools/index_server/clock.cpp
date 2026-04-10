@@ -65,16 +65,17 @@ const char* Clock::TimeStr()
   struct tm* t;
   time_t now = time(NULL);
   t = localtime(&now);
-  snprintf(time_str, 1024, "%2i:%02i", t->tm_hour,
-           t->tm_min);
+  snprintf(time_str, 1024, "%2i:%02i:%02i", t->tm_hour,
+           t->tm_min, t->tm_sec);
   return time_str;
 }
 
 const char* Clock::DateStr()
 {
+  struct tm* t;
   time_t now = time(NULL);
-  char* d = ctime(&now);
-  strncpy(date_str, d, 1024);
+  t = localtime(&now);
+  snprintf(date_str, 1024, "%2i/%02i/%04i", t->tm_mday, t->tm_mon+1, t->tm_year+1900);
   return date_str;
 }
 
@@ -92,10 +93,12 @@ void Clock::ShowUpTime()
   t /= 24;
   day = (unsigned short) t % 31;
   t /= 31;
-  DPRINT(INFO, "Up since %i months, %i days and %i:%02i:%02i hours (%i days)",(int)t,
+  DPRINT(INFO, "Up since %i months, %i days and %i:%02i:%02i hours (%i days)",
+         (int)t,
          (int)day,
          (int)hr,
          (int)min,
          (int)sec,
          (int)t*31+day);
 }
+

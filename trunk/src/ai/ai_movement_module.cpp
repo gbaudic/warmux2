@@ -97,9 +97,9 @@ bool AIMovementModule::RiskGoingOutOfMap() const
 }
 
 // =================================================
-// A jump is made of many movement :
-// 1) Decect collision and prepare to go back
-// 2) Go back, then when far enought of the obstacle
+// A jump is made of many movements :
+// 1) Detect collision and prepare to go back
+// 2) Go back, then when far enough of the obstacle
 // 3) Jump!
 // 4) Detect when on the ground!
 // =================================================
@@ -125,7 +125,7 @@ void AIMovementModule::GoBackToJump()
   int height;
   bool blocked = !(ObstacleHeight(height));
 
-  if ( abs(last_position.GetX() - ActiveCharacter().GetPosition().GetX()) >= 20
+  if ( fabs(last_position.GetX() - ActiveCharacter().GetPosition().GetX()) >= 20.0
        || time_at_last_position +1 < m_current_time
        || blocked) {
     //it's time to jump!
@@ -153,16 +153,16 @@ void AIMovementModule::EndOfJump()
     // we have not moved since last movement
 
     if (ActiveCharacter().GetDirection() == DIRECTION_RIGHT) {
-      max_reachable_x = ActiveCharacter().GetPosition().GetX();
+      max_reachable_x = (int)ActiveCharacter().GetPosition().GetX();
     } else {
-      min_reachable_x = ActiveCharacter().GetPosition().GetX();
+      min_reachable_x = (int)ActiveCharacter().GetPosition().GetX();
     }
     MSG_DEBUG("ai.move", "We are blocked");
     StopMoving();
 
   } else {
-    // No more blocked !!
-    MSG_DEBUG("ai.move", "We are NO MORE blocked");
+    // No longer blocked !!
+    MSG_DEBUG("ai.move", "We are NO LONGER blocked");
     SetMovement(WALKING);
   }
 }
@@ -246,19 +246,26 @@ void AIMovementModule::StopWalking()
 // =================================================
 void AIMovementModule::InverseDirection(bool completely_blocked)
 {
+  if ((max_reachable_x == ActiveCharacter().GetPosition().GetX())
+      || (min_reachable_x == ActiveCharacter().GetPosition().GetX()))
+    {
+      MSG_DEBUG("ai.move", "In %s : We turn around...\n", __func__);
+      StopMoving();
+      return;
+    }
   MSG_DEBUG("ai.move", "Inverse direction");
 
   if (ActiveCharacter().GetDirection() == DIRECTION_RIGHT) {
 
     ActiveCharacter().SetDirection(DIRECTION_LEFT);
     if (completely_blocked)
-      max_reachable_x = ActiveCharacter().GetPosition().GetX();
+      max_reachable_x = (int)ActiveCharacter().GetPosition().GetX();
 
   } else {
 
     ActiveCharacter().SetDirection(DIRECTION_RIGHT);
     if (completely_blocked)
-      min_reachable_x = ActiveCharacter().GetPosition().GetX();
+      min_reachable_x = (int)ActiveCharacter().GetPosition().GetX();
 
   }
 }
@@ -278,12 +285,12 @@ void AIMovementModule::Move(uint current_time)
   switch (GetCurrentMovement()) {
 
   case NO_MOVEMENT:
-    // Begin to walk
+    // Begin walking
     Walk();
     break;
 
   case WALKING:
-    // Continue to walk
+    // Continue walking
     Walk();
     break;
 
@@ -308,7 +315,7 @@ void AIMovementModule::Move(uint current_time)
 void AIMovementModule::StopMoving()
 {
   //  GameMessages::GetInstance()->Add("stop moving");
-  
+
   StopWalking();
   SetMovement(BLOCKED);
   //m_step++;
@@ -392,13 +399,13 @@ void AIMovementModule::SetDestinationPoint(const Point2i& _destination_point)
 bool AIMovementModule::SeemsToBeReachable(const Character& shooter,
                                           const Character& enemy) const
 {
-  int delta_x = abs(shooter.GetX() - enemy.GetX());
-  int delta_y = abs(shooter.GetY() - enemy.GetY());
+  double delta_x = abs(shooter.GetX() - enemy.GetX());
+  double delta_y = abs(shooter.GetY() - enemy.GetY());
 
-  if (delta_x > 300)
+  if (delta_x > 300.0)
     return false;
 
-  if (delta_y > 100)
+  if (delta_y > 100.0)
     return false;
 
   if (min_reachable_x>enemy.GetX() || enemy.GetX()>max_reachable_x)

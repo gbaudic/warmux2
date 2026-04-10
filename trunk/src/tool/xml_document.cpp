@@ -27,6 +27,28 @@
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
+#ifdef DEBUG
+#include <cstring>
+void display_xml_tree(const xmlNode* root, uint level, bool neigh)
+{
+  char space[1024] = "";
+  for (uint i=0; i < level; i++)
+    strcat(space, "    ");
+
+  printf("%s %d - %s\n", space, root->type, root->name);
+  for (const xmlNode* c = root->children; c; c = c->next) {
+    if (c->type == XML_ELEMENT_NODE)
+      display_xml_tree(c, level+1, false);
+  }
+
+  if (neigh) {
+    for (const xmlNode* n = root->next; n; n = n->next)
+      if (n->type == XML_ELEMENT_NODE)
+	display_xml_tree(n, level, false);
+  }
+}
+#endif
+
 void XmlReader::Reset()
 {
    if (doc)
@@ -66,7 +88,7 @@ bool XmlReader::LoadFromString(const std::string &contents)
   return IsOk();
 }
 
-std::string XmlReader::ExportToString()
+std::string XmlReader::ExportToString() const
 {
   xmlChar *buffer = NULL;
   int     length  = 0;
@@ -78,71 +100,37 @@ std::string XmlReader::ExportToString()
   return ret;
 }
 
-#if DEBUG
-static int count = 0;
-#endif
-
-xmlNode* XmlReader::GetMarker(xmlNode* x, const std::string &name)
+const xmlNode* XmlReader::GetMarker(const xmlNode* x, const std::string &name)
 {
-#ifdef DEBUG
-  if (!count)
-    MSG_DEBUG("xml", "  Getting marker %s", name.c_str());
-  count++;
-#endif
-  for (; x; x = x->next)
-  {
-    if (x->children)
-    {
-      xmlNode *node = GetMarker(x->children, name);
-      if (node)
-      {
-#ifdef DEBUG
-        count--;
-#endif
-        return node;
-      }
-    }
+  ASSERT(x->type == XML_ELEMENT_NODE);
 
-    if (name.empty() || name == (const char*)x->name) // xmlpp::Node::get_children
+  // is it already the right xmlNode ?
+  if (name.empty() || name == (const char*)x->name)
+    return x;
+
+  // look at its children
+  for (const xmlNode* tmp = x->children; tmp; tmp = tmp->next) {
+    if (tmp->type == XML_ELEMENT_NODE && name == (const char*)tmp->name)
     {
-#ifdef DEBUG
-      MSG_DEBUG("xml", "  Found at %p", x);
-      count--;
-#endif
-      return x;
+      return tmp;
     }
-  };
+  }
+
 #ifdef DEBUG
-  count--;
-  if (!count)
-    MSG_DEBUG("xml", "  Getting marker %s", name.c_str());
+  if (IsLOGGING("xml.tree")) {
+    std::string looked_name = std::string((const char*)(x->name)) + std::string(">") + name;
+    for (const xmlNode *parent = x->parent;
+	 parent != xmlDocGetRootElement(x->doc) && parent && parent->name;
+	 parent = parent->parent) {
+      looked_name = std::string((const char*)(parent->name)) + std::string(">") + looked_name;
+    }
+    fprintf(stderr, "Fail to read %s\n", looked_name.c_str());
+  }
 #endif
   return NULL;
 }
 
-static void getAny(xmlNode* father, const std::string& name, xmlNodeArray& tab)
-{
-  for (father = father; father; father = father->next)
-  {
-    if (father->children)
-      getAny(father->children, name, tab);
-    if (name == (const char*)father->name)
-      tab.push_back(father);
-  }
-}
-
-// Return any child matching name
-xmlNodeArray XmlReader::GetNamed(xmlNode* father, const std::string& name)
-{
-  xmlNodeArray tab;
-
-  // Load members
-  getAny(father, name, tab);
-
-  return tab;
-}
-
-xmlNodeArray XmlReader::GetNamedChildren(xmlNode* father, const std::string& name)
+xmlNodeArray XmlReader::GetNamedChildren(const xmlNode* father, const std::string& name)
 {
   xmlNodeArray tab;
   MSG_DEBUG("xml", "Search children of name %s", name.c_str());
@@ -155,68 +143,52 @@ xmlNodeArray XmlReader::GetNamedChildren(xmlNode* father, const std::string& nam
   }
   return tab;
 }
-xmlNodeArray XmlReader::GetNamedNeighbours(xmlNode* first, const std::string& name)
+
+const xmlNode* XmlReader::Access(const xmlNode* x,
+				 const std::string &name,
+				 const std::string &attr_name)
 {
-  xmlNodeArray tab;
-  MSG_DEBUG("xml", "Search neighbours of name %s", name.c_str());
+  ASSERT(x->type == XML_ELEMENT_NODE);
 
-  // Load members
-  for (; first; first = first->next)
-  {
-    if (name == (const char*)first->name)
-      tab.push_back(first);
-  }
-  return tab;
-}
+  // is it already the right xmlNode ?
+  if (name == (const char*)x->name) {
 
-xmlNode* XmlReader::Access(xmlNode* x,
-                           const std::string &name,
-                           const std::string &attr_name)
-{
-#ifdef DEBUG
-  if (!count)
-    MSG_DEBUG("xml", "Accessing attribute '%s' in element of name '%s' at %p...",
-              attr_name.c_str(), name.c_str(), x);
-  count++;
-#endif
-  for (; x; x = x->next)
-  {
-    if (x->children)
-    {
-      xmlNode* node = Access(x->children, name, attr_name);
-      if (node)
-      {
-#ifdef DEBUG
-        count--;
-#endif
-        return node;
-      }
-    }
-
-    if (!xmlStrcmp(x->name, (const xmlChar *)name.c_str()))
-    {
-      xmlAttr* attr = xmlHasProp(x, (const xmlChar*)"name");
-      if (attr)
+    xmlAttr* attr = xmlHasProp((xmlNode*)x, // cast to make libxml2 happy...
+			       (const xmlChar*)"name");
+    if (attr)
       {
         xmlChar *value = xmlGetProp(attr->parent, attr->name);
         if (attr_name == (const char*)value)
-        {
-          xmlFree(value);
-#ifdef DEBUG
-          MSG_DEBUG("xml", "    Found %p", x);
-          count--;
-#endif
-          return x;
-        }
+	  {
+	    xmlFree(value);
+	    return x;
+	  }
         xmlFree(value);
       }
+    return NULL;
+  }
+
+  // look at its children
+  for (const xmlNode* tmp = x->children; tmp; tmp = tmp->next) {
+    if (tmp->type == XML_ELEMENT_NODE && name == (const char*)tmp->name)
+    {
+      xmlAttr* attr = xmlHasProp((xmlNode*)tmp, // cast to make libxml2 happy...
+				 (const xmlChar*)"name");
+      if (attr)
+	{
+	  xmlChar *value = xmlGetProp(attr->parent, attr->name);
+	  if (attr_name == (const char*)value)
+	    {
+	      xmlFree(value);
+	      return tmp;
+	    }
+	  xmlFree(value);
+	}
+
+      // do not return as other child may have the same "name" but a different attr
+      // return NULL;
     }
   }
-#ifdef DEBUG
-  count--;
-  if (!count)
-    MSG_DEBUG("xml", "  Getting marker %s", name.c_str());
-#endif
 
   return NULL;
 }
@@ -226,17 +198,17 @@ xmlNode* XmlReader::Access(xmlNode* x,
  * - throwing exeptions: some of the nodes may really be absent, and might be
  *   more costly when comparing generic error handling and special case
  */
-bool XmlReader::ReadString(xmlNode* x,
+bool XmlReader::ReadString(const xmlNode* x,
                            const std::string &name,
                            std::string &output)
 {
-  xmlNode* elem = GetMarker(x, name);
+  const xmlNode* elem = GetMarker(x, name);
   MSG_DEBUG("xml", "Reading string of name '%s' from %p:", name.c_str(), elem);
   return ReadMarkerValue(elem, output);
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadDouble(xmlNode *x,
+bool XmlReader::ReadDouble(const xmlNode *x,
                            const std::string &name,
                            double &output)
 {
@@ -246,7 +218,7 @@ bool XmlReader::ReadDouble(xmlNode *x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadInt(xmlNode* x,
+bool XmlReader::ReadInt(const xmlNode* x,
                         const std::string &name,
                         int &output)
 {
@@ -256,7 +228,7 @@ bool XmlReader::ReadInt(xmlNode* x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadUint(xmlNode* x,
+bool XmlReader::ReadUint(const xmlNode* x,
                          const std::string &name,
                          uint &output)
 {
@@ -271,7 +243,7 @@ bool XmlReader::ReadUint(xmlNode* x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadBool (xmlNode* x,
+bool XmlReader::ReadBool (const xmlNode* x,
                           const std::string &name,
                           bool &output)
 {
@@ -281,7 +253,7 @@ bool XmlReader::ReadBool (xmlNode* x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadMarkerValue(xmlNode* marker,
+bool XmlReader::ReadMarkerValue(const xmlNode* marker,
                                 std::string &output)
 {
   if (!marker || !marker->children)
@@ -304,13 +276,14 @@ bool XmlReader::ReadMarkerValue(xmlNode* marker,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadStringAttr(xmlNode* x,
+bool XmlReader::ReadStringAttr(const xmlNode* x,
                                const std::string &name,
                                std::string &output)
 {
   ASSERT (x != NULL);
 
-  xmlAttr *attr = xmlHasProp(x, (const xmlChar *)name.c_str()); //xmlpp::Attribute::get_attribute
+  xmlAttr *attr = xmlHasProp((xmlNode*)x, // cast to make libxml2 happy
+			     (const xmlChar *)name.c_str()); //xmlpp::Attribute::get_attribute
   if (!attr)
   {
     MSG_DEBUG("xml", " Attribute '%s' not found", name.c_str());
@@ -328,7 +301,7 @@ bool XmlReader::ReadStringAttr(xmlNode* x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadIntAttr(xmlNode* x,
+bool XmlReader::ReadIntAttr(const xmlNode* x,
                             const std::string &name,
                             int &output)
 {
@@ -339,7 +312,7 @@ bool XmlReader::ReadIntAttr(xmlNode* x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadUintAttr(xmlNode* x,
+bool XmlReader::ReadUintAttr(const xmlNode* x,
                              const std::string &name,
                              unsigned int &output)
 {
@@ -354,7 +327,7 @@ bool XmlReader::ReadUintAttr(xmlNode* x,
 }
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadBoolAttr(xmlNode* x,
+bool XmlReader::ReadBoolAttr(const xmlNode* x,
                              const std::string &name,
                              bool &output)
 {
@@ -367,7 +340,7 @@ bool XmlReader::ReadBoolAttr(xmlNode* x,
 
 
 /** @see XmlReader::ReadString comment */
-bool XmlReader::ReadDoubleAttr(xmlNode* x,
+bool XmlReader::ReadDoubleAttr(const xmlNode* x,
                                const std::string &name,
                                double &output)
 {
@@ -381,12 +354,13 @@ bool XmlReader::IsOk() const
   return doc != NULL;
 }
 
-xmlNode* XmlReader::GetRoot() const
+const xmlNode* XmlReader::GetRoot() const
 {
   ASSERT(IsOk());
-  xmlNode* root = xmlDocGetRootElement(doc);
+  const xmlNode* root = xmlDocGetRootElement(doc);
   ASSERT(root != NULL);
-  return root->children;
+
+  return root;
 }
 
 //-----------------------------------------------------------------------------
@@ -415,15 +389,16 @@ bool XmlWriter::IsOk() const
   return (m_doc != NULL) && (m_root != NULL);
 }
 
-void XmlWriter::WriteElement(xmlNode* x,
+xmlNode *XmlWriter::WriteElement(xmlNode* x,
                              const std::string &name,
                              const std::string &value)
 {
   xmlNode *node = xmlAddChild(x, xmlNewNode(NULL /* empty prefix */,
-                                           (const xmlChar*)name.c_str()));
+					    (const xmlChar*)name.c_str()));
   xmlNode *text = xmlNewText((const xmlChar*)value.c_str());
   xmlAddChild(node, text);
   m_save = false;
+  return node;
 }
 
 void XmlWriter::WriteComment(xmlNode* x,
@@ -449,7 +424,7 @@ bool XmlWriter::Create(const std::string &filename,const std::string &root,
   return true;
 }
 
-xmlNode*  XmlWriter::GetRoot()
+xmlNode* XmlWriter::GetRoot() const
 {
   ASSERT(m_root != NULL);
   return m_root;
@@ -464,7 +439,7 @@ bool XmlWriter::Save()
   return (result != -1);
 }
 
-std::string XmlWriter::SaveToString()
+std::string XmlWriter::SaveToString() const
 {
    xmlChar *buffer = NULL;
    int     length  = 0;

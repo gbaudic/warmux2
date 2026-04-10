@@ -38,6 +38,7 @@
 #include "tool/point.h"
 #include "tool/resource_manager.h"
 #include "weapon/weapon.h"
+#include "game/time.h"
 
 std::string __pointers[] = {
   "mouse/pointer_standard",
@@ -58,7 +59,8 @@ std::string __pointers[] = {
 std::map<Mouse::pointer_t, MouseCursor> Mouse::cursors;
 
 Mouse::Mouse():
-  lastpos(-1,-1)
+  lastpos(-1,-1),
+  last_hide_time(0)
 {
   visible = MOUSE_VISIBLE;
 
@@ -73,6 +75,19 @@ Mouse::Mouse():
 
   current_pointer = POINTER_STANDARD;
   resource_manager.UnLoadXMLProfile(res);
+}
+
+bool Mouse::HasFocus() const
+{
+  Uint8 state = SDL_GetAppState();
+
+  if ((state & SDL_APPMOUSEFOCUS) &&
+      (state & SDL_APPINPUTFOCUS) &&
+      (state & SDL_APPACTIVE)) {
+    return true;
+  }
+
+  return false;
 }
 
 void Mouse::ActionLeftClic(bool) const
@@ -148,9 +163,13 @@ void Mouse::ActionWheelDown(bool shift) const
 
 bool Mouse::HandleClic (const SDL_Event& event) const
 {
+  if (!HasFocus()) {
+    return false;
+  }
+
   if ( event.type != SDL_MOUSEBUTTONDOWN &&
        event.type != SDL_MOUSEBUTTONUP ) {
-    return false ;
+    return false;
   }
 
   if (Game::GetInstance()->ReadState() != Game::PLAYING)
@@ -219,7 +238,7 @@ void Mouse::Refresh()
     {
       Show();
       lastpos = pos;
-      counter = NB_LOOP_BEFORE_HIDE;  
+      counter = NB_LOOP_BEFORE_HIDE;
       ShowGameInterface();
     }
   else
@@ -291,7 +310,7 @@ void Mouse::Draw() const
 
   const MouseCursor& cursor = GetCursor(current_pointer);
   const Surface& surf = cursor.GetSurface();
-  AppWormux::GetInstance()->video->window.Blit(surf, GetPosition() - cursor.GetClicPos());
+  GetMainWindow().Blit(surf, GetPosition() - cursor.GetClicPos());
   world.ToRedrawOnScreen(Rectanglei(GetPosition().x - cursor.GetClicPos().x,
                                     GetPosition().y - cursor.GetClicPos().y,
 				    surf.GetWidth(), surf.GetHeight()));
@@ -299,26 +318,44 @@ void Mouse::Draw() const
 
 void Mouse::Show()
 {
+  if(((Time::GetInstance()->Read()-last_hide_time) > 10000) && (visible == MOUSE_HIDDEN))
+  {
+      CenterPointer();
+  }
   visible = MOUSE_VISIBLE;
 
   if (Config::GetInstance()->GetDefaultMouseCursor()) {
     SDL_ShowCursor(true); // be sure cursor is visible
   }
+
 }
 
 void Mouse::Hide()
 {
+  if(visible == MOUSE_VISIBLE)
+  {
+  last_hide_time = Time::GetInstance()->Read();
+  }
   visible = MOUSE_HIDDEN;
   SDL_ShowCursor(false); // be sure cursor is invisible
+
 }
 
 // Center the pointer on the screen
 void Mouse::CenterPointer()
 {
+  SetPosition(Point2i(GetMainWindow().GetWidth() / 2,
+		      GetMainWindow().GetHeight() / 2));
+}
+
+void Mouse::SetPosition(Point2i pos)
+{
+  if (!HasFocus()) // The application has not the focus, don't move the mouse cursor!
+    return;
+
   MSG_DEBUG("mouse", "1) %d, %d\n", GetPosition().GetX(), GetPosition().GetY());
 
-  SDL_WarpMouse(AppWormux::GetInstance()->video->window.GetWidth() / 2,
-                AppWormux::GetInstance()->video->window.GetHeight() / 2);
+  SDL_WarpMouse(pos.x, pos.y);
   SDL_PumpEvents(); // force new position else GetPosition does not return new position
 
   lastpos = GetPosition();

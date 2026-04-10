@@ -22,10 +22,17 @@
       </author>
       <author>
 	<nickname>Kurosu</nickname>
-	<name>John DOE</name>
+	<name>Christophe GISQUET</name>
 	<description>Win32 port, programmer</description>
-	<email>kurosu_AT_free_DOT_fr</email>
+	<email>christophe_DOT_gisquet_AT_gmail_DOT_com</email>
 	<country>France</country>
+      </author>
+      <author>
+	<nickname>lynxlynxlynx</nickname>
+	<name>Jaka KRANJC</name>
+	<description>i18n manager, misc</description>
+	<email>svn_AT_lynxlynx_DOT_info</email>
+	<country>Slovenia</country>
       </author>
       <author>
 	<nickname>yeKcim</nickname>
@@ -165,7 +172,7 @@
       </author>
       <author>
 	<nickname>Pierre-Marie</nickname>
-	<name>Pierre-Marie</name>
+	<name>Pierre-Marie Pédrot</name>
 	<description>Update translation of Wormux in Esperanto</description>
 	<email>pedrotpmx_AT_wanadoo_DOT_fr</email>
 	<country>France</country>
@@ -225,13 +232,6 @@
 	<description>English translation of Wormux</description>
 	<email>dannya40uk_AT_yahoo.co_DOT_uk</email>
 	<country>England</country>
-      </author>
-      <author>
-	<nickname>eddyp</nickname>
-	<name>Eddy PETRIȘOR </name>
-	<description>Translated Wormux in Romanian</description>
-	<email>eddy.petrisor_AT_gmail_DOT_com</email>
-	<country>Romania</country>
       </author>
       <author>
 	<nickname>Frank</nickname>
@@ -378,6 +378,7 @@
         <country>Hungary</country>
       </author>
       <author>
+        <nickname>Adrián</nickname>
 	<name>Adrián Chaves</name>
 	<description>Translated Wormux in Galician</description>
 	<email>adriyetichaves_AT_gmail_DOT_com</email>
@@ -386,13 +387,6 @@
     </section>
 
     <section title="Package maintainers">
-      <author>
-        <nickname>AbsintheSyringe</nickname>
-	<name>Adnan Hodzic</name>
-	<description>Prepares Wormux SlackBuilds for Slackware</description>
-	<email>AbsintheSyringe_AT_gmail_DOT_com</email>
-	<country>Bosnia-Herzegovina</country>
-      </author>
       <author>
 	<nickname>artefact</nickname>
 	<name>Jean PARPAILLON</name>
@@ -421,6 +415,13 @@
 	<description>Package Wormux for RockLinux</description>
 	<email>daja_AT_rocklinux_DOT_org</email>
 	<country>Germany</country>
+      </author>
+      <author>
+	<nickname>eddyp</nickname>
+	<name>Eddy PETRIȘOR </name>
+	<description>Debian packaging (in the Debian Games Team); Translated Wormux in Romanian; added chat logging</description>
+	<email>eddy.petrisor_AT_gmail_DOT_com</email>
+	<country>Romania</country>
       </author>
       <author>
 	<nickname>Emily</nickname>
@@ -458,7 +459,7 @@
     <name>Yoann Katchourine</name>
     <description>Prepare Mac OS X (Intel) packages</description>
     <website>http://plorf.homeip.net/</website>
-    <email>yplorf@gmail.com></email>
+    <email>yplorf_AT_gmail_DOT_com</email>
     <country>France</country>
         </author>
         <author>
@@ -475,7 +476,7 @@
       <author>
 	<nickname>AbsintheSyringe</nickname>
 	<name>Adnan HODZIC</name>
-	<description>Physics constant for wind particles, Bug fixes, First Bosnian translation of Wormux.</description>
+	<description>Physics constant for wind particles, Bug fixes, Prepares Wormux SlackBuilds for Slackware, First Bosnian translation of Wormux.</description>
 	<email>AbsintheSyringe_AT_gmail_DOT_com</email>
 	<country>Bosnia-Herzegovina</country>
       </author>
@@ -491,6 +492,13 @@
 	<name>François BLEIBEL</name>
 	<description>Write first network patch with Jerome Glatigny</description>
 	<email>maisola_AT_gmail_DOT_com</email>
+	<country>France</country>
+      </author>
+      <author>
+	<nickname>Fredb219</nickname>
+	<name>Frédéric BERTOLUS</name>
+	<description>Code</description>
+	<email>fredb219_AT_gmail_DOT_com</email>
 	<country>France</country>
       </author>
       <author>
@@ -529,6 +537,13 @@
 	<country>France</country>
       </author>
       <author>
+        <nickname>Jim++</nickname>
+        <name>Jean-Marie Traissard</name>
+        <description>Patch</description>
+        <email>jim_AT_lapin_DOT_org</email>
+        <country>France</country>
+      </author>
+      <author>
 	<nickname>Johannes</nickname>
 	<name>Johannes KRUDE</name>
 	<description>Patch, bug report</description>
@@ -557,18 +572,18 @@
 	<email>larry_AT_doubidou_DOT_net</email>
       </author>
       <author>
-	<nickname>lynxlynxlynx</nickname>
-	<name>Jaka KRANJC</name>
-	<description>Patch that enables cycling through characters backwards. G++ 4.2 support</description>
-	<email>svn_AT_lynxlynx_DOT_info</email>
-	<country>Slovenia</country>
-      </author>
-      <author>
 	<nickname>Mathias</nickname>
 	<name>Mathias PLICHTA</name>
 	<description>Automatic bazooka constant refresh</description>
 	<email>wrtlprnft_AT_wrtlprnft_DOT_de</email>
 	<country>Germany</country>
+      </author>
+      <author>
+	<nickname>mrpouet</nickname>
+	<name>Romain PERIER</name>
+	<description>AI improvements</description>
+	<email>mrpouet_AT_tuxfamily_DOT_org </email>
+	<country>France</country>
       </author>
       <author>
 	<nickname>Pascal</nickname>
@@ -762,7 +777,7 @@
 	<nickname>JLedN</nickname>
 	<name>Jeremie LEDENTU</name>
 	<description>Draw the map EasterIsland</description>
-	<email>jledn_AT_voila_DOT_fr</email>
+	<email>jledentu_AT_gmail_DOT_com</email>
 	<country>France</country>
       </author>
       <author>

@@ -4,20 +4,14 @@
 #include "include/base.h"
 #include "tool/error.h"
 #include "tool/i18n.h"
+#ifdef DEBUG
+#include "tool/random.h"
+#endif
 #include "network/chatlogger.h"
 #include "game/config.h"
 #include <time.h>
-#ifdef DEBUG
-#  include <stdlib.h>
-#endif
-#ifdef _WIN32
-#  define random rand  // random more secure but unavailable under Windows
-#endif
 
-// the year that time has as base; although time(2)
-// says the reference is 1970, tests show is 1900. WHY?
-#define TIME_BASE_YEAR 1900 //FIXME: find out why this is not 1970
-
+#define TIME_BASE_YEAR 1900
 
 ChatLogger::ChatLogger() :
         logdir(Config::GetInstance()->GetChatLogDir()),
@@ -49,7 +43,7 @@ ChatLogger::ChatLogger() :
 #ifndef DEBUG
     logfile = Format ( "%s.log" , timestamp.c_str() );
 #else // DEBUG
-    logfile = Format ( "%s-%c.log" , timestamp.c_str(), (char)((random() % 10)+'a') );
+    logfile = Format ( "%s-%c.log" , timestamp.c_str(), (char)(RandomLocal().GetInt(0,10)+'a') );
 #endif // DEBUG
   }
 
@@ -58,15 +52,11 @@ ChatLogger::ChatLogger() :
 
   std::string fn = logdir + logfile ;
 
-
   m_logfilename.open(fn.c_str(), std::ios::out | std::ios::app);
-  if(!m_logfilename)
-  {
-    std::string err = Format(_("Couldn't open file %s"), fn.c_str());
-    throw err;
-  }
-
-  this->LogMessage(timestamp);
+  if(m_logfilename.fail())
+    Error(Format(_("Couldn't open file %s"), fn.c_str()));
+  else
+    this->LogMessage(timestamp);
 }
 
 ChatLogger::~ChatLogger()
@@ -79,6 +69,9 @@ void ChatLogger::LogMessage(const std::string &msg)
   time_t t;
   struct tm lt, *plt;
   std::string timestamp;
+
+  if (m_logfilename.fail())
+    return;
 
   if ( ((time_t) -1) == time(&t) )
   {

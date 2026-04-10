@@ -60,6 +60,7 @@ typedef enum
   CONN_REJECTED,
   CONN_TIMEOUT,
   CONN_WRONG_PASSWORD,
+  CONN_WRONG_VERSION
 } connection_state_t;
 
 class Network : public Singleton<Network>
@@ -71,7 +72,8 @@ public:
       NETWORK_MENU_OK,
       NETWORK_LOADING_DATA,
       NETWORK_READY_TO_PLAY,
-      NETWORK_PLAYING
+      NETWORK_PLAYING,
+      NETWORK_NEXT_GAME
     } network_state_t;
 
 private:
@@ -81,13 +83,16 @@ private:
   friend class DistantComputer;
 
   std::string password;
-  connection_state_t GetError() const;
+  static connection_state_t GetError();
 
   static bool sdlnet_initialized;
   static int  num_objects;
 
   static bool stop_thread;
   bool turn_master_player;
+
+  std::string nickname; //Clients: Send to Server at connect
+                        //Server: Send in chat messages
 
   void ReceiveActions();
 
@@ -119,8 +124,6 @@ public:
 
   std::list<DistantComputer*> cpu; // list of the connected computer
   bool sync_lock;
-  std::string nickname; //Clients: Send to Server at connect
-                        //Server: Send in chat messages
 
   virtual ~Network();
 
@@ -137,11 +140,14 @@ public:
   uint GetPort() const;
   const std::string& GetPassword() const { return password; }
 
+  void SetNickname(const std::string& nickname);
+  const std::string& GetNickname() const;
+  std::string GetDefaultNickname() const;
+
   // Action handling
   void SendPacket(char* packet, int size) const;
-  virtual void SendAction(const Action* action) const;
+  virtual void SendAction(const Action& action) const;
 
-  virtual void SendChatMessage(const std::string& txt) = 0;
   virtual std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator closed) = 0;
 
   // Start a client
@@ -153,7 +159,7 @@ public:
 					const std::string& password);
 
   // Manage network state
-  connection_state_t CheckHost(const std::string &host, int prt) const;
+  static connection_state_t CheckHost(const std::string &host, int prt);
   void SetState(Network::network_state_t state);
   Network::network_state_t GetState() const;
   void SendNetworkState() const;
@@ -161,15 +167,15 @@ public:
   void SetTurnMaster(bool master);
   bool IsTurnMaster() const;
 
-  static void Send(TCPsocket& socket, const int& nbr);
-  static void Send(TCPsocket& socket, const std::string &str);
+  static bool Send(TCPsocket& socket, const int& nbr);
+  static bool Send(TCPsocket& socket, const std::string &str);
 
   static uint Batch(void* buffer, const int& nbr);
   static uint Batch(void* buffer, const std::string &str);
-  static void SendBatch(TCPsocket& socket, void* data, size_t len);
+  static bool SendBatch(TCPsocket& socket, void* data, size_t len);
 
   static int ReceiveInt(SDLNet_SocketSet& sock_set, TCPsocket& socket, int& nbr);
-  static int ReceiveStr(SDLNet_SocketSet& sock_set, TCPsocket& socket, std::string &str);
+  static int ReceiveStr(SDLNet_SocketSet& sock_set, TCPsocket& socket, std::string &str, size_t maxlen);
 };
 
 //-----------------------------------------------------------------------------

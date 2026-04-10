@@ -50,15 +50,18 @@ using namespace std;
 #include "menu/main_menu.h"
 #include "menu/network_connection_menu.h"
 #include "menu/options_menu.h"
+#include "menu/skin_menu.h"
 #include "network/index_server.h"
 #include "particles/particle.h"
 #include "sound/jukebox.h"
 #include "tool/debug.h"
 #include "tool/i18n.h"
+#include "tool/random.h"
 
 static MainMenu::menu_item choice = MainMenu::NONE;
 static bool skip_menu = false;
-//static NetworkConnectionMenu::network_menu_action_t net_action = NetworkConnectionMenu::NET_BROWSE_INTERNET;
+static const char* skin = NULL;
+static NetworkConnectionMenu::network_menu_action_t net_action = NetworkConnectionMenu::NET_NOTHING;
 
 AppWormux *AppWormux::singleton = NULL;
 
@@ -76,7 +79,7 @@ AppWormux::AppWormux():
   menu(NULL)
 {
   JukeBox::GetInstance()->Init();
-
+  RandomLocal().InitRandom();
   cout << "[ " << _("Run game") << " ]" << endl;
 }
 
@@ -122,9 +125,8 @@ int AppWormux::Main(void)
         }
         case MainMenu::NETWORK:
         {
-          NetworkConnectionMenu network_connection_menu;
+          NetworkConnectionMenu network_connection_menu(net_action);
           menu = &network_connection_menu;
-          //network_connection_menu.SetAction(net_action);
           network_connection_menu.Run(skip_menu);
           break;
         }
@@ -151,13 +153,21 @@ int AppWormux::Main(void)
         }
         case MainMenu::QUIT:
           quit = true;
+          break;
+        case MainMenu::SKIN_VIEWER:
+        {
+          SkinMenu skin_menu(skin);
+          menu = &skin_menu;
+          skin_menu.Run();
+          break;
+        }
         default:
           break;
       }
       menu = NULL;
       choice = MainMenu::NONE;
       skip_menu = false;
-      //net_action = NetworkConnectionMenu::NET_BROWSE_INTERNET;
+      net_action = NetworkConnectionMenu::NET_NOTHING;
     }
     while (!quit);
 
@@ -166,8 +176,9 @@ int AppWormux::Main(void)
   catch(const exception & e)
   {
     cerr << endl
-      << "C++ exception caught:" << endl
-      << e.what() << endl << endl;
+	 << "C++ exception caught:" << endl
+	 << e.what() << endl << endl;
+    AppWormux::DisplayError(e.what());
     WakeUpDebugger();
   }
   catch(...)
@@ -227,6 +238,30 @@ void AppWormux::RefreshDisplay()
   }
 }
 
+void AppWormux::DisplayError(const std::string &msg)
+{
+  if (singleton == NULL) {
+    std::cerr << msg << std::endl;
+    return;
+  }
+
+  if (Game::GetInstance()->IsGameLaunched()) {
+    // nothing to do
+  } else if (singleton->menu) {
+      singleton->menu->DisplayError(msg);
+  }
+}
+
+void AppWormux::ReceiveMsgCallback(const std::string& msg)
+{
+  if (Game::GetInstance()->IsGameLaunched()) {
+    //Add message to chat session in Game
+    Game::GetInstance()->chatsession.NewMessage(msg);
+  } else if (menu) {
+    menu->ReceiveMsgCallback(msg);
+  }
+}
+
 void AppWormux::End() const
 {
   cout << endl << "[ " << _("Quit Wormux") << " ]" << endl;
@@ -274,6 +309,26 @@ void DisplayWelcomeMessage()
 #endif
 }
 
+void PrintUsage(const char* cmd_name)
+{
+  printf("usage: \n");
+  printf("%s -h|--help : show this help\n", cmd_name);
+  printf("%s -v|--version : show the version\n", cmd_name);
+  printf("%s -r|--reset-config : reset the configuration to default\n", cmd_name);
+  printf("%s -y|--skin-viewer [team] : start the skin viewer (for development only)\n", cmd_name);
+  printf("%s [-p|--play] [-g|--game-mode <game_mode>]"
+	 " [-s|--server] [-c|--client [ip]]\n"
+	 " [-l [ip/hostname of index server]]\n"
+#ifdef DEBUG
+	 " [-d|--debug <debug_masks>|all]\n"
+#endif
+	 , cmd_name);
+#ifdef DEBUG
+  printf("\nWith :\n");
+  printf(" <debug_masks> ::= { action | action_handler | action_handler.menu | ai | ai.move | body | body_anim | body.state | bonus | box | camera.follow | camera.shake | camera.tracking | character | character.collision | character.energy | damage | downloader | explosion | game | game.endofturn | game_mode | game.statechange | ghost | grapple.break | grapple.hook | grapple.node | ground_generator.element | index_server | jukebox | jukebox.cache | jukebox.play | lst_objects | map | map.collision | map.load | map.random | menu | mine | mouse | network | network.crc | network.crc_bad | network.traffic | network.turn_master | physical | physical.mem | physic.compute | physic.fall | physic.move | physic.overlapping | physic.pendulum | physic.physic | physic.position | physic.state | physic.sync | random | random.get | singleton | socket | sprite | team | test_rectangle | weapon | weapon.change | weapon.handposition | weapon.projectile | weapon.shoot | widget.border | wind | xml | xml.tree }\n");
+#endif
+}
+
 void ParseArgs(int argc, char * argv[])
 {
   int c;
@@ -284,39 +339,27 @@ void ParseArgs(int argc, char * argv[])
       {"blitz",      no_argument,       NULL, 'b'},
       {"version",    no_argument,       NULL, 'v'},
       {"play",       no_argument,       NULL, 'p'},
-      {"internet",   no_argument,       NULL, 'i'},
       {"client",     optional_argument, NULL, 'c'},
       {"server",     no_argument,       NULL, 's'},
+      {"skin-viewer",optional_argument, NULL, 'y'},
       {"game-mode",  required_argument, NULL, 'g'},
       {"debug",      required_argument, NULL, 'd'},
+      {"reset-config", no_argument,     NULL, 'r'},
       {NULL,         no_argument,       NULL,  0 }
     };
 
-  while ((c = getopt_long (argc, argv, "hbvpic::l::sg:d:",
+  while ((c = getopt_long (argc, argv, "hbvpc::l::sy::g:d:",
                            long_options, &option_index)) != -1)
     {
       switch (c)
         {
         case 'h':
-          printf("usage: %s [-h|--help] [-v|--version] [-p|--play]"
-                 " [-i|--internet] [-s|--server] [-c|--client [ip]]\n"
-		 " [-g|--game-mode <game_mode>]"
-#ifdef DEBUG
-                 " [-d|--debug <debug_masks>|all]\n"
-#endif
-                 " [-l [ip/hostname]]\n", argv[0]);
-#ifdef DEBUG
-          printf("\nWith :\n");
-          printf(" <debug_masks> ::= { action | action_handler | action_handler.menu | ai | ai.move | body | body_anim | body.state | bonus | box | camera.follow | camera.shake | camera.tracking | character | character.collision | character.energy | damage | downloader | explosion | game | game.endofturn | game_mode | game.statechange | ghost | grapple.break | grapple.hook | grapple.node | ground_generator.element | index_server | jukebox | jukebox.cache | jukebox.play | lst_objects | map | map.collision | map.load | map.random | menu | mine | mouse | network | network.crc | network.crc_bad | network.traffic | network.turn_master | physical | physical.mem | physic.compute | physic.fall | physic.move | physic.overlapping | physic.pendulum | physic.physic | physic.position | physic.state | physic.sync | random | random.get | singleton | socket | sprite | team | test_rectangle | weapon | weapon.change | weapon.handposition | weapon.projectile | weapon.shoot | widget.border | wind }\n");
-#endif
-          exit(0);
-          break;
-        case 'b':
-          Game::SetMode(Game::BLITZ);
+	  PrintUsage(argv[0]);
+          exit(EXIT_SUCCESS);
           break;
         case 'v':
           DisplayWelcomeMessage();
-          exit(0);
+          exit(EXIT_SUCCESS);
           break;
         case 'p':
           choice = MainMenu::PLAY;
@@ -324,10 +367,10 @@ void ParseArgs(int argc, char * argv[])
           break;
         case 'c':
           choice = MainMenu::NETWORK;
-          //net_action = NetworkConnectionMenu::NET_CONNECT_LOCAL;
+          net_action = NetworkConnectionMenu::NET_CONNECT;
           if (optarg)
             {
-              Config::GetInstance()->SetNetworkHost(optarg);
+              Config::GetInstance()->SetNetworkClientHost(optarg);
             }
           skip_menu = true;
           break;
@@ -341,22 +384,35 @@ void ParseArgs(int argc, char * argv[])
           break;
         case 's':
           choice = MainMenu::NETWORK;
-          //net_action = NetworkConnectionMenu::NET_HOST;
-          skip_menu = true;
-          break;
-        case 'i':
-          choice = MainMenu::NETWORK;
-          //net_action = NetworkConnectionMenu::NET_BROWSE_INTERNET;
+          net_action = NetworkConnectionMenu::NET_HOST;
           skip_menu = true;
           break;
         case 'l':
           if (optarg) IndexServer::GetInstance()->SetLocal(optarg);
           else        IndexServer::GetInstance()->SetLocal();
           break;
+        case 'y':
+          choice = MainMenu::SKIN_VIEWER;
+          skin = optarg;
+          skip_menu = true;
+          break;
 	case 'g':
 	  printf("Game-mode: %s\n", optarg);
 	  Config::GetInstance()->SetGameMode(optarg);
 	  break;
+	case 'r':
+	  {
+	    bool r;
+	    r = Config::GetInstance()->RemovePersonalConfigFile();
+	    if (!r)
+	      exit(EXIT_FAILURE);
+	    exit(EXIT_SUCCESS);
+	  }
+	  break;
+	default:
+	  fprintf(stderr, "Unknow option %c", c);
+	  PrintUsage(argv[0]);
+	  exit(EXIT_FAILURE);
         }
     }
 }

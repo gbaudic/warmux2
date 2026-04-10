@@ -24,22 +24,29 @@
 #define SOUND_SAMPLE_H
 //-----------------------------------------------------------------------------
 #include <string>
+#include <map>
 //-----------------------------------------------------------------------------
 
 class SoundSample
 {
  private:
+  static std::map<int, SoundSample*> sound_samples_channel;
   int channel;
 
  public:
   SoundSample();
+  ~SoundSample();
 
-  void Play(const std::string& category,
+  // return false if sound can't be played because it is already playing
+  bool Play(const std::string& category,
             const std::string& sample,
             const int loop = 1);
   void Stop();
 
   bool IsPlaying();
+
+
+  static void ChannelFinished(int channel);
 };
 //-----------------------------------------------------------------------------
 #endif

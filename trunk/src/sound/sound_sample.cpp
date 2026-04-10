@@ -24,25 +24,61 @@
 #include "sound/sound_sample.h"
 #include "sound/jukebox.h"
 
+std::map<int, SoundSample*> SoundSample::sound_samples_channel;
+
+void SoundSample::ChannelFinished(int channel)
+{
+  std::map<int, SoundSample*>::iterator it=sound_samples_channel.find(channel);
+
+  if (it != sound_samples_channel.end()) {
+    SoundSample* s = it->second;
+    s->channel = -1;
+    sound_samples_channel.erase(it);
+  }
+}
+
 SoundSample::SoundSample() : channel(-1)
 {}
 
-void SoundSample::Play(const std::string& category,
+SoundSample::~SoundSample()
+{
+  if (channel == -1)
+    return;
+
+  // removing sample from the table
+  std::map<int, SoundSample*>::iterator it=sound_samples_channel.find(channel);
+
+  if (it != sound_samples_channel.end()) {
+    SoundSample* s = it->second;
+    ASSERT(s == this);
+    sound_samples_channel.erase(it);
+  }
+}
+
+bool SoundSample::Play(const std::string& category,
                        const std::string& sample,
                        const int loop)
 {
-  channel = JukeBox::GetInstance()->Play(category, sample, loop);
+  if (!IsPlaying()) {
+    channel = JukeBox::GetInstance()->Play(category, sample, loop);
+    sound_samples_channel.insert(std::make_pair(channel, this));
+    return true;
+  }
+  return false;
 }
 
 void SoundSample::Stop()
 {
-  if (channel != -1)
+  if (IsPlaying())
     JukeBox::GetInstance()->Stop(channel);
   channel = -1;
 }
 
 bool SoundSample::IsPlaying()
 {
+  if (channel == -1)
+    return false;
+
   return Mix_Playing(channel)>0;
 }
 

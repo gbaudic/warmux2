@@ -41,7 +41,7 @@ class ClusterBombConfig : public ExplosiveWeaponConfig
 public:
   uint nb_fragments;
   ClusterBombConfig();
-  virtual void LoadXml(xmlNode* elem);
+  virtual void LoadXml(const xmlNode* elem);
 };
 
 class Cluster : public WeaponProjectile
@@ -160,7 +160,7 @@ void ClusterBomb::DoExplosion()
   {
     double angle = -M_PI / 2; // this angle is "upwards" here
     double cluster_deviation = angle_range * i / ( float )fragments - angle_range / 2.0f;
-    double speed = randomSync.GetDouble(10, 25);
+    double speed = RandomSync().GetDouble(10, 25);
 
     cluster = new Cluster(static_cast<ClusterBombConfig &>(cfg), launcher);
     cluster->Shoot( pos, speed, angle + cluster_deviation );
@@ -215,7 +215,7 @@ ClusterBombConfig::ClusterBombConfig() :
   nb_fragments = 5;
 }
 
-void ClusterBombConfig::LoadXml(xmlNode* elem)
+void ClusterBombConfig::LoadXml(const xmlNode* elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "nb_fragments", nb_fragments);

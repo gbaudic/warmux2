@@ -58,7 +58,11 @@
 #  include <arpa/nameser.h>
 #  include <resolv.h>
 #  include <errno.h>
+#  include <unistd.h>
 #endif
+
+#include "team/team.h"
+#include "team/teams_list.h"
 
 //-----------------------------------------------------------------------------
 
@@ -98,16 +102,7 @@ Network::Network(const std::string& passwd):
   cpu(),
   sync_lock(false)
 {
-  const char *nick = NULL;
-#ifdef WIN32
-  char  buffer[32];
-  DWORD size = 32;
-  if (GetUserName(buffer, &size))
-    nick = buffer;
-#else
-  nick = getenv("USER");
-#endif
-  nickname = (nick) ? nick : _("Unnamed");
+  nickname = GetDefaultNickname();
   sdlnet_initialized = false;
   num_objects++;
 }
@@ -135,6 +130,34 @@ Network::~Network()
 
 //-----------------------------------------------------------------------------
 
+std::string Network::GetDefaultNickname() const
+{
+  std::string s_nick;
+  const char *nick = NULL;
+#ifdef WIN32
+  char  buffer[32];
+  DWORD size = 32;
+  if (GetUserName(buffer, &size))
+    nick = buffer;
+#else
+  nick = getenv("USER");
+#endif
+  s_nick = (nick) ? nick : _("Unnamed");
+  return s_nick;
+}
+
+void Network::SetNickname(const std::string& _nickname)
+{
+  nickname = _nickname;
+}
+
+const std::string& Network::GetNickname() const
+{
+  return nickname;
+}
+
+//-----------------------------------------------------------------------------
+
 bool Network::ThreadToContinue() const
 {
   return !stop_thread;
@@ -154,7 +177,7 @@ void Network::ReceiveActions()
 
   while (ThreadToContinue()) // While the connection is up
   {
-    if (state == NETWORK_PLAYING && cpu.size() == 0)
+    if (state == NETWORK_PLAYING && cpu.empty())
     {
       // If while playing everybody disconnected, just quit
       break;
@@ -165,15 +188,6 @@ void Network::ReceiveActions()
     {
       WaitActionSleep();
 
-      if (cpu.empty()) {
-        if (IsClient()) {
-          fprintf(stderr, "you are alone!\n");
-	  stop_thread = true;
-        }
-        // Even for server, as Visual Studio in debug mode has trouble with that loop
-	continue;
-      }
-
       // Check forced disconnections
       for (dst_cpu = cpu.begin();
            ThreadToContinue() && dst_cpu != cpu.end();
@@ -182,10 +196,21 @@ void Network::ReceiveActions()
         if((*dst_cpu)->force_disconnect)
         {
           dst_cpu = CloseConnection(dst_cpu);
-          continue;
+          if (cpu.empty())
+            break; // Let it be handled afterwards
         }
       }
 
+      // List is now maybe empty
+      if (cpu.empty()) {
+        if (IsClient()) {
+          fprintf(stderr, "you are alone!\n");
+	  stop_thread = true;
+          return; // We really don't need to go through the loops
+        }
+        // Even for server, as Visual Studio in debug mode has trouble with that loop
+	continue;
+      }
       int num_ready = SDLNet_CheckSockets(socket_set, 100);
       // Means something is available
       if (num_ready>0)
@@ -209,8 +234,14 @@ void Network::ReceiveActions()
         if( packet_size == -1) { // An error occured during the reception
           dst_cpu = CloseConnection(dst_cpu);
           // Please Visual Studio that in debug mode has trouble with continuing
-          if (cpu.empty())
+          if (cpu.empty()) {
+            if (IsClient()) {
+              fprintf(stderr, "you are alone!\n");
+	      stop_thread = true;
+              return; // We really don't need to go through the loops
+            }
             break;
+          }
           continue;
         } else
         if (packet_size == 0) // We didn't receive the full packet yet
@@ -226,9 +257,6 @@ void Network::ReceiveActions()
 #endif
 
         Action* a = new Action(packet, (*dst_cpu));
-#ifdef DEBUG
-        MSG_DEBUG("network.crc", "CRC : received %d, computed %d", a->GetCRC(), a->ComputeCRC());
-#endif
         if(!a->CheckCRC()) {
           MSG_DEBUG("network.crc_bad","!!! Bad CRC for action received !!!");
           delete a;
@@ -238,6 +266,15 @@ void Network::ReceiveActions()
           HandleAction(a, *dst_cpu);
         }
         free(packet);
+
+        if (cpu.empty()) {
+          if (IsClient()) {
+            fprintf(stderr, "you are alone!\n");
+            stop_thread = true;
+            return; // We really don't need to go through the loops
+          }
+          break;
+        }
       }
     }
   }
@@ -312,7 +349,8 @@ typedef int SOCKET;
 # define closesocket(fd) close(fd)
 #endif
 
-connection_state_t Network::GetError() const
+// static method
+connection_state_t Network::GetError()
 {
 #ifdef WIN32
   int code = WSAGetLastError();
@@ -338,7 +376,8 @@ connection_state_t Network::GetError() const
 #endif
 }
 
-connection_state_t Network::CheckHost(const std::string &host, int prt) const
+// static method
+connection_state_t Network::CheckHost(const std::string &host, int prt)
 {
   MSG_DEBUG("network", "Checking connection to %s:%i", host.c_str(), prt);
 
@@ -394,14 +433,14 @@ connection_state_t Network::CheckHost(const std::string &host, int prt) const
 //-----------------------------------------------------------------------------
 
 // Send Messages
-void Network::SendAction(const Action* a) const
+void Network::SendAction(const Action& a) const
 {
   MSG_DEBUG("network.traffic","Send action %s",
-            ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+            ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str());
 
   int size;
   char* packet;
-  a->WritePacket(packet, size);
+  a.WriteToPacket(packet, size);
 
   ASSERT(packet != NULL);
   SendPacket(packet, size);
@@ -519,7 +558,7 @@ void Network::SendNetworkState() const
 {
   Action a(Action::ACTION_NETWORK_CHANGE_STATE);
   a.Push(state);
-  SendAction(&a);
+  SendAction(a);
 }
 
 void Network::SetTurnMaster(bool master)
@@ -539,20 +578,31 @@ bool Network::IsTurnMaster() const
 // Static methods usefull to communicate without action
 // (index server, handshake, ...)
 
-void Network::Send(TCPsocket& socket, const int& nbr)
+bool Network::Send(TCPsocket& socket, const int& nbr)
 {
   char packet[4];
   // this is not cute, but we don't want an int -> uint conversion here
   Uint32 u_nbr = *((const Uint32*)&nbr);
 
   SDLNet_Write32(u_nbr, packet);
-  SDLNet_TCP_Send(socket, packet, sizeof(packet));
+  int len = SDLNet_TCP_Send(socket, packet, sizeof(packet));
+  if (len < int(sizeof(packet)))
+    return false;
+
+  return true;
 }
 
-void Network::Send(TCPsocket& socket, const std::string &str)
+bool Network::Send(TCPsocket& socket, const std::string &str)
 {
-  Send(socket, str.size());
-  SDLNet_TCP_Send(socket, (void*)str.c_str(), str.size());
+  bool r = Send(socket, str.size());
+  if (!r)
+    return false;
+
+  int len = SDLNet_TCP_Send(socket, (void*)str.c_str(), str.size());
+  if (len < int(str.size()))
+    return false;
+
+  return true;
 }
 
 uint Network::Batch(void* buffer, const int& nbr)
@@ -575,10 +625,16 @@ uint Network::Batch(void* buffer, const std::string &str)
 
 // A batch consists in a msg id, a size, and the batch itself.
 // Size wasn't known yet, so write it now.
-void Network::SendBatch(TCPsocket& socket, void* data, size_t len)
+bool Network::SendBatch(TCPsocket& socket, void* data, size_t len)
 {
   SDLNet_Write32(len, (void*)( ((char*)data)+4 ) );
-  SDLNet_TCP_Send(socket, data, len);
+
+  int size = SDLNet_TCP_Send(socket, data, len);
+  if (size < int(len)) {
+    MSG_DEBUG("network", "size = %d", size);
+    return false;
+  }
+  return true;
 }
 
 int Network::ReceiveInt(SDLNet_SocketSet& sock_set, TCPsocket& socket, int& nbr)
@@ -611,7 +667,7 @@ int Network::ReceiveInt(SDLNet_SocketSet& sock_set, TCPsocket& socket, int& nbr)
   return r;
 }
 
-int Network::ReceiveStr(SDLNet_SocketSet& sock_set, TCPsocket& socket, std::string &_str)
+int Network::ReceiveStr(SDLNet_SocketSet& sock_set, TCPsocket& socket, std::string &_str, size_t maxlen)
 {
   int r;
   uint size = 0;
@@ -624,6 +680,11 @@ int Network::ReceiveStr(SDLNet_SocketSet& sock_set, TCPsocket& socket, std::stri
 
   if (size == 0) {
     _str = "";
+    goto out;
+  }
+
+  if (size > maxlen) {
+    r = -1;
     goto out;
   }
 

@@ -33,6 +33,8 @@
 #include "map/camera.h"
 #include "map/map.h"
 #include "network/network.h"
+#include "sound/jukebox.h"
+#include "team/custom_team.h"
 #include "tool/debug.h"
 #include "tool/i18n.h"
 #include "tool/file_tools.h"
@@ -122,6 +124,10 @@ bool Team::LoadCharacters()
 
     // Create a new character and add him to the team
     Character new_character(*this, character_name, body);
+    if((attached_custom_team != NULL) && (IsLocal()) && !Network::IsConnected())
+    {
+      new_character.SetCustomName(attached_custom_team->GetCharactersNameList().at(characters.size()));
+    }
     characters.push_back(new_character);
     active_character = characters.begin(); // we need active_character to be initialized here !!
     if (!characters.back().PutRandomly(false, world.GetDistanceBetweenCharacters()))
@@ -248,6 +254,8 @@ int Team::NbAliveCharacter() const
 // Prepare a new team turn
 void Team::PrepareTurn()
 {
+  current_turn++;
+
   // Get a living character if possible
   if (ActiveCharacter().IsDead())
   {
@@ -260,6 +268,18 @@ void Team::PrepareTurn()
                           !is_camera_saved);
   CharacterCursor::GetInstance()->FollowActiveCharacter();
 
+  // Updating weapon ammos (some weapons are not available from the beginning)
+  std::list<Weapon *> l_weapons_list = WeaponsList::GetInstance()->GetList() ;
+  std::list<Weapon *>::iterator itw = l_weapons_list.begin(),
+  end = l_weapons_list.end();
+  for (; itw != end ; ++itw) {
+    if ((*itw)->AvailableAfterTurn() == (int)current_turn) {
+      // this weapon is available now
+      m_nb_ammos[ (*itw)->GetType() ] += (*itw)->ReadInitialNbAmmo();
+      m_nb_units[ (*itw)->GetType() ] += (*itw)->ReadInitialNbUnit();
+    }
+  }
+
   // Active last weapon use if EnoughAmmo
   if (AccessWeapon().EnoughAmmo())
     AccessWeapon().Select();
@@ -267,6 +287,10 @@ void Team::PrepareTurn()
     active_weapon = WeaponsList::GetInstance()->GetWeapon(Weapon::WEAPON_BAZOOKA);
     AccessWeapon().Select();
   }
+
+  // Sound the bell, so the local players know when it is their turn
+  if (IsLocal())
+    JukeBox::GetInstance()->Play("share", "start_turn");
 }
 
 Character& Team::ActiveCharacter() const
@@ -340,6 +364,8 @@ Character* Team::FindByIndex(uint index)
 
 void Team::LoadGamingData()
 {
+  current_turn = 0;
+
   // Reset ammos
   m_nb_ammos.clear();
   m_nb_units.clear();
@@ -351,8 +377,15 @@ void Team::LoadGamingData()
   m_nb_units.assign(l_weapons_list.size(), 0);
 
   for (; itw != end ; ++itw) {
-    m_nb_ammos[ (*itw)->GetType() ] = (*itw)->ReadInitialNbAmmo();
-    m_nb_units[ (*itw)->GetType() ] = (*itw)->ReadInitialNbUnit();
+    if ((*itw)->AvailableAfterTurn() == 0) {
+      // this weapon is available now
+      m_nb_ammos[ (*itw)->GetType() ] = (*itw)->ReadInitialNbAmmo();
+      m_nb_units[ (*itw)->GetType() ] = (*itw)->ReadInitialNbUnit();
+    } else {
+      // this weapon will be available later
+      m_nb_ammos[ (*itw)->GetType() ] = 0;
+      m_nb_units[ (*itw)->GetType() ] = 0;
+    }
   }
 
   // Disable non-working weapons in network games
@@ -402,3 +435,17 @@ bool Team::IsActiveTeam() const
 {
   return this == &ActiveTeam();
 }
+
+void Team::SetDefaultPlayingConfig()
+{
+  SetLocal();
+  SetPlayerName("");
+  SetNbCharacters(GameMode::GetInstance()->nb_characters);
+}
+
+void Team::AttachCustomTeam(CustomTeam *custom_team)
+{
+      std::cout<<"Team::Attach"<<std::endl;
+ attached_custom_team = custom_team;
+}
+

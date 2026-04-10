@@ -73,6 +73,8 @@ Client::Client(int client_fd, unsigned int & ip)
   handshake_done = false;
   is_hosting = false;
   Host(client_fd, ip);
+
+  DPRINT(MSG, "Client: Creation of client(%d, %d)\n", client_fd, ip);
 }
 
 Client::~Client()
@@ -85,75 +87,8 @@ Client::~Client()
           NotifyServers( false );
         }
     }
-}
 
-typedef int SOCKET;
-#define SOCKET_PARAM    void
-#define SOCKET_ERROR    (-1)
-#define INVALID_SOCKET  (-1)
-#define closesocket(fd) close(fd)
-
-/* Nearly copy/paste from wormux/src/network/network.cpp::CheckHost */
-static bool CheckHost(const int ip, int prt)
-{
-  unsigned char* str_ip = (unsigned char*)&ip;
-  char formated_ip[16];
-  snprintf(formated_ip, 16, "%i.%i.%i.%i", (int)str_ip[0],
-           (int)str_ip[1],
-           (int)str_ip[2],
-           (int)str_ip[3]);
-
-  std::string host = std::string(formated_ip);
-
-  DPRINT(CONN, "Checking connection to %s:%i", host.c_str(), prt);
-
-  struct hostent* hostinfo;
-  hostinfo = gethostbyname(host.c_str());
-  if( ! hostinfo )
-    return false /*CONN_BAD_HOST*/;
-
-  SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
-  if( fd == INVALID_SOCKET )
-    return false /*CONN_BAD_SOCKET*/;
-
-  // Set the timeout
-#ifdef WIN32
-  int timeout = 5000; //ms
-#else
-  struct timeval timeout;
-  memset(&timeout, 0, sizeof(timeout));
-  timeout.tv_sec = 5; // 5seconds timeout
-#endif
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
-    {
-      fprintf(stderr, "Setting receive timeout on socket failed\n");
-      return false /*CONN_BAD_SOCKET*/;
-    }
-
-  if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
-    {
-      fprintf(stderr, "Setting send timeout on socket failed\n");
-      return false /*CONN_BAD_SOCKET*/;
-    }
-
-  struct sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(prt);
-#ifndef WIN32
-  addr.sin_addr.s_addr = *(in_addr_t*)*hostinfo->h_addr_list;
-#else
-  addr.sin_addr.s_addr = inet_addr(inet_ntoa (*(struct in_addr *)*hostinfo->h_addr_list));
-#endif
-
-  if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == SOCKET_ERROR )
-    {
-      return false /*GetError()*/;
-    }
-  closesocket(fd);
-
-  DPRINT(CONN, "Checking connection to %s:%i : OK", host.c_str(), prt);
-  return true /*CONNECTED*/;
+  DPRINT(MSG, "Client: Deletion of client(%d, %d)\n", GetFD(), GetIP());
 }
 
 bool Client::HandShake(const std::string & version)
@@ -162,33 +97,45 @@ bool Client::HandShake(const std::string & version)
     return false;
 
   if (version == "0.8"
-      || version == "0.8svn")
+      || version == "0.8.1"
+      || version == "0.8.1svn")
     {
-      DPRINT(MSG, "Version checked successfully");
-      handshake_done = true;
-      SetVersion( version );
-      msg_id = TS_NO_MSG;
       stats.NewClient();
-      return SendSignature();
+      if (!SendSignature())
+	goto error;
     }
   else if (version == "WIS")
     {
       DPRINT(MSG, "New index server connected");
-      // Send our version, the distant server will shutdown if he has a lower version
-      SetVersion( version );
-      SendInt((int) TS_MSG_WIS_VERSION );
-      SendInt( VERSION );
-      // We are ready to read a new message
-      msg_id = TS_NO_MSG;
-      handshake_done = true;
-      return true;
+
+      if (!SendInt((int) TS_MSG_WIS_VERSION ))
+	goto error;
+
+      if (!SendInt( VERSION ))
+	goto error;
     }
+  else
+    {
+      DPRINT(MSG, "Bad client version: %s", version.c_str());
+      RejectBadVersion();
+      goto error;
+    }
+
+  AddMeToClientsList( version );
+  msg_id = TS_NO_MSG;
+
+  handshake_done = true;
+  DPRINT(MSG, "Handshake : OK");
+  return true;
+
+ error:
+  DPRINT(MSG, "Handshake failure");
   return false;
 }
 
 bool Client::RegisterWormuxServer()
 {
-  if (received < 4)
+  if (BytesReceived() < 4)
     return true;
 
   DPRINT(MSG, "This is a server (%s)", version.c_str());
@@ -202,19 +149,37 @@ bool Client::RegisterWormuxServer()
   if (!ReceiveInt(port))
     return false;
 
-  // try opening a connection to see if it's
-  // firewalled or not
-  if (!CheckHost(GetIP(), port)) {
+  // try opening a connection to see if it's firewalled or not
+  unsigned char* str_ip = (unsigned char*)&(GetIP());
+  char formated_ip[16];
+  snprintf(formated_ip, 16, "%i.%i.%i.%i", (int)str_ip[0],
+           (int)str_ip[1],
+           (int)str_ip[2],
+           (int)str_ip[3]);
+
+  int lfd = NetData::GetConnection(formated_ip, port);
+
+  if (lfd == -1) {
     DPRINT(MSG, "server is not reachable");
     // answer to the server
-    SendStr("UNREACHABLE");
+    if (!SendStr("UNREACHABLE"))
+      goto err_send;
+
     return false;
   }
+  close(lfd);
 
-  SendStr("OK");
+  DPRINT(INFO, "Connection to %s:%i : OK", formated_ip, port);
+  if (!SendStr("OK"))
+    goto err_send;
+
   NotifyServers(true);
   stats.NewServer();
   return true;
+
+ err_send:
+  DPRINT(MSG, "Fail to register new game server");
+  return false;
 }
 
 bool Client::HandleMsg(enum IndexServerMsg msg_id)
@@ -284,7 +249,7 @@ bool Client::HandleMsg(enum IndexServerMsg msg_id)
   return r;
 }
 
-void Client::SetVersion(const std::string & ver)
+void Client::AddMeToClientsList(const std::string & ver)
 {
   DPRINT(MSG, "Setting version to %s", ver.c_str());
   version = ver;
@@ -310,9 +275,43 @@ void Client::SetVersion(const std::string & ver)
 
 bool Client::SendSignature()
 {
+  bool r;
   DPRINT(MSG, "Sending signature");
-  SendInt((int)TS_MSG_VERSION);
-  return SendStr("MassMurder!");
+
+  r = SendInt((int)TS_MSG_VERSION);
+  if (!r)
+    goto err_send;
+  r = SendStr("MassMurder!");
+  if (!r)
+    goto err_send;
+
+  return true;
+
+ err_send:
+  DPRINT(MSG, "Fail to send signature");
+  return false;
+}
+
+bool Client::RejectBadVersion()
+{
+  bool r;
+  DPRINT(MSG, "Rejecting wrong version client");
+
+  r = SendInt((int)TS_MSG_VERSION);
+  if (!r)
+    goto err_send;
+  r = SendStr("Bad version");
+  if (!r)
+    goto err_send;
+  r = SendStr("0.8, 0.8.1, 0.8.1svn");
+  if (!r)
+    goto err_send;
+
+  return true;
+
+ err_send:
+  DPRINT(MSG, "Fail to send bad version msg");
+  return false;
 }
 
 bool Client::SendList()
@@ -427,3 +426,4 @@ void Client::NotifyServers(bool joining)
     }
   return /*true*/;
 }
+

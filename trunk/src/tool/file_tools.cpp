@@ -22,10 +22,15 @@
 #include "tool/file_tools.h"
 #include <fstream>
 #include <sys/stat.h>
+#include <errno.h>
+
 #ifdef WIN32
    // To get SHGetSpecialFolderPath
 #  define _WIN32_IE   0x400
 #  include <shlobj.h>
+#  include <io.h>
+#  include <direct.h>
+#  undef DeleteFile  // windows.h defines it I think
 #else
 #  include <stdlib.h> // getenv
 #endif
@@ -50,6 +55,61 @@ bool IsFolderExist(const std::string &name)
         return false;
   return (stat_file.st_mode & S_IFMT) == S_IFDIR;
 }
+
+#ifndef WIN32
+#  define MKDIR(dir) (mkdir(dir, 0750))
+#else
+#  define MKDIR(dir) (_mkdir(dir))
+#  define rmdir(dir) (_rmdir(dir))
+#endif
+
+bool CreateFolder(const std::string &name)
+{
+  if (IsFolderExist(name))
+    return true; // folder is already existing, nothing to do :-)
+
+  std::string dir = name;
+  std::string subdir;
+  std::size_t pos;
+
+  // Create the needed parent folders
+  pos = dir.find("/");
+  while (pos != dir.npos) {
+    subdir = dir.substr(0, pos);
+    printf("%s\n", subdir.c_str());
+
+    if (subdir.size() != 0) {
+      // Create the directory if it doesn't exist
+      if (MKDIR(subdir.c_str()) != 0 && errno != EEXIST)
+        return false;
+    }
+    pos = dir.find("/", pos+1);
+  }
+
+  // Create the directory if it doesn't exist
+  if (MKDIR(dir.c_str()) != 0 && errno != EEXIST)
+    return false;
+
+  return true;
+}
+
+
+// Delete the folder if it exists
+bool DeleteFolder(const std::string &name)
+{
+  if (IsFolderExist(name)){
+    return (rmdir(name.c_str())==0);
+  }
+  return false;
+}
+
+
+// Delete the file if it exists
+bool DeleteFile(const std::string &name)
+{
+  return (remove(name.c_str()) == 0);
+}
+
 
 // Find the extension part of a filename
 std::string FileExtension (const std::string &name)
@@ -178,3 +238,26 @@ std::string TranslateDirectory(const std::string &directory)
   }
   return txt;
 }
+
+std::string FormatFileName(const std::string &name)
+{
+ std::string formated_name = name;
+
+    for(unsigned i = 0;i<formated_name.size();i++)
+    {
+      if(formated_name[i] == ' '){
+          formated_name[i] = '_';
+      }
+      if(formated_name[i] == '.'){
+          formated_name[i] = '_';
+      }
+      if(formated_name[i] == '/'){
+          formated_name[i] = '_';
+      }
+      if(formated_name[i] == '\\'){
+          formated_name[i] = '_';
+      }
+    }
+  return formated_name;
+}
+

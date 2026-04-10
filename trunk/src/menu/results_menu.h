@@ -31,6 +31,7 @@ class PictureWidget;
 class TeamResults;
 class Team;
 class MultiTabs;
+class TalkBox;
 
 class ResultsMenu : public Menu
 {
@@ -42,38 +43,20 @@ class ResultsMenu : public Menu
     const Team *first_team, *second_team, *third_team;
     int     index;
 
-    MultiTabs * tabs;
+    MultiTabs *tabs;
+    MultiTabs *stats;
 
-    // Box sizes
-    int     max_height;
-    Point2i team_size;
-    Point2i type_size;
-    Point2i name_size;
-    Point2i score_size;
-
-    /* Team controllers */
-    Button  *bt_prev_team;
-    Button  *bt_next_team;
-    PictureWidget *team_logo;
-    Label   *team_name;
-    Box    *team_box;
+    /* Chat controller */
+    TalkBox* msg_box;
 
     Box    *winner_box;
-    Box    *statistics_box;
-    ResultBox* most_violent;
-    ResultBox* most_useful;
-    ResultBox* most_useless;
-    ResultBox* biggest_traitor;
-    ResultBox* most_clumsy;
-    ResultBox* most_accurate;
-
     Surface podium_img;
 
+    void key_ok();
     bool signal_ok() { return true;};
     bool signal_cancel() { return true;};
 
     void ComputeTeamsOrder();
-    void SetResult(int i);
     void OnClick(const Point2i &mousePosition, int button);
     void OnClickUp(const Point2i &mousePosition, int button);
     void DrawPodium(const Point2i &position) const;
@@ -83,6 +66,8 @@ class ResultsMenu : public Menu
  public:
     ResultsMenu(std::vector<TeamResults*>& v, bool disconnected = false);
     ~ResultsMenu();
+
+    void ReceiveMsgCallback(const std::string& msg);
 };
 
 #endif //RESULTS_MENU_H

@@ -25,6 +25,7 @@
 #include "include/app.h"
 #include "include/constant.h"
 #include "game/game_mode.h"
+#include "game/game.h"
 #include "game/config.h"
 #include "graphic/video.h"
 #include "graphic/font.h"
@@ -32,23 +33,28 @@
 #include "gui/button.h"
 #include "gui/label.h"
 #include "gui/box.h"
+#include "gui/big/button_pic.h"
 #include "gui/list_box.h"
 #include "gui/combo_box.h"
 #include "gui/check_box.h"
 #include "gui/picture_widget.h"
 #include "gui/picture_text_cbox.h"
 #include "gui/spin_button_picture.h"
-#include "gui/list_box_w_label.h"
 #include "gui/tabs.h"
+#include "gui/text_box.h"
 #include "gui/question.h"
 #include "map/maps_list.h"
+#include "map/wind.h"
 #include "network/download.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
+#include "team/custom_team.h"
+#include "team/custom_teams_list.h"
 #include "tool/i18n.h"
 #include "tool/string_tools.h"
 #include "tool/resource_manager.h"
 #include <sstream>
+#include <string>
 
 OptionMenu::OptionMenu() :
   Menu("menu/bg_option")
@@ -83,11 +89,13 @@ OptionMenu::OptionMenu() :
 
   opt_scroll_border_size = new SpinButtonWithPicture(_("Scroll border size"), "menu/scroll_on_border",
 						     option_size,
-						     50, 2, 2, 80);
+						     50, 5, 5, 80);
   graphic_options->AddWidget(opt_scroll_border_size);
 
+#ifndef __APPLE__
   full_screen = new PictureTextCBox(_("Fullscreen?"), "menu/fullscreen", option_size);
   graphic_options->AddWidget(full_screen);
+#endif
 
   opt_max_fps = new SpinButtonWithPicture(_("Maximum FPS"), "menu/fps",
 					  option_size,
@@ -123,6 +131,62 @@ OptionMenu::OptionMenu() :
   language_options->AddWidget(lbox_languages);
 
   tabs->AddNewTab("unused", _("Language"), language_options);
+
+  /* Team editor */
+
+  Box * teams_editor = new VBox(max_width, false, true);
+  Box * teams_editor_sup = new GridBox(max_width, option_size, true);
+  Box * teams_editor_inf = new VBox(max_width, true,false);
+
+  add_team = new ButtonPic(_("Add custom team"), "menu/add_custom_team",Point2i(100,100));
+  teams_editor_sup->AddWidget(add_team);
+
+  delete_team = new ButtonPic(_("Delete custom team"), "menu/del_custom_team",Point2i(100,100));
+  teams_editor_sup->AddWidget(delete_team);
+
+  lbox_teams = new ListBox(option_size,false);
+  teams_editor_sup->AddWidget(lbox_teams);
+
+  std::string s = _("Player name");
+  s +=" : ";
+
+  team_name = new Label(s, 0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+  teams_editor_inf->AddWidget(team_name);
+
+
+  tbox_team_name = new TextBox("", 100,
+                            Font::FONT_MEDIUM, Font::FONT_NORMAL);
+  teams_editor_inf->AddWidget(tbox_team_name);
+
+  Point2i names_size(140, 50);
+
+  // bug #12193 : Missed assertion in game option (custom team editor) while playing
+  if(Game::GetInstance()->IsGameFinished()) {
+    Box * teams_editor_names = new GridBox(max_width, names_size, false);
+    s = _("Character");
+    for(unsigned i=0; i < 10 ; i++) {
+      std::ostringstream oss;
+      oss << i+1;
+      tbox_character_name_list.push_back(new TextBox("",100,Font::FONT_MEDIUM, Font::FONT_NORMAL));
+      Label * lab = new Label(s+oss.str()+" : ",0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+
+      Box * name_box = new VBox(max_width, true, true);
+
+      name_box->AddWidget(lab);
+      name_box->AddWidget(tbox_character_name_list[i]);
+
+      teams_editor_names->AddWidget(name_box);
+    }
+
+    teams_editor_inf->AddWidget(teams_editor_names);
+
+    teams_editor_inf->Pack();
+    teams_editor->AddWidget(teams_editor_sup);
+    teams_editor->AddWidget(teams_editor_inf);
+    tabs->AddNewTab("unused", _("Teams editor"), teams_editor);
+    selected_team = NULL;
+    ReloadTeamList();
+  }
 
   /* Misc options */
   Box * misc_options = new GridBox(max_width, option_size, false);
@@ -175,6 +239,9 @@ OptionMenu::OptionMenu() :
 				 option_size, sound_freqs, current_sound_freq);
   sound_options->AddWidget(cbox_sound_freq);
 
+  warn_cbox = new PictureTextCBox(_("New player warning?"), "menu/warn_on_new_player", option_size);
+  sound_options->AddWidget(warn_cbox);
+
   tabs->AddNewTab("unused", _("Sound"), sound_options);
 
   // Values initialization
@@ -184,9 +251,12 @@ OptionMenu::OptionMenu() :
   opt_display_name->SetValue(config->GetDisplayNameCharacter());
   opt_scroll_on_border->SetValue(config->GetScrollOnBorder());
   opt_scroll_border_size->SetValue(config->GetScrollBorderSize());
+#ifndef __APPLE__
   full_screen->SetValue(app->video->IsFullScreen());
+#endif
   music_cbox->SetValue(config->GetSoundMusic());
   effects_cbox->SetValue(config->GetSoundEffects());
+  warn_cbox->SetValue(config->GetWarnOnNewPlayer());
 
   // Setting language selection
   lbox_languages->AddItem(config->GetLanguage() == "",    _("(system language)"),  "");
@@ -228,10 +298,12 @@ OptionMenu::OptionMenu() :
 
   widgets.AddWidget(tabs);
   widgets.Pack();
+
 }
 
 OptionMenu::~OptionMenu()
 {
+
 }
 
 void OptionMenu::OnClickUp(const Point2i &mousePosition, int button)
@@ -242,12 +314,25 @@ void OptionMenu::OnClickUp(const Point2i &mousePosition, int button)
   // make use of their newer values in near-realtime!
   if (w == volume_music)
     Config::GetInstance()->SetVolumeMusic(toVolume(volume_music->GetValue()));
-  else if (w == volume_effects)
+  else if (w == volume_effects) {
     Config::GetInstance()->SetVolumeEffects(toVolume(volume_effects->GetValue()));
-  else if (w == music_cbox)
+    JukeBox::GetInstance()->Play("share", "menu/clic");
+  }
+  else if (w == music_cbox) {
     JukeBox::GetInstance()->ActiveMusic(music_cbox->GetValue());
-  else if (w == effects_cbox)
+  }
+  else if (w == effects_cbox) {
     JukeBox::GetInstance()->ActiveEffects(effects_cbox->GetValue());
+  }
+  else if (w == lbox_teams) {
+    SelectTeam();
+  }
+  else if (w ==add_team){
+    AddTeam();
+  }
+  else if (w ==delete_team){
+    DeleteTeam();
+  }
 }
 
 void OptionMenu::OnClick(const Point2i &/*mousePosition*/, int /*button*/)
@@ -257,10 +342,14 @@ void OptionMenu::OnClick(const Point2i &/*mousePosition*/, int /*button*/)
 
 void OptionMenu::SaveOptions()
 {
+
   Config * config = Config::GetInstance();
 
   // Graphic options
   config->SetDisplayWindParticles(opt_display_wind_particles->GetValue());
+  // bug #11826 : Segmentation fault while exiting the menu.
+  if(!Game::GetInstance()->IsGameFinished())
+    wind.Reset();
   config->SetDisplayEnergyCharacter(opt_display_energy->GetValue());
   config->SetDisplayNameCharacter(opt_display_name->GetValue());
   config->SetScrollOnBorder(opt_scroll_on_border->GetValue());
@@ -281,7 +370,9 @@ void OptionMenu::SaveOptions()
 
   int w, h;
   sscanf(s_mode.c_str(),"%dx%d", &w, &h);
+#ifndef __APPLE__
   app->video->SetConfig(w, h, full_screen->GetValue());
+#endif
 
   uint x = app->video->window.GetWidth() / 2;
   uint y = app->video->window.GetHeight() - 50;
@@ -296,11 +387,19 @@ void OptionMenu::SaveOptions()
   std::string sfreq = cbox_sound_freq->GetValue();
   long freq;
   if (str2long(sfreq,freq)) JukeBox::GetInstance()->SetFrequency(freq);
+  config->SetWarnOnNewPlayer(warn_cbox->GetValue());
 
   JukeBox::GetInstance()->Init(); // commit modification on sound options
 
   //Save options in XML
   config->Save();
+
+  //Team editor
+  if((!lbox_teams->IsSelectedItem()) && (tbox_team_name->GetText().size()>0))
+  {
+    AddTeam();
+  }
+  SaveTeam();
 }
 
 bool OptionMenu::signal_ok()
@@ -355,4 +454,126 @@ uint OptionMenu::fromVolume(uint vol)
 {
   uint max = Config::GetMaxVolume();
   return (vol*100 + max/2) / max;
+}
+
+
+// Team editor function
+
+void OptionMenu::AddTeam()
+{
+    SaveTeam();
+    CustomTeam *new_team = new CustomTeam();
+    new_team->NewTeam();
+    new_team->Save();
+    if((!lbox_teams->IsSelectedItem()) && (tbox_team_name->GetText().size()>0))
+    {
+      selected_team = new_team;
+      SaveTeam();
+    }
+    selected_team = new_team;
+    ReloadTeamList();
+    lbox_teams->NeedRedrawing();
+}
+
+void OptionMenu::DeleteTeam()
+{
+  if(selected_team !=NULL)
+  {
+    selected_team->Delete();
+    selected_team = NULL;
+    if(lbox_teams->IsSelectedItem())
+    {
+      lbox_teams->Deselect();
+
+    }
+    ReloadTeamList();
+    LoadTeam();
+    lbox_teams->NeedRedrawing();
+  }
+
+}
+
+void OptionMenu::LoadTeam()
+{
+
+    if(selected_team != NULL)
+    {
+      tbox_team_name->SetText(selected_team->GetName());
+      std::vector<std::string> character_names = selected_team->GetCharactersNameList();
+
+      for(unsigned i=0; i< character_names.size() && i<tbox_character_name_list.size(); i++)
+      {
+        tbox_character_name_list[i]->SetText(character_names[i]);
+      }
+
+    }else{
+      tbox_team_name->SetText("");
+
+      for(unsigned i=0; i< tbox_character_name_list.size(); i++)
+      {
+        tbox_character_name_list[i]->SetText("");
+
+      }
+    }
+}
+
+void OptionMenu::ReloadTeamList()
+{
+  lbox_teams->ClearItems();
+  std::string selected_team_name ="";
+  if(selected_team != NULL){
+    selected_team_name = selected_team->GetName();
+  }
+
+  GetCustomTeamsList().LoadList();
+  std::vector<CustomTeam *> custom_team_list = GetCustomTeamsList().GetList();
+
+  for(unsigned i=0; i< custom_team_list.size() ; i++)
+  {
+      if( custom_team_list[i]->GetName() == selected_team_name){
+          selected_team = custom_team_list[i];
+          LoadTeam();
+      }
+
+      lbox_teams->AddItem((selected_team == custom_team_list[i]),   custom_team_list[i]->GetName(),  custom_team_list[i]->GetName());
+
+  }
+}
+
+
+bool OptionMenu::SaveTeam(){
+if(selected_team !=NULL)
+  {
+    bool is_name_changed = (selected_team->GetName().compare(tbox_team_name->GetText()) != 0);
+    selected_team->SetName(tbox_team_name->GetText());
+    for(unsigned i=0; i<tbox_character_name_list.size(); i++)
+      {
+        selected_team->SetCharacterName(i,tbox_character_name_list[i]->GetText());
+      }
+    selected_team->Save();
+    return is_name_changed;
+  }
+
+    return false;
+}
+
+void OptionMenu::SelectTeam()
+{
+  if(lbox_teams->IsSelectedItem())
+  {
+    bool is_changed_name = SaveTeam();
+    std::string s_selected_team = lbox_teams->ReadValue();
+    selected_team = GetCustomTeamsList().GetByName(s_selected_team);
+    LoadTeam();
+    if(is_changed_name)
+    {
+        ReloadTeamList();
+    }
+
+  }
+}
+
+void OptionMenu::key_tab()
+{
+  Menu::key_tab();
 }

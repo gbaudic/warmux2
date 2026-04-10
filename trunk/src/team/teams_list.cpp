@@ -76,7 +76,7 @@ void TeamsList::NextTeam ()
   Team* next = GetNextTeam();
   GetTeamsList().SetActive (next->GetId());
   Action a(Action::ACTION_GAMELOOP_NEXT_TEAM, next->GetId());
-  Network::GetInstance()->SendAction(&a);
+  Network::GetInstance()->SendAction(a);
 }
 
 //-----------------------------------------------------------------------------
@@ -187,13 +187,20 @@ void TeamsList::LoadGamingData()
   iterator it=playing_list.begin(), end=playing_list.end();
 
   // Load the data of all teams
-  for (; it != end; ++it) (**it).LoadGamingData();
+  for (; it != end; ++it) {
+
+    // Local or AI ?
+    if ( (*it)->IsLocal() && (*it)->GetPlayerName() == "AI-stupid")
+      (*it)->SetLocalAI();
+
+    (**it).LoadGamingData();
+  }
 }
 
 void TeamsList::RandomizeFirstPlayer()
 {
   active_team = playing_list.begin();
-  int skip = randomSync.GetLong(0, playing_list.size() - 1);
+  int skip = RandomSync().GetLong(0, playing_list.size() - 1);
   for(int i = 0; i < skip; i++)
     active_team++;
 }
@@ -274,7 +281,7 @@ void TeamsList::InitList (const std::list<ConfigTeam> &lst)
   Clear();
   std::list<ConfigTeam>::const_iterator it=lst.begin(), end=lst.end();
   for (; it != end; ++it) {
-    AddTeam (*it, false);
+    AddTeam (*it, true, false);
   }
   active_team = playing_list.begin();
 }
@@ -458,40 +465,32 @@ void TeamsList::Clear()
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::AddTeam (const ConfigTeam &the_team_cfg, bool generate_error)
+void TeamsList::AddTeam(Team* the_team, int pos, const ConfigTeam &the_team_cfg,
+			bool is_local)
 {
-  int pos;
-  Team *the_team = FindById (the_team_cfg.id, pos);
-  if (the_team != NULL) {
+  ASSERT(the_team != NULL);
 
-    // set the player name and number of characters
-    the_team->SetPlayerName(the_team_cfg.player_name);
-    the_team->SetNbCharacters(the_team_cfg.nb_characters);
-
-    selection.push_back (pos);
-    playing_list.push_back (the_team);
-
+  if (is_local) {
+    the_team->SetLocal();
   } else {
-    std::string msg = Format(_("Can't find team %s!"), the_team_cfg.id.c_str());
-    if (generate_error)
-      Error (msg);
-    else
-      std::cout << "! " << msg << std::endl;
+    the_team->SetRemote();
   }
+  UpdateTeam(the_team, the_team_cfg);
+
+  selection.push_back (pos);
+  playing_list.push_back (the_team);
+
   active_team = playing_list.begin();
 }
 
-//-----------------------------------------------------------------------------
-
-void TeamsList::UpdateTeam (const ConfigTeam &the_team_cfg, bool generate_error)
+void TeamsList::AddTeam(const ConfigTeam &the_team_cfg, bool is_local,
+			bool generate_error)
 {
   int pos;
   Team *the_team = FindById (the_team_cfg.id, pos);
   if (the_team != NULL) {
 
-    // set the player name and number of characters
-    the_team->SetPlayerName(the_team_cfg.player_name);
-    the_team->SetNbCharacters(the_team_cfg.nb_characters);
+    AddTeam(the_team, pos, the_team_cfg, is_local);
 
   } else {
     std::string msg = Format(_("Can't find team %s!"), the_team_cfg.id.c_str());
@@ -504,25 +503,86 @@ void TeamsList::UpdateTeam (const ConfigTeam &the_team_cfg, bool generate_error)
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::DelTeam (const std::string &id)
+void TeamsList::UpdateTeam(Team* the_team, const ConfigTeam &the_team_cfg)
+{
+  ASSERT(the_team != NULL);
+
+  // set the player name and number of characters
+  the_team->SetPlayerName(the_team_cfg.player_name);
+  the_team->SetNbCharacters(the_team_cfg.nb_characters);
+}
+
+void TeamsList::UpdateTeam (const std::string& old_team_id,
+			    const ConfigTeam &the_team_cfg)
 {
   int pos;
-  Team *equipe = FindById (id, pos);
-  ASSERT(equipe != NULL);
 
-  selection_iterator it = find(selection.begin(), selection.end(), (uint)pos);
+  if (old_team_id == the_team_cfg.id) {
+    // this is a simple update
+
+    Team *the_team = FindById (the_team_cfg.id, pos);
+    if (the_team != NULL) {
+      UpdateTeam(the_team, the_team_cfg);
+    } else {
+      Error(Format(_("Can't find team %s!"), the_team_cfg.id.c_str()));
+      return;
+    }
+
+  } else {
+
+    // here we are replacing a team by another one
+    Team *the_old_team = FindById (old_team_id, pos);
+    if (the_old_team == NULL) {
+      Error(Format(_("Can't find team %s!"), old_team_id.c_str()));
+      return;
+    }
+
+    Team *the_team = FindById (the_team_cfg.id, pos);
+    if (the_team == NULL) {
+      Error(Format(_("Can't find team %s!"), old_team_id.c_str()));
+      return;
+    }
+
+    bool is_local = (the_old_team->IsLocal() || the_old_team->IsLocalAI());
+    DelTeam(the_old_team);
+    AddTeam(the_team, pos, the_team_cfg, is_local);
+  }
+
+}
+
+//-----------------------------------------------------------------------------
+
+void TeamsList::DelTeam(Team* the_team)
+{
+  uint pos = 0;
+
+  ASSERT(the_team != NULL);
+
+  the_team->SetDefaultPlayingConfig();
+
+  selection_iterator it = find(selection.begin(), selection.end(), pos);
 
   if (it != selection.end()) {
     selection.erase(it);
   }
 
-  iterator playing_it = find(playing_list.begin(), playing_list.end(), equipe);
+  iterator playing_it = find(playing_list.begin(), playing_list.end(), the_team);
+
+  ASSERT(playing_it != playing_list.end());
 
   if (playing_it != playing_list.end()) {
     playing_list.erase(playing_it);
   }
 
   active_team = playing_list.begin();
+}
+
+void TeamsList::DelTeam(const std::string &id)
+{
+  int pos;
+  Team *the_team = FindById (id, pos);
+
+  DelTeam(the_team);
 }
 
 //-----------------------------------------------------------------------------
@@ -542,6 +602,25 @@ void TeamsList::SetActive(const std::string &id)
     }
   }
   Error (Format(_("Can't find team %s!"), id.c_str()));
+}
+
+//-----------------------------------------------------------------------------
+
+std::string TeamsList::GetLocalHeadCommanders() const
+{
+  std::string nickname;
+
+  for (std::vector<Team*>::iterator it = GetTeamsList().playing_list.begin();
+       it != GetTeamsList().playing_list.end();
+       it++) {
+    if ((*it)->IsLocal()) {
+      if (nickname != "") nickname += "+";
+
+      nickname += (*it)->GetPlayerName();
+    }
+  }
+
+  return nickname;
 }
 
 //-----------------------------------------------------------------------------

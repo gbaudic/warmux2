@@ -41,6 +41,7 @@ public:
     ACTION_NETWORK_CHANGE_STATE,
     ACTION_NETWORK_CHECK_PHASE1,
     ACTION_NETWORK_CHECK_PHASE2,
+    ACTION_NETWORK_DISCONNECT_ON_ERROR,
 
     // ########################################################
     ACTION_PLAYER_CHANGE_WEAPON,
@@ -105,16 +106,22 @@ public:
     // ########################################################
   } Action_t;
 
-protected:
+private:
   std::list<uint32_t> var;
   Action_t m_type;
   uint m_timestamp;
   uint crc;
-  Action(const Action& an_action);
-  const Action& operator=(const Action&);
-public:
 
   DistantComputer* creator;
+
+  Action(const Action& an_action);
+  const Action& operator=(const Action&);
+
+  void WriteTo(char *packet) const;
+
+  uint ComputeCRC() const;
+
+public:
 
   //inline Action_t &operator++() { ;}
 
@@ -171,12 +178,11 @@ public:
            + 4 // crc
            + int(var.size()) * 4;
   }
-  uint ComputeCRC() const;
   bool CheckCRC() const;
-  uint GetCRC() const { return crc; };
-  void Write(char *packet) const;
-  void WritePacket(char* & packet, int & size) const;
+  void WriteToPacket(char* & packet, int & size) const;
   Action_t GetType() const { return m_type; };
+
+  DistantComputer* GetCreator() const { return creator; } ;
 };
 
 //-----------------------------------------------------------------------------

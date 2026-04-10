@@ -27,9 +27,9 @@
 class Team;
 class SpinButton;
 class NetworkTeamsSelectionBox;
-class MsgBox;
+class TalkBox;
 class MapSelectionBox;
-class TextBox;
+class CheckBox;
 
 class NetworkMenu : public Menu
 {
@@ -40,15 +40,12 @@ class NetworkMenu : public Menu
 
   /* Options controllers */
   SpinButton* player_number;
-  Box* options_box;
-  Label* mode;
   Label* connected_players;
   Label* initialized_players;
+  CheckBox* play_in_loop;
 
-  /* Chat controllers */
-  MsgBox* msg_box;
-  TextBox* line_to_send_tbox;
-  Button* send_txt_bt;
+  /* Chat controller */
+  TalkBox* msg_box;
 
   /* Team controllers */
   NetworkTeamsSelectionBox *team_box;
@@ -56,11 +53,11 @@ class NetworkMenu : public Menu
   /* Map controllers */
   MapSelectionBox *map_box;
 
+  void PrepareForNewGame();
   void SaveOptions();
   void OnClick(const Point2i &mousePosition, int button);
   void OnClickUp(const Point2i &mousePosition, int button);
   void Draw(const Point2i &mousePosition);
-  void SendChatMsg();
   void WaitingForServer();
 
   void key_ok();
@@ -72,7 +69,7 @@ public:
   ~NetworkMenu();
 
   void AddTeamCallback(const std::string& team_id);
-  void UpdateTeamCallback(const std::string& team_id);
+  void UpdateTeamCallback(const std::string& old_team_id, const std::string& team_id);
   void DelTeamCallback(const std::string& team_id);
   void ChangeMapCallback();
 

@@ -25,9 +25,7 @@ NetworkLocal::NetworkLocal() : Network("") {}
 
 NetworkLocal::~NetworkLocal() {}
 
-void NetworkLocal::SendAction(Action* /*action*/) {}
-
-void NetworkLocal::SendChatMessage(const std::string& /*txt*/) {}
+void NetworkLocal::SendAction(const Action& /*action*/) const {}
 
 std::list<DistantComputer*>::iterator NetworkLocal::CloseConnection(std::list<DistantComputer*>::iterator /*closed*/)
 {

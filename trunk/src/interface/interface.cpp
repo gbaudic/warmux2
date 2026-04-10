@@ -50,7 +50,7 @@ Interface::Interface()
   display = true;
   start_hide_display = 0;
   start_show_display = 0;
-  display_minimap = false;
+  display_minimap = true;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   game_menu = resource_manager.LoadImage( res, "interface/background_interface");
@@ -300,12 +300,29 @@ void Interface::DrawTeamEnergy() const
 // Draw map preview
 void Interface::DrawMapPreview()
 {
-  Surface& window  = AppWormux::GetInstance()->video->window;
+  Surface&       window  = GetMainWindow();
   const Surface* preview = world.ground.GetPreview();
-  Point2i  offset  = window.GetSize() - world.ground.GetPreviewSize() - Point2i(MARGIN/2, 2*MARGIN);
+  Point2i        offset(window.GetWidth() - world.ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
+  Rectanglei     rect_preview(offset, world.ground.GetPreviewSize());
+
   window.Blit(*preview, world.ground.GetPreviewRect(), offset);
-  Rectanglei rect_preview(offset, world.ground.GetPreviewSize());
+
+  // Draw water
+  if (world.water.IsActive()) {
+    const Color *color = world.water.GetColor();
+    ASSERT(color);
+
+    // Scale water height according to preview size
+    uint       h = (world.water.GetSelfHeight() * rect_preview.GetSizeY() + (world.GetSize().GetY()/2))
+                 / world.GetSize().GetY();
+    Rectanglei water(offset.x, offset.y+rect_preview.GetSizeY()-h, rect_preview.GetSizeX(), h);
+
+    // Draw box with color according to water type
+    window.BoxColor(water, *color);
+  }
+
   world.ToRedrawOnScreen(rect_preview);
+  window.RectangleColor(rect_preview, white_color);
 
   FOR_EACH_TEAM(team) {
     const Surface& icon = (*team)->GetMiniFlag();
@@ -315,7 +332,7 @@ void Interface::DrawMapPreview()
          ++character) {
       if (!character -> IsDead()) {
         Point2i     coord = world.ground.PreviewCoordinates((*character).GetPosition()) + offset;
-        
+
         window.Blit(icon, coord - icon.GetSize()/2);
         if (character->IsActiveCharacter()) {
           uint radius = (icon.GetSize().x < icon.GetSize().y) ? icon.GetSize().y : icon.GetSize().x;
@@ -413,8 +430,9 @@ void Interface::Hide()
     start_hide_display = Time::GetInstance()->Read() - (1000 - ((int)Time::GetInstance()->Read() - start_hide_display));
 }
 
-void Interface::UpdateTimer(uint utimer)
+void Interface::UpdateTimer(uint utimer, const Color& color)
 {
+  timer->SetColor(color);
   timer->Set(ulong2str(utimer));
   remaining_turn_time = utimer;
 }
@@ -433,7 +451,7 @@ void AbsoluteDraw(const Surface &s, const Point2i& pos)
   Rectanglei rectSource(rectSurface.GetPosition() - pos, rectSurface.GetSize());
   Point2i ptDest = rectSurface.GetPosition() - Camera::GetInstance()->GetPosition();
 
-  AppWormux::GetInstance()->video->window.Blit(s, rectSource, ptDest);
+  GetMainWindow().Blit(s, rectSource, ptDest);
 }
 
 void HideGameInterface()

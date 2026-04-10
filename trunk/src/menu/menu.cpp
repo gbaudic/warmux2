@@ -35,7 +35,8 @@
 static const int MENU_DELAY = 100;  // 10 fps, much sufficient for menu
 
 Menu::Menu(const std::string& bg, t_action _actions) :
-  actions(_actions)
+  actions(_actions),
+  selected_widget(NULL)
 {
   close_menu = false ;
   AppWormux * app = AppWormux::GetInstance();
@@ -140,13 +141,13 @@ void Menu::key_cancel()
 
 void Menu::key_up()
 {
-  widgets.SetKeyboardFocusOnPreviousWidget();
+  widgets.SetFocusOnPreviousWidget();
   RedrawMenu();
 }
 
 void Menu::key_down()
 {
-  widgets.SetKeyboardFocusOnNextWidget();
+  widgets.SetFocusOnNextWidget();
   RedrawMenu();
 }
 
@@ -156,6 +157,11 @@ void Menu::key_left()
 
 void Menu::key_right()
 {
+}
+
+void Menu::key_tab()
+{
+  widgets.SetFocusOnNextWidget();
 }
 
 void Menu::DisplayError(const std::string &msg)
@@ -171,13 +177,13 @@ void Menu::DisplayError(const std::string &msg)
 
 void Menu::DrawBackground()
 {
-  background->ScaleSize(AppWormux::GetInstance()->video->window.GetSize());
-  background->Blit(AppWormux::GetInstance()->video->window, 0, 0);
+  background->ScaleSize(GetMainWindow().GetSize());
+  background->Blit(GetMainWindow(), 0, 0);
 }
 
 void Menu::RedrawBackground(const Rectanglei& rect)
 {
-  background->Blit(AppWormux::GetInstance()->video->window, rect, rect.GetPosition());
+  background->Blit(GetMainWindow(), rect, rect.GetPosition());
 }
 
 void Menu::RedrawMenu()
@@ -245,6 +251,9 @@ void Menu::Run (bool skip_menu)
 	    case SDLK_RIGHT:
 	      key_right();
 	      break;
+	    case SDLK_TAB:
+	      key_tab();
+	      break;
 	    case SDLK_F10:
 	      AppWormux::GetInstance()->video->ToggleFullscreen();
 	      break;
@@ -290,7 +299,8 @@ void Menu::Display(const Point2i& mousePosition)
     SDL_Delay(delay);
 }
 
-void Menu::SetActionButtonsXY(int x, int y){
+void Menu::SetActionButtonsXY(int x, int y)
+{
   if (actions_buttons != NULL) {
     actions_buttons->SetPosition(x, y);
   }

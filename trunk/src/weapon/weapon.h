@@ -52,7 +52,7 @@ public:
     WEAPON_BAZOOKA,       WEAPON_AUTOMATIC_BAZOOKA, WEAPON_CLUZOOKA, WEAPON_RIOT_BOMB,
     WEAPON_GRENADE,       WEAPON_DISCO_GRENADE,     WEAPON_CLUSTER_BOMB, WEAPON_FOOTBOMB,
     WEAPON_GUN,           WEAPON_SHOTGUN,           WEAPON_SUBMACHINE_GUN,
-    WEAPON_BASEBALL,      WEAPON_FLAMETHROWER,
+    WEAPON_BASEBALL,      WEAPON_FLAMETHROWER,      WEAPON_SLAP,
 
     WEAPON_DYNAMITE,      WEAPON_MINE,
 
@@ -130,6 +130,7 @@ protected:
   weapon_visibility_t m_unit_visibility;
 
   // how many times can we use this weapon (since the beginning of the game) ?
+  int m_available_after_turn; // -1 means NEVER
   int m_initial_nb_ammo;
   int m_initial_nb_unit_per_ammo;
   bool use_unit_on_first_shoot;
@@ -149,7 +150,7 @@ public:
 
 protected:
   virtual void p_Select() { m_last_fire_time = 0; };
-  virtual void p_Deselect() { };
+  virtual void p_Deselect();
   virtual void Refresh() = 0;
   virtual bool p_Shoot() = 0;
 
@@ -181,7 +182,10 @@ public:
   void UseAmmo() const;
   bool EnoughAmmoUnit() const;
   void UseAmmoUnit() const;
+
+  int AvailableAfterTurn() const { return m_available_after_turn; };
   int ReadInitialNbAmmo() const { return m_initial_nb_ammo; };
+  void WriteInitialNbAmmo(int nb) { m_initial_nb_ammo = nb; };
   int ReadInitialNbUnit() const { return m_initial_nb_unit_per_ammo; };
 
   bool CanBeUsedOnClosedMap() const { return can_be_used_on_closed_map; };
@@ -295,7 +299,7 @@ public:
 
   // Load parameters from the xml config file
   // Return true if xml has been succesfully load
-  bool LoadXml(xmlNode*  weapon);
+  bool LoadXml(const xmlNode*  weapon);
 
   // return the strength of the weapon
   double ReadStrength() const { return m_strength; };

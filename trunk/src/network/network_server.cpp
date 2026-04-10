@@ -52,22 +52,15 @@ NetworkServer::~NetworkServer()
   SDLNet_TCP_Close(server_socket);
 }
 
-void NetworkServer::SendChatMessage(const std::string& txt)
-{
-  if (txt == "") return;
-  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, nickname + std::string("> ") + txt));
-}
-
 void NetworkServer::HandleAction(Action* a, DistantComputer* sender) const
 {
   // Repeat the packet to other clients:
   if (a->GetType() != Action::ACTION_NETWORK_CHANGE_STATE
-      && a->GetType() != Action::ACTION_NETWORK_CHECK_PHASE2
-      && a->GetType() != Action::ACTION_CHAT_MESSAGE)
+      && a->GetType() != Action::ACTION_NETWORK_CHECK_PHASE2)
   {
     char* packet;
     int packet_size;
-    a->WritePacket(packet, packet_size);
+    a->WriteToPacket(packet, packet_size);
 
     for (std::list<DistantComputer*>::const_iterator client = cpu.begin();
          client != cpu.end();
@@ -98,7 +91,7 @@ bool NetworkServer::HandShake(TCPsocket& client_socket)
   // 1) Receive the version number
   MSG_DEBUG("network", "Server: waiting for client version number");
 
-  r = Network::ReceiveStr(tmp_socket_set, client_socket, version);
+  r = Network::ReceiveStr(tmp_socket_set, client_socket, version, 40);
   if (r) {
     std::cerr << "Error " << r << " when receiving version number"
 	      << std::endl;
@@ -118,7 +111,7 @@ bool NetworkServer::HandShake(TCPsocket& client_socket)
   // 2) Check the password
   MSG_DEBUG("network", "Server: waiting for password");
 
-  r = Network::ReceiveStr(tmp_socket_set, client_socket, _password);
+  r = Network::ReceiveStr(tmp_socket_set, client_socket, _password, 100);
   if (r)
     goto error;
 

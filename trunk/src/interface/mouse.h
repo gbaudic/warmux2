@@ -65,6 +65,7 @@ private:
 
   visibility_t visible;
   pointer_t current_pointer;
+  uint last_hide_time;
 
   void GetDesignatedCharacter() const;
 
@@ -85,6 +86,7 @@ public:
   Point2i GetPosition() const;
   Point2i GetWorldPosition() const;
   void CenterPointer();
+  void SetPosition(Point2i pos);
 
   // Choose the pointer
   pointer_t GetPointer() const;
@@ -94,6 +96,8 @@ public:
   // Hide/show mouse pointer
   void Show();
   void Hide();
+
+  bool HasFocus() const;
 
   visibility_t GetVisibility() const { return visible; };
 };

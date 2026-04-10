@@ -27,7 +27,6 @@
 #include <sstream>
 #include <string>
 #include <iostream>
-#include <sys/stat.h>
 #include <errno.h>
 #include <libxml/tree.h>
 #ifdef WIN32
@@ -54,12 +53,6 @@
 #include "weapon/weapons_list.h"
 #ifdef USE_AUTOPACKAGE
 #  include "include/binreloc.h"
-#endif
-
-#ifndef WIN32
-#define MKDIR_P(dir) (mkdir(dir, 0750))
-#else
-#define MKDIR_P(dir) (_mkdir(dir))
 #endif
 
 #ifdef _WIN32
@@ -94,8 +87,6 @@ const std::string FILENAME="config.xml";
 Config::Config():
   default_language(""),
   m_game_mode("classic"),
-  m_network_host("localhost"),
-  m_network_port(WORMUX_NETWORK_PORT),
   m_filename(),
   data_dir(),
   locale_dir(),
@@ -113,15 +104,20 @@ Config::Config():
   video_width(800),
   video_height(600),
   video_fullscreen(false),
-  max_fps(0),
+  max_fps(50),
   bling_bling_interface(false),
   scroll_on_border(true),
   scroll_border_size(50),
   sound_music(true),
   sound_effects(true),
   sound_frequency(44100),
-  enable_network(true),
+  warn_on_new_player(true),
   check_updates(false),
+  m_network_client_host("localhost"),
+  m_network_client_port(WORMUX_NETWORK_PORT),
+  m_network_server_game_name("Wormux party"),
+  m_network_server_port(WORMUX_NETWORK_PORT),
+  m_network_server_public(true),
   ttf_filename(),
   transparency(ALPHA),
   config_set()
@@ -208,10 +204,7 @@ Config::Config():
   personal_config_dir += "/wormux/";
 
   if (c_data_dir == NULL) {
-    personal_data_dir = GetHome() + "/.local";
-    MKDIR_P(personal_data_dir.c_str());
     personal_data_dir = GetHome() + "/.local/share";
-    MKDIR_P(personal_data_dir.c_str());
   }
   else
     personal_data_dir = c_data_dir;
@@ -252,31 +245,38 @@ Config::Config():
   resource_manager.AddDataPath(dir + PATH_SEPARATOR);
 }
 
-bool Config::MkdirChatLogDir()
+bool Config::MkdirChatLogDir() const
 {
-  // Create the directory if it doesn't exist
-  if (MKDIR_P(chat_log_dir.c_str()) == 0 || errno == EEXIST)
-    return true;
-
-  return false;
+  return CreateFolder(chat_log_dir);
 }
 
-bool Config::MkdirPersonalConfigDir()
+bool Config::MkdirPersonalConfigDir() const
 {
-  // Create the directory if it doesn't exist
-  if (MKDIR_P(personal_config_dir.c_str()) == 0 || errno == EEXIST)
-    return true;
-
-  return false;
+  return CreateFolder(personal_config_dir);
 }
 
-bool Config::MkdirPersonalDataDir()
+bool Config::MkdirPersonalDataDir() const
 {
-  // Create the directory if it doesn't exist
-  if ( MKDIR_P(personal_data_dir.c_str()) == 0 || errno == EEXIST)
-      return true;
+  return CreateFolder(personal_data_dir);
+}
 
-  return false;
+bool Config::RemovePersonalConfigFile() const
+{
+  std::string personal_config_file = personal_config_dir + FILENAME;
+
+  int r = unlink(personal_config_file.c_str());
+  if (r) {
+    if (errno == -ENOENT) {
+      r = 0;
+    } else {
+      perror((Format("Fail to remove personal config file %s", personal_config_file.c_str())).c_str());
+    }
+  }
+
+  if (r)
+    return false;
+
+  return true;
 }
 
 void Config::SetLanguage(const std::string language)
@@ -337,7 +337,6 @@ bool Config::DoLoading(void)
     return false;
 
   LoadXml(doc.GetRoot());
-
   return true;
 }
 
@@ -362,7 +361,7 @@ void Config::LoadDefaultValue()
   }
 
   //=== Default fonts value ===
-  xmlNode *node = resource_manager.GetElement(res, "section", "default_language_fonts");
+  const xmlNode *node = resource_manager.GetElement(res, "section", "default_language_fonts");
   if (node) {
     xmlNodeArray list = XmlReader::GetNamedChildren(node, "language");
     for (xmlNodeArray::iterator it = list.begin(); it != list.end(); ++it) {
@@ -376,7 +375,6 @@ void Config::LoadDefaultValue()
       }
     }
   }
-  else printf("Bleh...\n");
 
 #if 0 //== Team Color
   int number_of_team_color = resource_manager.LoadInt(res, "team_colors/number_of_team_color");
@@ -393,8 +391,10 @@ void Config::LoadDefaultValue()
 }
 
 // Read personal config file
-void Config::LoadXml(xmlNode *xml)
+void Config::LoadXml(const xmlNode *xml)
 {
+  const xmlNode *elem;
+
   std::cout << "o " << _("Reading personal config file") << std::endl;
 
   //=== Map ===
@@ -405,22 +405,24 @@ void Config::LoadXml(xmlNode *xml)
   SetLanguage(default_language);
 
   //=== Teams ===
-  xmlNode *elem = XmlReader::GetMarker(xml, "teams");
-  int i = 0;
-
-  xmlNode *team;
-
-  while ((team = XmlReader::GetMarker(elem, "team_" + ulong2str(i))) != NULL)
+  if ((elem = XmlReader::GetMarker(xml, "teams")) != NULL)
   {
-    ConfigTeam one_team;
-    XmlReader::ReadString(team, "id", one_team.id);
-    XmlReader::ReadString(team, "player_name", one_team.player_name);
-    XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+    int i = 0;
 
-    teams.push_back(one_team);
+    const xmlNode *team;
 
-    // get next team
-    i++;
+    while ((team = XmlReader::GetMarker(elem, "team_" + ulong2str(i))) != NULL)
+      {
+	ConfigTeam one_team;
+	XmlReader::ReadString(team, "id", one_team.id);
+	XmlReader::ReadString(team, "player_name", one_team.player_name);
+	XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+
+	teams.push_back(one_team);
+
+	// get next team
+	i++;
+      }
   }
 
   //=== Video ===
@@ -454,9 +456,38 @@ void Config::LoadXml(xmlNode *xml)
   //=== network ===
   if ((elem = XmlReader::GetMarker(xml, "network")) != NULL)
   {
-    //XmlReader::ReadBool(elem, "enable_network", enable_network);
-    XmlReader::ReadString(elem, "host", m_network_host);
-    XmlReader::ReadString(elem, "port", m_network_port);
+    const xmlNode *sub_elem;
+    if ((sub_elem = XmlReader::GetMarker(elem, "as_client")) != NULL)
+    {
+      XmlReader::ReadString(sub_elem, "host", m_network_client_host);
+      XmlReader::ReadString(sub_elem, "port", m_network_client_port);
+    }
+    if ((sub_elem = XmlReader::GetMarker(elem, "as_server")) != NULL)
+    {
+      XmlReader::ReadString(sub_elem, "game_name", m_network_server_game_name);
+      XmlReader::ReadString(sub_elem, "port", m_network_server_port);
+      XmlReader::ReadBool(sub_elem, "public", m_network_server_public);
+    }
+
+    //=== personal teams used in last network game ===
+    if ((sub_elem = XmlReader::GetMarker(elem, "local_teams")) != NULL)
+    {
+      int i = 0;
+      const xmlNode *team;
+
+      while ((team = XmlReader::GetMarker(sub_elem, "team_" + ulong2str(i))) != NULL)
+	{
+	  ConfigTeam one_team;
+	  XmlReader::ReadString(team, "id", one_team.id);
+	  XmlReader::ReadString(team, "player_name", one_team.player_name);
+	  XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+
+	  network_local_teams.push_back(one_team);
+
+	  // get next team
+	  i++;
+	}
+    }
   }
 
   //=== misc ===
@@ -577,8 +608,33 @@ bool Config::SaveXml(bool save_current_teams)
 
   //=== Network ===
   xmlNode *net_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"network"));
-  doc.WriteElement(net_node, "host", m_network_host);
-  doc.WriteElement(net_node, "port", m_network_port);
+
+  // Network as client parameters
+  xmlNode *net_as_client_node = xmlAddChild(net_node, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"as_client"));
+  doc.WriteElement(net_as_client_node, "host", m_network_client_host);
+  doc.WriteElement(net_as_client_node, "port", m_network_client_port);
+
+  // Network as server parameters
+  xmlNode *net_as_server_node = xmlAddChild(net_node, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"as_server"));
+  doc.WriteElement(net_as_server_node, "game_name", m_network_server_game_name);
+  doc.WriteElement(net_as_server_node, "port", m_network_server_port);
+  doc.WriteElement(net_as_server_node, "public", ulong2str(m_network_server_public));
+
+  // personal teams used durint last network game
+  xmlNode *net_teams = xmlAddChild(net_node, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"local_teams"));
+  std::list<ConfigTeam>::iterator
+    it = network_local_teams.begin(),
+    end = network_local_teams.end();
+
+  for (int i=0; it != end; ++it, i++)
+    {
+       std::string name = "team_"+ulong2str(i);
+       xmlNode* a_team = xmlAddChild(net_teams,
+                                     xmlNewNode(NULL /* empty prefix */, (const xmlChar*)name.c_str()));
+       doc.WriteElement(a_team, "id", (*it).id);
+       doc.WriteElement(a_team, "player_name", (*it).player_name);
+       doc.WriteElement(a_team, "nb_characters", ulong2str((*it).nb_characters));
+    }
 
   //=== Misc ===
   xmlNode *misc_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"misc"));
@@ -612,6 +668,31 @@ uint Config::GetMaxVolume()
 
 const std::string& Config::GetTtfFilename()
 {
-  if (fonts.find(default_language) == fonts.end()) return ttf_filename;
-  else                                             return fonts[default_language];
+  if (fonts.find(default_language) == fonts.end())
+    return ttf_filename;
+  else
+    return fonts[default_language];
+}
+
+void Config::SetNetworkLocalTeams()
+{
+  // personal teams used durint last network game
+  network_local_teams.clear();
+
+  TeamsList::iterator
+    it = GetTeamsList().playing_list.begin(),
+    end = GetTeamsList().playing_list.end();
+
+  for (int i=0; it != end; ++it, i++)
+    {
+      if ((**it).IsLocal())
+	{
+	  ConfigTeam config;
+	  config.id = (**it).GetId();
+	  config.player_name = (**it).GetPlayerName();
+	  config.nb_characters = (**it).GetNbCharacters();
+
+	  network_local_teams.push_back(config);
+	}
+    }
 }

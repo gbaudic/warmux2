@@ -35,9 +35,10 @@ class NetData
   time_t ping_time;
   bool   ping_sent;
 
+  size_t bytes_received;
+
   void UpdatePing();
  protected:
-  size_t received;
   enum IndexServerMsg msg_id;
 
   // Return false if the client closed the connection
@@ -46,6 +47,8 @@ class NetData
 
   bool SendInt(const int & nbr);
   bool SendStr(const std::string & full_str);
+
+  size_t BytesReceived() const { return bytes_received; };
  public:
   bool connected;
 
@@ -56,6 +59,7 @@ class NetData
   const int & GetIP() { return ip_address; };
 
   void Host(const int & client_fd, const unsigned int & ip);
+  static int GetConnection(const char* host, int port);
   bool ConnectTo(const std::string & address, const int & port);
   bool Receive();
   bool ReceiveData();
@@ -64,3 +68,4 @@ class NetData
 };
 
 #endif
+

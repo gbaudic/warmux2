@@ -21,6 +21,7 @@
 
 #include "menu/network_teams_selection_box.h"
 #include "menu/team_box.h"
+#include "game/config.h"
 #include "gui/label.h"
 #include "gui/picture_widget.h"
 #include "gui/spin_button.h"
@@ -82,9 +83,21 @@ Widget* NetworkTeamsSelectionBox::Click(const Point2i &/*mousePosition*/, uint /
   return NULL;
 }
 
+void NetworkTeamsSelectionBox::SetDefaultPlayerName(Team& team)
+{
+#ifdef WIN32
+  // The username might be in NLS !
+  char* name = LocaleToUTF8(getenv("USERNAME"));
+  team.SetPlayerName(name);
+  delete[] name;
+#else
+  team.SetPlayerName(getenv("USER"));
+#endif
+}
+
 void NetworkTeamsSelectionBox::PrevTeam(uint i)
 {
-  if (teams_selections.at(i)->GetTeam() == NULL) return;
+  ASSERT(teams_selections.at(i)->GetTeam() != NULL);
 
   bool to_continue;
   Team* tmp;
@@ -116,25 +129,19 @@ void NetworkTeamsSelectionBox::PrevTeam(uint i)
 
       // We have found a team which is not selected
       if (tmp != NULL && !to_continue) {
-        SetLocalTeam(i, *tmp, true);
+        SetLocalTeam(i, *tmp);
       }
-    } while ( index != previous_index && to_continue);
+    } while (index != previous_index && to_continue);
 }
 
-void NetworkTeamsSelectionBox::NextTeam(uint i,
-                                        bool check_null_prev_team)
+void NetworkTeamsSelectionBox::NextTeam(uint i)
 {
-  if (check_null_prev_team &&
-      teams_selections.at(i)->GetTeam() == NULL)
-    return;
-
   bool to_continue;
   Team* tmp;
   int previous_index = -1, index;
 
-  if (check_null_prev_team) {
+  if (teams_selections.at(i)->GetTeam() != NULL)
     GetTeamsList().FindById(teams_selections.at(i)->GetTeam()->GetId(), previous_index);
-  }
 
   index = previous_index+1;
 
@@ -160,7 +167,9 @@ void NetworkTeamsSelectionBox::NextTeam(uint i,
 
       // We have found a team which is not selected
       if (tmp != NULL && !to_continue) {
-        SetLocalTeam(i, *tmp, check_null_prev_team);
+	if (teams_selections.at(i)->GetTeam() == NULL)
+	  SetDefaultPlayerName(*tmp);
+	SetLocalTeam(i, *tmp);
       }
     } while ( index != previous_index && to_continue);
 }
@@ -193,40 +202,70 @@ void NetworkTeamsSelectionBox::SetNbLocalTeams(uint nb_teams, uint previous_nb)
 
 void NetworkTeamsSelectionBox::AddLocalTeam(uint i)
 {
-  // we should find an available team
-  NextTeam(i, false);
+  int pos;
+  bool selected = false;
+  std::list<ConfigTeam>::const_iterator
+    it = Config::GetInstance()->AccessNetworkTeamsList().begin(),
+    end = Config::GetInstance()->AccessNetworkTeamsList().end();
+
+  // Check if previous team used in network are available
+  for (; it != end && !selected; ++it) {
+    ConfigTeam the_team_cfg = (*it);
+    Team *the_team = GetTeamsList().FindById(the_team_cfg.id, pos);
+
+    if (the_team != NULL) {
+
+      // Check if that team is already selected
+      for (uint j = 0; j < MAX_NB_TEAMS; j++) {
+        if (the_team == teams_selections.at(j)->GetTeam()) {
+          the_team = NULL;
+          break;
+        }
+      }
+
+      // We have found a team which is not selected
+      if (the_team != NULL) {
+	the_team->SetPlayerName(the_team_cfg.player_name);
+	the_team->SetNbCharacters(the_team_cfg.nb_characters);
+	selected = true;
+        SetLocalTeam(i, *the_team);
+      }
+
+    } else {
+      std::string msg = Format(_("Can't find team %s!"), the_team_cfg.id.c_str());
+      std::cerr << msg << std::endl;
+    }
+  }
+
+  if (!selected) {
+    NextTeam(i);
+  }
 }
 
 void NetworkTeamsSelectionBox::RemoveLocalTeam(uint i)
 {
-  if ( teams_selections.at(i)->GetTeam() != NULL ) {
-    ActionHandler::GetInstance()->NewAction (new Action(Action::ACTION_MENU_DEL_TEAM,
-                                                        teams_selections.at(i)->GetTeam()->GetId()));
-    ActionHandler::GetInstance()->ExecActions();
-  }
+  ASSERT(teams_selections.at(i)->GetTeam() != NULL);
+
+  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_MENU_DEL_TEAM,
+						     teams_selections.at(i)->GetTeam()->GetId()));
+  ActionHandler::GetInstance()->ExecActions();
 }
 
-void NetworkTeamsSelectionBox::SetLocalTeam(uint i, Team& team, bool remove_previous_team)
+void NetworkTeamsSelectionBox::SetLocalTeam(uint i, Team& team)
 {
-  if (remove_previous_team) {
-    RemoveLocalTeam(i);
-  }
-
   team.SetLocal();
-#ifdef WIN32
-  // The username might be in NLS !
-  char* name = LocaleToUTF8(getenv("USERNAME"));
-  team.SetPlayerName(name);
-  delete[] name;
-#else
-  team.SetPlayerName(getenv("USER"));
-#endif
 
-  Action* a = new Action(Action::ACTION_MENU_ADD_TEAM, team.GetId());
-  a->Push(team.GetPlayerName());
-  a->Push(int(team.GetNbCharacters()));
-  ActionHandler::GetInstance()->NewAction(a);
-  ActionHandler::GetInstance()->ExecActions();
+  if (teams_selections.at(i)->GetTeam() != NULL) {
+
+    teams_selections.at(i)->SetTeam(team, false);
+
+  } else {
+    Action* a = new Action(Action::ACTION_MENU_ADD_TEAM, team.GetId());
+    a->Push(team.GetPlayerName());
+    a->Push(int(team.GetNbCharacters()));
+    ActionHandler::GetInstance()->NewAction(a);
+    ActionHandler::GetInstance()->ExecActions();
+  }
 }
 
 void NetworkTeamsSelectionBox::AddTeamCallback(const std::string& team_id)
@@ -253,17 +292,17 @@ void NetworkTeamsSelectionBox::AddTeamCallback(const std::string& team_id)
   local_teams_nb->SetValue(nb_local_teams);
 }
 
-void NetworkTeamsSelectionBox::UpdateTeamCallback(const std::string& team_id)
+void NetworkTeamsSelectionBox::UpdateTeamCallback(const std::string& old_team_id,
+						  const std::string& team_id)
 {
   for (uint i=0; i < teams_selections.size(); i++) {
     if (teams_selections.at(i)->GetTeam() != NULL &&
-        teams_selections.at(i)->GetTeam()->GetId() == team_id) {
+        teams_selections.at(i)->GetTeam()->GetId() == old_team_id) {
       int index = 0;
       Team * tmp = GetTeamsList().FindById(team_id, index);
 
       // Force refresh of information
       teams_selections.at(i)->SetTeam(*tmp, true);
-      std::cout << "Update " << team_id << std::endl;
       break;
     }
   }
@@ -316,6 +355,8 @@ void NetworkTeamsSelectionBox::ValidTeamsSelection()
     }
     GetTeamsList().ChangeSelection (selection);
   }
+
+  Config::GetInstance()->SetNetworkLocalTeams();
 }
 
 void NetworkTeamsSelectionBox::SetMaxNbLocalPlayers(uint nb)

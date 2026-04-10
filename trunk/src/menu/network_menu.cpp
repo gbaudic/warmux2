@@ -27,10 +27,12 @@
 #include "game/game_mode.h"
 #include "graphic/video.h"
 #include "gui/button.h"
+#include "gui/check_box.h"
 #include "gui/label.h"
 #include "gui/msg_box.h"
 #include "gui/picture_widget.h"
 #include "gui/spin_button.h"
+#include "gui/talk_box.h"
 #include "gui/text_box.h"
 #include "include/action_handler.h"
 #include "include/app.h"
@@ -60,7 +62,7 @@ NetworkMenu::NetworkMenu() :
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml",false);
   Point2i pointZero(W_UNDEF, W_UNDEF);
 
-  Surface& window = AppWormux::GetInstance()->video->window;
+  Surface& window = GetMainWindow();
 
   // Calculate main box size
   uint mainBoxWidth = window.GetWidth() - 2*MARGIN_SIDE;
@@ -91,17 +93,17 @@ NetworkMenu::NetworkMenu() :
   // ##  GAME OPTIONS
   // ################################################
 
-  options_box = new HBox(OPTIONS_BOX_H, true);
-  options_box->AddWidget(new PictureWidget(Point2i(39, 128), "menu/mode_label"));
+  Box* bottom_box = new HBox(OPTIONS_BOX_H, false, true);
+  bottom_box->SetNoBorder();
 
-  Box* tmp_box = new VBox(200, false);
+  Box* options_box = new VBox(200, true);
 
-  mode = new Label("", 0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+  Label* mode = new Label("", 0, Font::FONT_MEDIUM, Font::FONT_BOLD, primary_red_color);
 
   if (Network::GetInstance()->IsClient()) {
     // Client Mode
     mode->SetText(_("Client mode"));
-    tmp_box->AddWidget(mode);
+    options_box->AddWidget(mode);
 
     player_number = NULL;
     connected_players = NULL;
@@ -110,54 +112,43 @@ NetworkMenu::NetworkMenu() :
 
     // Server Mode
     mode->SetText(_("Server mode"));
-    tmp_box->AddWidget(mode);
+    options_box->AddWidget(mode);
 
     player_number = new SpinButton(_("Max number of players:"), W_UNDEF,
                                    GameMode::GetInstance()->max_teams, 1, 2,
                                    GameMode::GetInstance()->max_teams);
     team_box->SetMaxNbLocalPlayers(GameMode::GetInstance()->max_teams - 1);
-    tmp_box->AddWidget(player_number);
+    options_box->AddWidget(player_number);
 
     connected_players = new Label(Format(ngettext("%i player connected", "%i players connected", 0), 0),
 				  0, Font::FONT_SMALL, Font::FONT_NORMAL);
-    tmp_box->AddWidget(connected_players);
+    options_box->AddWidget(connected_players);
 
     initialized_players = new Label(Format(ngettext("%i player ready", "%i players ready", 0), 0),
                                     0, Font::FONT_SMALL, Font::FONT_NORMAL);
-    tmp_box->AddWidget(initialized_players);
+    options_box->AddWidget(initialized_players);
   }
 
-  options_box->AddWidget(tmp_box);
-  options_box->SetPosition(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE);
-  widgets.AddWidget(options_box);
-  widgets.Pack();
+  play_in_loop = new CheckBox(_("Play several times"), W_UNDEF, true);
+  options_box->AddWidget(play_in_loop);
+
+  options_box->Pack();
+  bottom_box->AddWidget(options_box);
 
   // ################################################
   // ##  CHAT BOX
   // ################################################
-  VBox* chat_box = new VBox(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, false);
-  chat_box->SetBorder(Point2i(0,0));
 
-  msg_box = new MsgBox(Point2i(400, OPTIONS_BOX_H - 20), Font::FONT_SMALL, Font::FONT_NORMAL);
+  msg_box = new TalkBox(Point2i(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, OPTIONS_BOX_H),
+                        Font::FONT_SMALL, Font::FONT_NORMAL);
   msg_box->NewMessage(_("Join #wormux on irc.freenode.net to find some opponents."));
+  msg_box->SetPosition(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
+                       options_box->GetPositionY());
 
-  chat_box->SetPosition(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
-		  options_box->GetPositionY());
-  chat_box->AddWidget(msg_box);
+  bottom_box->AddWidget(msg_box);
+  bottom_box->SetPosition(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE);
 
-  HBox* tmp2_box = new HBox(16, false);
-  tmp2_box->SetMargin(4);
-  tmp2_box->SetBorder(Point2i(0,0));
-  line_to_send_tbox = new TextBox(" ", chat_box->GetSizeX()-20,
-                                  Font::FONT_SMALL, Font::FONT_NORMAL);
-  tmp2_box->AddWidget(line_to_send_tbox);
-
-  send_txt_bt = new Button(res, "menu/send_txt", true);
-  tmp2_box->AddWidget(send_txt_bt);
-
-  chat_box->AddWidget(tmp2_box);
-
-  widgets.AddWidget(chat_box);
+  widgets.AddWidget(bottom_box);
   widgets.Pack();
 
   resource_manager.UnLoadXMLProfile(res);
@@ -176,22 +167,11 @@ void NetworkMenu::OnClickUp(const Point2i &mousePosition, int button)
     Network::GetInstanceServer()->SetMaxNumberOfPlayers(player_number->GetValue());
     team_box->SetMaxNbLocalPlayers(player_number->GetValue()-1);
   }
-  else if (w == send_txt_bt)
-  {
-    SendChatMsg();
-  }
 }
 
 void NetworkMenu::OnClick(const Point2i &mousePosition, int button)
 {
   widgets.Click(mousePosition, button);
-}
-
-void NetworkMenu::SendChatMsg()
-{
-  std::string empty = "";
-  Network::GetInstance()->SendChatMessage(line_to_send_tbox->GetText());
-  line_to_send_tbox->SetText(empty);
 }
 
 void NetworkMenu::SaveOptions()
@@ -204,6 +184,20 @@ void NetworkMenu::SaveOptions()
 
   //Save options in XML
 //  Config::GetInstance()->Save();
+}
+
+void NetworkMenu::PrepareForNewGame()
+{
+  msg_box->Clear();
+  b_ok->SetVisible(true);
+
+  Network::GetInstance()->SetState(Network::NETWORK_NEXT_GAME);
+
+  if (Network::GetInstance()->IsClient()) {
+    Network::GetInstance()->SendNetworkState();
+  }
+
+  RedrawMenu();
 }
 
 bool NetworkMenu::signal_ok()
@@ -266,7 +260,18 @@ bool NetworkMenu::signal_ok()
     // Starting the game :-)
     SaveOptions();
     play_ok_sound();
+
+    if (Network::GetInstance()->IsServer())
+      IndexServer::GetInstance()->Disconnect();
+
     Game::GetInstance()->Start();
+
+    if (Network::GetInstance()->IsConnected() && !Network::GetInstance()->cpu.empty()
+	&& play_in_loop->GetValue()) {
+      PrepareForNewGame();
+      return false;
+    }
+
     Network::GetInstance()->network_menu = NULL;
   }
 
@@ -281,9 +286,9 @@ bool NetworkMenu::signal_ok()
 void NetworkMenu::key_ok()
 {
   // return was pressed while chat texbox still had focus (player wants to send his msg)
-  if (line_to_send_tbox->HasFocus())
+  if (msg_box->TextHasFocus())
   {
-    SendChatMsg();
+    msg_box->SendChatMsg();
     return;
   }
 
@@ -355,12 +360,12 @@ void NetworkMenu::AddTeamCallback(const std::string& team_id)
 //  msg_box->NewMessage(team_id + " selected");
 }
 
-void NetworkMenu::UpdateTeamCallback(const std::string& team_id)
+void NetworkMenu::UpdateTeamCallback(const std::string& old_team_id, const std::string& team_id)
 {
   if ( close_menu )
     return;
 
-  team_box->UpdateTeamCallback(team_id);
+  team_box->UpdateTeamCallback(old_team_id, team_id);
 }
 
 void NetworkMenu::ChangeMapCallback()
@@ -389,6 +394,8 @@ void NetworkMenu::WaitingForServer()
 
   msg_box->NewMessage(_("Waiting for server, all you can do is cancel or chat!"), c_red);
 
+  widgets.SetFocusOn(msg_box->GetTextBox());
+
   int x=0, y=0;
   SDL_GetMouseState( &x, &y );
   Point2i mousePosition(x, y);
@@ -410,9 +417,9 @@ void NetworkMenu::WaitingForServer()
           case SDLK_ESCAPE:
             Menu::mouse_cancel();
             break;
-          case SDLK_RETURN:
+	  case SDLK_RETURN:
           case SDLK_KP_ENTER:
-            SendChatMsg();
+            msg_box->SendChatMsg();
             break;
           case SDLK_F10:
             AppWormux::GetInstance()->video->ToggleFullscreen();
@@ -424,14 +431,10 @@ void NetworkMenu::WaitingForServer()
       } else if (event.type == SDL_MOUSEBUTTONUP) {
         if (b_cancel->Contains(mousePosition))
           Menu::mouse_cancel();
-
-        if (send_txt_bt->Contains(mousePosition))
-          SendChatMsg();
       }
     }
 
     Menu::Display(mousePosition);
-    widgets.SetMouseFocusOn(line_to_send_tbox);
 
   } while (Network::GetInstance()->GetState() == Network::NETWORK_MENU_OK &&
            Network::GetInstance()->IsConnected());

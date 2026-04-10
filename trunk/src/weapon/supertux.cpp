@@ -47,7 +47,7 @@ class SuperTuxWeaponConfig : public ExplosiveWeaponConfig
   public:
     uint speed;
     SuperTuxWeaponConfig();
-    virtual void LoadXml(xmlNode* elem);
+    virtual void LoadXml(const xmlNode* elem);
 };
 //-----------------------------------------------------------------------------
 
@@ -94,13 +94,13 @@ SuperTux::SuperTux(SuperTuxWeaponConfig& cfg,
 }
 
 void SuperTux::Shoot(double strength)
-{    
+{
   // Sound must be launched before WeaponProjectile::Shoot
   // in case that the projectile leave the battlefield
   // during WeaponProjectile::Shoot (#bug 10241)
   swimming = false;
   flying_sound.Play("share","weapon/supertux_flying", -1);
-  
+
   WeaponProjectile::Shoot(strength);
   angle_rad = ActiveCharacter().GetFiringAngle();
 
@@ -127,7 +127,7 @@ void SuperTux::Refresh()
     Action a(Action::ACTION_WEAPON_SUPERTUX);
     a.Push(angle_rad);
     a.Push(GetPos());
-    Network::GetInstance()->SendAction(&a);
+    Network::GetInstance()->SendAction(a);
   }
 
   if (!swimming)
@@ -200,7 +200,7 @@ SuperTuxWeaponConfig::SuperTuxWeaponConfig()
   speed = 2;
 }
 
-void SuperTuxWeaponConfig::LoadXml(xmlNode* elem)
+void SuperTuxWeaponConfig::LoadXml(const xmlNode* elem)
 {
   ExplosiveWeaponConfig::LoadXml (elem);
   XmlReader::ReadUint(elem, "speed", speed);
@@ -239,6 +239,9 @@ WeaponProjectile * TuxLauncher::GetProjectileInstance()
 
 bool TuxLauncher::p_Shoot ()
 {
+  if (current_tux != NULL)
+    return false;
+
   current_tux = static_cast<SuperTux *>(projectile);
   bool r = WeaponLauncher::p_Shoot();
 

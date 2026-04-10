@@ -30,6 +30,7 @@
 #include "particles/particle.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
+#include "tool/string_tools.h"
 
 const uint GO_UP_TIME = 1; // min
 const uint GO_UP_STEP = 15; // pixels
@@ -38,7 +39,14 @@ const uint GO_UP_OSCILLATION_NBR = 30; // amplitude
 const float t = (GO_UP_OSCILLATION_TIME*1000.0);
 const float a = GO_UP_STEP/t;
 const float b = 1.0;
-int pattern_height = 0; // TODO: relocate
+
+int Water::pattern_height = 0;
+
+Water::~Water()
+{
+  if (type_color)
+    delete type_color;
+}
 
 /*
  * Water consists of 1) water.png texture, which is the actual wave and
@@ -55,25 +63,19 @@ int pattern_height = 0; // TODO: relocate
 void Water::Init()
 {
   std::string image = "gfx/";
-  switch (water_type) {
-  case WATER:
-    image += "water";
-    break;
-  case LAVA:
-    image += "lava";
-    break;
-  default:
-    ASSERT(false);
-    break;
-  }
+  image += water_name;
 
-  Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
+  Profile *res = resource_manager.LoadXMLProfile("graphism.xml", false);
 
   surface = resource_manager.LoadImage(res, image);
   surface.SetAlpha(0, 0);
 
   image += "_bottom";
 
+  if (water_type != NO_WATER)
+    type_color = new Color(resource_manager.LoadColor(res, "water_colors/" + water_name));
+  else
+    type_color = NULL;
   bottom = resource_manager.LoadImage(res, image);
   bottom.SetAlpha(0, 0);
 
@@ -101,9 +103,30 @@ void Water::Init()
   resource_manager.UnLoadXMLProfile(res);
 }
 
+Water::Water_type Water::GetWaterType(std::string & water)
+{
+  if(water == "water") {
+    return WATER;
+  } else if(water == "lava") {
+    return LAVA;
+  } else if(water == "radioactive") {
+    return RADIOACTIVE;
+  } else { // Old water definition (aka 0 = no water, 1 = water, 2 = lava etc)
+    int water_t;
+    if(str2int(water, water_t) && water_t < MAX_WATER_TYPE) {
+      return (Water_type)water_t;
+    }
+  }
+  return NO_WATER;
+}
+
 void Water::Reset()
 {
-  water_type = ActiveMap()->WaterType();
+  water_name = ActiveMap()->GetWaterName();
+  water_type = GetWaterType(water_name);
+  if (type_color)
+    delete type_color;
+  type_color = NULL;
 
   if (!IsActive())
     return;
@@ -269,7 +292,16 @@ void Water::Splash(const Point2i& pos) const
   case LAVA:
     ParticleEngine::AddNow(Point2i(pos.x, pos.y-5), 5, particle_LAVA, true, -1, 20);
     break;
+  case RADIOACTIVE:
+    ParticleEngine::AddNow(Point2i(pos.x, pos.y-5), 5, particle_RADIOACTIVE, true, -1, 20);
+    break;
   default:
     break;
   }
 }
+
+void Water::Smoke(const Point2i& pos) const
+{
+  ParticleEngine::AddNow(Point2i(pos.x, pos.y-5), 2, particle_SMOKE, true, 0, 1);
+}
+

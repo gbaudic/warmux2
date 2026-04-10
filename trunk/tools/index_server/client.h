@@ -49,8 +49,9 @@ class Client : public NetData
 			 const std::string & passwd);
 
   bool SendSignature();
+  bool RejectBadVersion();
   bool SendList();
-  void SetVersion(const std::string & version);
+  void AddMeToClientsList(const std::string & version);
 
   // Tell other index server that a new wormux server just registered
   void NotifyServers(bool joining);
@@ -77,3 +78,4 @@ public:
 };
 
 #endif
+

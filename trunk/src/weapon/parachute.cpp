@@ -46,7 +46,7 @@ class ParachuteConfig : public WeaponConfig
      double air_resist_factor;
      double force_side_displacement;
      ParachuteConfig();
-     void LoadXml(xmlNode* elem);
+     void LoadXml(const xmlNode* elem);
 };
 
 
@@ -87,6 +87,7 @@ void Parachute::p_Select()
 void Parachute::p_Deselect()
 {
   ActiveCharacter().ResetConstants();
+  ActiveCharacter().SetMovement("breathe");
 }
 
 bool Parachute::IsInUse() const
@@ -239,7 +240,7 @@ ParachuteConfig::ParachuteConfig(){
   force_side_displacement = 2000.0;
 }
 
-void ParachuteConfig::LoadXml(xmlNode* elem){
+void ParachuteConfig::LoadXml(const xmlNode* elem){
   WeaponConfig::LoadXml(elem);
   XmlReader::ReadDouble(elem, "wind_factor", wind_factor);
   XmlReader::ReadDouble(elem, "air_resist_factor", air_resist_factor);

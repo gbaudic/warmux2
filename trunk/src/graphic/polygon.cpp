@@ -20,17 +20,18 @@
  *****************************************************************************/
 
 #include "graphic/polygon.h"
-#include "tool/affine_transform.h"
 #include "graphic/sprite.h"
-#include "tool/random.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "map/map.h"
+#include "network/randomsync.h"
+#include "tool/affine_transform.h"
+
 
 //=========== POLYGON BUFFER ============ //
 // Use this structure to store transformed point
 // In affine transformation, never transform directly the original point !
-// If you do it, your point will becoming dented.
+// If you do it, your point will become dented.
 
 PolygonBuffer::PolygonBuffer()
 {
@@ -175,7 +176,7 @@ Point2i PolygonItem::GetOffsetAlignment() const
 }
 
 //=========== POLYGON ============ //
-// Store a vector of point and handle affine transformation,
+// Store a vector of points and handle affine transformation,
 // Bezier interpolation handling etc.
 
 Polygon::Polygon()
@@ -309,7 +310,7 @@ bool Polygon::IsClockWise() const
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y) < 0;
 }
 
-// Not accurate at 100% but sufficent for the moment
+// Not 100% accurate but sufficient for now
 bool Polygon::IsOverlapping(const Polygon & poly) const
 {
   for(int i = 0; i < GetNbOfPoint(); i++) {
@@ -353,7 +354,7 @@ void Polygon::InsertPoint(int index, const Point2d & p)
   vector_tmp.push_back(p);
   shape_buffer->vx[i] = (int)p.x;
   shape_buffer->vy[i++] = (int)p.y;
-  // And interting remaining point of previous shape
+  // And inserting remaining points of previous shape
   for(; point != original_shape.end(); point++, i++) {
     tmp = *point;
     vector_tmp.push_back(tmp);
@@ -470,7 +471,7 @@ Point2d Polygon::GetRandomUpperPoint()
   std::vector<Point2d>::iterator point = transformed_shape.begin();
   Point2d tmp, previous;
   tmp = *point;
-  int start = Random::GetInt(0, GetNbOfPoint());
+  int start = RandomSync().GetInt(0, GetNbOfPoint());
   int i;
   for(i = 0; i < start; i++)
     point++;
@@ -490,8 +491,8 @@ int Polygon::GetNbOfPoint() const
   return (int)original_shape.size();
 }
 
-// And the famous Bezier curve. And this algorithme is that simple ? I'm so disappointed !
-// But now you can say to the world wormux is using Bezier curve.
+// And the famous Bezier curve. And this algorithm is that simple ? I'm so disappointed !
+// But now you can tell the world wormux is using Bezier curves.
 void Polygon::AddBezierCurve(const Point2d& anchor1, const Point2d& control1,
                              const Point2d& control2, const Point2d& anchor2,
                              const int num_steps, const bool add_first_point,
@@ -522,8 +523,8 @@ void Polygon::AddRandomCurve(const Point2d& start, const Point2d& end,
   if(add_first_point)
     AddPoint(start);
   for (int i = 1; i < num_steps - 1; i++) {
-    AddPoint(start + (step * i) + Point2d(Random::GetDouble(-x_random_offset, x_random_offset),
-                                          Random::GetDouble(-y_random_offset, y_random_offset)));
+    AddPoint(start + (step * i) + Point2d(RandomSync().GetDouble(-x_random_offset, x_random_offset),
+                                          RandomSync().GetDouble(-y_random_offset, y_random_offset)));
   }
   if(add_last_point)
     AddPoint(end);
@@ -558,9 +559,9 @@ Polygon * Polygon::GetBezierInterpolation(double smooth_value, int num_steps, do
 
     // Randomization
     if(rand != 0.0) {
-      trans.SetRotation(Random::GetDouble(-rand, rand));
+      trans.SetRotation(RandomSync().GetDouble(-rand, rand));
       v1 = trans * v1;
-      trans.SetRotation(Random::GetDouble(-rand, rand));
+      trans.SetRotation(RandomSync().GetDouble(-rand, rand));
       v2 = trans * v2;
     }
 
@@ -694,6 +695,6 @@ void Polygon::Draw(Surface * dest)
 
 void Polygon::DrawOnScreen()
 {
-  Draw(&AppWormux::GetInstance()->video->window);
+  Draw(&GetMainWindow());
   world.ToRedrawOnScreen(GetRectangleToRefresh());
 }

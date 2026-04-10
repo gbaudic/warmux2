@@ -53,7 +53,7 @@
 				UseUnicodeResponseFiles="false"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)..\src&quot;;&quot;$(ProjectDir)..\src\msvc&quot;;&quot;$(GTK_BASEPATH)\include&quot;;&quot;$(GTK_BASEPATH)\include\libxml2&quot;"
-				PreprocessorDefinitions="WIN32;DEBUG;_DEBUG;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\DejaVuSans.ttf\&quot;;PACKAGE_VERSION=\&quot;0.8svn\&quot;;M_PI=3.14159265358979323846;M_PI_2=1.57079632679489661923;M_PI_4=0.78539816339744830962;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS;USE_FRIBIDI"
+				PreprocessorDefinitions="WIN32;DEBUG;_DEBUG;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\LiberationSans-Regular.ttf\&quot;;PACKAGE_VERSION=\&quot;0.8svn\&quot;;M_PI=3.14159265358979323846;M_PI_2=1.57079632679489661923;M_PI_4=0.78539816339744830962;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS;USE_FRIBIDI"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -684,6 +684,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\src\gui\talk_box.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\gui\talk_box.h"
+					>
+				</File>
+				<File
 					RelativePath="..\src\gui\text_box.cpp"
 					>
 				</File>
@@ -956,6 +964,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\src\menu\game_mode_editor.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\menu\game_mode_editor.h"
+					>
+				</File>
+				<File
 					RelativePath="..\src\menu\help_menu.cpp"
 					>
 				</File>
@@ -1037,6 +1053,14 @@
 				</File>
 				<File
 					RelativePath="..\src\menu\results_menu.h"
+					>
+				</File>
+				<File
+					RelativePath="..\src\menu\skin_menu.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\menu\skin_menu.h"
 					>
 				</File>
 				<File
@@ -1400,6 +1424,22 @@
 				Name="team"
 				>
 				<File
+					RelativePath="..\src\team\custom_team.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\team\custom_team.h"
+					>
+				</File>
+				<File
+					RelativePath="..\src\team\custom_teams_list.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\team\custom_teams_list.h"
+					>
+				</File>
+				<File
 					RelativePath="..\src\team\macro.h"
 					>
 				</File>
@@ -1497,6 +1537,10 @@
 				</File>
 				<File
 					RelativePath="..\src\tool\i18n.h"
+					>
+				</File>
+				<File
+					RelativePath="..\src\tool\isnan.h"
 					>
 				</File>
 				<File
@@ -1805,6 +1849,14 @@
 				</File>
 				<File
 					RelativePath="..\src\weapon\skip_turn.h"
+					>
+				</File>
+				<File
+					RelativePath="..\src\weapon\slap.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\src\weapon\slap.h"
 					>
 				</File>
 				<File

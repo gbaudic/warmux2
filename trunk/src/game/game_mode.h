@@ -63,21 +63,22 @@ public:
     uint walking_pause;
   } character;
 
-  int allow_character_selection;
+  bool auto_change_character;
 
-  enum {
+  typedef enum {
     ALWAYS = 0,
     BEFORE_FIRST_ACTION,
-    BEFORE_FIRST_ACTION_AND_END_TURN,
-    CHANGE_ON_END_TURN,
     NEVER
-  };
+  } manual_change_character_t;
+
+  manual_change_character_t allow_character_selection;
+
 private:
   std::string m_current;
 
   XmlReader* doc_objects;
 
-  bool LoadXml (xmlNode* xml);
+  bool LoadXml (const xmlNode* xml);
   bool ExportFileToString(const std::string& filename, std::string& contents) const;
 
   std::string GetFilename() const;

@@ -23,8 +23,10 @@
 #define WEAPON_MENU_H
 
 #include "include/base.h"
-#include "tool/affine_transform.h"
+#include "interface/mouse.h"
 #include "graphic/polygon.h"
+#include "tool/affine_transform.h"
+
 #include <vector>
 
 // Forward declaration
@@ -75,6 +77,8 @@ class WeaponsMenu
 
   int nbr_weapon_type; // number of weapon type = number of rows
   int * nb_weapon_type;
+
+  Mouse::pointer_t old_pointer;
 
  public:
   WeaponsMenu();

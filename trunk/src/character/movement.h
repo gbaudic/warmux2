@@ -66,6 +66,7 @@ public:
   std::vector<member_def> frames;
   bool always_moving;
   int speed;
+  int repeat;
   uint test_left, test_right, test_top, test_bottom;
   enum
   {
@@ -76,7 +77,7 @@ public:
   std::string type;
 
   ~Movement();
-  Movement(xmlNode* xml);
+  Movement(const xmlNode* xml);
 };
 
 #endif //MEMBER_H

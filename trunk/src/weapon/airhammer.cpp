@@ -52,7 +52,7 @@ class AirhammerConfig : public WeaponConfig
     uint range;
     uint damage;
     AirhammerConfig();
-    void LoadXml(xmlNode* elem);
+    void LoadXml(const xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------
@@ -87,9 +87,6 @@ bool Airhammer::p_Shoot()
 
   // initiate movement ;-)
   ActiveCharacter().SetRebounding(false);
-
-  // Little hack, so the character notices he is in the vaccum and begins to fall in the hole
-  ActiveCharacter().SetXY( ActiveCharacter().GetPosition() );
 
   Point2i pos = Point2i(ActiveCharacter().GetX() + ActiveCharacter().GetWidth()/2 - impact.GetWidth()/2,
                         ActiveCharacter().GetTestRect().GetPositionY() +
@@ -147,6 +144,7 @@ void Airhammer::p_Deselect()
 {
   drill_sound.Stop();
   select_sound.Stop();
+  ActiveCharacter().SetMovement("breathe");
 }
 
 //-----------------------------------------------------------------------------
@@ -192,7 +190,7 @@ AirhammerConfig::AirhammerConfig(){
 
 //-----------------------------------------------------------------------------
 
-void AirhammerConfig::LoadXml(xmlNode* elem){
+void AirhammerConfig::LoadXml(const xmlNode* elem){
   WeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "range", range);
   XmlReader::ReadUint(elem, "damage", damage);

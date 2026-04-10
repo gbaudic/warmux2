@@ -40,11 +40,17 @@
 #include "particles/fading_text.h"
 #include "sound/jukebox.h"
 #include "team/team.h"
+#include "team/custom_team.h"
 #include "team/macro.h"
 #include "tool/math_tools.h"
 #include "tool/random.h"
 #include "tool/string_tools.h"
 #include "weapon/explosion.h"
+
+#ifdef DEBUG
+#include "include/app.h"
+#include "graphic/video.h"
+#endif
 
 const uint HAUT_FONT_MIX = 13;
 
@@ -85,8 +91,8 @@ void Character::SetBody(Body* char_body)
   SetClothe("normal");
   SetMovement("breathe");
 
-  SetDirection(randomObj.GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
-  body->SetFrame(randomObj.GetLong(0, body->GetFrameCount() - 1));
+  SetDirection(RandomLocal().GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
+  body->SetFrame(RandomLocal().GetLong(0, body->GetFrameCount() - 1));
   SetSize(body->GetSize());
 }
 
@@ -105,10 +111,10 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   energy_bar(),
   survivals(0),
   name_text(NULL),
-  pause_bouge_dg(0),
+  rl_motion_pause(0),
   do_nothing_time(0),
   walking_time(0),
-  animation_time(Time::GetInstance()->Read() + randomObj.GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX)),
+  animation_time(Time::GetInstance()->Read() + RandomLocal().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX)),
   lost_energy(0),
   hidden(false),
   channel_step(-1),
@@ -117,6 +123,7 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   previous_strength(0),
   body(NULL)
 {
+
   m_is_character = true;
   SetCollisionModel(false, true, true);
   /* body stuff */
@@ -131,10 +138,6 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
     name_text = new Text(character_name);
   else
     name_text = NULL;
-
-#ifdef DEBUG_SKIN
-    name_text = new Text(" ");
-#endif
 
   // Energy
   m_energy = GameMode::GetInstance()->character.init_energy;
@@ -164,7 +167,7 @@ Character::Character (const Character& acharacter) :
   energy_bar(acharacter.energy_bar),
   survivals(acharacter.survivals),
   name_text(NULL),
-  pause_bouge_dg(acharacter.pause_bouge_dg),
+  rl_motion_pause(acharacter.rl_motion_pause),
   do_nothing_time(acharacter.do_nothing_time),
   walking_time(acharacter.walking_time),
   animation_time(acharacter.animation_time),
@@ -180,11 +183,6 @@ Character::Character (const Character& acharacter) :
     SetBody(new Body(*acharacter.body));
   if(acharacter.name_text)
     name_text = new Text(*acharacter.name_text);
-
-#ifdef DEBUG_SKIN
-    skin_text = new Text(" ");
-#endif
-
 }
 
 Character::~Character()
@@ -199,9 +197,6 @@ Character::~Character()
   body          = NULL;
   name_text     = NULL;
   particle_engine = NULL;
-#ifdef DEBUG_SKIN
-  delete skin_text;
-#endif
 }
 
 void Character::SignalDrowning()
@@ -358,7 +353,7 @@ void Character::Draw()
   // Gone in another world ?
   if (IsGhost()) return;
 
-  // Character is visible on carema? If not, just leave the function
+  // Character is visible on camera? If not, just leave the function
   // WARNING, this optimization is disabled if it is the active character
   // because there could be some tricks in the drawing of the weapon (cf bug #10242)
   if (!IsActiveCharacter()) {
@@ -380,7 +375,7 @@ void Character::Draw()
       &&  body->GetClothe().substr(0,9) != "animation")
   {
     body->PlayAnimation();
-    animation_time = Time::GetInstance()->Read() + body->GetMovementDuration() + randomObj.GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
+    animation_time = Time::GetInstance()->Read() + body->GetMovementDuration() + RandomLocal().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
   }
 
   // Stop the animation or the black skin if we are playing
@@ -440,13 +435,6 @@ void Character::Draw()
     dy -= ESPACE;
   }
 
-#ifdef DEBUG_SKIN
-  dy -= HAUT_FONT_MIX;
-  skin_text->Set(body->GetClothe() + " " + body->GetMovement());
-  skin_text->DrawCenterTopOnMap(Point2i(GetX(), GetY() - dy));
-  dy -= ESPACE;
-#endif
-
   // Draw lost energy
   if (draw_loosing_energy)
   {
@@ -458,13 +446,33 @@ void Character::Draw()
         ss.str(), white_color);
   }
 
+#ifdef DEBUG
+
+  if (IsLOGGING("body"))
+  {
+    dy -= HAUT_FONT_MIX;
+    std::string txt = body->GetClothe() + " " + body->GetMovement();
+    Text skin_text(txt);
+    skin_text.DrawCenterTopOnMap(Point2i(GetX(), GetY() - dy));
+  }
+
+  if (IsLOGGING("test_rectangle"))
+  {
+    Rectanglei test_rect(GetTestRect());
+    test_rect.SetPosition(test_rect.GetPosition() - Camera::GetInstance()->GetPosition());
+    GetMainWindow().RectangleColor(test_rect, primary_red_color, 1);
+
+    Rectanglei rect(GetPosition() - Camera::GetInstance()->GetPosition(), GetSize());
+    GetMainWindow().RectangleColor(rect, primary_blue_color, 1);
+  }
+#endif
 }
 
 void Character::Jump(double strength, double angle /*in radian */)
 {
   Camera::GetInstance()->FollowObject(this, true);
 
-  do_nothing_time = Time::GetInstance()->Read();
+  UpdateLastMovingTime();
   walking_time = Time::GetInstance()->Read();
 
   if (!CanJump() && ActiveTeam().IsLocal()) return;
@@ -529,6 +537,11 @@ void Character::DoShoot()
   damage_stats->OneMoreShot();
   ActiveTeam().AccessWeapon().Shoot();
   MSG_DEBUG("weapon.shoot", "<- end");
+}
+
+void Character::UpdateLastMovingTime()
+{
+  do_nothing_time = Time::GetInstance()->Read();
 }
 
 void Character::Refresh()
@@ -606,13 +619,13 @@ void Character::PrepareTurn()
 {
   damage_stats->HandleMostDamage();
   lost_energy = 0;
-  pause_bouge_dg = Time::GetInstance()->Read();
+  rl_motion_pause = Time::GetInstance()->Read();
 }
 
 bool Character::CanMoveRL() const
 {
   if (!IsImmobile() || IsFalling()) return false;
-  return pause_bouge_dg < Time::GetInstance()->Read();
+  return rl_motion_pause < Time::GetInstance()->Read();
 }
 
 void Character::BeginMovementRL(uint pause, bool slowly)
@@ -620,21 +633,21 @@ void Character::BeginMovementRL(uint pause, bool slowly)
   Camera::GetInstance()->FollowObject(this, true);
 
   walking_time = Time::GetInstance()->Read();
-  do_nothing_time = Time::GetInstance()->Read();
+  UpdateLastMovingTime();
   if (!slowly) {
     SetMovement("walk");
   }
   CharacterCursor::GetInstance()->Hide();
   step_sound_played = true;
-  pause_bouge_dg = Time::GetInstance()->Read()+pause;
+  rl_motion_pause = Time::GetInstance()->Read()+pause;
 }
 
 bool Character::CanStillMoveRL(uint pause)
 {
-  if (pause_bouge_dg + pause < Time::GetInstance()->Read())
+  if (rl_motion_pause + pause < Time::GetInstance()->Read())
   {
     walking_time = Time::GetInstance()->Read();
-    pause_bouge_dg = pause_bouge_dg + pause;
+    rl_motion_pause = rl_motion_pause + pause;
     return true;
   }
   return false;
@@ -646,7 +659,7 @@ void Character::SignalCollision(const Point2d& speed_vector)
   // Do not manage dead characters.
   if (IsDead()) return;
 
-  pause_bouge_dg = Time::GetInstance()->Read();
+  rl_motion_pause = Time::GetInstance()->Read();
 
   GameMode * game_mode = GameMode::GetInstance();
   if (body->GetClothe() != "weapon-" + m_team.GetWeapon().GetID()
@@ -844,8 +857,8 @@ void Character::StoreValue(Action *a)
   PhysicalObj::StoreValue(a);
   a->Push((int)GetDirection());
   a->Push(GetAbsFiringAngle());
-  a->Push((int)GetDiseaseDamage());
-  a->Push((int)GetDiseaseDuration());
+  a->Push((int)disease_damage_per_turn);
+  a->Push((int)disease_duration);
   if (IsActiveCharacter()) { // If active character, store step animation
     a->Push((int)true);
     a->Push(GetBody()->GetClothe());
@@ -861,6 +874,7 @@ void Character::GetValueFromAction(Action *a)
   // those 2 parameters will be retrieved by PhysicalObj::GetValueFromAction
   alive_t prev_live_state = m_alive;
   int prev_energy = m_energy;
+  Point2d prev_position = Physics::GetPos();
 
   PhysicalObj::GetValueFromAction(a);
   SetDirection((BodyDirection_t)(a->PopInt()));
@@ -917,8 +931,8 @@ void Character::GetValueFromAction(Action *a)
     }
   }
 
-  int disease_damage_per_turn = (a->PopInt());
-  int disease_duration = (a->PopInt());
+  uint disease_damage_per_turn = (a->PopInt());
+  uint disease_duration = (a->PopInt());
   SetDiseaseDamage(disease_damage_per_turn, disease_duration);
   if (a->PopInt()) { // If active characters, retrieve stored animation
     if (GetTeam().IsActiveTeam())
@@ -929,8 +943,33 @@ void Character::GetValueFromAction(Action *a)
 
     GetBody()->UpdateWeaponPosition(GetPosition());
   }
+
+  // If the player has moved, the camera should follow it!
+  Point2d current_position = Physics::GetPos();
+  if (IsActiveCharacter() && prev_position != current_position) {
+    Camera::GetInstance()->FollowObject(this, true);
+    HideGameInterface();
+  }
 }
 
+
+const std::string& Character::GetName() const
+{
+    return character_name;
+ }
+
+void Character::SetCustomName(const std::string name)
+{
+  std::cout<<"Character::SetCustomName "<<name<<std::endl;
+
+  if(name.size()>0)
+  {
+    name_text->Set(name);
+    character_name = name;
+  }
+
+
+}
 // ###################################################################
 // ###################################################################
 // ###################################################################
@@ -989,7 +1028,7 @@ void Character::HandleKeyRefreshed_Up(bool shift)
     {
       if (ActiveTeam().crosshair.enable)
         {
-          do_nothing_time = Time::GetInstance()->Read();
+	  UpdateLastMovingTime();
           CharacterCursor::GetInstance()->Hide();
           if (shift) AddFiringAngle(-DELTA_CROSSHAIR/10.0);
           else       AddFiringAngle(-DELTA_CROSSHAIR);
@@ -1006,7 +1045,7 @@ void Character::HandleKeyRefreshed_Down(bool shift)
     {
       if (ActiveTeam().crosshair.enable)
         {
-          do_nothing_time = Time::GetInstance()->Read();
+	  UpdateLastMovingTime();
           CharacterCursor::GetInstance()->Hide();
           if (shift) AddFiringAngle(DELTA_CROSSHAIR/10.0);
           else       AddFiringAngle(DELTA_CROSSHAIR);
@@ -1048,4 +1087,6 @@ void Character::HandleKeyPressed_BackJump(bool)
     SendActiveCharacterAction(a);
   }
 }
+
+
 

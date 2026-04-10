@@ -128,7 +128,7 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
   uint time = Time::GetInstance()->Read() - m_last_refresh;
   uint tmp = Time::GetInstance()->Read();
 
-  uint delta = uint(m_time_between_add * double(randomObj.GetLong(3, 40)) / 10);
+  uint delta = uint(m_time_between_add * double(RandomLocal().GetLong(3, 40)) / 10);
   if (time >= delta) {
     m_last_refresh = tmp;
     ParticleEngine::AddNow(position, 1, type, upper, angle, norme);
@@ -162,6 +162,7 @@ void ParticleEngine::Load()
   particle_sprite[POLECAT_FART_spr] = resource_manager.LoadSprite(res,"polecat_fart");
   particle_sprite[WATER_spr] = resource_manager.LoadSprite(res,"water_drop");
   particle_sprite[LAVA_spr] = resource_manager.LoadSprite(res,"lava_drop");
+  particle_sprite[RADIOACTIVE_spr] = resource_manager.LoadSprite(res,"radioactive_drop");
   resource_manager.UnLoadXMLProfile(res);
 
   sprites_loaded = true;
@@ -223,6 +224,8 @@ void ParticleEngine::AddNow(const Point2i &position,
       break;
     case particle_LAVA: particle = new LavaParticle();
       break;
+    case particle_RADIOACTIVE: particle = new RadioactiveParticle();
+      break;
     default : particle = NULL;
       ASSERT(0);
       break;
@@ -231,12 +234,12 @@ void ParticleEngine::AddNow(const Point2i &position,
     if (particle != NULL) {
 
       if( norme == -1 )
-        tmp_norme = double(randomObj.GetLong(0, 5000))/100;
+        tmp_norme = double(RandomLocal().GetLong(0, 5000))/100;
       else
         tmp_norme = norme;
 
       if( angle == -1 )
-        tmp_angle = - double(randomObj.GetLong(0, 3000))/1000;
+        tmp_angle = - double(RandomLocal().GetLong(0, 3000))/1000;
       else
         tmp_angle = angle;
 

@@ -13,7 +13,9 @@ BINDIR=/mingw
 HKLM_PATH="SOFTWARE\Games\Wormux"
 
 # Version number in installer
-WORMUX_VERSION=0.8
+WORMUX_VERSION=r$(LC_ALL=C svn info 2> /dev/null | grep Revision | cut -d' ' -f2)
+
+#0.8.1
 
 # Set compression and in/out
 COMPRESSION="/solid lzma"
@@ -30,12 +32,14 @@ if [ "$OSTYPE" == "linux-gnu" ]; then
   WIN_WORMUXDIR="$PWD/../.."
   LOCAL_PATH="$PWD"
   SEP="/"
+  i586-mingw32msvc-strip ../../src/wormux.exe
 else
   PKG_CONFIG=pkg-config
   SDL_CONFIG=sdl-config
   WIN_WORMUXDIR=$(cd "$WORMUXDIR" && cmd /c cd)
   LOCAL_PATH=$(cmd /c cd)
   SEP="\\"
+  strip ../../src/wormux.exe
 fi
 
 mkdir -p $DEST
@@ -57,26 +61,39 @@ fi
 # Create head
 cat > $NSIS <<EOF
 ;based on MUI Welcome/Finish Page Example Script written by Joost Verburg
-!include "MUI.nsh"
+!include "MUI2.nsh"
 !include "Sections.nsh"
 !include "LogicLib.nsh"
+!include "FileFunc.nsh"
+!insertmacro GetParent
+
 
 Name "Wormux"
 !define WORMUX_VERSION  "${WORMUX_VERSION}"
 ;Version resource
-VIProductVersion        "0.8.0.2"
+VIProductVersion        "0.8.1.0"
 VIAddVersionKey         "FileDescription"       "Wormux Installer"
 VIAddVersionKey         "ProductName"           "Wormux"
 VIAddVersionKey         "FileVersion"           "${WORMUX_VERSION}"
 VIAddVersionKey         "ProductVersion"        "${WORMUX_VERSION}"
-VIAddVersionKey         "LegalCopyright"        "(C) 2001-2007 The Wormux Project"
+VIAddVersionKey         "LegalCopyright"        "(C) 2001-2008 The Wormux Project"
 
 ;General
 OutFile "${LOCAL_PATH}\Wormux-Setup-${WORMUX_VERSION}.exe"
 SetCompressor ${COMPRESSION}
+ShowInstDetails show
+ShowUninstDetails show
+SetDateSave on
+RequestExecutionLevel highest
 
-;--------------------------------
-;Modern UI Configuration
+!define WORMUX_REG_KEY          "${HKLM_PATH}"
+!define WORMUX_UNINSTALL_KEY    "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Wormux"
+!define HKLM_APP_PATHS_KEY      "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\wormux.exe"
+!define STARTUP_RUN_KEY         "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Modern UI Configuration ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   !define MUI_ICON                          "${LOCAL_PATH}${SEP}install.ico"
   !define MUI_UNICON                        "${LOCAL_PATH}${SEP}uninstall.ico"
   ; Alter License section
@@ -84,9 +101,9 @@ SetCompressor ${COMPRESSION}
   !define MUI_LICENSEPAGE_TEXT_BOTTOM       \$(WORMUX_BOTTOM_TEXT)
   ; Language
   !define MUI_LANGDLL_ALWAYSSHOW
-  !define MUI_LANGDLL_REGISTRY_ROOT         "HKLM"
-  !define MUI_LANGDLL_REGISTRY_KEY"         ${HKLM_PATH}"
-  !define MUI_LANGDLL_REGISTRY_VALUENAME    "lang"
+  !define MUI_LANGDLL_REGISTRY_ROOT         "HKCU"
+  !define MUI_LANGDLL_REGISTRY_KEY          "\${WORMUX_REG_KEY}"
+  !define MUI_LANGDLL_REGISTRY_VALUENAME    "Installer Language"
   ; Misc stuff
   !define MUI_COMPONENTSPAGE_SMALLDESC
   !define MUI_ABORTWARNING
@@ -99,8 +116,8 @@ SetCompressor ${COMPRESSION}
   !define MUI_FINISHPAGE_LINK               \$(WORMUX_VISIT)
   !define MUI_FINISHPAGE_LINK_LOCATION      "http://www.wormux.org"
 
-;--------------------------------
-;Pages
+  ;--------------------------------
+  ;Pages
   ; Install
   !insertmacro MUI_PAGE_WELCOME
   !insertmacro MUI_PAGE_LICENSE \$(WormuxLicense)
@@ -114,37 +131,34 @@ SetCompressor ${COMPRESSION}
   !insertmacro MUI_UNPAGE_INSTFILES
   !insertmacro MUI_UNPAGE_FINISH
 
-;--------------------------------
-;Languages
+  ;--------------------------------
+  ;Languages
   !insertmacro MUI_LANGUAGE "English"
   LicenseLangString WormuxLicense "English" "${WIN_WORMUXDIR}\doc\license\COPYING.en.txt"
-  LangString TITLE_Wormux "English" "Wormux"
-  LangString DESC_Wormux  "English" "Installs the game Wormux, version ${WORMUX_VERSION}"
 
   !insertmacro MUI_LANGUAGE "French"
   LicenseLangString WormuxLicense "French" "${WIN_WORMUXDIR}\doc\license\COPYING.fr.txt"
-  LangString TITLE_Wormux "French" "Wormux"
-  LangString DESC_Wormux  "French" "Installe le jeu Wormux, en version ${WORMUX_VERSION}"
+
+  !insertmacro MUI_LANGUAGE "Greek"
+  LicenseLangString WormuxLicense "Greek" "${WIN_WORMUXDIR}\doc\license\COPYING.el.txt"
+
+  !insertmacro MUI_LANGUAGE "Polish"
+  LicenseLangString WormuxLicense "Polish" "${WIN_WORMUXDIR}\doc\license\COPYING.pl.txt"
 
   !insertmacro MUI_LANGUAGE "German"
   LicenseLangString WormuxLicense "German" "${WIN_WORMUXDIR}\doc\license\COPYING.de.txt"
   LangString TITLE_Wormux "German" "Wormux"
-  LangString DESC_Wormux  "German" "Das Spiel Wormux, Version ${WORMUX_VERSION} anbringen"
+  LangString DESC_Wormux  "German" "Wormux ${WORMUX_VERSION}"
 
   !insertmacro MUI_LANGUAGE "Spanish"
   LicenseLangString WormuxLicense "Spanish" "${WIN_WORMUXDIR}\doc\license\COPYING.es.txt"
   LangString TITLE_Wormux "Spanish" "Wormux"
-  LangString DESC_Wormux  "Spanish" "Instala el juego Wormux, versión ${WORMUX_VERSION}"
+  LangString DESC_Wormux  "Spanish" "Wormux ${WORMUX_VERSION}"
 
   !insertmacro MUI_LANGUAGE "Dutch"
   LicenseLangString WormuxLicense "Dutch" "${WIN_WORMUXDIR}\doc\license\COPYING.nl.txt"
   LangString TITLE_Wormux "Dutch" "Wormux"
   LangString DESC_Wormux  "Dutch" "Wormux ${WORMUX_VERSION}"
-
-  !insertmacro MUI_LANGUAGE "Polish"
-  LicenseLangString WormuxLicense "Polish" "${WIN_WORMUXDIR}\doc\license\COPYING.pl.txt"
-  LangString TITLE_Wormux "Polish" "Wormux"
-  LangString DESC_Wormux  "Polish" "Wormux ${WORMUX_VERSION}"
 
   !insertmacro MUI_LANGUAGE "Russian"
   LicenseLangString WormuxLicense "Russian" "${WIN_WORMUXDIR}\doc\license\COPYING.ru.txt"
@@ -162,25 +176,154 @@ SetCompressor ${COMPRESSION}
   !include "${LOCAL_PATH}\langmacros.nsh"
   !insertmacro WORMUX_MACRO_INCLUDE_LANGFILE "ENGLISH"  "${LOCAL_PATH}\English.nsh"
   !insertmacro WORMUX_MACRO_INCLUDE_LANGFILE "FRENCH"   "${LOCAL_PATH}\French.nsh"
+  !insertmacro WORMUX_MACRO_INCLUDE_LANGFILE "POLISH"   "${LOCAL_PATH}\Polish.nsh"
+  !insertmacro WORMUX_MACRO_INCLUDE_LANGFILE "GREEK"    "${LOCAL_PATH}\Greek.nsh"
+
+  ;--------------------------------
+  ;Reserve Files
+  ;If you are using solid compression, files that are required before
+  ;the actual installation should be stored first in the data block,
+  ;because this will make your installer start faster.
+
+  !insertmacro MUI_RESERVEFILE_LANGDLL
+
+  ;--------------------------------
+  ;Folder-selection page
+  InstallDir "\$PROGRAMFILES\Wormux"
+  ; Registry key to check for directory (so if you install again, it will 
+  ; overwrite the old one automatically)
+  InstallDirRegKey HKLM "\${WORMUX_REG_KEY}" "Path"
+  AutoCloseWindow false
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Start Install Sections ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;-----------------------------------------
+;Create folder only if it doesnt exist yet
+!macro CreateDirectoryOnce FOLDER
+  IfFileExists "\${FOLDER}\\*.*" +1
+    CreateDirectory "\${FOLDER}"
+!macroend
 
 ;--------------------------------
-;Folder-selection page
-InstallDir "\$PROGRAMFILES\Wormux"
-; Registry key to check for directory (so if you install again, it will 
-; overwrite the old one automatically)
-InstallDirRegKey HKLM ${HKLM_PATH} "Path"
-AutoCloseWindow false
+;Check (un)install rights
+!macro CheckUserInstallRightsMacro UN
+Function \${UN}CheckUserInstallRights
+  Push \$0
+  Push \$1
+  ClearErrors
+  UserInfo::GetName
+  IfErrors Win9x
+  Pop \$0
+  UserInfo::GetAccountType
+  Pop \$1
+
+  StrCmp \$1 "Admin" 0 +3
+    StrCpy \$1 "HKLM"
+    Goto done
+  StrCmp \$1 "Power" 0 +3
+    StrCpy \$1 "HKLM"
+    Goto done
+  StrCmp \$1 "User" 0 +3
+    StrCpy \$1 "HKCU"
+    Goto done
+  StrCmp \$1 "Guest" 0 +3
+    StrCpy \$1 "NONE"
+    Goto done
+  ; Unknown error
+  StrCpy \$1 "NONE"
+  Goto done
+
+  Win9x:
+    StrCpy \$1 "HKLM"
+
+  done:
+    Exch \$1
+    Exch
+    Pop \$0
+FunctionEnd
+!macroend
+!insertmacro CheckUserInstallRightsMacro ""
+!insertmacro CheckUserInstallRightsMacro "un."
 
 ;--------------------------------
-;Installer Sections
+; Uninstall any old version of Wormux
+
+; Section hidden because automatically selected by the installer
+Section \$(WORMUX_REMOVE_TITLE) SecUninstallOldWormux
+  ; Check install rights..
+  StrCpy \$R3 \${WORMUX_REG_KEY}
+  StrCpy \$R4 \${wORMUX_UNINSTALL_KEY}
+  StrCpy \$R5 "uninstall.exe"
+  Call CheckUserInstallRights
+  Pop \$R0
+  ; "NONE" case already handled at start
+  StrCmp \$R0 "HKCU" _hkcu
+    ReadRegStr \$R1 HKLM \$R3 ""
+    ReadRegStr \$R2 HKLM "\$R4" "UninstallString"
+    Goto try_uninstall
+
+  _hkcu:
+    ReadRegStr \$R1 HKCU \$R3 ""
+    ReadRegStr \$R2 HKCU "\$R4" "UninstallString"
+
+  ; If a previous version exists, remove it
+  try_uninstall:
+    ; If first string is unavailable, Wormux was probably not installed
+    StrCmp \$R1 "" done
+      ; Check if we have uninstall string..
+      IfFileExists \$R2 0 no_file
+        ; Have uninstall string, go ahead and uninstall.
+        SetOverwrite on
+        ; Need to copy uninstaller outside of the install dir
+        ClearErrors
+        CopyFiles /SILENT \$R2 "\$TEMP\\\$R5"
+        SetOverwrite off
+        IfErrors uninstall_problem
+          ; Ready to uninstall..
+          ClearErrors
+          ExecWait '"\$TEMP\\\$R5" /S _?=\$R1'
+          IfErrors exec_error
+            Delete "\$TEMP\\\$R5"
+            Goto done
+
+          exec_error:
+            Delete "\$TEMP\\\$R5"
+            Goto uninstall_problem
+
+  no_file:
+    MessageBox MB_OK "No uninstaller exe found" /SD IDOK IDOK done
+
+  uninstall_problem:
+    ; We cant uninstall. Either the user must manually uninstall or
+    ; we ignore and reinstall over it.
+    MessageBox MB_OKCANCEL \$(WORMUX_PROMPT_CONTINUE) /SD IDOK IDCANCEL done
+    Quit
+
+  done:
+SectionEnd
+
+;--------------------------------
+; Installer Sections
 
 Section \$(TITLE_Wormux) Sec_Wormux
+  ; Create install and config folders
+  CreateDirectory "\$INSTDIR"
+  CreateDirectory "\$APPDATA\\Wormux"
   ; Set output path to the installation directory.
-  SetOutPath \$INSTDIR
+  SetOutPath "\$INSTDIR"
   File "${WIN_WORMUXDIR}\src\wormux.ico"
   ; Executing in tmpdir, looking for file in folder below
   File "${LOCAL_PATH}\uninstall.ico"
   File "${WIN_WORMUXDIR}\src\wormux.exe"
+  WriteUninstaller "uninstall.exe"
+  ; data
+  File /r /x .svn /x Makefile* /x Makefile.* "${WIN_WORMUXDIR}\\data"
+  ; Licenses
+  File /r /x .svn "${WIN_WORMUXDIR}\\doc\\license"
+  ; Howto-play PDFs
+  File /r /x .svn "${WIN_WORMUXDIR}\\doc\\howto_play"
 EOF
 
 # Glib (gobject, gthread, glib & gmodule)
@@ -209,66 +352,106 @@ for gmo in "$WORMUXDIR"/po/*.gmo; do
   lg=${gmo%%.gmo}
   lg=${lg//.*\//}
   echo "  SetOutPath \$INSTDIR\\locale\\$lg\\LC_MESSAGES" >> $NSIS
-  echo "  File /oname=wormux.mo \"$WIN_WORMUXDIR${SEP}po${SEP}$lg.gmo\"" >> $NSIS
+  echo "  File /oname=wormux.mo \"${WIN_WORMUXDIR}${SEP}po${SEP}$lg.gmo\"" >> $NSIS
 done
 
-## Data - I love this syntax
+## Various files
 cat >> $NSIS <<EOF
-  ; Data
-  SetOutPath \$INSTDIR
-  File /r /x .svn /x Makefile* /x Makefile.* "${WIN_WORMUXDIR}\\data"
-EOF
+  Call CheckUserInstallRights
+  Pop \$R0
+  ; "NONE" case already handled at start
+  StrCmp \$R0 "HKCU" _hkcu
+    WriteRegStr HKLM "\${HKLM_APP_PATHS_KEY}" "" "\$INSTDIR\wormux.exe"
+    WriteRegStr HKLM "\${WORMUX_REG_KEY}" "" "\$INSTDIR"
+    WriteRegStr HKLM "\${WORMUX_REG_KEY}" "Version" "${WORMUX_VERSION}"
+    WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "DisplayName" "Wormux"
+    WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "DisplayVersion" "${WORMUX_VERSION}"
+    WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "UninstallString" "\$INSTDIR\uninstall.exe"
+    ;Write language to the registry (for the uninstaller)
+    WriteRegStr HKLM "\${WORMUX_REG_KEY}" "Installer Language" \$LANGUAGE
+    ; Sets scope of the desktop and Start Menu entries for all users.
+    SetShellVarContext "all"
+    Goto _next
 
-## License
-cat >> $NSIS <<EOF
-  ; Licenses
-  File /r /x .svn "${WIN_WORMUXDIR}\\doc\\license"
-EOF
+  _hkcu:
+    WriteRegStr HKCU "\${WORMUX_REG_KEY}" "" "\$INSTDIR"
+    WriteRegStr HKCU "\${WORMUX_REG_KEY}" "Version" "${WORMUX_VERSION}"
+    WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "DisplayName" "Pidgin"
+    WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "DisplayVersion" "${WORMUX_VERSION}"
+    WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "UninstallString" "\$INSTDIR\\uninstall.exe"
+    ;Write language to the registry (for the uninstaller)
+    WriteRegStr HKCU "\${WORMUX_REG_KEY}" "Installer Language" \$LANGUAGE
+    ;SetShellVarContext "current"
 
-# End
-cat >> $NSIS <<EOF
-
-  ; Write the installation path into the registry
-  WriteRegStr HKLM ${HKLM_PATH} "Path" "\$INSTDIR"
-  ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wormux" "DisplayName" "Wormux (remove only)"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wormux" "UninstallString" '"\$INSTDIR\uninstall.exe"'
-  WriteUninstaller "uninstall.exe"
-
-  ; Shortcuts
-  SetShellVarContext all
-  CreateDirectory "\$SMPROGRAMS\Wormux"
-  CreateShortCut  "\$SMPROGRAMS\Wormux\Wormux.lnk" "\$INSTDIR\Wormux.exe" "" "\$INSTDIR\Wormux.exe" 0
-  CreateShortCut  "\$SMPROGRAMS\Wormux\Uninstall.lnk" "\$INSTDIR\uninstall.exe" "" "\$INSTDIR\uninstall.exe" 0
-  ;Write language to the registry (for the uninstaller)
-  WriteRegStr HKLM ${HKLM_PATH} "Installer Language" \$LANGUAGE
-
-  GetFullPathName /SHORT \$SHORTINSTDIR \$INSTDIR
-SectionEnd
+  _next:
+SectionEnd ; Installer section
 
 ;--------------------------------
 ;Shortcuts
-SubSection /e \$(WORMUX_SHORCUTS_TITLE) Sec_Shortcuts
+SectionGroup /e \$(WORMUX_SHORCUTS_TITLE) Sec_Shortcuts
+  ; Shortcut to config folder
+  Section \$(WORMUX_CONFIG_SC_DESC) Sec_ConfigShortcut
+    SetOutPath "\$INSTDIR"
+    SetOverwrite on
+    !insertmacro CreateDirectoryOnce "\$SMPROGRAMS\\Wormux"
+    CreateShortcut  "\$SMPROGRAMS\\Wormux\\Config.lnk" "\$APPDATA\\Wormux" "" "" 0
+    SetOverwrite off
+  SectionEnd
+
+  ; Group of shortcuts for pdfs
+  SectionGroup /e \$(WORMUX_PDF_SC_DESC) Sec_PdfShortcut
+EOF
+
+## PDF stuff
+lang=$(ls ../../doc/howto_play/*.pdf)
+lang=${lang//.pdf}
+lang=${lang//..\/..\/doc\/howto_play\/}
+for f in $lang; do
+  cat >> $NSIS <<EOF
+    ; PDF for language $f
+    Section $f
+      SetOutPath "\$INSTDIR"
+      SetOverwrite on
+      File "/oname=help-$f.pdf" "${WIN_WORMUXDIR}${SEP}doc${SEP}howto_play${SEP}${f}.pdf"
+      !insertmacro CreateDirectoryOnce "\$SMPROGRAMS\\Wormux"
+      CreateShortcut  "\$SMPROGRAMS\\Wormux\\howto-$f.lnk" "\$INSTDIR\\help-$f.pdf" "" "" 0
+      SetOverwrite off
+    SectionEnd
+EOF
+done
+
+cat >> $NSIS <<EOF
+  SectionGroupEnd
+
+  ; Desktop shortcut
   Section /o \$(WORMUX_DESKTOP_SC_DESC) Sec_DesktopShortcut
     SetOverwrite on
-    CreateShortCut "\$DESKTOP\WORMUX.lnk" "\$INSTDIR\wormux.exe" \
-      "" "\$INSTDIR\wormux.exe" 0
+    CreateShortCut "\$DESKTOP\\WORMUX.lnk" "\$INSTDIR\\wormux.exe" \
+      "" "\$INSTDIR\\wormux.exe" 0
     SetOverwrite off
   SectionEnd
+
+  ; Wormux shortcut in start menu
   Section \$(WORMUX_STARTM_SC_DESC) Sec_StartMenuShortcut
     SetOverwrite on
-    CreateDirectory "\$SMPROGRAMS\Wormux"
-    CreateShortCut "\$SMPROGRAMS\Wormux\Wormux.lnk" \
-      "\$INSTDIR\wormux.exe" "" "\$INSTDIR\wormux.exe" 0
+    !insertmacro CreateDirectoryOnce "\$SMPROGRAMS\\Wormux"
+    CreateShortCut "\$SMPROGRAMS\\Wormux\\Wormux.lnk" \
+      "\$INSTDIR\\wormux.exe" "" "\$INSTDIR\\wormux.exe" 0
     SetOverwrite off
   SectionEnd
+
+  ; Wormux uninstall shortcut in start menu
+  ; Might be forced if user has no install rights, because it would be complex otherwise:
+  ; - No uninstall available in Windows "Program uninstall"
+  ; - Folder lost in APPDATA, which can be hidden, etc
   Section \$(WORMUX_UNINST_SC_DESC) Sec_UninstallShortCut
     SetOverwrite on
-    CreateShortCut  "\$SMPROGRAMS\Wormux\Uninstall.lnk" \
-      "\$INSTDIR\uninstall.exe" "" "\$INSTDIR\uninstall.exe" 0
+    !insertmacro CreateDirectoryOnce "\$SMPROGRAMS\\Wormux"
+    CreateShortCut  "\$SMPROGRAMS\\Wormux\\Uninstall.lnk" \
+         "\$INSTDIR\\uninstall.exe" "" "\$INSTDIR\\uninstall.exe" 0
     SetOverwrite off
   SectionEnd
-SubSectionEnd
+SectionGroupEnd
 
 ;--------------------------------
 ;Descriptions
@@ -281,33 +464,97 @@ SubSectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT   \${Sec_UninstallShortcut}  \$(WORMUX_UNINST_SC_DESC)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
+
 ;--------------------------------
 ;Uninstaller Section
 
 Section "Uninstall"
-  ; remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wormux"
-  DeleteRegKey HKLM ${HKLM_PATH}
-  DeleteRegKey HKCU ${HKLM_PATH}
-  ; remove shortcuts, if any.
-  SetShellVarContext all
-  Delete "\$SMPROGRAMS\Wormux\*.*"
-  RMDir  "\$SMPROGRAMS\Wormux"
-  Delete "\$SMPROGRAMS\Wormux.lnk"
-  Delete "\$DESKTOP\Wormux.lnk"
-  ; remove files
-  RMDir /r "\$INSTDIR"
+  ; Set install path according to user rights
+  Call un.CheckUserInstallRights
+  Pop \$R0
+  StrCmp \$R0 "HKLM" _hklm
+
+  ; Also used as fallback by HKLM case
+  _hkcu:
+    ReadRegStr \$R0 HKCU "\${WORMUX_REG_KEY}" ""
+    StrCmp \$R0 "\$INSTDIR" 0 _next
+      ; HKCU install path matches our INSTDIR so uninstall
+      DeleteRegKey HKCU "\${WORMUX_REG_KEY}"
+      DeleteRegKey HKCU "\${WORMUX_UNINSTALL_KEY}"
+      Goto _next
+
+  _hklm:
+    ReadRegStr \$R0 HKLM "\${WORMUX_REG_KEY}" ""
+    StrCmp \$R0 \$INSTDIR 0 _hkcu
+      ; HKLM install path matches our INSTDIR so uninstall
+      DeleteRegKey HKLM "\${HKLM_APP_PATHS_KEY}"
+      DeleteRegKey HKLM "\${WORMUX_REG_KEY}"
+      DeleteRegKey HKLM "\${WORMUX_UNINSTALL_KEY}"
+      SetShellVarContext all
+
+  _next:
+    ; Remove Language preference info
+    DeleteRegValue HKCU "\${WORMUX_REG_KEY}" "Installer Language"
+    ; remove shortcuts, if any.
+    Delete "\$SMPROGRAMS\\Wormux\\*.*"
+    RMDir  "\$SMPROGRAMS\\Wormux"
+    Delete "\$SMPROGRAMS\\Wormux.lnk"
+    Delete "\$DESKTOP\\Wormux.lnk"
+    ; remove files
+    RMDir /r "\$INSTDIR"
 SectionEnd
 
 Function .onInit
   ;Language selection
   !insertmacro MUI_LANGDLL_DISPLAY
+
   IntOp \$R0 \${SF_RO} | \${SF_SELECTED}
   SectionSetFlags \${Sec_Wormux} \$R0
+  SectionSetFlags \${Sec_ConfigShortcut} \$R0
+  SectionSetFlags \${SecUninstallOldWormux} \$R0
+
+  ; Set install path according to user rights
+  Call CheckUserInstallRights
+  Pop \$R0
+  StrCmp \$R0 "NONE" _none
+  StrCmp \$R0 "HKLM" 0 _hkcu
+    StrCpy \$INSTDIR "\$PROGRAMFILES\\Wormux"
+    Goto _done
+
+  _hkcu:
+    Push \$SMPROGRAMS
+    \${GetParent} \$SMPROGRAMS \$R2
+    \${GetParent} \$R2 \$R2
+    StrCpy \$INSTDIR "\$R2\\Wormux"
+    ; In this case uninstall shortcut *must* be available because
+    ; the alternative are complex for the user
+    IntOp \$R0 \${SF_RO} | \${SF_SELECTED}
+    SectionSetFlags \${Sec_UninstallShortCut} \$R0
+    Goto _done
+
+  _none:
+   ; Not going to bother
+   MessageBox MB_OK \$(WORMUX_PROMPT_NO_RIGHTS) /SD IDOK
+   Quit
+
+  _done:
 FunctionEnd
 
+; INSTDIR will be determined by reading a registry key
 Function un.onInit
   !insertmacro MUI_UNGETLANGUAGE
+  ; Set install path according to user rights
+  Call un.CheckUserInstallRights
+  Pop \$R0
+  StrCmp \$R0 "NONE" _none
+    Goto _end
+
+  _none:
+   ; Not going to bother
+   MessageBox MB_OK \$(WORMUX_PROMPT_NO_RIGHTS) /SD IDOK
+   Quit
+
+  _end:
 FunctionEnd
 EOF
 

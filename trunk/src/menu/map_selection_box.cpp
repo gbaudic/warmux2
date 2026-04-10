@@ -53,7 +53,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
 
   // Previews
   Box* previews_box = new HBox(map_preview_height+10, false);
-  previews_box->SetBorder( Point2i(10,0) );
+  previews_box->SetNoBorder();
 
    // compute margin width between previews
   uint map_preview_width = map_preview_height*4/3;
@@ -61,14 +61,15 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
 
   uint margin = 0;
 
-  if ( uint(size.x - 20) > uint(total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX())) {
-    margin = (size.x - 20 -
-              (total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX()) ) / 6;
+  if ( uint(size.x) > uint(total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX()
+			   + border.x)) {
+    margin = (size.x -
+              (total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX() + border.x) ) / 6;
   }
 
   if (margin < 5) {
     margin = 5;
-    uint total_size_wo_margin = size.x - 20 - 6*margin - bt_map_plus->GetSizeX() - bt_map_minus->GetSizeX();
+    uint total_size_wo_margin = size.x - 6*margin - bt_map_plus->GetSizeX() - bt_map_minus->GetSizeX() - border.x;
     map_preview_width = (total_size_wo_margin)/4; // <= total = w + 4*(3/4)w
     map_preview_height = 3/4 * map_preview_width;
   }
@@ -78,7 +79,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
   if (!display_only) {
     previews_box->AddWidget(bt_map_minus);
   } else {
-    previews_box->AddWidget(new NullWidget(*bt_map_minus));
+    previews_box->AddWidget(new NullWidget(bt_map_minus->GetSize()));
     delete bt_map_minus;
   }
 
@@ -101,7 +102,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
   if (!display_only) {
     previews_box->AddWidget(bt_map_plus);
   }else {
-    previews_box->AddWidget(new NullWidget(*bt_map_plus));
+    previews_box->AddWidget(new NullWidget(bt_map_plus->GetSize()));
     delete bt_map_plus;
   }
 
@@ -119,10 +120,6 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
   // Load Maps' list
   uint i = MapsList::GetInstance()->GetActiveMapIndex();
 
-  // If network game skip random generated maps
-  if (Network::GetInstance()->IsServer() && i != MapsList::GetInstance()->lst.size()) {
-    for (; MapsList::GetInstance()->lst[i]->IsRandomGenerated(); i = (i + 1) % MapsList::GetInstance()->lst.size()) {} ;
-  }
   ChangeMap(i);
 }
 
@@ -145,9 +142,7 @@ void MapSelectionBox::ChangeMap(uint index)
 
   // Callback other network players
   if (Network::GetInstance()->IsServer()) {
-    if (index != MapsList::GetInstance()->lst.size()
-	&& MapsList::GetInstance()->lst[index]->IsRandomGenerated()) // Cant select random generated maps in network mode
-      return;
+
     selected_map_index = index;
     // We need to do it here to send the right map to still not connected clients
     // in distant_cpu::distant_cpu
@@ -209,12 +204,12 @@ void MapSelectionBox::UpdateMapInfo(PictureWidget * widget, uint index, bool sel
     return;
   }
 
-  if((display_only && !selected) || (MapsList::GetInstance()->lst[index]->IsRandomGenerated() && Network::GetInstance()->IsServer()))
+  if (display_only && !selected)
     widget->Disable();
   else
     widget->Enable();
   // If selected update general information
-  if(selected) {
+  if (selected) {
     map_name_label->SetText(MapsList::GetInstance()->lst[index]->ReadFullMapName());
     map_author_label->SetText(MapsList::GetInstance()->lst[index]->ReadAuthorInfo());
   }

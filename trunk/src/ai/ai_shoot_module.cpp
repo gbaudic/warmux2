@@ -30,7 +30,8 @@
 #include "team/macro.h"
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
-
+#include "include/app.h"
+#include "graphic/video.h"
 #include <iostream>
 
 
@@ -55,38 +56,84 @@ const Character* AIShootModule::FindShootableEnemy(const Character& shooter,
 // =================================================
 // Static method
 // =================================================
+// Returns true if not dangerous as the shooter pulls enemy
+// else returns false.
+// For example if the shooter with a given angle is in front of wall
+// he doesn't need to shoot the enemy (otherwises he shoots itself).
+// =================================================
+//
+//
+bool AIShootModule::IsBazookable(const Character& shooter,
+                                 double& angle)
+{
+  Point2i tmp = ActiveTeam().GetWeapon().GetGunHolePosition();
+  // Set the rotation of "angle" radians
+  Point2i pos = Point2i::FromPolarCoordinates(sqrt(double(tmp.x * tmp.x + tmp.y * tmp.y)), double(tmp.ComputeAngle() + angle));
+
+  Point2i delta = Point2i(1, 0);
+  Point2i shoot_pos = shooter.GetCenter();
+
+  // Affine equation : y = ax + b.
+  double a = tan(angle);
+  double b = pos.y - (a * pos.x);
+  int distance = 0;
+
+  while (distance < 30)
+    {
+      if ( world.IsOutsideWorldX(pos.x) || world.IsOutsideWorldY(pos.y) ) {
+        break;
+      }
+      if (!world.IsInVacuum(pos.x, pos.y))
+        return false;
+      pos += delta;
+      pos.y = int(a * pos.x + b);
+      distance = shoot_pos.Distance(pos);
+    }
+  return true;
+}
+
+// =================================================
+// Static method
+// =================================================
 // Return true if there is a straight line with no
 // collision between the shooter and a
 // potential enemy
 // Update the shoot_angle if it is ok
 // =================================================
-// This method is not perfect
-// It tests from the Center of the shooter
-// and not from the gun hole
-// =================================================
 bool AIShootModule::IsDirectlyShootable(const Character& shooter,
                                         const Character& enemy,
                                         double& shoot_angle)
 {
-  Point2i pos = shooter.GetCenter();
-  Point2i arrival = enemy.GetCenter();
-  Point2i departure = pos;
-  Point2i delta_pos;
+  // We need to use center point, because gunholePosition is location
+  // of last weapon of the ActiveTeam() and not the future gunholePos
+  // which will be select.
+
+  // TODO: Please find an alternative to solve this tempory solution
+  Point2d pos = ActiveCharacter().GetCenter();
+  Point2d arrival = enemy.GetCenter();
 
   double original_angle = pos.ComputeAngle(arrival);
+
+  int delta_x = (pos.x > arrival.x) ? -1 : 1;
+  double a = tan(original_angle);
+  double b = pos.y - (a * pos.x);
+
 
   // compute to see if there any part of ground between the 2 characters
   // While test is not finished
   while (pos != arrival) {
-
-    // is there a collision on the ground ??
-    if (!world.IsInVacuum(pos.x, pos.y)) {
-      return false;
-    }
+    // XXX is rounding fine?
+    Point2i posi(int(pos.x+0.5), int(pos.y+0.5));
 
     // the point is outside the map
-    if ( world.IsOutsideWorldX(pos.x) || world.IsOutsideWorldY(pos.y) ) {
-      break;
+    if ( world.IsOutsideWorld(posi) )
+      {
+        return false;
+      }
+
+    // is there a collision on the ground ??
+    if (!world.IsInVacuum(posi)) {
+      return false;
     }
 
     // is there a collision with another character ?
@@ -94,12 +141,17 @@ bool AIShootModule::IsDirectlyShootable(const Character& shooter,
       if ( &(*other_character) != &shooter
            && &(*other_character) != &enemy ) {
 
-        if ( other_character->GetTestRect().Contains(pos) )
+        // Skip only if this character has the same team of shooter
+        // otherwises he's a enemy. (more reachable than the current)
+        if (other_character->GetTestRect().Contains(pos)
+            && (&other_character->GetTeam()) == (&shooter.GetTeam()))
           return false;
-
       }
     }
-
+      pos.x += delta_x;
+      pos.y = a * pos.x + b;
+  }
+    /*
     // next step
     int diff_x = pos.x - arrival.x;
     int diff_y = pos.y - arrival.y;
@@ -122,12 +174,15 @@ bool AIShootModule::IsDirectlyShootable(const Character& shooter,
     pos += delta_pos;
   }
 
+
   // set the angle
   if (departure.x > arrival.x) {
     shoot_angle = InverseAngleRad(original_angle);
   } else {
     shoot_angle = original_angle;
   }
+    */
+  shoot_angle = original_angle;
 
   return true;
 }
@@ -135,7 +190,7 @@ bool AIShootModule::IsDirectlyShootable(const Character& shooter,
 bool AIShootModule::SelectFiringWeapon(double /*shoot_angle*/) const
 {
   // we choose between gun, sniper_rifle, shotgun and submachine gun
-  uint selected = uint(randomSync.GetDouble(0.0, 3.5));
+  uint selected = uint(RandomSync().GetDouble(0.0, 3.5));
   switch (selected) {
   case 0:
     ActiveTeam().SetWeapon(Weapon::WEAPON_SHOTGUN);
@@ -155,7 +210,7 @@ bool AIShootModule::SelectFiringWeapon(double /*shoot_angle*/) const
   double angle = InRange_Double(m_angle, - (ActiveTeam().GetWeapon().GetMaxAngle()),
                              - (ActiveTeam().GetWeapon().GetMinAngle()) );
 
-  if (AbsoluteValue(angle-m_angle) > 0.08726/* 5 degree */) {
+  if (AbsoluteValue(angle-m_angle) > 0.03490/* 2 degrees */) {
     // angle is too wide for the weapon
     return false;
   }
@@ -231,17 +286,28 @@ void AIShootModule::ShootWithBazooka()
     std::cout << "Xs = " << Xs << std::endl;
     std::cout << "Ys = " << Ys << std::endl;
     double angle = atan(wind.GetStrength() * 75.0 /*wind factor */ /(30.0/* g */ *20 /* mass*/) );
-    double Xpe = (Xe - Xs) * cos(angle) - (Ye - Ys) * sin(angle) + Xs;
-    double Ype = (Xe - Xs) * sin(angle) + (Ye - Ys) * cos(angle) + Ys;
-    Xe = Xpe;
-    Ye = Ype;
-    double V0x = (Xe - Xs ) / 80;
-    double V0y = V0x * (Ye - (Ys))/ (Xe - Xs -V0x) - 1/2.0 * sqrt(30*30 /* g² */+ wind.GetStrength() * 75.0 *wind.GetStrength() * 75.0  /20.0 /20.0 /* W²/m²*/ )  / V0x * (Xe - Xs - V0x)/40 /* pixel per metre */;
+
+    if (!IsBazookable(ActiveCharacter(), angle))
+      {
+        MSG_DEBUG("ai.shoot", "%s is not bazookable !\n", m_enemy->GetName().c_str());
+        //MSG_DEBUG("ai.shoot", "%s is not bazookable !", m_enemy.GetName());
+        ActiveTeam().SetWeapon(Weapon::WEAPON_SKIP_TURN);
+        Shoot();
+      }
+    else
+      {
+        double Xpe = (Xe - Xs) * cos(angle) - (Ye - Ys) * sin(angle) + Xs;
+        double Ype = (Xe - Xs) * sin(angle) + (Ye - Ys) * cos(angle) + Ys;
+        Xe = Xpe;
+        Ye = Ype;
+        double V0x = (Xe - Xs ) / 80;
+        double V0y = V0x * (Ye - (Ys))/ (Xe - Xs -V0x) - 1/2.0 * sqrt(30*30 /* g */+ wind.GetStrength() * 75.0 *wind.GetStrength() * 75.0  /20.0 /20.0 /* W/m*/ )  / V0x * (Xe - Xs - V0x)/40 /* pixel per metre */;
 
 
-    std::cout << "shooting " << V0x <<" "  <<"   " << V0y << " "<< " " <<  atan(V0y/V0x) << " " <<m_enemy->GetName() << std::endl;
-    ActiveTeam().AccessWeapon().PrepareShoot(sqrt(V0y*V0y + V0x*V0x), /*Xe*/m_enemy->GetCenterX() - Xs > 0 ? atan(V0y/V0x) - angle: -atan(V0y/V0x) + angle);
-    m_last_shoot_time = m_current_time;
+        std::cout << "shooting " << V0x <<" "  <<"   " << V0y << " "<< " " <<  atan(V0y/V0x) << " " <<m_enemy->GetName() << std::endl;
+        ActiveTeam().AccessWeapon().PrepareShoot(sqrt(V0y*V0y + V0x*V0x), /*Xe*/m_enemy->GetCenterX() - Xs > 0 ? atan(V0y/V0x) - angle: -atan(V0y/V0x) + angle);
+        m_last_shoot_time = m_current_time;
+      }
   }
 }
 
@@ -328,12 +394,17 @@ const Character* AIShootModule::FindEnemy()
 void AIShootModule::ChooseDirection() const
 {
   if ( m_enemy ) {
-    // TODO : Replace by a more clever function
+    // TODO : Replace by a cleverer function
     if ( abs(ActiveCharacter().GetCenterX() - m_enemy->GetCenterX()) <= 10 )
       return;
+    if (m_enemy->GetTestRect().Intersect(ActiveCharacter().GetTestRect()))
+      {
+        MSG_DEBUG("ai.shoot","%s is on or next to %s", ActiveCharacter().GetName().c_str(), m_enemy->GetName().c_str());
+        return;
+      }
 
-    MSG_DEBUG("ai", "Character: %d, enemy %d", 
-	      ActiveCharacter().GetCenterX(), m_enemy->GetCenterX());
+    MSG_DEBUG("ai", "Character: %d, enemy %d",
+              ActiveCharacter().GetCenterX(), m_enemy->GetCenterX());
 
     if ( ActiveCharacter().GetCenterX() < m_enemy->GetCenterX())
       ActiveCharacter().SetDirection(DIRECTION_RIGHT);
@@ -350,8 +421,7 @@ bool AIShootModule::Refresh(uint current_time)
   }
 
   m_current_time = current_time;
-
-  FindEnemy();
+  m_enemy = FindEnemy();
   ChooseDirection();
 
   switch (m_current_strategy) {
@@ -366,13 +436,15 @@ bool AIShootModule::Refresh(uint current_time)
     FOR_ALL_LIVING_ENEMIES(ActiveCharacter(), team, character) {
 //      if ( abs((*character).GetX() - ActiveCharacter().GetX()) <= 10 &&
 //                 abs ((*character).GetY() - ActiveCharacter().GetY()) < 60 ) {
-        if ( (*character).GetCenter().Distance( ActiveCharacter().GetCenter()) < 30) {
+        if ( (*character).GetCenter().Distance( ActiveCharacter().GetCenter()) < 40) {
               if (&(*character) != m_enemy) {
                 GameMessages::GetInstance()->Add(ActiveCharacter().GetName()+" changes target : "
                                                  + (*character).GetName());
               }
                m_enemy = &(*character);
                Shoot();
+               // If IA selected ProximityWeapon, he needs to go back, in the opposite direction (otherwises BOOM :-) )
+               ActiveCharacter().SetDirection( (ActiveCharacter().GetDirection()==DIRECTION_RIGHT) ? DIRECTION_LEFT : DIRECTION_RIGHT);
       }
     }
     break;
@@ -407,7 +479,7 @@ void AIShootModule::BeginTurn()
   SetStrategy(NO_STRATEGY);
 
   // Choose random direction for the moment
-  ActiveCharacter().SetDirection( randomSync.GetBool()?DIRECTION_LEFT:DIRECTION_RIGHT );
+  ActiveCharacter().SetDirection( RandomSync().GetBool()?DIRECTION_LEFT:DIRECTION_RIGHT );
 }
 
 AIShootModule::AIShootModule(const AIMovementModule& to_remove) :
@@ -425,8 +497,8 @@ AIShootModule::AIShootModule(const AIMovementModule& to_remove) :
 void AIShootModule::SetStrategy(strategy_t new_strategy)
 {
   if (m_current_strategy != new_strategy) {
-    MSG_DEBUG("ai", "%s changes his strategy: %d -> %d", 
-	      ActiveCharacter().GetName().c_str(), m_current_strategy, new_strategy);
+    MSG_DEBUG("ai", "%s changes his strategy: %d -> %d",
+              ActiveCharacter().GetName().c_str(), m_current_strategy, new_strategy);
     if (IsLOGGING("ai")) {
       std::cout << "SetStrategy: " << new_strategy << std::endl;
     }

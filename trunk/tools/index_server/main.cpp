@@ -100,6 +100,11 @@ int SetMaxConnection()
   return limit.rlim_cur;
 }
 
+static void signal_handler(int sig, siginfo_t */*si*/, void */*unused*/)
+{
+  DPRINT(INFO, "Signal received: %d", sig);
+}
+
 int main(int argc, void** argv)
 {
   DPRINT(INFO, "Wormux index server version %i", VERSION);
@@ -130,10 +135,12 @@ int main(int argc, void** argv)
       exit(EXIT_FAILURE);
     }
 
-
-  // Ignore broken pipe signal (elsewise we would break,
-  // as soon as we are trying to write on client that closed)
-  if( signal(SIGPIPE, SIG_IGN) == SIG_ERR )
+  // silently handle SIGPIPE... (not sure it is needed :-/)
+  struct sigaction sa;
+  sa.sa_flags = SA_SIGINFO;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_sigaction = signal_handler;
+  if (sigaction(SIGPIPE, &sa, NULL) == -1)
     TELL_ERROR;
 
   // Set the maximum number of connection
@@ -182,6 +189,7 @@ int main(int argc, void** argv)
           if( ! client->second->connected )
             {
               // Connection closed
+              DPRINT(CONN, "Closind FD %u from client %p\n", client->second->GetFD(), client->second);
               listen_sock.CloseConnection( client->second->GetFD() );
               delete client->second;
               clients.erase(client);
@@ -191,7 +199,7 @@ int main(int argc, void** argv)
           if( FD_ISSET( client->second->GetFD(), &acting_sock_set) )
             {
               if( ! client->second->Receive() ) {
-                DPRINT(CONN, "Nothing received, disconnecting!");
+                DPRINT(CONN, "Nothing received from client %p, disconnecting!", client->second);
                 client->second->connected = false;
               }
               // Exit as the clients list may have changed
@@ -211,3 +219,4 @@ int main(int argc, void** argv)
         }
     }
 }
+

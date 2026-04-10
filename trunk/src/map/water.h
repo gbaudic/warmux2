@@ -29,6 +29,9 @@
 const uint WATER_INITIAL_HEIGHT = 100;
 #define pattern_width 180
 
+// Forward declaration
+class Color;
+
 class Water
 {
 public:
@@ -36,10 +39,13 @@ public:
     NO_WATER,
     WATER,
     LAVA,
+    RADIOACTIVE,
     MAX_WATER_TYPE
   } Water_type;
 
 private:
+  static int pattern_height;
+  Color* type_color;
   int height_mvt;
   double shift1;
   uint water_height;
@@ -50,8 +56,11 @@ private:
   Surface bottom;
   Surface wpattern;
   Water_type water_type;
+  std::string water_name;
 
 public:
+  Water() : type_color(NULL) { }
+  ~Water();
   void Init();
   void Reset();
   void Free();
@@ -59,7 +68,11 @@ public:
   void Draw();
   bool IsActive() const { return water_type != NO_WATER; }
   int GetHeight(int x) const;
+  uint GetSelfHeight() const { return water_height+(pattern_height/2); }
+  static Water_type GetWaterType(std::string & water);
+  const Color* GetColor() { return type_color; }
 
   void Splash(const Point2i& pos) const;
+  void Smoke(const Point2i& pos) const;
 };
 #endif

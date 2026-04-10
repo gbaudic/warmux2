@@ -21,13 +21,15 @@
  *****************************************************************************/
 
 #include <SDL_events.h>
-#include "include/app.h"
-#include "network/admin_commands.h"
-#include "network/chat.h"
-#include "graphic/text_list.h"
-#include "network/network.h"
-#include "graphic/text.h"
 #include "game/time.h"
+#include "graphic/text.h"
+#include "graphic/text_list.h"
+#include "include/action.h"
+#include "include/action_handler.h"
+#include "include/app.h"
+#include "network/chat.h"
+#include "network/admin_commands.h"
+#include "network/network.h"
 #include "tool/i18n.h"
 #include "tool/text_handling.h"
 
@@ -88,7 +90,8 @@ void Chat::ShowInput()
   }
 }
 
-bool Chat::CheckInput() const {
+bool Chat::CheckInput() const
+{
   return check_input;
 }
 
@@ -102,6 +105,17 @@ void Chat::NewMessage(const std::string &msg)
   chat.AddText(msg, MAXLINES);
 }
 
+void Chat::SendMessage(const std::string &msg)
+{
+  if (msg.size() == 0)
+    return;
+
+  Action* a = new Action(Action::ACTION_CHAT_MESSAGE);
+  a->Push(Network::GetInstance()->GetNickname());
+  a->Push(msg);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
 void Chat::HandleKey(const SDL_Event& event)
 {
   SDL_KeyboardEvent kbd_event = event.key;
@@ -113,16 +127,17 @@ void Chat::HandleKey(const SDL_Event& event)
   } else {
 
     switch (key.sym){
-      
+
     case SDLK_RETURN:
     case SDLK_KP_ENTER:
       check_input = false; //Hide input widget
       if ( txt[0] == '/' )
 	ProcessCommand(txt);
-      else
-	if (txt != "" )
-	  Network::GetInstance()->SendChatMessage(txt); //Send 'txt' to other players
+      else if (txt != "" )
+	SendMessage(txt);
+
       input->Set("");
+      cursor_pos = 0;
       break;
 
     default:

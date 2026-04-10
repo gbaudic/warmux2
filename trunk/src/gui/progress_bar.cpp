@@ -52,9 +52,7 @@ void ProgressBar::InitPos (uint px, uint py, uint plarg, uint phaut){
  *                         ProgressBar::PROG_BAR_HORIZONTAL
  * default orientation is ProgressBar::PROG_BAR_HORIZONTAL
  */
-void ProgressBar::InitVal (long pval, long pmin, long pmax,
-    enum orientation porientation){
-  ASSERT (pmin != pmax);
+void ProgressBar::InitVal (long pval, long pmin, long pmax, enum orientation porientation){
   ASSERT (pmin < pmax);
   val = pval;
   min = pmin;
@@ -135,7 +133,7 @@ void ProgressBar::DrawXY(const Point2i &pos) const{
     image.FillRect( r_marq, it->color);
   }
   Rectanglei dst(pos.x, pos.y, larg, haut);
-  AppWormux::GetInstance()->video->window.Blit(image, pos);
+  GetMainWindow().Blit(image, pos);
 
   world.ToRedrawOnScreen(dst);
 }

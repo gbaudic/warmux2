@@ -120,10 +120,10 @@ void ObjBox::Draw()
   {
     Rectanglei test_rect(GetTestRect());
     test_rect.SetPosition(test_rect.GetPosition() - Camera::GetInstance()->GetPosition());
-    AppWormux::GetInstance()->video->window.RectangleColor(test_rect, primary_red_color, 1);
+    GetMainWindow().RectangleColor(test_rect, primary_red_color, 1);
 
     Rectanglei rect(GetPosition() - Camera::GetInstance()->GetPosition(), anim->GetSize());
-    AppWormux::GetInstance()->video->window.RectangleColor(rect, primary_blue_color, 1);
+    GetMainWindow().RectangleColor(rect, primary_blue_color, 1);
   }
 #endif
 }
@@ -160,7 +160,7 @@ void ObjBox::GetValueFromAction(Action * a)
 {
   PhysicalObj::GetValueFromAction(a);
   start_life_points = a->PopInt();
-  SetXY(a->PopPoint2i());
+  SetXY(a->PopPoint2d());
   SetSpeedXY(a->PopPoint2d());
 }
 

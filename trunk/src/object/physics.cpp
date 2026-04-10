@@ -66,6 +66,15 @@ Physics::Physics ():
 //--                         Class Parameters SET/GET                      --//
 //---------------------------------------------------------------------------//
 
+void Physics::SetPhysXY(double x, double y)
+{
+  if (m_pos_x.x0 != x || m_pos_y.x0 != y) {
+    m_pos_x.x0 = x;
+    m_pos_y.x0 = y;
+    UpdateTimeOfLastMove();
+  }
+}
+
 // Set the air resist factor
 void Physics::SetSpeedXY (Point2d vector)
 {
@@ -77,8 +86,10 @@ void Physics::SetSpeedXY (Point2d vector)
   m_pos_y.x1 = vector.y ;
   // setting to FreeFall is done in StartMoving()
 
-  if (!was_moving && IsMoving())
+  if (!was_moving && IsMoving()) {
+    UpdateTimeOfLastMove();
     StartMoving();
+  }
 }
 
 void Physics::AddSpeedXY (Point2d vector)
@@ -91,8 +102,10 @@ void Physics::AddSpeedXY (Point2d vector)
   m_pos_y.x1 += vector.y ;
   // setting to FreeFall is done in StartMoving()
 
-  if (!was_moving && IsMoving())
+  if (!was_moving && IsMoving()) {
+    UpdateTimeOfLastMove();
     StartMoving();
+  }
 }
 
 void Physics::GetSpeed(double &norm, double &angle) const
@@ -186,6 +199,7 @@ void Physics::SetExternForceXY (const Point2d& vector)
 {
   bool was_moving = IsMoving();
 
+  UpdateTimeOfLastMove();
   MSG_DEBUG ("physic.physic", "EXTERN FORCE %s.", typeid(*this).name());
 
   m_extern_force.SetValues(vector);
@@ -207,6 +221,7 @@ void Physics::SetPhysFixationPointXY(double g_x, double g_y, double dx,
   m_fix_point_dxy.x = dx ;
   m_fix_point_dxy.y = dy ;
 
+  UpdateTimeOfLastMove();
   //  printf ("Fixation (%f,%f) dxy(%f,%f)\n",  g_x, g_y, dx, dy);
 
   fix_point_x = m_pos_x.x0 + dx ;
@@ -258,6 +273,8 @@ void Physics::UnsetPhysFixationPoint()
 
   SetSpeed(speed_norm, angle);
 
+  UpdateTimeOfLastMove();
+
   m_pos_x.x2 = 0 ;
   m_pos_y.x2 = 0 ;
 
@@ -290,7 +307,7 @@ void Physics::ChangePhysRopeSize(double dl)
 
 void Physics::StartMoving()
 {
-  m_last_move = Time::GetInstance()->Read();
+  UpdateTimeOfLastMove();
 
   if (m_motion_type == NoMotion)
     m_motion_type = FreeFall ;
@@ -300,12 +317,15 @@ void Physics::StartMoving()
 
 void Physics::StopMoving()
 {
+  if(!IsMoving()) return;
+
   if (IsMoving()) MSG_DEBUG ("physic.physic", "Stops moving: %s.", typeid(*this).name());
   // Always called by PhysicalObj::StopMoving
   m_pos_x.x1 = 0 ;
   m_pos_x.x2 = 0 ;
   m_pos_y.x1 = 0 ;
   m_pos_y.x2 = 0 ;
+  UpdateTimeOfLastMove();
   if (m_motion_type != Pendulum)
     m_motion_type = NoMotion ;
 
@@ -318,6 +338,23 @@ bool Physics::IsMoving() const
          !EqualsZero(m_pos_y.x1)  ||
          !m_extern_force.IsNull() ||
          m_motion_type != NoMotion;
+}
+
+bool Physics::IsSleeping() const
+{
+  // return true if not moving since 1 sec.
+  int delta = Time::GetInstance()->Read() - m_last_move;
+  if(delta > 400) {
+    MSG_DEBUG( "physic.sleep", "%s is sleeping since %d ms.", typeid(*this).name(), delta);
+    return true;
+  }
+  MSG_DEBUG( "physic.notsleeping", "%s is not sleeping.", typeid(*this).name());
+  return false;
+}
+
+void Physics::UpdateTimeOfLastMove()
+{
+  m_last_move = Time::GetInstance()->Read();
 }
 
 // Compute the next position of the object during a pendulum motion.
@@ -395,6 +432,9 @@ void Physics::ComputeFallNextXY (double delta_t)
 
   GetSpeed(speed_norm, speed_angle);
 
+  if(!EqualsZero(speed_norm))
+    UpdateTimeOfLastMove();
+
   air_resistance_factor = AIR_RESISTANCE_FACTOR * m_air_resist_factor ;
 
   MSG_DEBUG( "physic.fall", "%s falls; mass %5f, weight %5f, wind %5f, air %5f, delta %f", typeid(*this).name(), m_mass, weight_force,wind_force, air_resistance_factor, delta_t);
@@ -437,8 +477,6 @@ Point2d Physics::ComputeNextXY(double delta_t){
 
   if (m_motion_type == Pendulum)
     ComputePendulumNextXY(delta_t);
-
-  m_last_move = Time::GetInstance()->Read() ;
 
   return Point2d(m_pos_x.x0, m_pos_y.x0);
 }

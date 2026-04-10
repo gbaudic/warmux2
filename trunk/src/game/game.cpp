@@ -66,26 +66,45 @@
 //#define USE_VALGRIND
 #endif
 
-
-Game::game_mode_t Game::mode = CLASSIC;
+std::string Game::current_mode_name = "none";
 
 Game * Game::GetInstance()
 {
-  if (singleton == NULL) {
-    switch (mode) {
-    case CLASSIC:
+  if (singleton == NULL)
+  {
+    if (current_mode_name == "none")
+      current_mode_name = Config::GetInstance()->GetGameMode();
+
+    if (current_mode_name == "classic" || current_mode_name == "unlimited")
       singleton = new GameClassic();
-      break;
-    case BLITZ:
+    else if (current_mode_name == "blitz")
+    {
+      //printf(">>>> Starting in blitz!\n");
       singleton = new GameBlitz();
-      break;
-    default:
-      fprintf(stderr, "Non-classic game not implemented\n");
+    }
+    else
+    {
+      fprintf(stderr, "%s game mode not implemented\n", current_mode_name.c_str());
       exit(1);
     }
   }
   return singleton;
 }
+
+Game * Game::UpdateGameMode()
+{
+  const std::string& config_mode_name = Config::GetInstance()->GetGameMode();
+  printf("Current mode: %s\n", config_mode_name.c_str());
+  if (singleton != NULL && current_mode_name != config_mode_name)
+  {
+    printf("Mode change! -> %s %s\n", config_mode_name.c_str(), current_mode_name.c_str());
+    delete singleton;
+  }
+
+  current_mode_name = config_mode_name;
+  return GetInstance();
+}
+
 
 void Game::MessageLoading() const
 {
@@ -106,16 +125,12 @@ void Game::Start()
   {
     JukeBox::GetInstance()->PlayMusic(ActiveMap()->ReadMusicPlaylist());
 
-    isGameLaunched = true;
-
-    Run();
-
-    isGameLaunched = false;
+    bool game_finished = Run();
 
     MSG_DEBUG( "game", "End of game_loop.Run()" );
     JukeBox::GetInstance()->StopAll();
 
-    UnloadDatas();
+    UnloadDatas(game_finished);
 
     Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
     JukeBox::GetInstance()->PlayMusic("menu");
@@ -135,12 +150,39 @@ void Game::Start()
 
 }
 
-void Game::UnloadDatas() const
+void Game::UnloadDatas(bool game_finished) const
 {
   world.FreeMem();
+  ActiveMap()->FreeData();
   lst_objects.FreeMem();
   ParticleEngine::Stop();
+
+  if (!Network::IsConnected() || !game_finished) {
+    // Fix bug #10613: ensure all teams are reseted as local teams
+    FOR_EACH_TEAM(team)
+      (**team).SetDefaultPlayingConfig();
+  }
+
+  if (Network::IsConnected()) {
+    if (!game_finished) {
+      // the user has asked for the end of game
+      // if it's a network game, it's time to disconnect!!
+      Network::Disconnect();
+
+      // Fix bug #10613: ensure all teams are reseted as local teams
+      FOR_EACH_TEAM(team)
+	(**team).SetDefaultPlayingConfig();
+    }
+    // else: we will start a new round!
+  } else {
+
+    // Fix bug #10613: ensure all teams are reseted as local teams
+    FOR_EACH_TEAM(team)
+      (**team).SetDefaultPlayingConfig();
+  }
+
   GetTeamsList().UnloadGamingData();
+
   JukeBox::GetInstance()->StopAll();
 }
 
@@ -338,7 +380,7 @@ void Game::Draw ()
 
   StatStop("GameDraw:other");
 
-  // Draw the interface (current team's information, weapon's ammo)
+  // Draw the interface (current team information, weapon ammo)
   StatStart("GameDraw:interface");
   Interface::GetInstance()->Draw ();
   StatStop("GameDraw:interface");
@@ -376,8 +418,11 @@ void Game::PingClient() const
 // ####################################################################
 // ####################################################################
 
-void Game::Run()
+bool Game::Run()
 {
+  bool game_finished = false;
+  isGameLaunched = true;
+
   // Time to wait between 2 loops
   delay = 0;
   // Time to display the next frame
@@ -396,34 +441,35 @@ void Game::Run()
 
   } while(!IsGameFinished());
 
-  // the game is finished but we won't go at the results screen to fast!
+  // the game is finished but we won't go at the results screen too fast!
   if (IsGameFinished()) {
     EndOfGame();
+    game_finished = true;
   }
+
+  isGameLaunched = false;
+
   // * When debug is disabled : only show the result menu if game
-  // have 'regularly' finished (only one survivor or timeout reached)
+  //   have 'regularly' finished (only one survivor or timeout reached)
   // * When debug is disabled : still show the result menu everytime the game
-  // is quit during local games (so we can still the result menu often).
-  // For network game only show the result if the game is regularly finished
-  // (elsewise when someone if someone quit the game before the end, it appears
-  // as disconnected only when if finnishes viewing the f*cking result menu)
+  //   is quit during local games (so we can still the result menu often).
+  // For network game only, show the result if the game is regularly finished
+  // (elsewise when someone quits the game before the end, it appears
+  // as disconnected only when if finishes viewing the result menu)
 #ifndef DEBUG
-  if (IsGameFinished())
+  if (game_finished)
 #else
-  if (IsGameFinished() || Network::GetInstance()->IsLocal())
+  if (game_finished || Network::GetInstance()->IsLocal())
 #endif
     MessageEndOfGame();
 
-  // Fix bug #10613: ensure all teams are reseted as local teams
-  FOR_EACH_TEAM(team)
-    (**team).SetLocal();
+  return game_finished;
 }
 
 bool Game::HasBeenNetworkDisconnected() const
 {
   const Network* net          = Network::GetInstance();
-  bool           disconnected = !net->IsLocal() && net->cpu.empty();
-  return disconnected;
+  return !net->IsLocal() && net->cpu.empty();
 }
 
 void Game::MessageEndOfGame() const
@@ -499,7 +545,7 @@ bool Game::NewBox()
   // if started with "-d box", get one box per turn
   if (!IsLOGGING("box")) {
     // .7 is a magic number to get the probability of boxes falling once every round close to .333
-    double randValue = Random::GetDouble();
+    double randValue = RandomLocal().GetDouble();
     if(randValue > (1 - pow(.5, 1.0 / nbr_teams))) {
       return false;
     }
@@ -508,14 +554,14 @@ bool Game::NewBox()
   // Type of box : 1 = MedKit, 2 = Bonus Box.
   ObjBox * box;
   int type;
-  if(Random::GetBool()) {
+  if(RandomLocal().GetBool()) {
     box = new Medkit();
     type = 1;
   } else {
     box = new BonusBox();
     type = 2;
   }
-  // Randomize contain
+  // Randomize container
   box->Randomize();
   // Storing value of bonus box and send it over network.
   Action * a = new Action(Action::ACTION_NEW_BONUS_BOX);
@@ -553,12 +599,12 @@ void Game::Really_SetState(game_loop_state_t new_state)
 
   switch (state)
   {
-  // Begining of a new turn:
+  // Beginning of a new turn:
   case PLAYING:
     __SetState_PLAYING();
     break;
 
-  // The character have shooted, but can still move
+  // The character has shot, but can still move
   case HAS_PLAYED:
     __SetState_HAS_PLAYED();
     break;
@@ -592,7 +638,7 @@ void Game::SetState(game_loop_state_t new_state, bool begin_game) const
   MSG_DEBUG("game", "Ask for state %d", new_state);
 
   Action *a = new Action(Action::ACTION_GAMELOOP_SET_STATE);
-  int seed = randomSync.GetRand();
+  int seed = RandomSync().GetRand();
   a->Push(seed);
   a->Push(new_state);
   ActionHandler::GetInstance()->NewAction(a);
@@ -610,7 +656,7 @@ PhysicalObj* Game::GetMovingObject() const
   {
     if (!character->IsImmobile() && !character->IsGhost())
     {
-      MSG_DEBUG("game.endofturn", "%s is not ready", character->GetName().c_str());
+      MSG_DEBUG("game.endofturn", "Character (%s) is not ready", character->GetName().c_str());
       return &(*character);
     }
   }
@@ -619,12 +665,18 @@ PhysicalObj* Game::GetMovingObject() const
   {
     if (!(*object)->IsImmobile())
     {
-      MSG_DEBUG("game.endofturn", "%s is moving", (*object)->GetName().c_str());
+      MSG_DEBUG("game.endofturn", "Object (%s) is moving", (*object)->GetName().c_str());
       return (*object);
     }
   }
 
-  return ParticleEngine::IsSomethingMoving();
+  PhysicalObj *obj = ParticleEngine::IsSomethingMoving();
+  if (obj != NULL)
+    {
+      MSG_DEBUG("game.endofturn", "ParticleEngine (%s) is moving", obj->GetName().c_str());
+      return obj;
+    }
+  return NULL;
 }
 
 bool Game::IsAnythingMoving() const
@@ -638,7 +690,6 @@ bool Game::IsAnythingMoving() const
 
   if (GetMovingObject() != NULL)
     return true;
-
   return false;
 }
 
@@ -648,39 +699,58 @@ void Game::SignalCharacterDeath (const Character *character) const
   std::string txt;
 
   ASSERT(IsGameLaunched());
+  if (character->IsGhost()) {
+    txt = Format(_("%s from %s team has fallen off the map!"),
+                 character->GetName().c_str(),
+                 character->GetTeam().GetName().c_str());
+    JukeBox::GetInstance()->Play(ActiveTeam().GetSoundProfile(), "out");
 
-  if (character -> IsDrowned()) {
-    txt = Format(_("%s has fallen in water."), character -> GetName().c_str());
+  } else if (character->IsDrowned() ) {
+    txt = Format(_("%s from %s team has fallen into the water!"),
+                 character->GetName().c_str(),
+                 character->GetTeam().GetName().c_str());
 
   } else if (&ActiveCharacter() == character) { // Active Character is dead
     CharacterCursor::GetInstance()->Hide();
 
     // Is this a suicide ?
     if (ActiveTeam().GetWeaponType() == Weapon::WEAPON_SUICIDE) {
-      txt = Format(_("%s commits suicide !"), character -> GetName().c_str());
+      txt = Format(_("%s from %s team commited suicide!"),
+                   character->GetName().c_str(),
+                   character->GetTeam().GetName().c_str());
 
-      // Dead in moving ?
+      // Dead while moving ?
     } else if (state == PLAYING) {
-      txt = Format(_("%s has fallen off the map!"),
-                   character -> GetName().c_str());
+      txt = Format(_("%s from %s team has hit the ground too hard!"),
+                   character->GetName().c_str(),
+                   character->GetTeam().GetName().c_str());
        JukeBox::GetInstance()->Play(ActiveTeam().GetSoundProfile(), "out");
 
-      // The playing character killed hisself
+      // The playing character killed himself
     } else {
-      txt = Format(_("%s is dead because he is clumsy!"),
-                   character -> GetName().c_str());
+      txt = Format(_("%s from %s team is dead because he is clumsy!"),
+                   character->GetName().c_str(),
+                   character->GetTeam().GetName().c_str());
     }
-  } else if (!ActiveCharacter().IsDead()
-             && character->GetTeam().IsSameAs(ActiveTeam()) ) {
-    txt = Format(_("%s is a psychopath, he has killed a member of the %s team!"),
-                 ActiveCharacter().GetName().c_str(), character->GetTeam().GetName().c_str());
+  }
+  // Did the active player kill someone of his own team ?
+  else if ( character->GetTeam().IsSameAs(ActiveTeam()) ) {
+    if (ActiveCharacter().IsDead()) {
+      txt = Format(_("%s took a member of the %s team to the grave with him!"),
+                   ActiveCharacter().GetName().c_str(),
+                   character->GetTeam().GetName().c_str());
+    } else {
+      txt = Format(_("%s is a psychopath, he has killed a member of the %s team!"),
+                   ActiveCharacter().GetName().c_str(),
+                   character->GetTeam().GetName().c_str());
+    }
   } else if (ActiveTeam().GetWeaponType() == Weapon::WEAPON_GUN) {
     txt = Format(_("What a shame for %s - he was killed by a simple gun!"),
-                 character -> GetName().c_str());
+                 character->GetName().c_str());
   } else {
-    txt = Format(_("%s (%s) has died."),
-                 character -> GetName().c_str(),
-                 character -> GetTeam().GetName().c_str());
+    txt = Format(_("%s from %s team has died."),
+                 character->GetName().c_str(),
+                 character->GetTeam().GetName().c_str());
   }
 
   GameMessages::GetInstance()->Add (txt);

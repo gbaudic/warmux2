@@ -215,6 +215,9 @@ void Camera::RestoreMouseCursor()
 
 void Camera::ScrollCamera()
 {
+  if (!Mouse::GetInstance()->HasFocus()) // The application has not the focus, don't move the camera!!
+    return;
+
   Point2i mousePos = Mouse::GetInstance()->GetPosition();
 
   uint zone_size = Config::GetInstance()->GetScrollBorderSize();
@@ -315,6 +318,7 @@ void Camera::FollowObject(const PhysicalObj *obj, bool follow,
   MSG_DEBUG( "camera.tracking", "Following object %s",
                                  obj->GetName().c_str());
 
+  Mouse::GetInstance()->Hide();
   if (followed_object != obj || !IsVisible(*obj) || auto_crop != follow)
     auto_crop = follow;
 
@@ -362,8 +366,8 @@ Point2i Camera::ComputeShake() const
         func_val = ( 1 - t ) * sin( arg ) / arg;
     };
 
-    float x_ampl = ( float )Random::GetDouble( -m_shake_amplitude.x, m_shake_amplitude.x );
-    float y_ampl = ( float )Random::GetDouble( -m_shake_amplitude.y, m_shake_amplitude.y );
+    float x_ampl = ( float )RandomLocal().GetDouble( -m_shake_amplitude.x, m_shake_amplitude.x );
+    float y_ampl = ( float )RandomLocal().GetDouble( -m_shake_amplitude.y, m_shake_amplitude.y );
     m_shake.x = ( int )( x_ampl * func_val//( float )m_shake_amplitude.x * func_val
         + ( float )m_shake_centerpoint.x );
     m_shake.y = ( int )( y_ampl * func_val//( float )m_shake_amplitude.y * func_val

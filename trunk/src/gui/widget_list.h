@@ -35,9 +35,7 @@ private:
   /*********************************************/
 
   Point2i lastMousePosition;
-  Widget* last_clicked;
-  Widget* keyboard_selection;
-  Widget* mouse_selection;
+  Widget* selected_widget;
 
 protected:
   std::list<Widget*> widget_list;
@@ -49,7 +47,7 @@ public:
   virtual ~WidgetList();
 
   virtual void Update(const Point2i &mousePosition);
-  virtual void Draw(const Point2i &/*mousePosition*/) const { };
+  virtual void Draw(const Point2i &mousePosition) const;
   // set need_redrawing to true for all sub widgets;
   virtual void NeedRedrawing();
 
@@ -60,15 +58,21 @@ public:
 
   // to add a widget
   void AddWidget(Widget* widget);
+  void RemoveWidget(Widget* w);
 
   // Navigate between widget with keyboard
-  virtual void SetKeyboardFocusOnNextWidget();
-  virtual void SetKeyboardFocusOnPreviousWidget();
-  Widget * GetCurrentKeyboardSelectedWidget() const { return keyboard_selection; };
+  virtual void SetFocusOnNextWidget();
+  virtual void SetFocusOnPreviousWidget();
+  Widget * GetCurrentKeyboardSelectedWidget() const { return selected_widget; };
 
-  // set focus on a widget
-  void SetMouseFocusOn(Widget* widget);
+  // to implement WidgetBrowser
+  virtual Widget* GetFirstWidget() const;
+  virtual Widget* GetLastWidget() const;
+  virtual Widget* GetNextWidget(const Widget *w, bool loop) const;
+  virtual Widget* GetPreviousWidget(const Widget *w, bool loop) const;
+  virtual bool IsWidgetBrowser() const { return true; };
 
+  void SetFocusOn(Widget* widget, bool force_mouse_position = false);
   virtual void Pack();
 };
 

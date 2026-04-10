@@ -36,11 +36,12 @@ FireParticle::FireParticle() :
   Particle("fire_particle"),
   creation_time(Time::GetInstance()->Read()),
   on_ground(false),
-  oscil_delta(randomObj.GetLong(0, dig_ground_time))
+  oscil_delta(RandomLocal().GetLong(0, dig_ground_time))
 {
   SetCollisionModel(false, false, false);
   m_left_time_to_live = 100;
   m_check_move_on_end_turn = true;
+  m_is_fire = true;
 
   fire_cfg.damage = 1;
   fire_cfg.explosion_range = 5;

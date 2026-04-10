@@ -9,7 +9,10 @@
   </sprite>
 
   <sprite name="smoke_explosion">
-    <image file="object/smoke3.png" />
+    <image file="object/smoke3.png">
+      <grid pos="0,0" size="150,150" array="4,1"/>
+    </image>
+    <animation speed="50"/>
   </sprite>
 
   <sprite name="ill_bubble">
@@ -54,7 +57,11 @@
     <image file="gfx/water/lava_drop.png" />
   </sprite>
 
-<!-- Air attack ressources -->
+  <sprite name="radioactive_drop">
+    <image file="gfx/water/radioactive_drop.png" />
+  </sprite>
+
+  <!-- Air attack ressources -->
 
   <surface name="air_attack_ico" file="weapon/air_attack/air_attack_ico.png" />
   <surface name="air_attack" file="weapon/air_attack/air_attack.png" />
@@ -191,8 +198,8 @@
 
   <surface name="gun_ico" file="weapon/gun/gun_ico.png" />
   <surface name="gun" file="weapon/gun/gun.png" />
-  <position name="gun" origin="hand" x="4" y="8" />
-  <hole name="gun" dx="18" dy="-5" />
+  <position name="gun" origin="hand" x="5" y="10" />
+  <hole name="gun" dx="18" dy="-6" />
   <surface name="gun_fire" file="weapon/gun/gun_fire.png" />
   <sprite name="gun_bullet">
     <image file="weapon/gun/gun_bullet.png" />
@@ -234,13 +241,13 @@
 
   <surface name="polecatlauncher_ico" file="weapon/polecat/polecat_ico.png" />
   <surface name="polecatlauncher" file="weapon/polecat/polecatlauncher.png" />
-  <position name="polecatlauncher" origin="hand" x="20" y="20" />
+  <position name="polecatlauncher" origin="hand" x="26" y="18" />
   <sprite name="polecat_fart">
     <image file="weapon/polecat/polecat_fart.png" />
   </sprite>
   <sprite name="polecat">
     <image file="weapon/polecat/polecat.png">
-      <grid pos="0,0" size="47,38" array="1,1" />
+      <grid pos="0,0" size="52,25" array="1,1" />
     </image>
     <animation speed="35" loop_mode="pingpong" />
   </sprite>
@@ -262,8 +269,9 @@
   <position name="minelauncher" origin="hand" x="4" y="4" />
   <sprite name="mine">
     <image file="weapon/mine/mine_anim.png">
-      <grid pos="0,0" size="16,8" array="2,1" />
+      <grid pos="0,0" size="16,16" array="2,1" />
     </image>
+    <animation speed="300" loop_mode="1" />
   </sprite>
   <surface name="mine_impact" file="weapon/mine/mine_impact.png" />
 
@@ -299,6 +307,12 @@
   <surface name="skip_turn" file="weapon/skip_turn/skipturn.png" />
   <position name="skip_turn" origin="over" x="0" y="5" />
 
+<!-- Slap resources -->
+
+  <surface name="slap_ico" file="weapon/slap/slap_ico.png" />
+  <surface name="slap" file="weapon/slap/slap.png" />
+  <position name="slap" origin="hand" x="4" y="7" />
+
 <!-- Suicide ressources -->
 
   <surface name="suicide_ico" file="weapon/suicide/suicide_ico.png" />
@@ -312,9 +326,9 @@
   <position name="tux" origin="hand" x="1" y="11" />
   <sprite name="supertux">
     <image file="weapon/supertux/superman.png">
-      <grid pos="0,0" size="23,37" array="2,1" />
+      <grid pos="0,0" size="23,38" array="2,1" />
     </image>
-    <animation speed="800"/>
+    <animation speed="80"/>
   </sprite>
 
 <!-- Teleportation ressources -->

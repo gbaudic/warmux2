@@ -61,6 +61,7 @@ wormux_SOURCES = \
         gui/spin_button.cpp gui/spin_button.h \
         gui/spin_button_picture.cpp gui/spin_button_picture.h \
 	gui/tabs.cpp gui/tabs.h \
+	gui/talk_box.cpp gui/talk_box.h \
         gui/text_box.cpp gui/text_box.h \
         gui/widget.cpp gui/widget.h \
         gui/widget_list.cpp gui/widget_list.h \
@@ -94,6 +95,7 @@ wormux_SOURCES = \
         map/wind.cpp map/wind.h \
         menu/credits_menu.cpp menu/credits_menu.h \
         menu/game_menu.cpp menu/game_menu.h \
+	menu/game_mode_editor.cpp menu/game_mode_editor.h \
         menu/help_menu.cpp menu/help_menu.h \
         menu/main_menu.cpp menu/main_menu.h \
         menu/map_selection_box.cpp menu/map_selection_box.h \
@@ -104,6 +106,7 @@ wormux_SOURCES = \
         menu/options_menu.cpp menu/options_menu.h \
         menu/pause_menu.cpp menu/pause_menu.h \
         menu/results_menu.cpp menu/results_menu.h \
+        menu/skin_menu.cpp menu/skin_menu.h \
         menu/team_box.cpp menu/team_box.h \
         menu/teams_selection_box.cpp menu/teams_selection_box.h \
         network/admin_commands.cpp network/admin_commands.h \
@@ -147,7 +150,9 @@ wormux_SOURCES = \
         sound/jukebox.cpp sound/jukebox.h \
         sound/sound_sample.cpp sound/sound_sample.h \
         sound/sample_cache.cpp sound/sample_cache.h \
-        team/macro.h \
+        team/custom_team.cpp team/custom_team.h \
+        team/custom_teams_list.cpp team/custom_teams_list.h \
+		team/macro.h \
         team/results.cpp team/results.h \
         team/team_config.h \
         team/team.cpp team/team.h \
@@ -200,6 +205,7 @@ wormux_SOURCES = \
         weapon/riot_bomb.cpp weapon/riot_bomb.h \
         weapon/shotgun.cpp weapon/shotgun.h \
         weapon/skip_turn.cpp weapon/skip_turn.h \
+        weapon/slap.cpp weapon/slap.h \
         weapon/snipe_rifle.cpp weapon/snipe_rifle.h \
         weapon/submachine_gun.cpp weapon/submachine_gun.h \
         weapon/suicide.cpp weapon/suicide.h \
@@ -225,9 +231,8 @@ if WIN32
 wormux_SOURCES += wormux.rc wormux.ico
 .rc.o:
 	@WINDRES@ -o $@ -i $<
-else
-AM_CXXFLAGS += -Werror
 endif
+AM_CXXFLAGS += -Werror
 
 if !INCLUDEDINTL
 LIBS+=@LIBINTL@

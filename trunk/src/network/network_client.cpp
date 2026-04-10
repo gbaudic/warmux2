@@ -23,9 +23,9 @@
 //-----------------------------------------------------------------------------
 #include <SDL_thread.h>
 #include "include/action_handler.h"
+#include "include/app.h"
 #include "include/constant.h"
 #include "game/game_mode.h"
-#include "menu/network_menu.h"
 #include "network/distant_cpu.h"
 #include "network/net_error_msg.h"
 #include "tool/debug.h"
@@ -53,14 +53,6 @@ NetworkClient::~NetworkClient()
 {
 }
 
-void NetworkClient::SendChatMessage(const std::string& txt)
-{
-  if (txt == "") return;
-
-  Action a(Action::ACTION_CHAT_MESSAGE, txt);
-  SendAction(&a);
-}
-
 std::list<DistantComputer*>::iterator NetworkClient::CloseConnection(std::list<DistantComputer*>::iterator closed)
 {
   printf("Client disconnected\n");
@@ -69,32 +61,9 @@ std::list<DistantComputer*>::iterator NetworkClient::CloseConnection(std::list<D
   return cpu.erase(closed);
 }
 
-void NetworkClient::HandleAction(Action* a, DistantComputer* sender) const
+void NetworkClient::HandleAction(Action* a, DistantComputer* /*sender*/) const
 {
-  switch (a->GetType()) {
-  case Action::ACTION_NICKNAME:
-    {
-      std::string nickname = a->PopString();
-      std::cout<<"New nickname: " + nickname<< std::endl;
-      sender->nickname = nickname;
-      delete a;
-    }
-    break;
-
-  case Action::ACTION_MENU_ADD_TEAM:
-  case Action::ACTION_MENU_DEL_TEAM:
-    sender->ManageTeam(a);
-    delete a;
-    break;
-
-  case Action::ACTION_CHAT_MESSAGE:
-    sender->SendChatMessage(a);
-    delete a;
-    break;
-
-  default:
-    ActionHandler::GetInstance()->NewAction(a, false);
-  }
+  ActionHandler::GetInstance()->NewAction(a, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -117,7 +86,7 @@ connection_state_t NetworkClient::HandShake(TCPsocket& server_socket)
   Network::Send(server_socket, Constants::WORMUX_VERSION);
 
   // is it ok ?
-  r = Network::ReceiveStr(tmp_socket_set, server_socket, version);
+  r = Network::ReceiveStr(tmp_socket_set, server_socket, version, 40);
 
   MSG_DEBUG("network", "Client: server version number is %s", version.c_str());
 
@@ -128,7 +97,7 @@ connection_state_t NetworkClient::HandShake(TCPsocket& server_socket)
     std::string str = Format(_("The client and server versions are incompatible "
 			       "(local=%s, server=%s). Please try another server."),
 			     Constants::WORMUX_VERSION.c_str(), version.c_str());
-    Network::GetInstance()->network_menu->DisplayError(str);
+    AppWormux::DisplayError(str);
     goto error;
   }
 
@@ -199,9 +168,10 @@ NetworkClient::ClientConnect(const std::string &host, const std::string& port)
   DistantComputer * server = new DistantComputer(socket);
 
   cpu.push_back(server);
+
   //Send nickname to server
-  Action a(Action::ACTION_NICKNAME, nickname);
-  SendAction(&a);
+  Action a(Action::ACTION_NICKNAME, GetNickname());
+  SendAction(a);
 
   //Control to net_thread_func
   thread = SDL_CreateThread(Network::ThreadRun, NULL);

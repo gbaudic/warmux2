@@ -42,13 +42,13 @@ public:
   std::string country;
   std::string description;
 
-  bool Feed (xmlNode* node);
+  bool Feed (const xmlNode* node);
   std::string PrettyString(bool with_email) const;
 };
 
 //-----------------------------------------------------------------------------
 
-bool Author::Feed (xmlNode* node)
+bool Author::Feed (const xmlNode* node)
 {
   if (!XmlReader::ReadString(node, "name", name))
     return false;
@@ -88,8 +88,8 @@ std::string Author::PrettyString(bool with_email) const
 CreditsMenu::CreditsMenu()  :
   Menu("credit/background", vOk)
 {
-  ListBox * lbox_authors = new ListBox(Point2i(AppWormux::GetInstance()->video->window.GetWidth()-60,
-					       AppWormux::GetInstance()->video->window.GetHeight()-60-30),
+  ListBox * lbox_authors = new ListBox(Point2i(GetMainWindow().GetWidth()-60,
+					       GetMainWindow().GetHeight()-60-30),
 				       false);
   lbox_authors->SetBackgroundColor(Color(0,0,0,200));
   lbox_authors->SetPosition(30, 30);
@@ -129,7 +129,7 @@ void CreditsMenu::PrepareAuthorsList(ListBox * lbox_authors) const
 
   for(uint i = 0; i < (sizeof teams / sizeof* teams); ++i)
   {
-    xmlNodeArray team = XmlReader::GetNamedNeighbours(doc.GetRoot(), teams[i]);
+    xmlNodeArray team = XmlReader::GetNamedChildren(doc.GetRoot(), teams[i]);
 
     if (team.empty())
       continue;

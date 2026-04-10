@@ -23,13 +23,17 @@
 #define TEAM_BOX_H
 
 #include <string>
+#include <vector>
 #include "gui/box.h"
 
+class Button;
+class CustomTeam;
 class Team;
 class SpinButton;
 class Label;
 class PictureWidget;
 class TextBox;
+
 
 class TeamBox : public HBox
 {
@@ -40,13 +44,21 @@ class TeamBox : public HBox
   /**********************************************/
 
   bool is_local; // local/remote team
-  std::string previous_name; // only for network
+  std::string previous_player_name; // only for network
 
   Team * associated_team;
   PictureWidget *team_logo;
   Label * team_name;
   TextBox * player_name;
+  Button * next_custom_team;
+  Button * previous_custom_team;
   SpinButton * nb_characters;
+
+  std::vector<CustomTeam *> custom_team_list;
+  unsigned custom_team_current_id;
+
+
+  void UpdateTeam(const std::string& old_team_id) const;
 
  public:
   TeamBox(const std::string& player_name, const Point2i &size);
@@ -54,6 +66,8 @@ class TeamBox : public HBox
   void SetTeam(Team& _team, bool read_team_values=false);
   void ClearTeam();
   Team* GetTeam() const;
+  CustomTeam *GetCustomTeam();
+
   void ValidOptions() const;
 
   bool IsLocal() const;

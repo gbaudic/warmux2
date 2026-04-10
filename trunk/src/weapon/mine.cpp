@@ -86,7 +86,7 @@ void ObjMine::StartTimeout()
 
     // is it a fake mine ? (here because Constructor is called before random
     // number generator is synchronized over the network)
-    fake = !(randomSync.GetLong(0, 9));
+    fake = !(RandomSync().GetLong(0, 9));
 
     Camera::GetInstance()->FollowObject(this, true);
 
@@ -275,7 +275,7 @@ MineConfig::MineConfig()
   escape_time = 2;
 }
 
-void MineConfig::LoadXml(xmlNode* elem)
+void MineConfig::LoadXml(const xmlNode* elem)
 {
   ExplosiveWeaponConfig::LoadXml (elem);
   XmlReader::ReadUint(elem, "escape_time", escape_time);

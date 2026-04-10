@@ -53,7 +53,7 @@
 extern Profile *weapons_res_profile;
 
 const int INFINITE_AMMO = -1;
-const uint MAX_TIME_LOADING = 2000;
+const uint MAX_TIME_LOADING = 3500;
 
 // XXX Unused ?
 //const uint WEAPON_BOX_BUTTON_DX = 20;
@@ -79,6 +79,7 @@ Weapon::Weapon(Weapon_type type,
   m_is_active = false;
 
   m_time_anim_begin = Time::GetInstance()->Read();
+  m_available_after_turn = 0;
   m_initial_nb_ammo = INFINITE_AMMO;
   m_initial_nb_unit_per_ammo = 1;
   use_unit_on_first_shoot = true;
@@ -120,7 +121,7 @@ Weapon::Weapon(Weapon_type type,
 
   mouse_character_selection = true;
 
-  xmlNode* elem = resource_manager.GetElement(weapons_res_profile, "position", m_id);
+  const xmlNode* elem = resource_manager.GetElement(weapons_res_profile, "position", m_id);
   if (elem != NULL) {
     // E.g. <position name="my_weapon_id" origin="hand" x="-1" y="0" />
     std::string origin_xml;
@@ -435,7 +436,7 @@ void Weapon::UpdateStrength(){
     return ;
 
   uint time = Time::GetInstance()->Read() - m_first_time_loading;
-  double val = (max_strength * time) / MAX_TIME_LOADING;
+  double val = (max_strength * time*time) / (MAX_TIME_LOADING*MAX_TIME_LOADING);
 
   m_strength = InRange_Double (val, 0.0, max_strength);
 
@@ -552,7 +553,7 @@ void Weapon::Draw(){
   }
 
   if ( m_image )
-    m_image->Blit( AppWormux::GetInstance()->video->window, Point2i(x, y) - Camera::GetInstance()->GetPosition());
+    m_image->Blit( GetMainWindow(), Point2i(x, y) - Camera::GetInstance()->GetPosition());
 
 #ifdef DEBUG
   if (IsLOGGING("weapon")) {
@@ -563,7 +564,7 @@ void Weapon::Draw(){
 
     world.ToRedrawOnMap(rect);
 
-    AppWormux::GetInstance()->video->window.RectangleColor(rect, c_red);
+    GetMainWindow().RectangleColor(rect, c_red);
 
     MSG_DEBUG("weapon.handposition", "Position: %d, %d - hand: %d, %d",
 	      ActiveCharacter().GetX(),
@@ -578,7 +579,7 @@ void Weapon::Draw(){
       	    	  3, 3);
 
   world.ToRedrawOnMap(rect);
-  AppWormux::GetInstance()->video->window.RectangleColor(rect, c_red);
+  GetMainWindow().RectangleColor(rect, c_red);
 
 //  rect = Rectangle(
 #endif
@@ -649,9 +650,9 @@ void Weapon::DrawAmmoUnits() const
   }
 }
 
-bool Weapon::LoadXml(xmlNode*  weapon)
+bool Weapon::LoadXml(const xmlNode*  weapon)
 {
-  xmlNode* elem = XmlReader::GetMarker(weapon, m_id)->children;
+  const xmlNode* elem = XmlReader::GetMarker(weapon, m_id);
   if (elem == NULL)
   {
       std::cout << Format(_("No element <%s> found in the xml config file!"),
@@ -660,6 +661,7 @@ bool Weapon::LoadXml(xmlNode*  weapon)
     return false;
   }
 
+  XmlReader::ReadInt(elem, "available_after_turn", m_available_after_turn);
   XmlReader::ReadInt(elem, "nb_ammo", m_initial_nb_ammo);
   XmlReader::ReadInt(elem, "unit_per_ammo", m_initial_nb_unit_per_ammo);
 
@@ -735,6 +737,11 @@ void Weapon::HandleKeyReleased_Shoot(bool)
     return;
 
   NewActionWeaponShoot();
+}
+
+void Weapon::p_Deselect()
+{
+  ActiveCharacter().SetMovement("breathe");
 }
 
 void Weapon::HandleKeyPressed_MoveRight(bool shift)

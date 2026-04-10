@@ -26,6 +26,7 @@
 #include <list>
 #include "menu.h"
 #include "network/network.h"
+#include "network/index_server.h" // for GameServerInfo
 
 // Forward declarations
 class Button;
@@ -38,6 +39,13 @@ class GameListBox;
 
 class NetworkConnectionMenu : public Menu
 {
+public:
+  typedef enum {
+    NET_NOTHING,
+    NET_HOST,
+    NET_CONNECT
+  } network_menu_action_t;
+
 private:
   /* If you need this, implement it (correctly)*/
   NetworkConnectionMenu(const NetworkConnectionMenu&);
@@ -52,6 +60,7 @@ private:
   CheckBox* srv_internet_server;
 
   Button* cl_refresh_net_games;
+  Label* refresh_net_games_label;
   GameListBox* cl_net_games_lst;
   PasswordBox* cl_net_server_pwd;
 
@@ -70,6 +79,7 @@ private:
   bool signal_ok();
   bool signal_cancel();
 
+  std::list<GameServerInfo> GetList();
   void RefreshList();
   bool HostingServer(const std::string& port,
 		     const std::string& game_name,
@@ -80,8 +90,8 @@ private:
 		       const std::string& passwd);
 
 public:
-   NetworkConnectionMenu();
-   ~NetworkConnectionMenu();
+  NetworkConnectionMenu(network_menu_action_t action);
+  ~NetworkConnectionMenu();
 };
 
 #endif

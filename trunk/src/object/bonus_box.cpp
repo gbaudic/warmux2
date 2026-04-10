@@ -60,7 +60,7 @@ void BonusBox::PickRandomWeapon()
   weapon_num = 0;
   int nb_try = 0;
   do {
-    double num = Random::GetDouble(0, total_probability);
+    double num = RandomLocal().GetDouble(0, total_probability);
     double total_bf_weapon = 0, total_after_weapon = 0;
 
     for (uint i=0; i < weapon_list.size(); i++) {
@@ -114,7 +114,7 @@ bool BonusBox::ExplodesInsteadOfBonus(Character * c)
   else if ( explosion_probability > 40.0f )
     explosion_probability = 40.0f;
 
-  float randval = randomSync.GetDouble( 1, 100 );
+  float randval = RandomSync().GetDouble( 1, 100 );
   bool exploding = randval < explosion_probability;
   MSG_DEBUG("bonus","explosion chance: %.2f%%, actual value: %.2f, %s",
     explosion_probability, randval, exploding ? "exploding!" : "not exploding");
@@ -132,13 +132,13 @@ std::vector<struct WeaponProba> BonusBox::weapon_list;
   and retrieved by weapon.GetBonusProbability() and weapon.GetBonusAmmo()
   however, this is not the way that was chosen.
 */
-void BonusBox::LoadXml(xmlNode* object)
+void BonusBox::LoadXml(const xmlNode* object)
 {
   total_probability = 0;
   struct WeaponProba w;
 
   XmlReader::ReadInt(object, "life_points", start_life_points);
-  xmlNode* node = XmlReader::GetMarker(object, "probability");
+  const xmlNode* node = XmlReader::GetMarker(object, "probability");
   std::list<Weapon*> l_weapons_list = WeaponsList::GetInstance()->GetList();
   std::list<Weapon*>::iterator
     itw = l_weapons_list.begin(),
@@ -147,14 +147,17 @@ void BonusBox::LoadXml(xmlNode* object)
   for(; itw != end; ++itw) {
     w.weapon = *itw;
 
-    if (!XmlReader::ReadDouble(node, w.weapon->GetID().c_str(), w.probability) || w.probability == 0.0) {
+    if (!XmlReader::ReadDouble(node, w.weapon->GetID().c_str(), w.probability)) {
       std::cerr << "No bonus probability defined for weapon "
 		<< w.weapon->GetID().c_str() << std::endl;
       continue;
     }
+    if (w.probability == 0.0) {
+      continue;
+    }
     total_probability += w.probability;
 
-    xmlNode* elem = XmlReader::GetMarker(node, w.weapon->GetID());
+    const xmlNode* elem = XmlReader::GetMarker(node, w.weapon->GetID());
     ASSERT(elem != NULL);
     XmlReader::ReadIntAttr (elem, "ammo", w.nb_ammos);
 

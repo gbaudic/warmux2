@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8.1], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -23,6 +23,10 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign 1.5])
 
 AM_GNU_GETTEXT([external])
+
+if test "x$USE_NLS" != "xyes"; then
+  AC_MSG_WARN([gettext is disabled. If you want internationalisation, please install gettext package.])
+fi
 
 dnl ========================================================================
 dnl === Check for tools                                                    =
@@ -394,7 +398,8 @@ else
    echo "* Game locale will be installed into $LOCALEDIR"
    echo "* Font file will be $FONTFILE"
    echo ""
-   echo "* [[Optional]] Bi-directional rendering : ${enable_fribidi:-no}"
+   echo "* [[Optional]] Bi-directional rendering (fribidi) : ${enable_fribidi:-no}"
+   echo "* [[Optional]] Internationalisation (gettext)     : ${USE_NLS:-no}"
 fi
 echo ""
 echo "Execute make to compile then execute make install to install..."

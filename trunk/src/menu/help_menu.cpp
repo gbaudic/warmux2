@@ -20,11 +20,12 @@
  *****************************************************************************/
 
 #include "include/app.h"
+#include "graphic/text.h"
+#include "graphic/sprite.h"
 #include "graphic/video.h"
-#include "gui/box.h"
-#include "gui/picture_widget.h"
 #include "menu/help_menu.h"
 #include "game/config.h"
+#include "tool/i18n.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 
@@ -34,23 +35,10 @@ static const uint CHECKBOX_SIZE = 50;
 HelpMenu::HelpMenu()  :
   Menu("help/background", vOk)
 {
-  Point2i size = AppWormux::GetInstance()->video->window.GetSize()
-               - Point2i(2*BORDER,2*BORDER+CHECKBOX_SIZE);
-
-  std::string lang = Config::GetInstance()->GetLanguage();
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  xmlNode *elem = resource_manager.GetElement (res, "surface", "help/help_shortkeys_" + lang);
-  std::string filename;
-  if (elem == NULL || !res->doc->ReadStringAttr(elem, "file", filename))
-    lang = "en";
+  img_keyboard = new Sprite(resource_manager.LoadImage(res, "help/shortkeys"), true);
+  img_keyboard->cache.EnableLastFrameCache();
   resource_manager.UnLoadXMLProfile(res);
-  PictureWidget *help_image = new PictureWidget(size, "help/help_shortkeys_" + lang, true);
-
-  VBox *help = new VBox(size.x);
-  help->SetPosition(BORDER, BORDER);
-  help->AddWidget(help_image);
-  widgets.AddWidget(help);
-  widgets.Pack();
 }
 
 HelpMenu::~HelpMenu()
@@ -65,6 +53,43 @@ bool HelpMenu::signal_ok()
 bool HelpMenu::signal_cancel()
 {
   return true;
+}
+
+void HelpMenu::DrawBackground()
+{
+  Menu::DrawBackground();
+  img_keyboard->Blit(GetMainWindow(), BORDER, BORDER);
+
+  const uint MIDDLE_X = 64;
+  const uint MIDDLE_Y = 13;
+
+  Text tmp(_("Quit game"), dark_gray_color, Font::FONT_TINY, Font::FONT_NORMAL, false);
+  tmp.SetMaxWidth(130);
+
+  tmp.DrawCenter(Point2i(13+BORDER+MIDDLE_X, 5+BORDER+MIDDLE_Y));
+  tmp.Set(_("Show/hide interface")); tmp.DrawCenter(Point2i(148+BORDER+MIDDLE_X, 5+BORDER+MIDDLE_Y));
+  tmp.Set(_("Fullscreen / window")); tmp.DrawCenter(Point2i(311+BORDER+MIDDLE_X, 5+BORDER+MIDDLE_Y));
+  tmp.Set(_("High jump")); tmp.DrawCenter(Point2i(460+BORDER+MIDDLE_X, 5+BORDER+MIDDLE_Y));
+  tmp.Set(_("Talk in network battle")); tmp.DrawCenter(Point2i(13+BORDER+MIDDLE_X, 32+BORDER+MIDDLE_Y));
+  tmp.Set(_("Change weapon category")); tmp.DrawCenter(Point2i(148+BORDER+MIDDLE_X, 32+BORDER+MIDDLE_Y));
+  tmp.Set(_("Configuration menu")); tmp.DrawCenter(Point2i(311+BORDER+MIDDLE_X, 32+BORDER+MIDDLE_Y));
+  tmp.Set(_("Jump")); tmp.DrawCenter(Point2i(460+BORDER+MIDDLE_X, 32+BORDER+MIDDLE_Y));
+  tmp.Set(_("Drag&drop: Move camera")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 82+BORDER+MIDDLE_Y));
+  tmp.Set(_("Click: Center camera on character")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 111+BORDER+MIDDLE_Y));
+  tmp.Set(_("Change weapon countdown")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 140+BORDER+MIDDLE_Y));
+  tmp.Set(_("Change aim angle")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 169+BORDER+MIDDLE_Y));
+  tmp.Set(_("Move character")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 198+BORDER+MIDDLE_Y));
+  tmp.Set(_("On map: Select a target")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 227+BORDER+MIDDLE_Y));
+  tmp.Set(_("On a character: Changes active one")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 255+BORDER+MIDDLE_Y));
+  tmp.Set(_("Show weapons menu")); tmp.DrawCenter(Point2i(539+BORDER+MIDDLE_X, 284+BORDER+MIDDLE_Y));
+  tmp.Set(_("Smaller aim angle and walk step")); tmp.DrawCenter(Point2i(25+BORDER+MIDDLE_X, 253+BORDER+MIDDLE_Y));
+  tmp.Set(_("Jump backwards")); tmp.DrawCenter(Point2i(188+BORDER+MIDDLE_X, 253+BORDER+MIDDLE_Y));
+  tmp.Set(_("Pause")); tmp.DrawCenter(Point2i(337+BORDER+MIDDLE_X, 253+BORDER+MIDDLE_Y));
+  tmp.Set(_("Move camera with mouse or arrows")); tmp.DrawCenter(Point2i(25+BORDER+MIDDLE_X, 281+BORDER+MIDDLE_Y));
+  tmp.Set(_("Weapon: Fire / Bonus box: falls fast")); tmp.DrawCenter(Point2i(188+BORDER+MIDDLE_X, 281+BORDER+MIDDLE_Y));
+  tmp.Set(_("Show/hide minimap")); tmp.DrawCenter(Point2i(337+BORDER+MIDDLE_X, 281+BORDER+MIDDLE_Y));
+  tmp.Set(_("Change active character")); tmp.DrawCenter(Point2i(25+BORDER+MIDDLE_X, 310+BORDER+MIDDLE_Y));
+  tmp.Set(_("Center camera to character")); tmp.DrawCenter(Point2i(188+BORDER+MIDDLE_X, 310+BORDER+MIDDLE_Y));
 }
 
 void HelpMenu::Draw(const Point2i& /*mousePosition*/)

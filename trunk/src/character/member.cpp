@@ -32,7 +32,7 @@
 #include "tool/string_tools.h"
 #include "tool/xml_document.h"
 
-Member::Member(xmlNode* xml, const Profile* res):
+Member::Member(const xmlNode* xml, const Profile* res):
   parent(NULL),
   angle_rad(0),
   anchor(0,0),
@@ -60,8 +60,8 @@ Member::Member(xmlNode* xml, const Profile* res):
   XmlReader::ReadStringAttr(xml, "type", type);
   ASSERT(type!="");
 
-  xmlNode* el = XmlReader::GetMarker(xml, "anchor");
-  if(el != 0)
+  const xmlNode* el = XmlReader::GetMarker(xml, "anchor");
+  if (el != NULL)
   {
     int dx = 0, dy = 0;
     XmlReader::ReadIntAttr(el, "dx", dx);
@@ -117,7 +117,7 @@ Member::Member(xmlNode* xml, const Profile* res):
       }
       (attached_members.find(att_type)->second)[frame] = d;
     }
-  } 
+  }
 
   ResetMovement();
 }
@@ -192,7 +192,7 @@ void Member::Draw(const Point2i & _pos, int flip_center, int direction)
 
 void Member::ApplySqueleton(Member* parent_member)
 {
-  // Place the member to shape the squeleton
+  // Place the member to shape the skeleton
   if(parent_member == NULL)
   {
     std::cerr << "Member " << name << " have no parent member!" << std::endl;
@@ -210,7 +210,7 @@ void Member::ApplySqueleton(Member* parent_member)
     pos = pos + parent->attached_members.find(type)->second[parent->spr->GetCurrentFrame()];
 }
 
-void Member::ApplyMovement(const member_mvt &mvt, std::vector<junction>& squel_lst)
+void Member::ApplyMovement(const member_mvt &mvt, std::vector<junction>& skel_lst)
 {
   // Apply the movment to the member,
   // And apply the movement accordingly to the child members
@@ -226,9 +226,9 @@ void Member::ApplyMovement(const member_mvt &mvt, std::vector<junction>& squel_l
       child != attached_members.end();
       child++ )
   {
-    // Find this member in the squeleton:
-    for(std::vector<junction>::iterator member = squel_lst.begin();
-        member != squel_lst.end();
+    // Find this member in the skeleton:
+    for(std::vector<junction>::iterator member = skel_lst.begin();
+        member != skel_lst.end();
         member++)
     {
       if(member->member->type == child->first)
@@ -261,8 +261,8 @@ void Member::ApplyMovement(const member_mvt &mvt, std::vector<junction>& squel_l
           child_mvt.pos.x += radius * (cos(angle_init + angle_rad + mvt.GetAngle()) - cos(angle_init + angle_rad));
           child_mvt.pos.y += radius * (sin(angle_init + angle_rad + mvt.GetAngle()) - sin(angle_init + angle_rad));
         }
-        // Apply recursively to childrens:
-        member->member->ApplyMovement(child_mvt, squel_lst);
+        // Apply recursively to children:
+        member->member->ApplyMovement(child_mvt, skel_lst);
       }
     }
   }
@@ -289,8 +289,8 @@ WeaponMember::~WeaponMember()
 void WeaponMember::Draw(const Point2i & /*_pos*/, int /*flip_center*/, int /*direction*/)
 {
   if (!ActiveCharacter().IsDead() && Game::GetInstance()->ReadState() != Game::END_TURN)
-  {
-        ActiveTeam().crosshair.Draw();
-        ActiveTeam().AccessWeapon().Draw();
-  }
+    {
+      ActiveTeam().crosshair.Draw();
+      ActiveTeam().AccessWeapon().Draw();
+    }
 }

@@ -36,7 +36,9 @@
 #include "team/teams_list.h"
 #include "tool/i18n.h"
 #include "tool/resource_manager.h"
+#include "tool/random.h"
 #include "tool/xml_document.h"
+
 
 const int FORCE_X_MIN = -50;
 const uint FORCE_X_MAX = 0;
@@ -52,7 +54,7 @@ class AirAttackConfig : public ExplosiveWeaponConfig
     double speed;
     uint nbr_obus;
     AirAttackConfig();
-    virtual void LoadXml(xmlNode* elem);
+    virtual void LoadXml(const xmlNode* elem);
 };
 
 class Obus : public WeaponProjectile
@@ -100,11 +102,13 @@ Plane::~Plane()
 
 void Plane::Shoot(double speed, const Point2i& target)
 {
+  MSG_DEBUG("weapon.shoot", "Plane Shoot");
   nb_dropped_bombs = 0;
   last_dropped_bomb = NULL;
 
   Point2d speed_vector ;
   int dir = ActiveCharacter().GetDirection();
+
   cible_x = target.x;
   SetY(0);
   distance_to_release =(int)(speed * sqrt(2.0 * (GetY() + target.y)));
@@ -113,12 +117,13 @@ void Plane::Shoot(double speed, const Point2i& target)
 
   if (dir == 1) {
     speed_vector.SetValues(speed, 0);
-    SetX(-(int)image->GetWidth() + 1);
+    SetX(1.0 - double(image->GetWidth()));
     //distance_to_release -= obus_dx;
-    if(distance_to_release > cible_x) distance_to_release=0;
+   if(distance_to_release > cible_x) distance_to_release=0;
+
   } else {
     speed_vector.SetValues(-speed, 0) ;
-    SetX(world.GetWidth() - 1);
+    SetX(double(world.GetWidth() - 1));
     //distance_to_release += obus_dx;
     if(distance_to_release > (world.GetWidth()-cible_x - obus_dx)) distance_to_release=0;
   }
@@ -137,9 +142,9 @@ void Plane::DropBomb()
 
   Point2d speed_vector = GetSpeedXY();
 
-  int fx = randomSync.GetLong(FORCE_X_MIN, FORCE_X_MAX);
+  int fx = RandomSync().GetLong(FORCE_X_MIN, FORCE_X_MAX);
   fx *= GetDirection();
-  int fy = randomSync.GetLong(FORCE_Y_MIN, FORCE_Y_MAX);
+  int fy = RandomSync().GetLong(FORCE_Y_MIN, FORCE_Y_MAX);
 
   speed_vector.SetValues(speed_vector.x + fx/30.0, speed_vector.y + fy/30.0);
   instance->SetSpeedXY(speed_vector);
@@ -156,16 +161,21 @@ void Plane::DropBomb()
 
 void Plane::Refresh()
 {
+
   UpdatePosition();
   image->Update();
   // First shoot !!
   if ( OnTopOfTarget() && nb_dropped_bombs == 0) {
     DropBomb();
     m_ignore_movements = true;
+    next_height = RandomLocal().GetInt(20,100);
   } else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {
     // Get the last rocket and check the position to be sure to not collide with it
-    if ( last_dropped_bomb->GetY() > GetY()+GetHeight()+10 )
+    if ( last_dropped_bomb->GetY() > GetY()+GetHeight()+next_height )
+    {
+      next_height = RandomLocal().GetInt(20,100);
       DropBomb();
+    }
   }
 }
 
@@ -219,6 +229,7 @@ void AirAttack::ChooseTarget(Point2i mouse_pos)
 
 bool AirAttack::p_Shoot ()
 {
+  MSG_DEBUG("weapon.shoot", "AirAttack p_Shoot");
   if(!target_chosen)
     return false;
 
@@ -247,6 +258,7 @@ void AirAttack::p_Deselect()
 {
   // Go back to default cursor
   Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
+  ActiveCharacter().SetMovement("breathe");
 }
 
 AirAttackConfig& AirAttack::cfg()
@@ -271,7 +283,7 @@ AirAttackConfig::AirAttackConfig()
   speed = 7;
 }
 
-void AirAttackConfig::LoadXml(xmlNode* elem)
+void AirAttackConfig::LoadXml(const xmlNode* elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "nbr_obus", nbr_obus);
