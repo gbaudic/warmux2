@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -67,9 +67,4 @@ std::string SkipTurn::GetWeaponWinString(const char *TeamName, uint items_count 
             "%s team has won %u turn skip! I know you'll love it.",
             "%s team has won %u turn skips! I know you'll love them.",
             items_count), TeamName, items_count);
-}
-
-bool SkipTurn::IsInUse() const
-{
-  return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
 }

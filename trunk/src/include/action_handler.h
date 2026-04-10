@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 // Forward declarations
 struct SDL_mutex;
 class Player;
+class TeamConfig;
 
 class ActionHandler : public WActionHandler, public Singleton<ActionHandler>
 {
@@ -45,25 +46,20 @@ public:
   void NewAction(Action* a, bool repeat_to_network=true);
   void NewActionActiveCharacter(Action* a); // send infos (on the network) about active character in the same time
 
-  void ExecActions();
+  void NewRequestTeamAction(const ConfigTeam & team);
+
+  void ExecFrameLessActions();
+  bool ExecActionsForOneFrame();
 };
 
 void Action_Handler_Init();
 
 // TODO: Move it in an object !
 
-// Send character information over the network (it's totally stupid to send it locally ;-)
-void SendCharacterInfo(int team_no, int char_no);
-void SendActiveCharacterInfo(bool can_be_dropped = false);
-
-// Send character information + an action over the network
-// WARNING: it does not post the action in local queue!!
-void SendActiveCharacterAction(const Action& a);
-
 void SendGameMode();
 void SyncCharacters();
 
-void SendInitialGameInfo(DistantComputer* client);
+void SendInitialGameInfo(DistantComputer* client, int added_player_id);
 
 void WORMUX_ConnectHost(DistantComputer& host);
 void WORMUX_DisconnectHost(DistantComputer& host);

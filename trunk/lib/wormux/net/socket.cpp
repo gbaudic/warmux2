@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -135,7 +135,8 @@ WSocket::WSocket(TCPsocket _socket, WSocketSet* _socket_set) :
   using_tmp_socket_set(false),
   m_packet(NULL),
   m_packet_size(0),
-  m_received(0)
+  m_received(0),
+  address_field_valid(false)
 {
   int r;
   r = socket_set->AddSocket(this);
@@ -152,7 +153,8 @@ WSocket::WSocket(TCPsocket _socket):
   using_tmp_socket_set(false),
   m_packet(NULL),
   m_packet_size(0),
-  m_received(0)
+  m_received(0),
+  address_field_valid(false)
 {
 }
 
@@ -163,7 +165,8 @@ WSocket::WSocket():
   using_tmp_socket_set(false),
   m_packet(NULL),
   m_packet_size(0),
-  m_received(0)
+  m_received(0),
+  address_field_valid(false)
 {
 }
 
@@ -606,43 +609,6 @@ bool WSocket::ReceiveStr(std::string &_str, size_t maxlen)
   return r;
 }
 
-uint32_t WSocket::ComputeCRC(const void* data, size_t len)
-{
-  uint32_t crc = 0;
-  const uint32_t* buf = reinterpret_cast<const uint32_t*>(data);
-
-  for (uint32_t i = 0; i < len/sizeof(uint32_t); i++) {
-    crc += buf[i];
-  }
-
-  return crc;
-}
-
-bool WSocket::SendPacket(const char* data, size_t len)
-{
-  bool r;
-  uint32_t crc;
-  Lock();
-
-  r = SendInt_NoLock(len);
-  if (!r)
-    goto out_unlock;
-
-  r = SendBuffer_NoLock(data, len);
-  if (!r)
-    goto out_unlock;
-
-  // Send a CRC check
-  crc = ComputeCRC(data, len);
-  r = SendInt_NoLock(crc);
-  if (!r)
-    goto out_unlock;
-
- out_unlock:
-  UnLock();
-  return r;
-}
-
 // ReceivePacket may return true with *data = NULL and len = 0
 // That means that client is still valid BUT there are not enough data CURRENTLY
 bool WSocket::ReceivePacket(char** data, size_t* len)
@@ -651,7 +617,6 @@ bool WSocket::ReceivePacket(char** data, size_t* len)
 
   Lock();
 
-  int crc;
   size_t nbbytes, to_recv_now;
   bool tested = false;
 
@@ -678,24 +643,31 @@ bool WSocket::ReceivePacket(char** data, size_t* len)
     }
 
     // Firstly, we read the size of the incoming packet
-    r = ReceiveInt_NoLock(m_packet_size);
+    int packet_len;
+    r = ReceiveInt_NoLock(packet_len);
     if (!r) {
       goto error;
     }
 
-    if (m_packet_size > MAX_VALID_PACKET_SIZE) {
-      fprintf(stderr, "ERROR: network packet is too big\n");
+    m_packet_size = packet_len;
+
+    if (m_packet_size > uint32_t(MAX_VALID_PACKET_SIZE)) {
+      fprintf(stderr, "ERROR: network packet is too big: %u bytes. (max: %u)\n",
+	      m_packet_size, MAX_VALID_PACKET_SIZE);
       goto error;
     }
 
     m_packet = (char*)malloc(m_packet_size);
     if (!m_packet) {
-      fprintf(stderr, "ERROR: memory allocation failed (%d bytes)\n", m_packet_size);
+      fprintf(stderr, "ERROR: memory allocation failed (%u bytes)\n", m_packet_size);
       goto error;
     }
+
+    SDLNet_Write32(m_packet_size, m_packet);
+    m_received = sizeof(uint32_t);
   }
 
-  // Check if the data (+crc) are already there
+  // Check if the data are already there
   r = NbBytesAvailable(nbbytes);
   if (!r) {
     goto error;
@@ -722,24 +694,10 @@ bool WSocket::ReceivePacket(char** data, size_t* len)
   m_received += to_recv_now;
   nbbytes -= to_recv_now;
 
-  // the packet (data + crc) can not have been read in one time
+  // the packet can not have been read in one time
   // but client is still valid
-  if (m_received != m_packet_size // packet is not yet fully received
-      || nbbytes < sizeof(uint32_t) // not enough data to read CRC
-      ) {
+  if (m_received != m_packet_size) {
     goto err_not_enough_data;
-  }
-
-  // Check the CRC
-  r = ReceiveInt_NoLock(crc);
-  if (!r) {
-    fprintf(stderr, "ERROR: fail to receive CRC\n");
-    goto error;
-  }
-
-  if (uint32_t(crc) != ComputeCRC(m_packet, m_packet_size)) {
-    fprintf(stderr, "ERROR: wrong CRC check\n");
-    goto error;
   }
 
   *data = m_packet;
@@ -776,7 +734,14 @@ bool WSocket::IsReady(int timeout, bool force_check_activity) const
 
   if (timeout != 0 || force_check_activity) {
     ASSERT(socket_set != NULL);
-    if (socket_set->CheckActivity(timeout) == 0)
+    int sockets_ready = socket_set->CheckActivity(timeout);
+
+    if (sockets_ready == -1) {
+      print_net_error("SDLNet_CheckSockets");
+      return false;
+    }
+
+    if (sockets_ready == 0)
       return false;
   }
 
@@ -788,17 +753,15 @@ bool WSocket::IsReady(int timeout) const
   return IsReady(timeout, false);
 }
 
-std::string WSocket::GetAddress() const
+const std::string WSocket::GetAddress()
 {
   ASSERT(socket != NULL);
-
-  IPaddress* ip = SDLNet_TCP_GetPeerAddress(socket);
-  std::string address;
-  const char* resolved_ip = SDLNet_ResolveIP(ip);
-  if (resolved_ip)
-    address = resolved_ip;
-  else
-    return "Unresolved address";
-
+  // Resolve the address only once,
+  // as this method get called by some debug logging code quite often.
+  if (!address_field_valid) {
+    IPaddress* ip = SDLNet_TCP_GetPeerAddress(socket);
+    address = SDLNet_TryToResolveIP(ip);
+    address_field_valid = true;
+  }
   return address;
 }

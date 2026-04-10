@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include <iostream>
 #include <WORMUX_random.h>
 #include "character/character.h"
-#include "character/move.h"
 #include "character/damage_stats.h"
 #include "game/config.h"
 #include "game/game_mode.h"
@@ -84,9 +83,15 @@ const double DELTA_CROSSHAIR = 0.035; /* ~1 degree */
 // Pause between changing direction
 const uint PAUSE_CHG_DIRECTION = 80; // ms
 
+// Max climbing height walking
+const int MAX_CLIMBING_HEIGHT=30;
+
+// Max height for which we do not need to call the Physical Engine with gravity features
+const int MAX_FALLING_HEIGHT=20;
+
 /* FIXME This methode is really strange, all this should probably be done in
  * constructor of Body...*/
-void Character::SetBody(Body* char_body)
+void Character::SetBody(Body * char_body)
 {
   body = char_body;
   body->SetOwner(this);
@@ -108,6 +113,7 @@ static uint GetRandomAnimationTimeValue()
 
 Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   PhysicalObj("character"),
+  MovableByUser(),
   character_name(name),
   m_team(my_team),
   step_sound_played(true),
@@ -130,10 +136,10 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   channel_step(-1),
   particle_engine(new ParticleEngine(500)),
   is_playing(false),
+  last_direction_change(0),
   previous_strength(0),
   body(NULL)
 {
-
   m_is_character = true;
   SetCollisionModel(true, true, true);
   /* body stuff */
@@ -164,6 +170,7 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
 
 Character::Character (const Character& acharacter) :
   PhysicalObj(acharacter),
+  MovableByUser(),
   character_name(acharacter.character_name),
   m_team(acharacter.m_team),
   step_sound_played(acharacter.step_sound_played),
@@ -186,26 +193,37 @@ Character::Character (const Character& acharacter) :
   channel_step(acharacter.channel_step),
   particle_engine(new ParticleEngine(250)),
   is_playing(acharacter.is_playing),
+  last_direction_change(0),
   previous_strength(acharacter.previous_strength),
   body(NULL)
 {
-  if (acharacter.body)
-    SetBody(new Body(*acharacter.body));
-  if(acharacter.name_text)
+  if (acharacter.body) {
+    Body * newBody = new Body(*acharacter.body);
+    SetBody(newBody);
+  }
+
+  if (acharacter.name_text) {
     name_text = new Text(*acharacter.name_text);
+  }
 }
 
 Character::~Character()
 {
   MSG_DEBUG("character", "Unload character %s", character_name.c_str());
-  if(body)
+  if (body) {
     delete body;
-  if(name_text)
+  }
+
+  if (name_text) {
     delete name_text;
-  if(particle_engine)
+  }
+
+  if(particle_engine) {
     delete particle_engine;
-  body          = NULL;
-  name_text     = NULL;
+  }
+
+  body            = NULL;
+  name_text       = NULL;
   particle_engine = NULL;
 }
 
@@ -233,7 +251,7 @@ void Character::SignalGhostState (bool was_dead)
   if (!was_dead) Game::GetInstance()->SignalCharacterDeath (this);
 }
 
-void Character::SetDirection (BodyDirection_t nv_direction)
+void Character::SetDirection (LRDirection nv_direction)
 {
   body->SetDirection(nv_direction);
   uint l,r,t,b;
@@ -251,15 +269,14 @@ void Character::DrawEnergyBar(int dy) const
                      - Camera::GetInstance()->GetPosition() );
 }
 
-void Character::DrawName (int dy) const
+void Character::DrawName(int dy) const
 {
-  if(IsDead()) return;
+  if (IsDead()) return;
 
-  const int x =  GetCenterX();
-  const int y = GetY()+dy;
+  const int x = GetCenterX();
+  const int y = GetY() + dy;
 
-  if (Config::GetInstance()->GetDisplayNameCharacter())
-  {
+  if (Config::GetInstance()->GetDisplayNameCharacter()) {
     name_text->DrawCenterTopOnMap(Point2i(x,y));
   }
 
@@ -345,6 +362,9 @@ void Character::Die()
     SetMovement("breathe");
     SetCollisionModel(true, false, false);
 
+    ud_move_intentions.clear();
+    lr_move_intentions.clear();
+
     if(death_explosion)
       ApplyExplosion(GetCenter(), GameMode::GetInstance()->death_explosion_cfg);
     ASSERT(IsDead());
@@ -411,9 +431,8 @@ void Character::Draw()
     std::ostringstream ss;
     ss << lost_energy;
     dy -= HAUT_FONT_MIX;
-    (*Font::GetInstance(Font::FONT_SMALL)).WriteCenterTop (
-        GetPosition() - Camera::GetInstance()->GetPosition() + Point2i( GetWidth()/2, dy),
-        ss.str(), white_color);
+	Text text(ss.str());
+	text.DrawCenterTop(GetPosition() - Camera::GetInstance()->GetPosition() + Point2i( GetWidth()/2, dy));
   }
 
 #ifdef DEBUG
@@ -445,7 +464,7 @@ void Character::Jump(double strength, double angle /*in radian */)
   UpdateLastMovingTime();
   walking_time = Time::GetInstance()->Read();
 
-  if (!CanJump() && ActiveTeam().IsLocal()) return;
+  if (!CanJump()) return;
 
   SetMovement("jump");
 
@@ -505,7 +524,6 @@ void Character::DoShoot()
   MSG_DEBUG("weapon.shoot", "-> begin at time %u", Time::GetInstance()->Read());
   SetMovementOnce("weapon-" + ActiveTeam().GetWeapon().GetID() + "-end-shoot");
   body->Build(); // Refresh the body
-  body->UpdateWeaponPosition(GetPosition());
   damage_stats->OneMoreShot();
   ActiveTeam().AccessWeapon().Shoot();
   MSG_DEBUG("weapon.shoot", "<- end");
@@ -516,8 +534,19 @@ void Character::UpdateLastMovingTime()
   do_nothing_time = Time::GetInstance()->Read();
 }
 
+bool Character::HasGroundUnderFeets() const
+{
+  return IsImmobile() && !IsFalling();
+}
+
 void Character::Refresh()
 {
+  StartOrStopWalkingIfNecessary();
+  if (IsWalking())
+    MakeSteps();
+
+  UpdateFiringAngle();
+
   if (IsGhost()) return;
 
   UpdatePosition();
@@ -591,7 +620,7 @@ void Character::Refresh()
   }
 
   if (Game::GetInstance()->ReadState() == Game::END_TURN && body->IsWalking())
-    body->ResetWalk();
+    body->StopWalking();
 
   if (Time::GetInstance()->Read() > animation_time && !IsActiveCharacter() && !IsDead()
       && body->GetMovement().substr(0,9) != "animation"
@@ -634,81 +663,28 @@ void Character::Refresh()
   }
 }
 
+void Character::UpdateFiringAngle()
+{
+  bool can_change = IsImmobile() && !GetTeam().AccessWeapon().IsPreventingLRMovement();
+  const UDMoveIntention * ud_move_intention = GetLastUDMoveIntention();
+  if (can_change && ud_move_intention) {
+    UpdateLastMovingTime();
+    CharacterCursor::GetInstance()->Hide();
+    double delta = DELTA_CROSSHAIR;
+    if (ud_move_intention->IsToDoItSlowly())
+      delta /= 10.0;
+    if (ud_move_intention->GetDirection() == DIRECTION_UP)
+      delta = -delta;
+    AddFiringAngle(delta);
+  }
+}
+
 // Prepare a new turn
 void Character::PrepareTurn()
 {
   damage_stats->HandleMostDamage();
   lost_energy = 0;
   rl_motion_pause = Time::GetInstance()->Read();
-}
-
-bool Character::CanMoveRL() const
-{
-  if (!IsImmobile() || IsFalling()) return false;
-  return rl_motion_pause < Time::GetInstance()->Read();
-}
-
-void Character::BeginMovementRL(uint pause, bool slowly)
-{
-  Camera::GetInstance()->FollowObject(this);
-
-  walking_time = Time::GetInstance()->Read();
-  UpdateLastMovingTime();
-  if (!slowly)
-    SetMovement("walk");
-
-  CharacterCursor::GetInstance()->Hide();
-  step_sound_played = true;
-  rl_motion_pause = Time::GetInstance()->Read()+pause;
-}
-
-bool Character::CanStillMoveRL(uint pause)
-{
-  if (rl_motion_pause + pause < Time::GetInstance()->Read())
-  {
-    walking_time = Time::GetInstance()->Read();
-    rl_motion_pause = rl_motion_pause + pause;
-    return true;
-  }
-  return false;
-}
-
-void Character::StartWalk(bool slowly)
-{
-  BeginMovementRL(GameMode::GetInstance()->character.walking_pause, slowly);
-  body->StartWalk();
-}
-
-void Character::StopWalk()
-{
-  body->StopWalk();
-}
-
-bool Character::IsWalking() const
-{
-  return body->IsWalking();
-}
-
-void Character::Move(enum BodyDirection direction, bool slowly)
-{
-  // character is ready to move ?
-  if (!CanMoveRL()) return;
-
-  if (!IsWalking()) StartWalk(slowly);
-
-  if (GetDirection() == direction) {
-    MoveCharacter(*this, slowly);
-  } else {
-    SetDirection(direction);
-    BeginMovementRL(PAUSE_CHG_DIRECTION, slowly);
-  }
-
-  ASSERT(&ActiveCharacter() == this);
-
-  //Refresh skin position across network
-  if (!Network::GetInstance()->IsLocal()
-      && (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI()))
-    SendActiveCharacterInfo();
 }
 
 // Signal the end of a fall
@@ -804,7 +780,7 @@ void Character::SignalExplosion()
   Game::GetInstance()->SignalCharacterDamage(this);
 }
 
-BodyDirection_t Character::GetDirection() const
+LRDirection Character::GetDirection() const
 {
   return body->GetDirection();
 }
@@ -817,8 +793,11 @@ void Character::StopPlaying()
   if (IsDead()) return;
   SetClothe("normal");
   SetMovement("breathe");
-  body->ResetWalk();
+  if (IsWalking())
+    StopWalking();
   SetRebounding(true);
+  lr_move_intentions.clear();
+  ud_move_intentions.clear();
 }
 
 // Begining of turn or changed to this character
@@ -842,8 +821,15 @@ bool Character::IsActiveCharacter() const
 }
 
 // Hand position
-const Point2i & Character::GetHandPosition() const {
-  return body->GetHandPosition();
+void Character::GetHandPosition(Point2i & result) const
+{
+  GetRelativeHandPosition(result);
+  result += GetPosition();
+}
+
+void Character::GetRelativeHandPosition(Point2i & result) const
+{
+  body->GetRelativeHandPosition(result);
 }
 
 double Character::GetFiringAngle() const {
@@ -852,6 +838,7 @@ double Character::GetFiringAngle() const {
   return firing_angle;
 }
 
+#include <iostream>
 void Character::SetFiringAngle(double angle) {
   /*while(angle > 2 * M_PI)
     angle -= 2 * M_PI;
@@ -861,6 +848,7 @@ void Character::SetFiringAngle(double angle) {
                              -(ActiveTeam().GetWeapon().GetMinAngle()));
   firing_angle = angle;
   m_team.crosshair.Refresh(GetFiringAngle());
+  body->Rebuild();
 }
 
 void Character::SetWeaponClothe()
@@ -926,154 +914,6 @@ uint Character::GetCharacterIndex() const
   return 0;
 }
 
-// ###################################################################
-// ###################################################################
-// ###################################################################
-
-void Character::StoreValue(Action *a)
-{
-  PhysicalObj::StoreValue(a);
-  a->Push((int)GetDirection());
-  a->Push(GetAbsFiringAngle());
-  a->Push((int)disease_damage_per_turn);
-  a->Push((int)disease_duration);
-  if (IsActiveCharacter()) { // If active character, store step animation
-    a->Push((int)true);
-    a->Push(GetBody()->GetClothe());
-    a->Push(GetBody()->GetMovement());
-    a->Push((int)GetBody()->GetFrame());
-  } else {
-    a->Push((int)false);
-  }
-}
-
-void Character::GetValueFromAction(Action *a)
-{
-  // those 2 parameters will be retrieved by PhysicalObj::GetValueFromAction
-  alive_t prev_live_state = m_alive;
-  int prev_energy = m_energy;
-  Point2d prev_position = Physics::GetPos();
-
-  PhysicalObj::GetValueFromAction(a);
-  SetDirection((BodyDirection_t)(a->PopInt()));
-  SetFiringAngle(a->PopDouble());
-
-  if (m_alive != prev_live_state) {
-    switch (m_alive) {
-    case ALIVE:
-      fprintf(stderr, "Character::GetValueFromAction: %s has been resurrected\n",
-	      GetName().c_str());
-      SetClothe("normal");
-      SetMovement("breathe");
-      if (prev_live_state == DROWNED) {
-	SignalGoingOutOfWater();
-      }
-      break;
-    case DEAD:
-      fprintf(stderr,
-	      "Character::GetValueFromAction: %s has died on the other side of the network\n"
-	      "        Previous energy: %d\n",
-	      GetName().c_str(), prev_energy);
-      death_explosion = false;
-
-      // to avoid violating an ASSERT in Die()
-      m_alive = prev_live_state;
-      if (m_alive != ALIVE && m_alive != DROWNED)
-	m_alive = ALIVE;
-
-      Die();
-      break;
-    case GHOST: {
-      fprintf(stderr, "Character::GetValueFromAction: %s is now a ghost!\n", GetName().c_str());
-      m_alive = prev_live_state;
-      bool was_dead = IsDead();
-      m_alive = GHOST;
-      SignalGhostState(was_dead);
-      break;
-    }
-    case DROWNED:
-      fprintf(stderr, "Character::GetValueFromAction: %s is drowning!\n", GetName().c_str());
-      SignalDrowning();
-      break;
-    }
-  }
-
-  if (prev_energy != m_energy) {
-    fprintf(stderr,
-	    "Character::GetValueFromAction: energy points were differents for %s:\n"
-	    "        - remote : %d\n"
-	    "        - local  : %d\n",
-	    GetName().c_str(), m_energy, prev_energy);
-    if (m_energy > 0) {
-      energy_bar.Actu(m_energy);
-    }
-  }
-
-  uint disease_damage_per_turn = (a->PopInt());
-  uint disease_duration = (a->PopInt());
-  SetDiseaseDamage(disease_damage_per_turn, disease_duration);
-  if (a->PopInt()) { // If active characters, retrieve stored animation
-    if (GetTeam().IsActiveTeam())
-      ActiveTeam().SelectCharacter(this);
-
-    std::string clothe = a->PopString();
-    std::string movement = a->PopString();
-    uint frame = a->PopInt();
-
-    fprintf(stderr,
-	    "Character::GetValueFromAction: Animation for %s\n"
-	    "        - Clothe %s (current: %s)\n"
-	    "        - Movement %s (current: %s)\n"
-	    "        - Frame %d (current: %d)\n",
-	    GetName().c_str(),
-	    clothe.c_str(), GetBody()->GetClothe().c_str(),
-	    movement.c_str(), GetBody()->GetMovement().c_str(),
-	    frame, GetBody()->GetFrame());
-
-    SetClothe(clothe, true);
-    SetMovement(movement, true);
-    GetBody()->SetFrame(frame);
-
-    GetBody()->UpdateWeaponPosition(GetPosition());
-  }
-
-  // If the player has moved, the camera should follow it!
-  Point2d current_position = Physics::GetPos();
-  if (IsActiveCharacter() && prev_position != current_position) {
-    Camera::GetInstance()->FollowObject(this);
-    HideGameInterface();
-  }
-}
-
-// Static method
-void Character::RetrieveCharacterFromAction(Action *a)
-{
-  int team_no = a->PopInt();
-  int char_no = a->PopInt();
-  Character * c = GetTeamsList().FindPlayingByIndex(team_no)->FindByIndex(char_no);
-  c->GetValueFromAction(a);
-}
-
-// Static method
-void Character::StoreActiveCharacter(Action *a)
-{
-  Character::StoreCharacter(a, ActiveCharacter().GetTeamIndex(), ActiveCharacter().GetCharacterIndex());
-}
-
-// Static method
-void Character::StoreCharacter(Action *a, uint team_no, uint char_no)
-{
-  a->Push((int)team_no);
-  a->Push((int)char_no);
-  Character * c = GetTeamsList().FindPlayingByIndex(team_no)->FindByIndex(char_no);
-  c->StoreValue(a);
-}
-
-// ###################################################################
-// ###################################################################
-// ###################################################################
-
-
 const std::string& Character::GetName() const
 {
     return character_name;
@@ -1092,135 +932,250 @@ void Character::SetCustomName(const std::string name)
 // ###################################################################
 // ###################################################################
 
-// #################### MOVE_RIGHT
-void Character::HandleKeyPressed_MoveRight(bool shift)
+void Character::StartOrStopWalkingIfNecessary()
 {
-  StartWalk(shift);
-
-  HandleKeyRefreshed_MoveRight(shift);
+  const LRMoveIntention * lr_move_intention = GetLastLRMoveIntention();
+  bool should_walk = (lr_move_intention != NULL)
+    && !GetTeam().AccessWeapon().IsPreventingLRMovement()
+    && HasGroundUnderFeets()
+    && !IsDead();
+  if (should_walk) {
+    if (lr_move_intention->GetDirection() != GetDirection() && !IsChangingDirection()) {
+      SetDirection(lr_move_intention->GetDirection());
+      last_direction_change = Time::GetInstance()->Read();
+    }
+  }
+  if (should_walk && !IsChangingDirection()) {
+    bool should_be_slowly = lr_move_intention->IsToDoItSlowly();
+    if (IsWalking() && (should_be_slowly != walking_slowly))
+      StopWalking();
+    if (!IsWalking())
+      StartWalking(should_be_slowly);
+  } else {
+    if (IsWalking())
+      StopWalking();
+  }
 }
 
-void Character::HandleKeyRefreshed_MoveRight(bool shift)
+void Character::StartWalking(bool slowly)
 {
-  HideGameInterface();
+  walking_time = Time::GetInstance()->Read();
+  rl_motion_pause = max(rl_motion_pause , Time::GetInstance()->Read());
+  step_sound_played = true;
+  walking_slowly = slowly;
 
-  ActiveTeam().crosshair.Hide();
+  Camera::GetInstance()->FollowObject(this);
+  if (Network::GetInstance()->IsTurnMaster()) {
+    HideGameInterface();
+    ActiveTeam().crosshair.Hide();
+  }
+  CharacterCursor::GetInstance()->Hide();
+  UpdateLastMovingTime();
+  Game::GetInstance()->SetCharacterChosen(true);
 
-  if (IsImmobile())
-    Move(DIRECTION_RIGHT, shift);
+  if (!slowly)
+    SetMovement("walk");
+  body->StartWalking();
 }
 
-void Character::HandleKeyReleased_MoveRight(bool)
+void Character::StopWalking()
 {
-  StopWalk();
-
-  ActiveTeam().crosshair.Show();
-
-  SendActiveCharacterInfo();
+  if (Network::GetInstance()->IsTurnMaster())
+    ActiveTeam().crosshair.Show();
+  body->StopWalking();
 }
 
-// #################### MOVE_LEFT
-void Character::HandleKeyPressed_MoveLeft(bool shift)
+bool Character::IsWalking() const
 {
-  StartWalk(shift);
-
-  HandleKeyRefreshed_MoveLeft(shift);
+  return body->IsWalking();
 }
 
-void Character::HandleKeyRefreshed_MoveLeft(bool shift)
+void Character::MakeSteps()
 {
-  HideGameInterface();
+  int height;
+  bool ghost;
+  uint walking_pause = GameMode::GetInstance()->character.walking_pause;
 
-  ActiveTeam().crosshair.Hide();
+  const LRMoveIntention * lr_move_intention = GetLastLRMoveIntention();
+  ASSERT(lr_move_intention != NULL);
+  if (lr_move_intention->IsToDoItSlowly())
+    walking_pause *= 10;
+  else
+    SetMovement("walk");// otherwise character would slide after dropping a dynamite
 
-  if (IsImmobile())
-    Move(DIRECTION_LEFT, shift);
+  // If character moves out of the world, no need to go further: it is dead
+  if (GetDirection() == DIRECTION_LEFT)
+    ghost = IsOutsideWorld ( Point2i(-1, 0) );
+  else
+    ghost = IsOutsideWorld ( Point2i(1, 0) );
+
+  if (ghost) {
+    MSG_DEBUG("ghost", "%s will be a ghost.", GetName().c_str());
+    Ghost();
+    return;
+  }
+
+  // Check we can move (to go not too fast)
+  while ((rl_motion_pause + walking_pause < Time::GetInstance()->Read()) &&
+         ComputeHeightMovement(height)) {
+    walking_time = Time::GetInstance()->Read();
+    rl_motion_pause = rl_motion_pause + walking_pause;
+
+    // Eventually moves the character
+    SetXY( Point2i(GetX() + GetDirection(), GetY() + height));
+
+    // If no collision, let gravity do its job
+    UpdatePosition();
+  }
 }
 
-void Character::HandleKeyReleased_MoveLeft(bool)
+bool Character::IsChangingDirection()
 {
-  body->StopWalk();
+  return last_direction_change + PAUSE_CHG_DIRECTION >= Time::GetInstance()->Read();
+}
 
-  ActiveTeam().crosshair.Show();
+bool Character::ComputeHeightMovement(int & height)
+{
+  if (IsInVacuum(Point2i(GetDirection(), 0))
+      && !IsInVacuum(Point2i(GetDirection(), +1)) ){
+    //Land is flat, we can move!
+    height = 0;
+    return true;
+  }
 
-  SendActiveCharacterInfo();
+  //Compute height of the step:
+  if (IsInVacuum(Point2i(GetDirection(), 0))) {
+    //Try to go down:
+    for (height = 2; height <= MAX_FALLING_HEIGHT ; height++) {
+      if (!IsInVacuum(Point2i(GetDirection(), height))) {
+        height--;
+        return true;
+      }
+    }
+
+    //We can go down, but the step is too big -> the character will fall
+    bool falling = true;
+    if (falling) {
+      SetX (GetXdouble() + GetDirection());
+      UpdatePosition();
+      SetMovement("fall");
+    }
+    return false;
+  } else {
+    //Try to go up:
+    for (height = -1; height >= -MAX_CLIMBING_HEIGHT ; height--) {
+      if (IsInVacuum(Point2i(GetDirection(), height))) {
+        return true;
+      }
+    }
+  }
+  //We can't move!
+  return false;
+}
+
+void Character::HandleKeyPressed_MoveRight(bool slowly)
+{
+  Action *a = new Action(Action::ACTION_CHARACTER_START_MOVING_RIGHT);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
+void Character::HandleKeyReleased_MoveRight(bool slowly)
+{
+  Action *a = new Action(Action::ACTION_CHARACTER_STOP_MOVING_RIGHT);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
+void Character::HandleKeyPressed_MoveLeft(bool slowly)
+{
+  Action *a = new Action(Action::ACTION_CHARACTER_START_MOVING_LEFT);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
+void Character::HandleKeyReleased_MoveLeft(bool slowly)
+{
+  Action *a = new Action(Action::ACTION_CHARACTER_STOP_MOVING_LEFT);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
 }
 
 // #################### UP
-void Character::HandleKeyRefreshed_Up(bool shift)
+
+void Character::HandleKeyPressed_Up(bool slowly)
 {
-  HideGameInterface();
+  Action *a = new Action(Action::ACTION_CHARACTER_START_MOVING_UP);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
+}
 
-  ActiveTeam().crosshair.Show();
-
-  if (IsImmobile())
-    {
-      UpdateLastMovingTime();
-      CharacterCursor::GetInstance()->Hide();
-      if (shift) AddFiringAngle(-DELTA_CROSSHAIR/10.0);
-      else       AddFiringAngle(-DELTA_CROSSHAIR);
-    }
+void Character::HandleKeyReleased_Up(bool slowly)
+{
+  Action *a = new Action(Action::ACTION_CHARACTER_STOP_MOVING_UP);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
 }
 
 // #################### DOWN
-void Character::HandleKeyRefreshed_Down(bool shift)
+
+void Character::HandleKeyPressed_Down(bool slowly)
 {
-  HideGameInterface();
+  Action *a = new Action(Action::ACTION_CHARACTER_START_MOVING_DOWN);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
+}
 
-  ActiveTeam().crosshair.Show();
-
-  if (IsImmobile())
-    {
-      UpdateLastMovingTime();
-      CharacterCursor::GetInstance()->Hide();
-      if (shift) AddFiringAngle(DELTA_CROSSHAIR/10.0);
-      else       AddFiringAngle(DELTA_CROSSHAIR);
-      SendActiveCharacterInfo();
-    }
+void Character::HandleKeyReleased_Down(bool slowly)
+{
+  Action *a = new Action(Action::ACTION_CHARACTER_STOP_MOVING_DOWN);
+  a->Push(slowly ? 1 : 0);
+  ActionHandler::GetInstance()->NewAction(a);
 }
 
 // #################### JUMP
 
-void Character::HandleKeyPressed_Jump(bool)
+void Character::HandleKeyPressed_Jump()
 {
+  if (ActiveTeam().AccessWeapon().IsPreventingJumps())
+    return;
   HideGameInterface();
 
   ActiveTeam().crosshair.Hide();
 
   if (IsImmobile()) {
-    Action a(Action::ACTION_CHARACTER_JUMP);
-    SendActiveCharacterAction(a);
-    Jump();
+    Action *a = new Action(Action::ACTION_CHARACTER_JUMP);
+    ActionHandler::GetInstance()->NewAction(a);
   }
 }
 
 // #################### HIGH JUMP
-void Character::HandleKeyPressed_HighJump(bool)
+void Character::HandleKeyPressed_HighJump()
 {
+  if (ActiveTeam().AccessWeapon().IsPreventingJumps())
+    return;
   HideGameInterface();
 
   ActiveTeam().crosshair.Hide();
 
   if (IsImmobile()) {
-    Action a(Action::ACTION_CHARACTER_HIGH_JUMP);
-    SendActiveCharacterAction(a);
-    HighJump();
+    Action *a = new Action(Action::ACTION_CHARACTER_HIGH_JUMP);
+    ActionHandler::GetInstance()->NewAction(a);
   }
 }
 
 // #################### BACK JUMP
-void Character::HandleKeyPressed_BackJump(bool)
+void Character::HandleKeyPressed_BackJump()
 {
+  if (ActiveTeam().AccessWeapon().IsPreventingJumps())
+    return;
   HideGameInterface();
 
   ActiveTeam().crosshair.Hide();
 
   if (IsImmobile()) {
-    Action a(Action::ACTION_CHARACTER_BACK_JUMP);
-    SendActiveCharacterAction(a);
-    BackJump();
+    Action *a = new Action(Action::ACTION_CHARACTER_BACK_JUMP);
+    ActionHandler::GetInstance()->NewAction(a);
   }
 }
-
-
 

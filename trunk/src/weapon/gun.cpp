@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ WeaponProjectile * Gun::GetProjectileInstance()
 
 bool Gun::p_Shoot()
 {
-  if (IsInUse())
+  if (IsOnCooldownFromShot())
     return false;
 
   projectile->Shoot (GUN_BULLET_SPEED);

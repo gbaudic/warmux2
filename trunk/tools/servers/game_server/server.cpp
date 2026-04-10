@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,8 +42,13 @@ const std::string& NetworkGame::GetPassword() const
 void NetworkGame::AddCpu(DistantComputer* cpu)
 {
   cpulist.push_back(cpu);
-  DPRINT(INFO, "[Game %s] New client connected: %s - total: %zd", game_name.c_str(),
-	 cpu->ToString().c_str(), cpulist.size());
+
+  std::string msg = Format("[Game %s] New client connected: %s - total: %zd",
+			   game_name.c_str(), cpu->ToString().c_str(), cpulist.size());
+
+  DPRINT(INFO, "%s", msg.c_str());
+
+  SendAdminMessage(msg);
 }
 
 std::list<DistantComputer*>& NetworkGame::GetCpus()
@@ -112,6 +117,14 @@ void NetworkGame::ElectGameMaster()
 
   Action a(Action::ACTION_NETWORK_SET_GAME_MASTER);
   SendActionToOne(a, host);
+}
+
+void NetworkGame::SendAdminMessage(const std::string& message)
+{
+  Action a(Action::ACTION_CHAT_MESSAGE);
+  a.Push(std::string("***"));
+  a.Push(message);
+  SendActionToAll(a);
 }
 
 // Send Messages
@@ -260,7 +273,7 @@ std::list<DistantComputer*>& GameServer::GetCpus(uint game_id)
   return GetGame(game_id).GetCpus();
 }
 
-bool GameServer::RegisterToIndexServer(bool is_public)
+bool GameServer::ConnectToIndexServer()
 {
   // Register the game to the index server
   if (!is_public) {
@@ -296,7 +309,7 @@ bool GameServer::RegisterToIndexServer(bool is_public)
   if (!r) {
     char port_str[8];
     snprintf(port_str, 8, "%d", port);
-    fprintf(stderr, "%s", Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connections from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port_str, port_str).c_str());
+    fprintf(stderr, "%s\n", Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connections from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port_str, port_str).c_str());
     IndexServer::GetInstance()->Disconnect();
     return false;
   }
@@ -304,14 +317,32 @@ bool GameServer::RegisterToIndexServer(bool is_public)
   return true;
 }
 
+bool GameServer::RefreshConnexionToIndexServer()
+{
+  if (!is_public)
+    return true;
+
+  // Try to reconnect to index server...
+  if (!IndexServer::GetInstance()->IsConnected()) {
+    bool r = ConnectToIndexServer();
+    if (!r)
+      return r;
+  }
+
+  IndexServer::GetInstance()->Refresh(true);
+
+  return true;
+}
+
 bool GameServer::ServerStart(uint _port, uint _max_nb_games, uint max_nb_clients,
 			     const std::string& _game_name, std::string& _password,
-			     bool is_public)
+			     bool _is_public)
 {
   max_nb_games = _max_nb_games;
   game_name = _game_name;
   password = _password;
   port = _port;
+  is_public = _is_public;
 
   // Open the port to listen to
   if (!server_socket.AcceptIncoming(port)) {
@@ -328,7 +359,7 @@ bool GameServer::ServerStart(uint _port, uint _max_nb_games, uint max_nb_clients
 
   CreateGame(1);
 
-  if (!RegisterToIndexServer(is_public))
+  if (!ConnectToIndexServer())
     return false;
 
   return true;
@@ -419,7 +450,11 @@ void GameServer::RunLoop()
  loop:
   while (true) {
 
-    IndexServer::GetInstance()->Refresh(true);
+    bool r = RefreshConnexionToIndexServer();
+    if (!r && clients_socket_set->NbSockets() == 0) {
+      fprintf(stderr, "Game server is no more connected to index server");
+      return;
+    }
 
     WaitClients();
 
@@ -493,6 +528,9 @@ void WORMUX_ConnectHost(DistantComputer& host)
   std::string nicknames = host.GetNicknames();
 
   Action a(Action::ACTION_INFO_CLIENT_CONNECT);
+  ASSERT(host.GetPlayers().size() == 1);
+  int player_id = host.GetPlayers().back().GetId();
+  a.Push(player_id);
   a.Push(hostname);
   a.Push(nicknames);
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -84,7 +84,9 @@ public:
   Point2i GetSize() const;
   Point2i GetSizeMax() const;
 
-  void GetScaleFactors( float &_scale_x, float &_scale_y) const;
+  void GetScaleFactors(float &_scale_x, float &_scale_y) const;
+  float GetScaleX(void) const { return scale_x; }
+  float GetScaleY(void) const { return scale_y; }
   void SetSize(unsigned int w, unsigned int h);
   void SetSize(const Point2i &size);
   void Scale( float scale_x, float scale_y);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -44,9 +44,13 @@ const double REACTIVITY = 0.6;
 const double SPEED_REACTIVITY = 0.05;
 const double SPEED_REACTIVITY_CEIL = 4;
 
+const uint SCROLL_KEYBOARD = 20; // pixel
+
 const double ADVANCE_ANTICIPATION = 10;
 const double REALTIME_FOLLOW_LIMIT = 25;
 const double REALTIME_FOLLOW_FACTOR = 0.15;
+
+uint MAX_REFRESHES_PER_SECOND = 100;
 
 Camera::Camera():
   m_started_shaking( 0 ),
@@ -168,12 +172,12 @@ void Camera::AutoCrop()
   if (acceleration.y < -MAX_CAMERA_ACCELERATION.y) acceleration.y = -MAX_CAMERA_ACCELERATION.y;
 
  // std::cout<<"acceleration before : "<<acceleration.x<<" "<<acceleration.y<<std::endl;
-  if (abs(m_speed.x) > SPEED_REACTIVITY_CEIL) {
-    acceleration.x *= (1 + SPEED_REACTIVITY * (abs(m_speed.x) - SPEED_REACTIVITY_CEIL));
+  if (abs((int)m_speed.x) > SPEED_REACTIVITY_CEIL) {
+    acceleration.x *= (1 + SPEED_REACTIVITY * (abs((int)m_speed.x) - SPEED_REACTIVITY_CEIL));
   }
 
-  if (abs(m_speed.y) > SPEED_REACTIVITY_CEIL) {
-    acceleration.y *= (1 + SPEED_REACTIVITY * (abs(m_speed.y) - SPEED_REACTIVITY_CEIL));
+  if (abs((int)m_speed.y) > SPEED_REACTIVITY_CEIL) {
+    acceleration.y *= (1 + SPEED_REACTIVITY * (abs((int)m_speed.y) - SPEED_REACTIVITY_CEIL));
   }
 
   if (stop) {
@@ -186,11 +190,11 @@ void Camera::AutoCrop()
 
     //Realtime follow is enable if object is too fast to be correctly followed
 
-    if (abs(followed_object->GetSpeed().x) > REALTIME_FOLLOW_LIMIT) {
+    if (abs((int)followed_object->GetSpeed().x) > REALTIME_FOLLOW_LIMIT) {
       m_speed.x = (target.x - position.x) * REALTIME_FOLLOW_FACTOR;
     }
 
-    if (abs(followed_object->GetSpeed().y) > REALTIME_FOLLOW_LIMIT) {
+    if (abs((int)followed_object->GetSpeed().y) > REALTIME_FOLLOW_LIMIT) {
       m_speed.y = (target.y - position.y) * REALTIME_FOLLOW_FACTOR;
     }
 
@@ -203,8 +207,8 @@ void Camera::AutoCrop()
 
   //Update position
   Point2i next_position(0,0);
-  next_position.x = m_speed.x;
-  next_position.y = m_speed.y;
+  next_position.x = (int)m_speed.x;
+  next_position.y = (int)m_speed.y;
   SetXY(next_position);
 
   if (!m_stop &&
@@ -284,7 +288,7 @@ void Camera::ScrollCamera()
   /***************************************************************************/
 }
 
-void Camera::TestCamera()
+void Camera::HandleMouseMovement()
 {
   static Point2i first_mouse_pos(-1, -1);
   static Point2i last_mouse_pos(0, 0);
@@ -320,8 +324,8 @@ void Camera::TestCamera()
   } else if (m_control_mode == MOUSE_CAMERA_CONTROL) {
 
     // if the mouse has not moved at all since the user pressed the middle button, we center the camera!
-    if (abs(first_mouse_pos.x - curr_pos.x) < 5 &&
-        abs(first_mouse_pos.y - curr_pos.y) < 5 &&
+    if (abs((int)first_mouse_pos.x - curr_pos.x) < 5 &&
+        abs((int)first_mouse_pos.y - curr_pos.y) < 5 &&
         Time::GetInstance()->Read() - m_begin_controlled_move_time < 500) {
       CenterOnActiveCharacter();
     }
@@ -344,12 +348,38 @@ void Camera::TestCamera()
     ScrollCamera();
 }
 
-void Camera::Refresh(){
-  // Check if player wants the camera to move
-  TestCamera();
+void Camera::HandleMoveIntentions()
+{
+  const UDMoveIntention * ud_move_intention = GetLastUDMoveIntention();
+  if (ud_move_intention) {
+    if (ud_move_intention->GetDirection() == DIRECTION_UP)
+      SetXY(Point2i(0, -SCROLL_KEYBOARD));
+    else
+      SetXY(Point2i(0, SCROLL_KEYBOARD));
+  }
+  const LRMoveIntention * lr_move_intention = GetLastLRMoveIntention();
+  if (lr_move_intention) {
+    if (lr_move_intention->GetDirection() == DIRECTION_RIGHT)
+      SetXY(Point2i(SCROLL_KEYBOARD, 0));
+    else
+      SetXY(Point2i(-SCROLL_KEYBOARD, 0));
+  }
+  if (lr_move_intention || ud_move_intention)
+    SetAutoCrop(false);
+}
 
-  if (auto_crop && followed_object != NULL)
-    AutoCrop();
+void Camera::Refresh(){
+  // Refresh gets called very often when the game is paused.
+  // This "if" ensures that the camera doesn't move to fast.
+  if (refresh_stopwatch.GetValue() >= 1000 / MAX_REFRESHES_PER_SECOND) {
+    // Check if player wants the camera to move
+    HandleMouseMovement();
+    HandleMoveIntentions();
+
+    if (auto_crop && followed_object != NULL)
+      AutoCrop();
+    refresh_stopwatch.Reset(1.0);
+  }
 }
 
 void Camera::FollowObject(const PhysicalObj *obj, bool follow_closely)

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,7 +54,15 @@ Video::Video()
   }
 
   SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION );
-  SetWindowIcon( config->GetDataDir() + "wormux_32x32.xpm" );
+  // The icon must be larger then 32x32 pixels as some desktops display larger icons.
+  // For example on a mac system the icon got displayed in a resolution of 64x64 pixels.
+  // The even higher resolution allows the system to scale the icon down to an anti-aliased version.
+  #ifndef WIN32
+    SetWindowIcon( config->GetDataDir() + "wormux_128x128.xpm" );
+  #else
+    // The SDL manual of SDL_WM_SetIcon states that "Win32 icons must be 32x32.":
+    SetWindowIcon( config->GetDataDir() + "wormux_32x32.xpm" );
+  #endif
 
   ComputeAvailableConfigs();
 }

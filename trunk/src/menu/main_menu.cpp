@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -86,10 +86,10 @@ MainMenu::MainMenu() :
   widgets.Pack();
 
   std::string s("Version "+Constants::WORMUX_VERSION);
-  version_text = new Text(s, green_color, Font::FONT_MEDIUM, Font::FONT_NORMAL, false);
+  version_text = new Text(s, green_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
 
   std::string s2(Constants::WEB_SITE);
-  website_text = new Text(s2, green_color, Font::FONT_MEDIUM, Font::FONT_NORMAL, false);
+  website_text = new Text(s2, green_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
 
   if (!JukeBox::GetInstance()->IsPlayingMusic())
     JukeBox::GetInstance()->PlayMusic("menu");

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include "graphic/surface.h"
 
 const uint WATER_INITIAL_HEIGHT = 100;
-#define pattern_width 180
 
 // Forward declaration
 class Color;
@@ -41,15 +40,19 @@ private:
   double shift1;
   uint water_height;
   uint time_raise;
-  int height[pattern_width];
+  std::vector<int> height;
+  std::vector< std::vector<int> > wave_height;
   Surface surface;
   Surface pattern;
   Surface bottom;
   Surface wpattern;
   std::string water_type;
   uint       m_last_preview_redraw;
+  uint next_wave_shift;
 
   void Init();
+  void CalculateWaveHeights();
+  void CalculateWavePattern();
 
 public:
   Water();

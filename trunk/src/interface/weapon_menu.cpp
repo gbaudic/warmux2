@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -308,7 +308,7 @@ void WeaponsMenu::RefreshWeaponList()
   }
   tools_menu->ClearItem(false);
   // Reinserting weapon
-  WeaponsList *weapons_list = WeaponsList::GetInstance();
+  WeaponsList * weapons_list = Game::GetInstance()->GetWeaponsList();
   for (WeaponsList::weapons_list_it it=weapons_list->GetList().begin();
        it != weapons_list->GetList().end();
        ++it)
@@ -325,8 +325,8 @@ AffineTransform2D WeaponsMenu::ComputeToolTransformation()
   // Init animation parameter
   Point2d start(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5 - scroll_border,
                 GetMainWindow().GetHeight() + weapons_menu->GetHeight() + 50);
-  Point2i pos(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5 - scroll_border,
-              GetMainWindow().GetHeight()- tools_menu->GetHeight() - 5 );
+  Point2i pos((int) (GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5 - scroll_border),
+              (int) (GetMainWindow().GetHeight()- tools_menu->GetHeight() - 5) );
 
   if (Interface::GetRef().GetMenuPosition().GetX() + Interface::GetRef().GetWidth() > start.GetX()) {
     start.y -= Interface::GetRef().GetHeight();
@@ -351,8 +351,8 @@ AffineTransform2D WeaponsMenu::ComputeWeaponTransformation()
   // Init animation parameter
   Point2d start(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5 - scroll_border,
                 GetMainWindow().GetHeight());
-  Point2i pos(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5 - scroll_border,
-              GetMainWindow().GetHeight()- weapons_menu->GetHeight() - tools_menu->GetHeight() - 10 );
+  Point2i pos((int) (GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5 - scroll_border),
+              (int) (GetMainWindow().GetHeight()- weapons_menu->GetHeight() - tools_menu->GetHeight() - 10) );
 
   if (Interface::GetRef().GetMenuPosition().GetX() + Interface::GetRef().GetWidth() > start.GetX()) {
     start.y -= Interface::GetRef().GetHeight();

@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 
 // Vibration period of the bubble
 const uint vib_period = 250;
+const float MAX_SCALE = 1.0f;
+const float MIN_SCALE = 0.25f;
 
 IllBubble::IllBubble() : ExplosionSmoke(20)
 {
@@ -38,6 +40,21 @@ IllBubble::IllBubble() : ExplosionSmoke(20)
 
   MSG_DEBUG("random.get", "IllBubble::IllBubble()");
   vib_phi = RandomSync().GetLong(0, vib_period);
+  image->Scale(MIN_SCALE, MIN_SCALE);
+}
+
+void IllBubble::Refresh()
+{
+  ExplosionSmoke::Refresh();
+  uint time = (Time::GetInstance()->Read() + vib_phi) % vib_period;
+
+  float scale_x, scale_y;
+  image->GetScaleFactors(scale_x, scale_y);
+  scale_x *= 1.0 + 0.2 * sin(2.0 * M_PI * time / (float)vib_period);
+  scale_y *= 1.0 + 0.2 * cos(2.0 * M_PI * time / (float)vib_period);
+  scale_x = std::max(MIN_SCALE, std::min(scale_x, MAX_SCALE));
+  scale_y = std::max(MIN_SCALE, std::min(scale_y, MAX_SCALE));
+  image->Scale(scale_x, scale_y);
 }
 
 void IllBubble::Draw()
@@ -47,13 +64,6 @@ void IllBubble::Draw()
   else
     image->SetAlpha(1.0);
 
-  uint time = (Time::GetInstance()->Read() + vib_phi) % vib_period;
-  float scale_x, scale_y;
-  image->GetScaleFactors(scale_x, scale_y);
-  scale_x *= 1.0 + 0.2 * sin(2.0 * M_PI * time / (float)vib_period);
-  scale_y *= 1.0 + 0.2 * cos(2.0 * M_PI * time / (float)vib_period);
-  image->Scale(scale_x, scale_y);
-
   if (m_left_time_to_live > 0)
-    image->Draw(GetPosition()+Point2i(dx,0) - image->GetSize() / 2);
+    image->Draw(GetPosition() - image->GetSize() / 2);
 }

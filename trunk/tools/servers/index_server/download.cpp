@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ void DownloadServerList()
       if(chroot)
         {
           if(chown(server_fn.c_str(), (uid_t)uid, (gid_t)gid) == -1)
-            TELL_ERROR;
+            PRINT_FATAL_ERROR;
         }
 
       if(do_fork)
@@ -97,7 +97,7 @@ void DownloadServerList()
           do_fork = false;
           child = fork();
           if( child == -1)
-            TELL_ERROR
+            PRINT_FATAL_ERROR
             else
               if(child == 0)
                 break;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #ifndef BONUS_BOX_H
 #define BONUS_BOX_H
 //-----------------------------------------------------------------------------
-#include <vector>
 #include "include/base.h"
 #include "weapon/weapon.h"
 #include "objbox.h"
@@ -32,33 +31,17 @@ class Character;
 class Action;
 //-----------------------------------------------------------------------------
 
-struct WeaponProba
-{
-  Weapon* weapon;
-  int nb_ammos;
-  double probability;
-};
-
 class BonusBox : public ObjBox
 {
   private:
-    uint weapon_num;
+    Weapon * weapon;
+
     bool ExplodesInsteadOfBonus(Character * c);
-
-    static double total_probability;
-    static std::vector<struct WeaponProba> weapon_list;
-
-  private:
     void ApplyBonus (Team &team, Character &character);
-    void PickRandomWeapon();
   public:
-    BonusBox();
-    static void LoadXml(const xmlNode* object);
+    BonusBox(Weapon * weapon);
 
     void ApplyBonus(Character *);
-    void Randomize();
-    void GetValueFromAction(Action *);
-    void StoreValue(Action *);
 };
 
 //-----------------------------------------------------------------------------

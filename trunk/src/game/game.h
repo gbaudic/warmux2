@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,12 +27,14 @@
 #include <WORMUX_singleton.h>
 #include "network/chat.h"
 #include "sound/sound_sample.h"
+#include "graphic/text.h"
 
 // Forward declarations
 class Character;
 class ObjBox;
 class FramePerSecond;
 class PhysicalObj;
+class WeaponsList;
 
 class Game : public Singleton<Game>
 {
@@ -55,7 +57,7 @@ protected:
   SoundSample         countdown_sample;
   game_loop_state_t   state;
   bool                give_objbox;
-  uint                pause_seconde;
+  uint                last_clock_update;
 
   friend class Singleton<Game>;
   Game();
@@ -82,9 +84,23 @@ private:
 
   static uint         last_unique_id;
   uint                m_current_turn;
+  Text                waiting_for_network_text;
+  WeaponsList *       weapons_list;
 
   void Draw();        // Draw to screen
-  void MessageLoading() const;
+
+  // Initialization
+  void InitEverything();
+  void InitGameData_NetGameMaster();
+  void EndInitGameData_NetGameMaster();
+  void EndInitGameData_NetClient();
+  void InitMap();
+  void InitTeams();
+  void InitSounds();
+  void InitData();
+  void InitInterface();
+  void WaitForOtherPlayers();
+
   void UnloadDatas(bool game_finished) const;
 
   // Input management (keyboard/mouse)
@@ -120,14 +136,17 @@ public:
   static void ResetUniqueIds();
   static bool IsRunning();
   uint GetCurrentTurn();
+  WeaponsList * GetWeaponsList() { return weapons_list; }
+  void UpdateTranslation();
 
   Chat                chatsession;
+
+  void DisplayError(const std::string &msg);
 
   // Set mode
   static Game * UpdateGameRules();
 
   void Start();
-  void Init();
 
   bool IsCharacterAlreadyChosen() const;
   void SetCharacterChosen(bool chosen);
@@ -139,21 +158,20 @@ public:
 
   // Read/Set State
   game_loop_state_t ReadState() const { return state; }
-  void SetState(game_loop_state_t new_state, bool begin_game=false) const;
+  void SetState(game_loop_state_t new_state, bool begin_game=false);
 
   void UserAsksForMenu() { ask_for_menu = true; };
-  void Really_SetState(game_loop_state_t new_state); // called by the action_handler
 
   // Signal death of a player
-  void SignalCharacterDeath (const Character *character) const;
+  void SignalCharacterDeath (const Character *character);
 
   // Signal character damage
-  void SignalCharacterDamage(const Character *character) const;
+  void SignalCharacterDamage(const Character *character);
 
   // Bonus box handling
   bool NewBox();
-  void AddNewBox(ObjBox *);
   void SetCurrentBox(ObjBox * current_box) { current_ObjBox = current_box; };
   ObjBox * GetCurrentBox() { return current_ObjBox; };
+  void RequestBonusBoxDrop();
 };
 #endif // GAME_H

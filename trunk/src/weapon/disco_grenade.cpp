@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ DiscoGrenade::DiscoGrenade(ExplosiveWeaponConfig& cfg,
   m_rebound_sound = "weapon/disco_grenade_bounce";
   have_played_music = false;
   explode_with_collision = false;
+  explode_with_timeout = true;
 }
 
 void DiscoGrenade::Shoot(double strength)
@@ -112,7 +113,7 @@ void DiscoGrenade::Refresh()
   smoke_engine.AddPeriodic(GetPosition(), particle_MAGIC_STAR, false);
 #endif //HAVE_A_REALLY_BIG_CPU
 
-  double tmp = Time::GetInstance()->Read() - begin_time;
+  double tmp = GetMSSinceTimeoutStart();
   // Ah ! Ah ! Ah ! Staying Alive, staying alive ...
   if (GetTotalTimeout() >= 2 && tmp > (1000 * GetTotalTimeout() - 2000) && !have_played_music) {
     //JukeBox::GetInstance()->Play("default","weapon/alleluia") ;
@@ -141,7 +142,7 @@ void DiscoGrenade::SignalDrowning()
 //-----------------------------------------------------------------------------
 
 DiscoGrenadeLauncher::DiscoGrenadeLauncher() :
-  WeaponLauncher(WEAPON_DISCO_GRENADE, "disco_grenade", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+  WeaponLauncher(WEAPON_DISCO_GRENADE, "disco_grenade", new ExplosiveWeaponConfig())
 {
   UpdateTranslationStrings();
 

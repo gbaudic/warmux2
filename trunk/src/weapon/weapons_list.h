@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 //-----------------------------------------------------------------------------
 
 // Classe de gestion des armes
-class WeaponsList : public Singleton<WeaponsList>
+class WeaponsList
 {
 public:
   typedef std::list<Weapon*> weapons_list_type;
@@ -41,22 +41,22 @@ private:
   Weapon* GetNextWeapon(uint sort, uint index);
 
 protected:
-  friend class Singleton<WeaponsList>;
   /* if you need to use this, implement it */
   WeaponsList(const WeaponsList &a_list);
-  WeaponsList();
-  ~WeaponsList();
 
 public:
+  WeaponsList(const xmlNode* weapons_xml);
+  ~WeaponsList();
+
   void Init();
 
-  static void UpdateTranslation();
-  static void LoadXml(const xmlNode* weapons_xml);
+  void UpdateTranslation();
 
   // Return a list of  weapons
   const weapons_list_type& GetList() const { return m_weapons_list; };
   Weapon* GetWeapon(Weapon::Weapon_type type);
   bool GetWeaponBySort(Weapon::category_t num_sort, Weapon::Weapon_type &type);
+  Weapon * GetRandomWeaponToDrop();
 };
 
 //-----------------------------------------------------------------------------

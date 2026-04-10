@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -63,10 +63,6 @@ void TeamsList::NextTeam ()
   SetActive(next->GetId());
 
   ActiveTeam().NextCharacter(true);
-
-  Action a(Action::ACTION_GAMELOOP_NEXT_TEAM, next->GetId());
-  Character::StoreActiveCharacter(&a);
-  Network::GetInstance()->SendActionToAll(a);
 
   printf("\nPlaying character : %i %s\n", ActiveCharacter().GetCharacterIndex(), ActiveCharacter().GetName().c_str());
   printf("Playing team : %i %s\n", ActiveCharacter().GetTeamIndex(), ActiveTeam().GetName().c_str());
@@ -173,7 +169,7 @@ void TeamsList::LoadList()
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::LoadGamingData()
+void TeamsList::LoadGamingData(WeaponsList * weapons_list)
 {
   std::sort(playing_list.begin(), playing_list.end(), compareTeams); // needed to fix bug #9820
   active_team = playing_list.begin();
@@ -182,13 +178,13 @@ void TeamsList::LoadGamingData()
 
   // Load the data of all teams
   for (; it != end; ++it) {
-
-    // Local or AI ?
-    if ( (*it)->IsLocal() && (*it)->GetPlayerName() == "AI-stupid")
-      (*it)->SetLocalAI();
-
-    (**it).LoadGamingData();
+    (**it).LoadGamingData(weapons_list);
   }
+  for (it=playing_list.begin(); it != end; ++it) {
+    if ((*it)->IsLocalAI())
+      (*it)->LoadAI();
+  }
+
 }
 
 void TeamsList::RandomizeFirstPlayer()
@@ -205,7 +201,9 @@ void TeamsList::RandomizeFirstPlayer()
 void TeamsList::UnloadGamingData()
 {
   BodyList::GetRef().FreeMem();
-  iterator it=playing_list.begin(), end = playing_list.end();
+  // Iterate over all teams not just he playing ones
+  // in order to unload leaver teams.
+  full_iterator it=full_list.begin(), end = full_list.end();
 
   // Unload the data of all teams
   for (; it != end; ++it) (**it).UnloadGamingData();
@@ -465,11 +463,7 @@ void TeamsList::AddTeam(Team* the_team, int pos, const ConfigTeam &the_team_cfg,
 {
   ASSERT(the_team != NULL);
 
-  if (is_local) {
-    the_team->SetLocal();
-  } else {
-    the_team->SetRemote();
-  }
+  the_team->SetRemote(!is_local);
   UpdateTeam(the_team, the_team_cfg);
 
   selection.push_back (pos);
@@ -507,6 +501,7 @@ void TeamsList::UpdateTeam(Team* the_team, const ConfigTeam &the_team_cfg)
   // set the player name and number of characters
   the_team->SetPlayerName(the_team_cfg.player_name);
   the_team->SetNbCharacters(the_team_cfg.nb_characters);
+  the_team->SetAIName(the_team_cfg.ai);
 }
 
 void TeamsList::UpdateTeam (const std::string& old_team_id,
@@ -542,7 +537,7 @@ void TeamsList::UpdateTeam (const std::string& old_team_id,
       return;
     }
 
-    bool is_local = (the_old_team->IsLocal() || the_old_team->IsLocalAI());
+    bool is_local = the_old_team->IsLocal();
     DelTeam(the_old_team);
     AddTeam(the_team, pos, the_team_cfg, is_local);
   }

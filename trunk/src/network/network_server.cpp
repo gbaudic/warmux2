@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -102,10 +102,10 @@ void NetworkServer::WaitActionSleep()
       socket_set->AddSocket(incoming);
 
       DistantComputer* client = new DistantComputer(incoming, nickname, player_id);
-      SendInitialGameInfo(client);
+      SendInitialGameInfo(client, player_id);
       AddRemoteHost(client);
 
-      if (GetNbHostsConnected() >= max_nb_players)
+      if (GetNbPlayersConnected() >= max_nb_players)
         RejectIncoming();
     }
   }
@@ -157,7 +157,7 @@ void NetworkServer::CloseConnection(std::list<DistantComputer*>::iterator closed
 {
   RemoveRemoteHost(closed);
 
-  if (GetNbHostsConnected() == max_nb_players)
+  if (GetNbPlayersConnected() == max_nb_players)
   {
     // A new player will be able to connect, so we reopen the socket
     // For incoming connections

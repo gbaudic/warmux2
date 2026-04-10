@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "interface/mouse.h"
 #include "map/camera.h"
 #include "map/map.h"
+#include "network/network.h"
 #include "object/objects_list.h"
 #include "sound/jukebox.h"
 #include "team/macro.h"
@@ -50,7 +51,7 @@ const double DELTA_ANGLE = M_PI / 6.0; // should be a multiple
 
 Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
                                 new WeaponConfig(),
-                                NEVER_VISIBLE)
+                                false)
 {
   UpdateTranslationStrings();
 
@@ -58,6 +59,7 @@ Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
   construct_spr->EnableRotationCache(static_cast<int>(2 * M_PI / DELTA_ANGLE));
   m_name = _("Construct");
   m_category = TOOL;
+  m_can_change_weapon = true;
   angle = 0;
   target_chosen = false;
 }
@@ -96,32 +98,37 @@ bool Construct::p_Shoot ()
 
 void Construct::Draw()
 {
-  if (!IsInUse()) {
-    Weapon::Draw();
+  Weapon::Draw();
 
-    if (EnoughAmmo()
-	&& EnoughAmmoUnit()
-	&& !Interface::GetInstance()->weapons_menu.IsDisplayed()
-	&& Interface::GetInstance()->IsDisplayed()) {
-      dst = Mouse::GetInstance()->GetWorldPosition();
-      construct_spr->SetRotation_rad(angle);
-      construct_spr->Draw(dst - construct_spr->GetSize() / 2);
+  if (EnoughAmmo()
+    && EnoughAmmoUnit()
+    && !Interface::GetInstance()->weapons_menu.IsDisplayed()
+    && Interface::GetInstance()->IsDisplayed()
+    && Network::GetInstance()->IsTurnMaster()) {
+    dst = Mouse::GetInstance()->GetWorldPosition();
+    construct_spr->SetRotation_rad(angle);
+    construct_spr->Draw(dst - construct_spr->GetSize() / 2);
 
 #ifdef DEBUG
-      if (IsLOGGING("test_rectangle"))
-	{
-	  Rectanglei test_rect(dst - construct_spr->GetSizeMax() / 2, construct_spr->GetSizeMax());
-	  test_rect.SetPosition(test_rect.GetPosition() - Camera::GetInstance()->GetPosition());
-	  GetMainWindow().RectangleColor(test_rect, primary_red_color, 1);
-	}
-#endif
+    if (IsLOGGING("test_rectangle")) {
+      Rectanglei test_rect(dst - construct_spr->GetSizeMax() / 2, construct_spr->GetSizeMax());
+      test_rect.SetPosition(test_rect.GetPosition() - Camera::GetInstance()->GetPosition());
+      GetMainWindow().RectangleColor(test_rect, primary_red_color, 1);
     }
+#endif
   }
 }
 
 void Construct::ChooseTarget(Point2i mouse_pos)
 {
+  if (!EnoughAmmo())
+    return;
+
   dst = mouse_pos;
+
+  // Draw it so that GetSizeMax() returns the correct values.
+  construct_spr->SetRotation_rad(angle);
+  construct_spr->Draw(dst - construct_spr->GetSize() / 2);
 
   Point2i test_target = dst - construct_spr->GetSizeMax() / 2;
   Rectanglei rect(test_target, construct_spr->GetSizeMax());
@@ -163,8 +170,3 @@ void Construct::Down() const
 
 WeaponConfig& Construct::cfg()
 { return static_cast<WeaponConfig&>(*extra_params); }
-
-bool Construct::IsInUse() const
-{
-  return m_last_fire_time > 0 && m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
-}

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -56,16 +56,6 @@ class AirAttackConfig : public ExplosiveWeaponConfig
     virtual void LoadXml(const xmlNode* elem);
 };
 
-class Obus : public WeaponProjectile
-{
-  private:
-    SoundSample falling_sound;
-  public:
-    Obus(AirAttackConfig& cfg);
-    virtual ~Obus();
-};
-
-
 Obus::Obus(AirAttackConfig& cfg) :
   WeaponProjectile("air_attack_projectile", cfg, NULL)
 {
@@ -76,9 +66,14 @@ Obus::Obus(AirAttackConfig& cfg) :
 Obus::~Obus()
 {
   falling_sound.Stop();
+
+  if (Plane::last_dropped_bomb == this)
+    Plane::last_dropped_bomb = NULL;
 }
 
 //-----------------------------------------------------------------------------
+
+Obus* Plane::last_dropped_bomb = NULL;
 
 Plane::Plane(AirAttackConfig &p_cfg) :
   PhysicalObj("air_attack_plane"),
@@ -171,8 +166,8 @@ void Plane::Refresh()
     next_height = RandomSync().GetInt(20,100);
   } else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {
     // Get the last rocket and check the position to be sure to not collide with it
-    if ( last_dropped_bomb->GetY() > GetY()+GetHeight()+next_height )
-    {
+    if (!last_dropped_bomb
+	|| last_dropped_bomb->GetY() > GetY()+GetHeight()+next_height) {
       MSG_DEBUG("random.get", "Plane::Refresh() another bomb");
       next_height = RandomSync().GetInt(20,100);
       DropBomb();
@@ -204,7 +199,7 @@ bool Plane::OnTopOfTarget() const
 //-----------------------------------------------------------------------------
 
 AirAttack::AirAttack() :
-  Weapon(WEAPON_AIR_ATTACK, "air_attack",new AirAttackConfig(), ALWAYS_VISIBLE)//, plane(cfg())
+  Weapon(WEAPON_AIR_ATTACK, "air_attack",new AirAttackConfig())//, plane(cfg())
 {
   UpdateTranslationStrings();
 
@@ -249,12 +244,7 @@ bool AirAttack::p_Shoot ()
 void AirAttack::p_Select()
 {
   if (Network::GetInstance()->IsTurnMaster())
-      Mouse::GetInstance()->SetPointer(Mouse::POINTER_FIRE);
-}
-
-bool AirAttack::IsInUse() const
-{
-  return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ATTACK);
 }
 
 AirAttackConfig& AirAttack::cfg()

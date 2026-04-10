@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ PhysicalObj::PhysicalObj (const std::string &name, const std::string &xml_config
   m_test_bottom(0),
   m_width(0),
   m_height(0),
+  can_be_ghost(true),
   // No collision with this object until we have gone out of his collision rectangle
   m_overlapping_object(NULL),
   m_minimum_overlapse_time(0),
@@ -101,7 +102,7 @@ void PhysicalObj::SetXY(const Point2d &position)
 {
   CheckOverlapping();
 
-  if( IsOutsideWorldXY( Point2i(int(position.x), int(position.y)) ) )
+  if( IsOutsideWorldXY( Point2i(int(position.x), int(position.y)) ) && can_be_ghost )
     {
       SetPhysXY( position / PIXEL_PER_METER );
       Ghost();
@@ -130,55 +131,6 @@ void PhysicalObj::SetSize(const Point2i &newSize)
   ASSERT(m_width >= 0);
   ASSERT(m_height >= 0);
   SetPhysSize( (double)newSize.x / PIXEL_PER_METER, (double)newSize.y/PIXEL_PER_METER );
-}
-
-void PhysicalObj::StoreValue(Action *a)
-{
-  Physics::StoreValue(a);
-  a->Push(m_collides_with_ground);
-  a->Push(m_collides_with_characters);
-  a->Push(m_collides_with_objects);
-  a->Push(m_rebound_position);
-  a->Push((int)m_minimum_overlapse_time);
-  a->Push(m_ignore_movements);
-  a->Push(m_is_character);
-  a->Push(m_test_left);
-  a->Push(m_test_right);
-  a->Push(m_test_top);
-  a->Push(m_test_bottom);
-  a->Push(m_width);
-  a->Push(m_height);
-  a->Push(m_alive);
-  a->Push(m_energy);
-  a->Push(m_allow_negative_y);
-}
-
-void PhysicalObj::GetValueFromAction(Action *a)
-{
-  Physics::GetValueFromAction(a);
-  m_collides_with_ground     = !!a->PopInt();
-  m_collides_with_characters = !!a->PopInt();
-  m_collides_with_objects    = !!a->PopInt();
-  m_rebound_position         = a->PopPoint2i();
-  m_minimum_overlapse_time   = (uint)a->PopInt();
-  m_ignore_movements         = !!a->PopInt();
-  m_is_character             = !!a->PopInt();
-  m_test_left                = a->PopInt();
-  m_test_right               = a->PopInt();
-  m_test_top                 = a->PopInt();
-  m_test_bottom              = a->PopInt();
-  m_width                    = a->PopInt();
-  m_height                   = a->PopInt();
-  m_alive                    = (alive_t)a->PopInt();
-  m_energy                   = a->PopInt();
-  m_allow_negative_y         = !!a->PopInt();
-
-  ASSERT(m_test_left >= 0);
-  ASSERT(m_test_right >= 0);
-  ASSERT(m_test_top >= 0);
-  ASSERT(m_test_bottom >= 0);
-  ASSERT(m_width >= 0);
-  ASSERT(m_height >= 0);
 }
 
 void PhysicalObj::SetOverlappingObject(PhysicalObj* obj, int timeout)
@@ -444,12 +396,16 @@ void PhysicalObj::ContactPointAngleOnGround(const Point2d& oldPos,
 void PhysicalObj::UpdatePosition ()
 {
   // No ghost allowed here !
-  if (IsGhost()) return;
+  if (IsGhost()) { 
+    return;
+  }
 
   if (m_collides_with_ground)
     {
       // object is not moving and has no reason to move
-      if ( !IsMoving() && !FootsInVacuum() && !IsInWater() ) return;
+      if ( !IsMoving() && !FootsInVacuum() && !IsInWater() ) {
+      return;
+      }
 
       // object is not moving BUT it should fall !
       if ( !IsMoving() && FootsInVacuum() ) StartMoving();
@@ -458,7 +414,9 @@ void PhysicalObj::UpdatePosition ()
   // Compute new position.
   RunPhysicalEngine();
 
-  if (IsGhost()) return;
+  if (IsGhost()) {
+    return;
+  }
 
   // Classical object sometimes sinks in water and sometimes goes out of water!
   if (m_collides_with_ground)
@@ -609,6 +567,11 @@ void PhysicalObj::SetCollisionModel(bool collides_with_ground,
   }
 }
 
+void PhysicalObj::CanBeGhost(bool state) 
+{
+  can_be_ghost = state;
+}
+
 void PhysicalObj::CheckRebound()
 {
   // If we bounce twice in a row at the same place, stop bouncing
@@ -742,11 +705,17 @@ bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
   // We are looking for a point in contact with the bottom of the object:
   y1 = GetY() + m_height - m_test_bottom;
   y2 = y1 - 1;
-  for (int x = GetX() + m_test_left; x <= GetX() + m_width - m_test_right; x++)
-  {
-    if(!GetWorld().IsOutsideWorld(Point2i(x,y1)) && !GetWorld().IsOutsideWorld(Point2i(x,y2))
-    && GetWorld().ground.IsEmpty(Point2i(x,y2)) && !GetWorld().ground.IsEmpty(Point2i(x,y1)))
-    {
+  Point2i pointA;
+  Point2i pointB;
+
+  for (int x = GetX() + m_test_left; x <= GetX() + m_width - m_test_right; x++) {
+    pointA.SetValues(x, y1);
+    pointB.SetValues(x, y2);
+ 
+    if (!GetWorld().IsOutsideWorld(pointA) && 
+        !GetWorld().IsOutsideWorld(pointB) && 
+        GetWorld().ground.IsEmpty(pointB) && 
+        !GetWorld().ground.IsEmpty(pointA)) {
       contact_x = x;
       contact_y = GetY() + m_height - m_test_bottom;
       return true;
@@ -756,11 +725,13 @@ bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
   // We are looking for a point in contact on the left hand of object:
   x1 = GetX() + m_test_left;
   x2 = x1 + 1;
-  for (int y = GetY() + m_test_top; y <= GetY() + m_height - m_test_bottom; y++)
-  {
-    if(!GetWorld().IsOutsideWorld(Point2i(x1,y)) && !GetWorld().IsOutsideWorld(Point2i(x2,y))
-    && !GetWorld().ground.IsEmpty(Point2i(x1,y)) &&  GetWorld().ground.IsEmpty(Point2i(x2,y)))
-    {
+  
+  for (int y = GetY() + m_test_top; y <= GetY() + m_height - m_test_bottom; y++) {
+    pointA.SetValues(x1, y);
+    pointB.SetValues(x2, y);
+
+    if (!GetWorld().IsOutsideWorld(pointA) && !GetWorld().IsOutsideWorld(pointB) && 
+        !GetWorld().ground.IsEmpty(pointA) &&  GetWorld().ground.IsEmpty(pointB)) {
       contact_x = GetX() + m_test_left;
       contact_y = y;
       return true;
@@ -770,11 +741,13 @@ bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
   // We are looking for a point in contact on the rigth hand of object:
   x1 = GetX() + m_width - m_test_right;
   x2 = x1 - 1;
-  for (int y = GetY() + m_test_top; y <= GetY() + m_height - m_test_bottom; y++)
-  {
-    if(!GetWorld().IsOutsideWorld(Point2i(x1, y)) && !GetWorld().IsOutsideWorld(Point2i(x2, y))
-       && !GetWorld().ground.IsEmpty(Point2i(x1, y)) && GetWorld().ground.IsEmpty(Point2i(x2, y)))
-    {
+
+  for (int y = GetY() + m_test_top; y <= GetY() + m_height - m_test_bottom; y++) {
+    pointA.SetValues(x1, y);
+    pointB.SetValues(x2, y);
+
+    if (!GetWorld().IsOutsideWorld(pointA) && !GetWorld().IsOutsideWorld(pointB) && 
+        !GetWorld().ground.IsEmpty(pointA) && GetWorld().ground.IsEmpty(pointB)) {
       contact_x = GetX() + m_width - m_test_right;
       contact_y = y;
       return true;
@@ -784,11 +757,12 @@ bool PhysicalObj::ContactPoint (int & contact_x, int & contact_y) const
   // We are looking for a point in contact on top of object:
   y1 = GetY() + m_test_top;
   y2 = y1 - 1;
-  for (int x = GetX() + m_test_left; x <= GetX() + m_width - m_test_right; x++)
-  {
-    if(!GetWorld().IsOutsideWorld(Point2i(x,y1)) && !GetWorld().IsOutsideWorld(Point2i(x,y2))
-    && !GetWorld().ground.IsEmpty(Point2i(x, y1)) && GetWorld().ground.IsEmpty(Point2i(x, y2)))
-    {
+  for (int x = GetX() + m_test_left; x <= GetX() + m_width - m_test_right; x++) {
+    pointA.SetValues(x, y1);
+    pointB.SetValues(x, y2);
+
+    if (!GetWorld().IsOutsideWorld(pointA) && !GetWorld().IsOutsideWorld(pointB) && 
+        !GetWorld().ground.IsEmpty(pointA) && GetWorld().ground.IsEmpty(pointB)) {
       contact_x = x;
       contact_y = GetY() + m_test_top;
       return true;
@@ -858,6 +832,7 @@ bool PhysicalObj::PutRandomly(bool on_top_of_world, double min_dst_with_characte
     // Check distance with characters
     FOR_ALL_LIVING_CHARACTERS(team, character) if (&(*character) != this)
     {
+      MSG_DEBUG("physic.position", "Checking distance to %s", (*character).m_name.c_str(), (*character).m_name.c_str());
       if (min_dst_with_characters == 0) {
 
         if(Overlapse(*character)) {

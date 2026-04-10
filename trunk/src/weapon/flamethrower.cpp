@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -124,6 +124,7 @@ FlameThrower::FlameThrower() : WeaponLauncher(WEAPON_FLAMETHROWER, "flamethrower
 
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile, m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
+  shooting = false;
 
   ReloadLauncher();
 }
@@ -155,7 +156,8 @@ bool FlameThrower::p_Shoot()
   projectile = NULL;
   ReloadLauncher();
 
-  Point2i pos = ActiveCharacter().GetHandPosition();
+  Point2i pos;
+  ActiveCharacter().GetHandPosition(pos);
   double angle =  - M_PI_2 - ActiveCharacter().GetDirection()
                * (float)(Time::GetInstance()->Read() % 100) * M_PI_4 / 100.0;
   particle.AddNow(pos, 1, particle_SMOKE, true, angle,
@@ -164,10 +166,26 @@ bool FlameThrower::p_Shoot()
   return true;
 }
 
-void FlameThrower::HandleKeyRefreshed_Shoot(bool /*shift*/)
+void FlameThrower::p_Deselect()
 {
-  if (EnoughAmmoUnit()) {
-    Weapon::RepeatShoot();
+  WeaponLauncher::p_Deselect();
+  shooting = false;
+}
+
+void FlameThrower::StartShooting()
+{
+  shooting = true;
+}
+
+void FlameThrower::StopShooting()
+{
+  shooting = false;
+}
+
+void FlameThrower::Refresh()
+{
+  if (shooting && EnoughAmmoUnit()) {
+    WeaponLauncher::RepeatShoot();
   }
 }
 

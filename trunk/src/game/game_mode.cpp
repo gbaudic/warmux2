@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,11 +28,11 @@
 #include "game/game_mode.h"
 #include "object/medkit.h"
 #include "object/bonus_box.h"
-#include "tool/xml_document.h"
 #include "weapon/weapons_list.h"
 
 GameMode::GameMode():
-  doc_objects(NULL)
+  doc_objects(NULL),
+  weapons_xml(NULL)
 {
   m_current = "classic";
 
@@ -172,10 +172,7 @@ bool GameMode::LoadXml(const xmlNode* xml)
   }
 
   //=== Weapons ===
-  const xmlNode* weapons_xml = XmlReader::GetMarker(xml, "weapons");
-  if (weapons_xml != NULL) {
-    WeaponsList::LoadXml(weapons_xml);
-  }
+  weapons_xml = XmlReader::GetMarker(xml, "weapons");
 
   // Bonus box explosion - must be loaded after the weapons.
   const xmlNode* bonus_box_xml = XmlReader::GetMarker(xml, "bonus_box");
@@ -207,8 +204,6 @@ bool GameMode::Load(void)
   if(!doc_objects->Load(GetObjectsFilename()))
     return false;
 
-  // Game mode file
-  XmlReader doc;
 
   if(!doc.Load(GetFilename()))
     return false;
@@ -229,7 +224,6 @@ bool GameMode::LoadFromString(const std::string& game_mode_name,
   if(!doc_objects->LoadFromString(game_mode_objects_contents))
     return false;
 
-  XmlReader doc;
   if(!doc.LoadFromString(game_mode_contents))
     return false;
   if(!LoadXml(doc.GetRoot()))
@@ -328,8 +322,8 @@ std::string GameMode::GetObjectsFilename() const
     fullname = config->GetDataDir() + filename;
 
   if(!DoesFileExist(fullname)) {
-    fprintf(stderr, "Game mode: File %s does not exist, use the default one instead.\n",
-	    fullname.c_str());
+    std::cerr << "Game mode: File " << fullname
+      << " does not exist, use the default one instead." << std::endl;
   }
 
   fullname = config->GetDataDir() + GetDefaultObjectsFilename();

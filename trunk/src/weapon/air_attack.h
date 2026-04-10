@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,15 +26,25 @@
 
 class AirAttackConfig;
 class Sprite;
-class Obus;
+
+class Obus : public WeaponProjectile
+{
+  private:
+    SoundSample falling_sound;
+  public:
+    Obus(AirAttackConfig& cfg);
+    virtual ~Obus();
+};
 
 class Plane : public PhysicalObj
 {
   private:
-    SoundSample flying_sound;
+    static Obus * last_dropped_bomb;
+    friend Obus::~Obus();
 
     uint nb_dropped_bombs;
-    Obus * last_dropped_bomb;
+
+    SoundSample flying_sound;
 
     int obus_dx, obus_dy;
     Sprite *image;
@@ -68,7 +78,6 @@ class AirAttack : public Weapon
     void ChooseTarget (Point2i mouse_pos);
     void UpdateTranslationStrings();
     std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
-    bool IsInUse() const;
   private:
     AirAttackConfig& cfg();
 };

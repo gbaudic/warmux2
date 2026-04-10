@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -68,13 +68,13 @@ class ResultBox : public HBox
     Font::font_size_t font = (size > 400) ? Font::FONT_BIG : Font::FONT_MEDIUM;
     //printf("Size=%u\n", size);
 
-    AddWidget(new Label(type, (size*TypeW)/TotalW, font, Font::FONT_NORMAL));
+    AddWidget(new Label(type, (size*TypeW)/TotalW, font, Font::FONT_BOLD));
 
     AddWidget(new Label((player) ? player->GetName() : _("Nobody!"),
-                        (size*NameW)/TotalW, font, Font::FONT_NORMAL));
+                        (size*NameW)/TotalW, font, Font::FONT_BOLD));
 
     std::string score_str(buffer);
-    AddWidget(new Label(score_str, (size*ScoreW)/TotalW, font, Font::FONT_NORMAL));
+    AddWidget(new Label(score_str, (size*ScoreW)/TotalW, font, Font::FONT_BOLD));
 
     if (player)
     {
@@ -253,27 +253,27 @@ void CanvasTeamsGraph::DrawTeamGraph(const Team *team,
   EnergyList::const_iterator it = team->energy.energy_list.begin(),
     end = team->energy.energy_list.end();
 
-  MSG_DEBUG("menu", "Drawing graph for team %s\n", team->GetName().c_str());
+  MSG_DEBUG("menu", "Drawing graph for team %s", team->GetName().c_str());
 
-  if (it == end)
+  if (it == end) {
+    MSG_DEBUG("menu", "   No point !?!");
     return;
+  }
 
   int sx = x+lround((*it)->GetDuration()*duration_scale)+LINE_THICKNESS,
     sy = y-lround((*it)->GetValue()*energy_scale);
   Surface &surface = GetMainWindow();
-  MSG_DEBUG("menu", "   First point: (%u,%u) -> (%i,%i)\n",
+  MSG_DEBUG("menu", "   First point: (%u,%u) -> (%i,%i)",
             (*it)->GetDuration(), (*it)->GetValue(), sx, sy);
 
   ++it;
-  if (it == end)
-    return;
 
-  do
+  while (it != end)
   {
     int ex = x+lround((*it)->GetDuration()*duration_scale),
       ey = y-lround((*it)->GetValue()*energy_scale);
 
-    MSG_DEBUG("menu", "   Next point: (%u,%u) -> (%i,%i)\n",
+    MSG_DEBUG("menu", "   Next point: (%u,%u) -> (%i,%i)",
               (*it)->GetDuration(), (*it)->GetValue(), ex, ey);
     surface.BoxColor(Rectanglei(sx, sy, ex-sx, LINE_THICKNESS), color);
     surface.BoxColor(Rectanglei(ex, std::min(sy,ey), LINE_THICKNESS, abs(ey-sy)), color);
@@ -281,13 +281,15 @@ void CanvasTeamsGraph::DrawTeamGraph(const Team *team,
     sx = ex;
     sy = ey;
     ++it;
-  } while (it != end);
+  }
 
   // Missing point
   --it;
   if ((*it)->GetDuration() < max_duration)
   {
-    surface.BoxColor(Rectanglei(sx, sy, x+lround(max_duration*duration_scale)-sx, LINE_THICKNESS), color);
+    int ex = x+lround(max_duration*duration_scale);
+    MSG_DEBUG("menu", "   Last point -> (%i,%i)", ex, sy);
+    surface.BoxColor(Rectanglei(sx, sy, ex-sx, LINE_THICKNESS), color);
   }
 }
 
@@ -312,6 +314,9 @@ void CanvasTeamsGraph::DrawGraph(int x, int y, int w, int h) const
         max_duration = team->energy.energy_list.GetDuration();
     }
   }
+  // needed to see correctly energy at the end if two teams have same
+  // energy just before the final blow
+  max_duration += max_duration/50;
 
   // Draw here the graph and stuff
   Surface &surface = GetMainWindow();
@@ -331,7 +336,7 @@ void CanvasTeamsGraph::DrawGraph(int x, int y, int w, int h) const
   double energy_scale = graph_h / (1.05*max_value);
   double duration_scale = graph_w / (1.05*max_duration);
   MSG_DEBUG("menu", "Scaling: %.1f (duration; %u) and %.1f\n",
-            duration_scale, Time::GetInstance()->ReadDuration(), energy_scale);
+            duration_scale, Time::GetInstance()->Read(), energy_scale);
 
   uint               index   = 0;
   static const Color clist[] =
@@ -380,11 +385,11 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
     PictureWidget* winner_logo = new PictureWidget(Point2i(64, 64));
     winner_logo->SetSurface(first_team->GetBigFlag());
     winner_box->AddWidget(winner_logo);
-    winner_box->AddWidget(new Label(first_team->GetName(), 240, Font::FONT_BIG, Font::FONT_NORMAL,
+    winner_box->AddWidget(new Label(first_team->GetName(), 240, Font::FONT_BIG, Font::FONT_BOLD,
                                     white_color, true));
 
     std::string tmp = _("Controlled by: ") + first_team->GetPlayerName();
-    winner_box->AddWidget(new Label(tmp, 240, Font::FONT_MEDIUM, Font::FONT_NORMAL,
+    winner_box->AddWidget(new Label(tmp, 240, Font::FONT_MEDIUM, Font::FONT_BOLD,
                                     white_color, true));
 
     winner_box->SetPosition(x, y);
@@ -406,7 +411,7 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
 
   // Are we in network ? yes, so display a talkbox
   if (Network::IsConnected()) {
-    msg_box = new TalkBox(Point2i(tab_size.x, 120), Font::FONT_SMALL, Font::FONT_NORMAL);
+    msg_box = new TalkBox(Point2i(tab_size.x, 120), Font::FONT_SMALL, Font::FONT_BOLD);
     tab_size.y -= 125;
   }
 
@@ -507,7 +512,7 @@ void ResultsMenu::Draw(const Point2i &/*mousePosition*/)
 
   if (Network::IsConnected()) {
     ActionHandler * action_handler = ActionHandler::GetInstance();
-    action_handler->ExecActions();
+    action_handler->ExecFrameLessActions();
   }
 }
 

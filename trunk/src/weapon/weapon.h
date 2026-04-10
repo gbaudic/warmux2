@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,7 +49,8 @@ class Weapon
 public:
   typedef enum
   {
-    WEAPON_BAZOOKA,       WEAPON_AUTOMATIC_BAZOOKA, WEAPON_CLUZOOKA, WEAPON_RIOT_BOMB,
+    FIRST,
+    WEAPON_BAZOOKA=FIRST, WEAPON_AUTOMATIC_BAZOOKA, WEAPON_CLUZOOKA, WEAPON_RIOT_BOMB,
     WEAPON_GRENADE,       WEAPON_DISCO_GRENADE,     WEAPON_CLUSTER_BOMB, WEAPON_FOOTBOMB,
     WEAPON_GUN,           WEAPON_SHOTGUN,           WEAPON_SUBMACHINE_GUN,
     WEAPON_BASEBALL,      WEAPON_FLAMETHROWER,      WEAPON_SLAP,
@@ -61,10 +62,9 @@ public:
 
     WEAPON_TELEPORTATION, WEAPON_GRAPPLE,  WEAPON_LOWGRAV,   WEAPON_SUICIDE,
     WEAPON_SKIP_TURN,     WEAPON_JETPACK,     WEAPON_PARACHUTE, WEAPON_AIR_HAMMER,
-    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_BLOWTORCH, WEAPON_SYRINGE
+    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_BLOWTORCH, WEAPON_SYRINGE,
+    LAST = WEAPON_SYRINGE
   } Weapon_type;
-#define WEAPON_FIRST WEAPON_BAZOOKA
-#define WEAPON_LAST  WEAPON_SYRINGE
   typedef enum {
     INVALID = 0,
     HEAVY,
@@ -83,7 +83,6 @@ protected:
   std::string m_id;
   std::string m_name;
   std::string m_help;
-  bool m_is_active;
   Sprite *m_image;
   Sprite *m_weapon_fire;
   uint m_fire_remanence_time;
@@ -118,24 +117,17 @@ protected:
   // Extra parameters
   EmptyWeaponConfig *extra_params;
 
-  typedef enum weapon_visibility {
-    ALWAYS_VISIBLE,
-    NEVER_VISIBLE,
-    VISIBLE_ONLY_WHEN_ACTIVE,
-    VISIBLE_ONLY_WHEN_INACTIVE
-  } weapon_visibility_t;
-
   // Visibility
-  weapon_visibility_t m_visibility;
-  weapon_visibility_t m_unit_visibility;
+  const bool drawable;
 
   // how many times can we use this weapon (since the beginning of the game) ?
   int m_available_after_turn; // -1 means NEVER
   int m_initial_nb_ammo;
   int m_initial_nb_unit_per_ammo;
+  int ammo_per_drop;
+  double drop_probability;
   bool use_unit_on_first_shoot;
   bool can_be_used_on_closed_map;
-
   SoundSample loading_sound;
 
 public:
@@ -151,18 +143,37 @@ public:
 protected:
   virtual void p_Select() { m_last_fire_time = 0; };
   virtual void p_Deselect();
-  virtual void Refresh() = 0;
+  virtual void Refresh();
   virtual bool p_Shoot() = 0;
 
+  /* This method offer sub classes a way to hide the weapon. */
+  virtual bool ShouldBeDrawn() { return true; };
+  /* This method offer sub classes a way to hide the ammo units. */
+  virtual bool ShouldAmmoUnitsBeDrawn() const { return true; };
   virtual void DrawWeaponFire();
   void DrawAmmoUnits() const;
 
+  // Begin the shooting animation of the character
+  void PrepareShoot();
+
   void RepeatShoot();
+
+  void StartMovingLeftForAllPlayers();
+  void StopMovingLeftForAllPlayers();
+
+  void StartMovingRightForAllPlayers();
+  void StopMovingRightForAllPlayers();
+
+  void StartMovingUpForAllPlayers();
+  void StopMovingUpForAllPlayers();
+
+  void StartMovingDownForAllPlayers();
+  void StopMovingDownForAllPlayers();
 public:
   Weapon(Weapon_type type,
          const std::string &id,
          EmptyWeaponConfig * params,
-         weapon_visibility_t visibility = ALWAYS_VISIBLE);
+         bool drawable = true);
   virtual ~Weapon();
 
   // Select or deselect the weapon
@@ -187,6 +198,8 @@ public:
   int ReadInitialNbAmmo() const { return m_initial_nb_ammo; };
   void WriteInitialNbAmmo(int nb) { m_initial_nb_ammo = nb; };
   int ReadInitialNbUnit() const { return m_initial_nb_unit_per_ammo; };
+  int GetAmmoPerDrop() const { return ammo_per_drop; }
+  double GetDropProbability() const { return drop_probability; }
 
   bool CanBeUsedOnClosedMap() const { return can_be_used_on_closed_map; };
   bool UseCrossHair() const { return min_angle != max_angle; };
@@ -194,27 +207,14 @@ public:
   // Calculate weapon position
   virtual void PosXY (int &x, int &y) const;
 
-  // Create a new action "shoot/stop_use" in action handler
-  void NewActionWeaponShoot() const;
-  void NewActionWeaponStopUse() const;
-
-  // Prepare the shoot : set the angle and strenght of the weapon
-  // Begin the shooting animation of the character
-  void PrepareShoot(double strength, double angle);
-
   // Shot with the weapon
   // Return true if we have been able to trigger the weapon
   bool Shoot();
 
-  // The weapon is still in use (animation for instance) ?
-  virtual bool IsInUse() const {
-    // TODO : remove m_is_active by something like :
-    // return m_last_fire_time + 1000 > Time::GetInstance()->Read();
-   return m_is_active;
-  };
-
   // the weapon is ready to use ? (is there bullets left ?)
-  virtual bool IsReady() const { return EnoughAmmo(); };
+  virtual bool IsReady() const;
+
+  virtual bool IsOnCooldownFromShot() const;
 
   // Begin to load, to choose the strength
   virtual void InitLoading() ;
@@ -228,6 +228,10 @@ public:
   // update strength (so the strength bar can be updated)
   virtual void UpdateStrength();
 
+  double GetStrength() const { return m_strength; };
+
+  double GetMaxStrength() const { return max_strength; };
+
   const Point2i GetGunHolePosition() const;
 
   // Choose a target.
@@ -237,54 +241,54 @@ public:
   // interactions with the physical engine such as grapple
   virtual void NotifyMove(bool /*collision*/){};
 
+
+  // While the method returns true the character can not start moving left nor right.
+  virtual bool IsPreventingLRMovement() { return false; };
+  // While the method returns true the character will not jump when the user press the jump key.
+  virtual bool IsPreventingJumps() { return false; };
+  // While the method returns true the character will not change the weapon angle when the user tries to do so.
+  virtual bool IsPreventingWeaponAngleChanges() { return false; };
+
   // Handle a keyboard event.
 
   // Key Shoot management
-  virtual void HandleKeyPressed_Shoot(bool shift);
-  virtual void HandleKeyRefreshed_Shoot(bool shift);
-  virtual void HandleKeyReleased_Shoot(bool shift);
+  void HandleKeyPressed_Shoot();
+  void HandleKeyReleased_Shoot();
 
   // To override standard moves of character
-  virtual void HandleKeyPressed_MoveRight(bool shift);
-  virtual void HandleKeyRefreshed_MoveRight(bool shift);
-  virtual void HandleKeyReleased_MoveRight(bool shift);
+  virtual void HandleKeyPressed_MoveRight(bool /*slowly*/) {};
+  virtual void HandleKeyReleased_MoveRight(bool /*slowly*/) {};
 
-  virtual void HandleKeyPressed_MoveLeft(bool shift);
-  virtual void HandleKeyRefreshed_MoveLeft(bool shift);
-  virtual void HandleKeyReleased_MoveLeft(bool shift);
+  virtual void HandleKeyPressed_MoveLeft(bool /*slowly*/) {};
+  virtual void HandleKeyReleased_MoveLeft(bool /*slowly*/) {};
 
-  virtual void HandleKeyPressed_Up(bool shift);
-  virtual void HandleKeyRefreshed_Up(bool shift);
-  virtual void HandleKeyReleased_Up(bool shift);
+  virtual void HandleKeyPressed_Up(bool /*slowly*/) {};
+  virtual void HandleKeyReleased_Up(bool /*slowly*/) {};
 
-  virtual void HandleKeyPressed_Down(bool shift);
-  virtual void HandleKeyRefreshed_Down(bool shift);
-  virtual void HandleKeyReleased_Down(bool shift);
+  virtual void HandleKeyPressed_Down(bool /*slowly*/) {};
+  virtual void HandleKeyReleased_Down(bool /*slowly*/) {};
 
-  virtual void HandleKeyPressed_Jump(bool shift);
-  virtual void HandleKeyRefreshed_Jump(bool shift);
-  virtual void HandleKeyReleased_Jump(bool shift);
+  virtual void HandleKeyPressed_Jump() {};
+  virtual void HandleKeyReleased_Jump() {};
 
-  virtual void HandleKeyPressed_HighJump(bool shift);
-  virtual void HandleKeyRefreshed_HighJump(bool shift);
-  virtual void HandleKeyReleased_HighJump(bool shift);
+  virtual void HandleKeyPressed_HighJump() {};
+  virtual void HandleKeyReleased_HighJump() {};
 
-  virtual void HandleKeyPressed_BackJump(bool shift);
-  virtual void HandleKeyRefreshed_BackJump(bool shift);
-  virtual void HandleKeyReleased_BackJump(bool shift);
+  virtual void HandleKeyPressed_BackJump() {};
+  virtual void HandleKeyReleased_BackJump() {};
 
   // Other keys
-  virtual void HandleKeyReleased_Num1(bool){};
-  virtual void HandleKeyReleased_Num2(bool){};
-  virtual void HandleKeyReleased_Num3(bool){};
-  virtual void HandleKeyReleased_Num4(bool){};
-  virtual void HandleKeyReleased_Num5(bool){};
-  virtual void HandleKeyReleased_Num6(bool){};
-  virtual void HandleKeyReleased_Num7(bool){};
-  virtual void HandleKeyReleased_Num8(bool){};
-  virtual void HandleKeyReleased_Num9(bool){};
-  virtual void HandleKeyReleased_Less(bool){};
-  virtual void HandleKeyReleased_More(bool){};
+  virtual void HandleKeyReleased_Num1(){};
+  virtual void HandleKeyReleased_Num2(){};
+  virtual void HandleKeyReleased_Num3(){};
+  virtual void HandleKeyReleased_Num4(){};
+  virtual void HandleKeyReleased_Num5(){};
+  virtual void HandleKeyReleased_Num6(){};
+  virtual void HandleKeyReleased_Num7(){};
+  virtual void HandleKeyReleased_Num8(){};
+  virtual void HandleKeyReleased_Num9(){};
+  virtual void HandleKeyReleased_Less(){};
+  virtual void HandleKeyReleased_More(){};
 
   // Handle a mouse event
   virtual void HandleMouseLeftClicReleased(bool){};
@@ -293,9 +297,6 @@ public:
 
   // Get informed that the turn is over.
   virtual void SignalTurnEnd() { StopLoading(); };
-
-  // Stop using this weapon (only used with lowgrav and jetpack and airhammer)
-  virtual void ActionStopUse();
 
   // Load parameters from the xml config file
   // Return true if xml has been succesfully load
@@ -326,6 +327,22 @@ public:
   inline const double &GetMinAngle() const {return min_angle;}
   inline void SetMaxAngle(double max) {max_angle = max;}
   inline const double &GetMaxAngle() const {return max_angle;}
+  bool IsAngleValid(double angle);
+
+  virtual void StartMovingLeft() {};
+  virtual void StopMovingLeft() {};
+
+  virtual void StartMovingRight() {};
+  virtual void StopMovingRight() {};
+
+  virtual void StartMovingUp() {};
+  virtual void StopMovingUp() {};
+
+  virtual void StartMovingDown() {};
+  virtual void StopMovingDown() {};
+
+  virtual void StartShooting();
+  virtual void StopShooting();
 private:
   // Angle in radian between -PI to PI
   double min_angle, max_angle;

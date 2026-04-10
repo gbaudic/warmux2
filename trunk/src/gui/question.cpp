@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -160,7 +160,7 @@ int Question::Ask ()
 void Question::Set (const std::string &pmessage,
                     bool default_active, int default_value,const std::string& bg_sprite)
 {
-  text = new Text(pmessage, white_color, Font::FONT_BIG, Font::FONT_NORMAL);
+  text = new Text(pmessage, white_color, Font::FONT_BIG, Font::FONT_BOLD);
 
   default_choice.active = default_active;
   default_choice.value = default_value;

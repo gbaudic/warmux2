@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ TeamEnergy::TeamEnergy(Team * _team):
   team(_team),
   icon(NULL),
   t_team_energy(new Text("None", black_color,
-                         Font::FONT_SMALL, Font::FONT_NORMAL, false)),
+                         Font::FONT_SMALL, Font::FONT_BOLD, false)),
   dx(0),
   dy(0),
   rank(0),

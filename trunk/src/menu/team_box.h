@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,11 +43,16 @@ class TeamBox : public HBox
   TeamBox operator=(const TeamBox&);
   /**********************************************/
 
-  bool is_local; // local/remote team
   std::string previous_player_name; // only for network
+  std::string ai_name;
+
+  Surface player_local_ai_surf;
+  Surface player_local_human_surf;
+  Surface player_remote_ai_surf;
+  Surface player_remote_human_surf;
 
   Team * associated_team;
-  PictureWidget *team_logo;
+  PictureWidget *team_logo, *player_type;
   Label * team_name;
   TextBox * player_name;
   Button * next_custom_team;
@@ -64,6 +69,8 @@ class TeamBox : public HBox
   TeamBox(const std::string& player_name, const Point2i &size);
 
   void SetTeam(Team& _team, bool read_team_values=false);
+  void SetAIName(const std::string name);
+  void UpdatePlayerType();
   void ClearTeam();
   Team* GetTeam() const;
   CustomTeam *GetCustomTeam();
@@ -77,6 +84,8 @@ class TeamBox : public HBox
 
   Widget* Click(const Point2i &mousePosition, uint button);
   Widget* ClickUp(const Point2i &mousePosition, uint button);
+
+  void SwitchPlayerType();
 };
 
 #endif

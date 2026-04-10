@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "team/macro.h"
 #include "team/team.h"
 #include "tool/resource_manager.h"
+#include "network/randomsync.h"
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -47,7 +48,7 @@ WeaponsList::~WeaponsList()
 
 //-----------------------------------------------------------------------------
 
-WeaponsList::WeaponsList()
+WeaponsList::WeaponsList(const xmlNode* weapons_xml)
 {
   weapons_res_profile = GetResourceManager().LoadXMLProfile( "weapons.xml", false);
   m_weapons_list.push_back(new Bazooka);
@@ -84,37 +85,23 @@ WeaponsList::WeaponsList()
   m_weapons_list.push_back(new Grapple);
   m_weapons_list.push_back(new Blowtorch);
   m_weapons_list.push_back(new Syringe);
-}
-
-//-----------------------------------------------------------------------------
-
-// Static method
-void WeaponsList::LoadXml(const xmlNode* weapons_xml)
-{
-  // to destroy all the already loaded weapons
-  // else some parameters may be not overwritten by the new game mode
-  // cf bug #14231
-  delete singleton;
-  singleton = NULL;
-
-  std::list<Weapon*> l_weapons_list = GetInstance()->GetList();
 
   std::list<Weapon*>::iterator
-    itw = l_weapons_list.begin(),
-    end = l_weapons_list.end();
+    itw = m_weapons_list.begin(),
+    end = m_weapons_list.end();
 
   for (; itw != end ; ++itw) {
     (*itw)->LoadXml(weapons_xml);
   }
 }
 
+
 //-----------------------------------------------------------------------------
 
 void WeaponsList::UpdateTranslation()
 {
-  if (singleton == NULL) return;
-  weapons_list_it it = GetInstance()->m_weapons_list.begin(), end=GetInstance()->m_weapons_list.end();
-  for (; it != end; it++) {
+  weapons_list_it it;
+  for (it = m_weapons_list.begin(); it != m_weapons_list.end(); it++) {
     (*it)->UpdateTranslationStrings();
   }
 }
@@ -176,6 +163,34 @@ bool WeaponsList::GetWeaponBySort(Weapon::category_t sort, Weapon::Weapon_type &
 
   /* we definitly found nothing... */
   return false;
+}
+
+Weapon * WeaponsList::GetRandomWeaponToDrop()
+{
+  std::list<Weapon*>::iterator it;
+  double probability_sum = 0;
+  for (it = m_weapons_list.begin(); it != m_weapons_list.end(); it++) {
+    probability_sum += (*it)->GetDropProbability();
+    it++;
+  }
+  ASSERT(probability_sum > 0);
+
+  MSG_DEBUG("random.get", "WeaponList::GetRandomWeaponToDrop()");
+  double num = RandomSync().GetDouble(0, probability_sum);
+  double total_bf_weapon = 0;
+  double total_after_weapon = 0;
+
+  for (it = m_weapons_list.begin(); it != m_weapons_list.end(); it++) {
+    Weapon * weapon = *it;
+    total_after_weapon = total_bf_weapon + weapon->GetDropProbability();
+    if (total_bf_weapon < num && num <= total_after_weapon) {
+      MSG_DEBUG("bonus","Weapon choosed: %s", weapon->GetName().c_str());
+      return weapon;
+    }
+    total_bf_weapon = total_after_weapon;
+  }
+  ASSERT(false);
+  return NULL;
 }
 
 //-----------------------------------------------------------------------------

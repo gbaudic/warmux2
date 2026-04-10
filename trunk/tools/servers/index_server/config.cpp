@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,15 +17,16 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************/
 
+#include <iostream>
 #include <string>
 #include <fstream>
 #include "config.h"
 
 Config config;
 
-Config::Config() : BasicConfig("wormux_index_server.conf")
+void Config::Load(const std::string & config_file)
 {
-  Load();
+  BasicConfig::Load(config_file);
   SetDefault("port", 9997);
   SetDefault("working_dir", "wormux_log/");
   SetDefault("chroot", true);
@@ -33,5 +34,6 @@ Config::Config() : BasicConfig("wormux_index_server.conf")
   SetDefault("chroot_uid", 500);
   SetDefault("connexion_max", -2);
   SetDefault("local", false);
+  SetDefault("verbose", true);
   Display();
 }

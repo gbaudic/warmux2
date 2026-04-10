@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ private:
 protected:
   bool p_Shoot();
   void Refresh() { };
+  bool ShouldBeDrawn() { return false; };
 
 public:
   Construct();
@@ -49,15 +50,15 @@ public:
   void Draw();
   void ChooseTarget(Point2i mouse_pos);
 
-  virtual void HandleKeyPressed_Down(bool) { Down(); };
-  virtual void HandleKeyPressed_Up(bool) { Up(); };
+  virtual bool IsPreventingWeaponAngleChanges() { return true; };
+  virtual void HandleKeyPressed_Down(bool /*slowly*/) { Down(); };
+  virtual void HandleKeyPressed_Up(bool /*slowly*/) { Up(); };
   virtual void HandleMouseWheelUp(bool) { Up(); };
   virtual void HandleMouseWheelDown(bool) { Down(); };
 
   void SetAngle(double _angle) { angle = _angle; }; // to be used by network
   void UpdateTranslationStrings();
   std::string GetWeaponWinString(const char *TeamName, uint items_count) const;
-  bool IsInUse() const;
   WeaponConfig& cfg();
 };
 

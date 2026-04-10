@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -66,6 +66,9 @@ class IndexServer : public Singleton<IndexServer>
 
   std::string supported_versions;
 
+  // Time of the last "Pong" message sent
+  time_t time_pong;
+
   // Used to avoid race condition between ping (handled by the network thread)
   // and other receive (handled by the main thread)
   SDL_sem* action_sem;
@@ -73,6 +76,8 @@ class IndexServer : public Singleton<IndexServer>
   // Transfer functions
   static void NewMsg(IndexServerMsg msg_id, char* buffer, uint& used);
   static bool SendMsg(WSocket& socket, char* buffer, uint& used);
+
+  bool SendPong();
 
   // Gives the address of a server in the list
   bool GetServerAddress(std::string& address, int& port, uint& nb_tries);
@@ -83,7 +88,11 @@ class IndexServer : public Singleton<IndexServer>
   // Perform a handshake with the server
   connection_state_t HandShake(const std::string& wormux_version);
 
-  bool IsConnected();
+  void __Disconnect();
+
+  void Lock();
+  void Unlock();
+  bool TryLock();
 
 public:
   IndexServer();
@@ -92,6 +101,8 @@ public:
   // Connect/disconnect to a server
   connection_state_t Connect(const std::string& wormux_version);
   void Disconnect();
+
+  bool IsConnected();
 
   // Answers to pings from the server / close connection if distantly closed
   void Refresh(bool nowait = false);
@@ -105,8 +116,9 @@ public:
   // Notify the top server we are hosting a game
   bool SendServerStatus(const std::string& game_name, bool passwd, int port);
 
-  // returns a list with string pairs: first element = hostname/ip, second element = port
-  std::list<GameServerInfo> GetHostList();
+  // returns a list of game servers
+  std::list<GameServerInfo> GetHostList(bool symbolic_name
+					/*make a reverse DNS resolution*/);
 
   const std::string& GetSupportedVersions() const;
 };

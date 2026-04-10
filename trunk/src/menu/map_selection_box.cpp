@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
   AddWidget(map_name_label);
 
   map_author_label = new Label("Author", W_UNDEF, Font::FONT_SMALL,
-			       Font::FONT_NORMAL, dark_gray_color, true, false);
+			       Font::FONT_BOLD, dark_gray_color, true, false);
   AddWidget(map_author_label);
 
   // Load Maps' list

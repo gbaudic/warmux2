@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ Action::Action(const char *buffer, DistantComputer* _creator)
   creator = _creator;
 
   var.clear();
+  buffer += 4; // skip the buffer len
   m_type = (Action_t)SDLNet_Read32(buffer);
   buffer += 4;
   m_timestamp = (uint)SDLNet_Read32(buffer);
@@ -92,29 +93,31 @@ void Action::Init(Action_t type)
   creator = NULL;
 }
 
-void Action::WriteTo(char *os) const
-{
-  SDLNet_Write32(m_type, os);
-  os += 4;
-  SDLNet_Write32(m_timestamp, os);
-  os += 4;
-  uint32_t param_size = (uint32_t)var.size();
-  SDLNet_Write32(param_size, os);
-  os += 4;
-
-  for(std::list<uint32_t>::const_iterator val = var.begin(); val!=var.end(); val++)
-  {
-    SDLNet_Write32(*val, os);
-    os += 4;
-  }
-}
-
 // Convert the action to a packet
 void Action::WriteToPacket(char* &packet, int & size) const
 {
+  char *buffer;
+
   size = GetSize();
-  packet = (char*)malloc(size);
-  WriteTo(packet);
+  buffer = (char*)malloc(size);
+  packet = buffer;
+
+  uint32_t len = size;
+  SDLNet_Write32(len, buffer);
+  buffer += 4;
+  SDLNet_Write32(m_type, buffer);
+  buffer += 4;
+  SDLNet_Write32(m_timestamp, buffer);
+  buffer += 4;
+  uint32_t param_size = (uint32_t)var.size();
+  SDLNet_Write32(param_size, buffer);
+  buffer += 4;
+
+  for(std::list<uint32_t>::const_iterator val = var.begin(); val!=var.end(); val++)
+  {
+    SDLNet_Write32(*val, buffer);
+    buffer += 4;
+  }
 }
 
 //-------------  Add datas to the action  ----------------
@@ -227,7 +230,7 @@ double Action::PopDouble()
 
 std::string Action::PopString()
 {
-  NET_ASSERT(var.size() > 1)
+  NET_ASSERT(var.size() >= 1)
   {
     if(creator) creator->ForceDisconnection();
     return "";
@@ -308,9 +311,10 @@ DistantComputer* Action::GetCreator() const
 
 int Action::GetSize() const
 {
-  return 4  //Size of the type;
-    + 4 //Size of the timestamp
-    + 4 //Size of the number of variable
+  return sizeof(uint32_t)	 // Size of packet len
+    + sizeof(uint32_t)		 // Size of the type
+    + sizeof(uint32_t)		 // Size of the timestamp
+    + sizeof(uint32_t)		 // Size of the number of variable
     + int(var.size()) * 4;
 }
 
@@ -324,4 +328,8 @@ Action::Action_t Action::GetType() const
   return m_type;
 }
 
+bool Action::IsFrameLess() const
+{
+  return m_type <= LAST_FRAME_LESS_ACTION;
+}
 

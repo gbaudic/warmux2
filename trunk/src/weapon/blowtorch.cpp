@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,9 +24,7 @@
 #include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
-#include "character/move.h"
 #include "character/body.h"
-#include "include/action_handler.h"
 #include "map/map.h"
 #include "game/game_mode.h"
 #include "game/time.h"
@@ -48,13 +46,16 @@ class BlowtorchConfig : public WeaponConfig
     uint range;
 };
 
-Blowtorch::Blowtorch() : Weapon(WEAPON_BLOWTORCH, "blowtorch", new BlowtorchConfig())
+Blowtorch::Blowtorch() :
+  Weapon(WEAPON_BLOWTORCH, "blowtorch", new BlowtorchConfig()),
+  active(false)
 {
   UpdateTranslationStrings();
 
   m_category = TOOL;
   m_time_between_each_shot = MIN_TIME_BETWEEN_DIG;
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile, "blowtorch_fire"));
+  m_can_change_weapon = true;
 }
 
 void Blowtorch::UpdateTranslationStrings()
@@ -65,19 +66,7 @@ void Blowtorch::UpdateTranslationStrings()
 
 void Blowtorch::p_Deselect()
 {
-  ActiveCharacter().body->ResetWalk();
-  ActiveCharacter().body->StopWalk();
-  ActiveTeam().AccessNbUnits() = 0;
-}
-
-bool Blowtorch::IsInUse() const
-{
-  return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
-}
-
-void Blowtorch::ActionStopUse()
-{
-  SignalTurnEnd();
+  active = false;
 }
 
 bool Blowtorch::p_Shoot()
@@ -90,26 +79,54 @@ bool Blowtorch::p_Shoot()
   double dy = sin(angle) * h;
 
   Point2i pos = Point2i(hole.x+(int)dx, hole.y+(int)dy);
-  GetWorld().Dig(pos, ActiveCharacter().GetHeight()/2 + 2);
+  double char_height = ActiveCharacter().GetHeight();
+  double char_width = ActiveCharacter().GetWidth();
+  double size = sqrt(char_height * char_height + char_width * char_width)/2;
+  GetWorld().Dig(pos, size);
   JukeBox::GetInstance()->Play("default", "weapon/blowtorch");
-  MoveCharacter(ActiveCharacter());
 
   return true;
 }
 
-void Blowtorch::HandleKeyPressed_Shoot(bool shift)
+void Blowtorch::StartShooting()
 {
-  ActiveCharacter().BeginMovementRL(GameMode::GetInstance()->character.walking_pause);
-  ActiveCharacter().SetRebounding(false);
-  ActiveCharacter().body->StartWalk();
-
-  HandleKeyRefreshed_Shoot(shift);
+  if (active) {
+     active = false;
+     ActiveTeam().AccessNbUnits() = 0;
+  } else {
+    if (EnoughAmmo())
+      active = true;
+  }
 }
 
-void Blowtorch::HandleKeyRefreshed_Shoot(bool)
+void Blowtorch::StopShooting()
 {
-  if (EnoughAmmoUnit()) {
-    Weapon::RepeatShoot();
+  // ignore
+}
+
+bool Blowtorch::ShouldAmmoUnitsBeDrawn() const
+{
+  return active;
+}
+
+bool Blowtorch::IsPreventingJumps()
+{
+  return active;
+}
+
+void Blowtorch::Refresh()
+{
+  if (active) {
+    const LRMoveIntention * lr_move_intention = ActiveCharacter().GetLastLRMoveIntention();
+    if (lr_move_intention && EnoughAmmoUnit()) {
+      Weapon::RepeatShoot();
+    }
+  }
+  if (!EnoughAmmoUnit()) {
+    active = false;
+    if (EnoughAmmo()) {
+      ActiveTeam().ResetNbUnits();
+    }
   }
 }
 

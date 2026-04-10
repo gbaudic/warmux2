@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,7 +49,6 @@ GameClassic::GameClassic()
 
 void GameClassic::EndOfGame()
 {
-  Network::GetInstance()->SetTurnMaster(true);
   SetState(END_TURN);
   duration = GameMode::GetInstance()->duration_exchange_player + 2;
   GameMessages::GetInstance()->Add (_("And the winner is..."));
@@ -62,12 +61,10 @@ void GameClassic::EndOfGame()
 void GameClassic::RefreshClock()
 {
   Time * global_time = Time::GetInstance();
-  if (global_time->IsGamePaused()) return;
-  global_time->Refresh();
 
-  if (1000 < global_time->Read() - pause_seconde)
+  if (1000 < global_time->Read() - last_clock_update)
     {
-      pause_seconde = global_time->Read();
+      last_clock_update = global_time->Read();
 
       switch (state) {
 
@@ -86,9 +83,9 @@ void GameClassic::RefreshClock()
 	    countdown_sample.Play("default", "countdown-end_turn");
 	  }
 	  if (duration > 10) {
-	    Interface::GetInstance()->UpdateTimer(duration, black_color);
+	    Interface::GetInstance()->UpdateTimer(duration, false, false);
 	  } else {
-	    Interface::GetInstance()->UpdateTimer(duration, primary_red_color);
+	    Interface::GetInstance()->UpdateTimer(duration, true, false);
 	  }
         }
         break;
@@ -98,7 +95,7 @@ void GameClassic::RefreshClock()
           SetState(END_TURN);
         } else {
           duration--;
-          Interface::GetInstance()->UpdateTimer(duration);
+          Interface::GetInstance()->UpdateTimer(duration, false, false);
         }
         break;
 
@@ -117,7 +114,7 @@ void GameClassic::RefreshClock()
             break;
           }
 
-          if (Network::GetInstance()->IsTurnMaster() && give_objbox && GetWorld().IsOpen()) {
+          if (give_objbox && GetWorld().IsOpen()) {
             NewBox();
             give_objbox = false;
             break;
@@ -146,12 +143,11 @@ void GameClassic::__SetState_PLAYING()
 
   // initialize counter
   duration = GameMode::GetInstance()->duration_turn;
-  Interface::GetInstance()->UpdateTimer(duration);
+  Interface::GetInstance()->UpdateTimer(duration, false, true);
   Interface::GetInstance()->EnableDisplayTimer(true);
-  pause_seconde = Time::GetInstance()->Read();
+  last_clock_update = Time::GetInstance()->Read();
 
-  if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal())
-    Wind::GetRef().ChooseRandomVal();
+  Wind::GetRef().ChooseRandomVal();
 
   SetCharacterChosen(false);
 
@@ -161,17 +157,7 @@ void GameClassic::__SetState_PLAYING()
 
   // Select the next team
   ASSERT (!IsGameFinished());
-
-  if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal()) {
-
-    GetTeamsList().NextTeam();
-
-    // Are we turn master for next turn ?
-    if (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
-      Network::GetInstance()->SetTurnMaster(true);
-    else
-      Network::GetInstance()->SetTurnMaster(false);
-  }
+  GetTeamsList().NextTeam();
 
   give_objbox = true; //hack: make it so that there is no more than one objbox per turn
 }
@@ -180,8 +166,8 @@ void GameClassic::__SetState_HAS_PLAYED()
 {
   MSG_DEBUG("game.statechange", "Has played, now can move");
   duration = GameMode::GetInstance()->duration_move_player;
-  pause_seconde = Time::GetInstance()->Read();
-  Interface::GetInstance()->UpdateTimer(duration);
+  last_clock_update = Time::GetInstance()->Read();
+  Interface::GetInstance()->UpdateTimer(duration, false, true);
   CharacterCursor::GetInstance()->Hide();
 }
 
@@ -193,9 +179,9 @@ void GameClassic::__SetState_END_TURN()
   ActiveTeam().AccessWeapon().Deselect();
   CharacterCursor::GetInstance()->Hide();
   duration = GameMode::GetInstance()->duration_exchange_player;
-  Interface::GetInstance()->UpdateTimer(duration);
+  Interface::GetInstance()->UpdateTimer(duration, false, true);
   Interface::GetInstance()->EnableDisplayTimer(false);
-  pause_seconde = Time::GetInstance()->Read();
+  last_clock_update = Time::GetInstance()->Read();
 
   // Applying Disease damage and Death mode.
   ApplyDiseaseDamage();

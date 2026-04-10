@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,8 +39,6 @@ protected:
   virtual void p_Deselect();
 public:
   SubMachineGun();
-
-  virtual bool IsInUse() const;
 
   virtual void UpdateTranslationStrings();
   virtual std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;

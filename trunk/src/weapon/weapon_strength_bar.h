@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,14 +30,15 @@ class WeaponStrengthBar : public ProgressBar
  public:
   WeaponStrengthBar();
   ~WeaponStrengthBar();
-  virtual void DrawXY(const Point2i &pos) const;
+  virtual void DrawXY(const Point2i &pos);
   virtual void InitPos (uint x, uint y, uint larg, uint haut);
   Color ComputeValueColor(long val) const;
-  bool visible ;
  private:
+  bool visible ;
   DecoratedBox * m_box;
   Sprite *last_fire;
   PolygonItem * m_item_last_fire;
+  void FetchData();
 } ;
 
 #endif // WEAPON_STRENGTH_BAR_H

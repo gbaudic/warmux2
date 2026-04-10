@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,53 +37,24 @@ private:
 
 public:
   TuxLauncher();
-  virtual bool IsInUse() const;
 
   virtual void UpdateTranslationStrings();
   virtual std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
 
   virtual void SignalEndOfProjectile();
 
-  // Key Shoot management
-  virtual void HandleKeyPressed_Shoot(bool shift);
-  virtual void HandleKeyRefreshed_Shoot(bool shift);
-  virtual void HandleKeyReleased_Shoot(bool shift);
+  void StartShooting();
+  void StopShooting();
 
-  virtual void HandleKeyPressed_MoveRight(bool shift);
-  virtual void HandleKeyRefreshed_MoveRight(bool shift);
-  virtual void HandleKeyReleased_MoveRight(bool shift);
-
-  virtual void HandleKeyPressed_MoveLeft(bool shift);
-  virtual void HandleKeyRefreshed_MoveLeft(bool shift);
-  virtual void HandleKeyReleased_MoveLeft(bool shift);
-
-  virtual void HandleKeyPressed_Up(bool shift);
-  virtual void HandleKeyRefreshed_Up(bool shift);
-  virtual void HandleKeyReleased_Up(bool shift);
-
-  virtual void HandleKeyPressed_Down(bool shift);
-  virtual void HandleKeyRefreshed_Down(bool shift);
-  virtual void HandleKeyReleased_Down(bool shift);
-
-  virtual void HandleKeyPressed_Jump(bool shift);
-  virtual void HandleKeyRefreshed_Jump(bool shift);
-  virtual void HandleKeyReleased_Jump(bool shift);
-
-  virtual void HandleKeyPressed_HighJump(bool shift);
-  virtual void HandleKeyRefreshed_HighJump(bool shift);
-  virtual void HandleKeyReleased_HighJump(bool shift);
-
-  virtual void HandleKeyPressed_BackJump(bool shift);
-  virtual void HandleKeyRefreshed_BackJump(bool shift);
-  virtual void HandleKeyReleased_BackJump(bool shift);
-
-  void RefreshFromNetwork(double angle, Point2d pos);
-  void ExplosionFromNetwork(Point2d tux_pos);
+  virtual bool IsPreventingLRMovement();
+  virtual bool IsPreventingJumps();
+  virtual bool IsPreventingWeaponAngleChanges();
 
 protected:
   WeaponProjectile * GetProjectileInstance();
   virtual bool p_Shoot();
   virtual void Refresh();
+  virtual bool ShouldBeDrawn();
 private:
   SuperTuxWeaponConfig& cfg();
 };

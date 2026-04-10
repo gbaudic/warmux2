@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ Grenade::Grenade(ExplosiveWeaponConfig& cfg,
 {
   m_rebound_sound = "weapon/grenade_bounce";
   explode_with_collision = false;
+  explode_with_timeout = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -61,7 +62,7 @@ void Grenade::SignalOutOfMap()
 //-----------------------------------------------------------------------------
 
 GrenadeLauncher::GrenadeLauncher() :
-  WeaponLauncher(WEAPON_GRENADE, "grenade", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+  WeaponLauncher(WEAPON_GRENADE, "grenade", new ExplosiveWeaponConfig())
 {
   UpdateTranslationStrings();
 

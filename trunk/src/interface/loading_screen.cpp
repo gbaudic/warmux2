@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,8 @@
 #include "graphic/video.h"
 #include "tool/resource_manager.h"
 
-LoadingScreen::LoadingScreen()
+LoadingScreen::LoadingScreen(int icon_count):
+  icon_count(icon_count)
 {
   // Get the background image
   Config * config = Config::GetInstance();
@@ -36,7 +37,7 @@ LoadingScreen::LoadingScreen()
   loading_bg = new Sprite(Surface((
                                    config->GetDataDir()
                                    + "menu" + PATH_SEPARATOR
-                                   + "loading.png").c_str()),
+                                   + "background_loading.jpg").c_str()),
 			  true);
   loading_bg->cache.EnableLastFrameCache();
   loading_bg->ScaleSize(app->video->window.GetWidth(), app->video->window.GetHeight());
@@ -62,10 +63,11 @@ void LoadingScreen::DrawBackground()
 void LoadingScreen::StartLoading(uint nb, const std::string& resource,
                                  const std::string& label) const
 {
+  int index = nb-1;
   const Surface& image = GetResourceManager().LoadImage(res, "loading_screen/"+resource);
 
   int slot_margin_x = (120/2 - image.GetWidth()/2);
-  int x = (GetMainWindow().GetWidth()/2)- (3*120) + nb*120;
+  int x = ((GetMainWindow().GetWidth() - icon_count*120)/2)+ index*120;
   int y = (GetMainWindow().GetHeight()/2)+40;
 
   Rectanglei dest ( x+slot_margin_x,

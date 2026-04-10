@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include "include/action_handler.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
-#include "network/network.h"
 #include "object/physical_obj.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
@@ -49,15 +48,14 @@ class ParachuteConfig : public WeaponConfig
 };
 
 
-Parachute::Parachute() : Weapon(WEAPON_PARACHUTE, "parachute", new ParachuteConfig(), NEVER_VISIBLE)
+Parachute::Parachute() : Weapon(WEAPON_PARACHUTE, "parachute", new ParachuteConfig(), false)
 {
   UpdateTranslationStrings();
 
   m_category = MOVE;
   m_initial_nb_ammo = 2;
-  m_x_strength.x_extern = 0.0;
-  m_x_strength.changing = false;
   use_unit_on_first_shoot = false;
+  m_used_this_turn = false;
   img = GetResourceManager().LoadSprite(weapons_res_profile, "parachute_sprite");
 }
 
@@ -78,7 +76,6 @@ void Parachute::p_Select()
 {
   open = false;
   closing = false;
-  m_x_strength.changing = false;
   img->animation.SetShowOnFinish(SpriteAnimation::show_last_frame);
 }
 
@@ -88,14 +85,9 @@ void Parachute::p_Deselect()
   ActiveCharacter().SetMovement("breathe");
 }
 
-bool Parachute::IsInUse() const
-{
-  return Game::GetInstance()->GetRemainingTime() > 0 &&
-         Game::GetInstance()->ReadState() == Game::PLAYING;
-}
-
 bool Parachute::p_Shoot()
 {
+  m_used_this_turn = false;
   GameMessages::GetInstance()->Add(_("The parachute is activated automatically."));
   return false;
 }
@@ -104,12 +96,21 @@ void Parachute::Draw()
 {
   if(open) {
     img->Update();
-    img->Draw(ActiveCharacter().GetHandPosition() - Point2i(img->GetWidth()/2,img->GetHeight()));
+    Point2i position;
+    ActiveCharacter().GetHandPosition(position);
+    position.x -= img->GetWidth()/2;
+    position.y -= img->GetHeight();
+    img->Draw(position);
   }
 }
 
 void Parachute::Refresh()
 {
+  if (Game::GetInstance()->GetRemainingTime() <= 0)
+    return;
+  if (Game::GetInstance()->ReadState() != Game::PLAYING)
+    return;
+
   double speed;
   double angle;
 
@@ -118,7 +119,12 @@ void Parachute::Refresh()
   if(ActiveCharacter().FootsInVacuum() && speed != 0.0) { // We are falling
     if(!open && (speed > GameMode::GetInstance()->safe_fall)) { // with a sufficient speed
       if(EnoughAmmo()) { // We have enough ammo => start opening the parachute
-        UseAmmo();
+        if(!m_used_this_turn)
+        {
+          UseAmmo();
+          m_used_this_turn = true;
+        }
+        
         ActiveCharacter().SetAirResistFactor(cfg().air_resist_factor);
         ActiveCharacter().SetWindFactor(cfg().wind_factor);
         open = true;
@@ -148,12 +154,18 @@ void Parachute::Refresh()
       }
     }
   }
-  // If parachute is open => character can move a little to the left or to the right
-  if (open && Network::GetInstance()->IsTurnMaster()) {
-    ActiveCharacter().SetExternForce(m_x_strength.x_extern, 0.0);
-    if (m_x_strength.changing) {
-      m_x_strength.changing = false;
-      SendActiveCharacterInfo(false);
+  if (open) {
+    ActiveCharacter().UpdateLastMovingTime();
+
+    // If parachute is open => character can move a little to the left or to the right
+    const LRMoveIntention * lr_move_intention = ActiveCharacter().GetLastLRMoveIntention();
+    if (lr_move_intention) {
+      LRDirection direction = lr_move_intention->GetDirection();
+      ActiveCharacter().SetDirection(direction);
+      if (direction == DIRECTION_LEFT)
+        ActiveCharacter().SetExternForce(-cfg().force_side_displacement, 0.0);
+      else
+        ActiveCharacter().SetExternForce(cfg().force_side_displacement, 0.0);
     }
   }
 }
@@ -166,7 +178,7 @@ std::string Parachute::GetWeaponWinString(const char *TeamName, uint items_count
             items_count), TeamName, items_count);
 }
 
-void Parachute::HandleKeyPressed_Shoot(bool shift)
+void Parachute::StartShooting()
 {
   if (open) {
     img->Finish();
@@ -174,57 +186,7 @@ void Parachute::HandleKeyPressed_Shoot(bool shift)
     closing = false;
     UseAmmoUnit();
   } else {
-    Weapon::HandleKeyPressed_Shoot(shift);
-  }
-}
-
-void Parachute::HandleKeyPressed_MoveRight(bool shift)
-{
-  if (closing) {
-    ActiveCharacter().BeginMovementRL(0);
-  }
-
-  if (open) {
-    ActiveCharacter().SetDirection(DIRECTION_RIGHT);
-    m_x_strength.x_extern = cfg().force_side_displacement;
-    m_x_strength.changing = true;
-  } else {
-    Weapon::HandleKeyPressed_MoveRight(shift);
-  }
-}
-
-void Parachute::HandleKeyReleased_MoveRight(bool shift)
-{
-  if (open) {
-    m_x_strength.x_extern = 0.0;
-    m_x_strength.changing = true;
-  } else {
-    Weapon::HandleKeyReleased_MoveRight(shift);
-  }
-}
-
-void Parachute::HandleKeyPressed_MoveLeft(bool shift)
-{
-  if (closing) {
-    ActiveCharacter().BeginMovementRL(0);
-  }
-
-  if (open) {
-    ActiveCharacter().SetDirection(DIRECTION_LEFT);
-    m_x_strength.x_extern = -cfg().force_side_displacement;
-    m_x_strength.changing = true;
-  } else {
-    Weapon::HandleKeyPressed_MoveLeft(shift);
-  }
-}
-
-void Parachute::HandleKeyReleased_MoveLeft(bool shift)
-{
-  if (open) {
-    m_x_strength.x_extern = 0.0;
-    m_x_strength.changing = true;
-  } else {
-    Weapon::HandleKeyReleased_MoveLeft(shift);
+    Weapon::StartShooting();
   }
 }
 

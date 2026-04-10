@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
  * A team
  *****************************************************************************/
 
+#include "ai/ai_stupid_player.h"
 #include "team/team.h"
 #include "team/teams_list.h"
 #include "character/character.h"
@@ -46,7 +47,7 @@
 
 
 Team::Team (const std::string& teams_dir, const std::string& id)
-  : energy(this), m_teams_dir(teams_dir), m_id(id)
+  : energy(this), m_teams_dir(teams_dir), m_id(id), ai(NULL), ai_name(NO_AI_NAME), remote(false), abandoned(false)
 {
   std::string nomfich;
   XmlReader   doc;
@@ -80,13 +81,12 @@ Team::Team (const std::string& teams_dir, const std::string& id)
   m_player_name = "";
 
   nb_characters = GameMode::GetInstance()->nb_characters;
-
-  type_of_player = TEAM_human_local;
 }
 
 bool Team::LoadCharacters()
 {
-  ASSERT (nb_characters <= 10);
+  ASSERT(characters.size() == 0);
+  ASSERT(nb_characters <= 10);
 
   std::string nomfich = m_teams_dir+m_id+ PATH_SEPARATOR "team.xml";
   // Load XML
@@ -101,7 +101,6 @@ bool Team::LoadCharacters()
   xmlNodeArray nodes = XmlReader::GetNamedChildren(XmlReader::GetMarker(doc.GetRoot(), "team"), "character");
   xmlNodeArray::const_iterator it = nodes.begin();
 
-  characters.clear();
   active_character = characters.end();
   do
   {
@@ -123,7 +122,7 @@ bool Team::LoadCharacters()
 
     // Create a new character and add him to the team
     Character new_character(*this, character_name, body);
-    if((attached_custom_team != NULL) && (IsLocal()) && !Network::IsConnected())
+    if((attached_custom_team != NULL) && (IsLocalHuman()) && !Network::IsConnected())
     {
       new_character.SetCustomName(attached_custom_team->GetCharactersNameList().at(characters.size()));
     }
@@ -269,7 +268,7 @@ void Team::PrepareTurn()
   CharacterCursor::GetInstance()->FollowActiveCharacter();
 
   // Updating weapon ammos (some weapons are not available from the beginning)
-  std::list<Weapon *> l_weapons_list = WeaponsList::GetInstance()->GetList() ;
+  std::list<Weapon *> l_weapons_list = weapons_list->GetList() ;
   std::list<Weapon *>::iterator itw = l_weapons_list.begin(),
   end = l_weapons_list.end();
   for (; itw != end ; ++itw) {
@@ -284,13 +283,15 @@ void Team::PrepareTurn()
   if (AccessWeapon().EnoughAmmo())
     AccessWeapon().Select();
   else { // try to find another weapon !!
-    active_weapon = WeaponsList::GetInstance()->GetWeapon(Weapon::WEAPON_BAZOOKA);
+    active_weapon = weapons_list->GetWeapon(Weapon::WEAPON_BAZOOKA);
     AccessWeapon().Select();
   }
 
   // Sound the bell, so the local players know when it is their turn
-  if (IsLocal())
+  if (IsLocalHuman())
     JukeBox::GetInstance()->Play("default", "start_turn");
+  if (ai != NULL)
+    ai->PrepareTurn();
 }
 
 Character& Team::ActiveCharacter() const
@@ -301,9 +302,9 @@ Character& Team::ActiveCharacter() const
 void Team::SetWeapon (Weapon::Weapon_type type)
 {
 
-  ASSERT (type >= Weapon::WEAPON_FIRST && type <= Weapon::WEAPON_LAST);
+  ASSERT (type >= Weapon::FIRST && type <= Weapon::LAST);
   AccessWeapon().Deselect();
-  active_weapon = WeaponsList::GetInstance()->GetWeapon(type);
+  active_weapon = weapons_list->GetWeapon(type);
   AccessWeapon().Select();
 }
 
@@ -362,14 +363,15 @@ Character* Team::FindByIndex(uint index)
   return &(*it);
 }
 
-void Team::LoadGamingData()
+void Team::LoadGamingData(WeaponsList * weapons)
 {
+  weapons_list = weapons;
   current_turn = 0;
 
   // Reset ammos
   m_nb_ammos.clear();
   m_nb_units.clear();
-  std::list<Weapon *> l_weapons_list = WeaponsList::GetInstance()->GetList() ;
+  std::list<Weapon *> l_weapons_list = weapons_list->GetList() ;
   std::list<Weapon *>::iterator itw = l_weapons_list.begin(),
   end = l_weapons_list.end();
 
@@ -394,8 +396,9 @@ void Team::LoadGamingData()
     //m_nb_ammos[ Weapon::WEAPON_GRAPPLE ] = 0;
   }
 
-  active_weapon = WeaponsList::GetInstance()->GetWeapon(Weapon::WEAPON_DYNAMITE);
+  active_weapon = weapons_list->GetWeapon(Weapon::WEAPON_DYNAMITE);
 
+  abandoned = false;
   LoadCharacters();
 }
 
@@ -403,6 +406,20 @@ void Team::UnloadGamingData()
 {
   // Clear list of characters
   characters.clear();
+  if (ai) {
+    delete ai;
+    ai = NULL;
+  }
+  weapons_list = NULL;
+}
+
+void Team::LoadAI()
+{
+  ASSERT(IsLocalAI());
+  if (ai) {
+    delete ai;
+  }
+  ai = new AIStupidPlayer(this);
 }
 
 void Team::SetNbCharacters(uint howmany)
@@ -421,6 +438,12 @@ void Team::Refresh()
   energy.Refresh();
 }
 
+void Team::RefreshAI()
+{
+  if (ai != NULL)
+    ai->Refresh();
+}
+
 Weapon& Team::AccessWeapon() const { return *active_weapon; }
 const Weapon& Team::GetWeapon() const { return *active_weapon; }
 Weapon::Weapon_type Team::GetWeaponType() const { return GetWeapon().GetType(); }
@@ -437,9 +460,10 @@ bool Team::IsActiveTeam() const
 
 void Team::SetDefaultPlayingConfig()
 {
-  SetLocal();
+  SetRemote(false);
   SetPlayerName("");
   SetNbCharacters(GameMode::GetInstance()->nb_characters);
+  SetAIName(NO_AI_NAME);
 }
 
 void Team::AttachCustomTeam(CustomTeam *custom_team)

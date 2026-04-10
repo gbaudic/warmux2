@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -63,5 +63,7 @@ int SDLNet_TCP_Send_noBlocking(TCPsocket sock, const void *datap, int len);
  * of data. (The maximum seems to be 8192)
  */
 int SDLNet_TCP_NbBytesAvailable(TCPsocket sock);
+
+const char * SDLNet_TryToResolveIP(IPaddress *ip);
 
 #endif

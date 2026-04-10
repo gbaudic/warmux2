@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <WSERVER_clock.h>
+#include <WSERVER_config.h>
 
 #define ALL        0
 #define TRAFFIC    1
@@ -34,38 +35,30 @@
 
 #define LOG_LEVEL    TRAFFIC
 
+#define DPRINTMSG(STREAM, ARGS...)					\
+  {									\
+  fprintf(STREAM, "%s %s| %18s,%4i : ", BasicClock::DateStr(),		\
+          BasicClock::TimeStr(),__FILE__,__LINE__);			\
+  fprintf(STREAM, ARGS);						\
+  fprintf(STREAM,"\n");							\
+  }									\
 
-#ifdef DEBUG
 #define DPRINT(LEVEL, ARGS...)                                          \
   {                                                                     \
-    if((LEVEL) >= LOG_LEVEL )                                           \
-      {                                                                 \
-        printf("%s %s| %18s,%4i : ", BasicClock::DateStr(), BasicClock::TimeStr(),__FILE__,__LINE__); \
-        printf(ARGS);                                                   \
-        printf("\n");                                                   \
-      }                                                                 \
-  }
-#else
-#define DPRINT(LEVEL, ARGS...)                                          \
-  {                                                                     \
-    if((LEVEL) >= LOG_LEVEL )                                           \
-      {                                                                 \
-        printf("%s %s : ", BasicClock::DateStr(), BasicClock::TimeStr()); \
-        printf(ARGS);                                                   \
-        printf("\n");                                                   \
-      }                                                                 \
-  }
-#endif
-
-#define TELL_ERROR         \
-  {                        \
-    PRINT_ERROR;           \
-    exit(1);               \
+    if (WSERVER_Verbose)                                                \
+      if((LEVEL) >= LOG_LEVEL )                                         \
+        DPRINTMSG(stdout, ARGS);						\
   }
 
-#define PRINT_ERROR                    \
-  {                                    \
-    DPRINT(INFO , "%10s,%3i : ERROR! %s",__FILE__,__LINE__, strerror(errno)); \
+#define PRINT_FATAL_ERROR						\
+  {									\
+    PRINT_ERROR;							\
+    exit(EXIT_FAILURE);								\
+  }
+
+#define PRINT_ERROR							\
+  {									\
+    DPRINTMSG(stderr, "ERROR: %s", strerror(errno));			\
   }
 
 

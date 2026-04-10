@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@ class ExplosiveWeaponConfig;
 
 class WeaponProjectile : public PhysicalObj
 {
+  private:
+    uint timeout_start;
   protected:
     Sprite *image;
     bool explode_colliding_character; // before timeout.
@@ -38,13 +40,10 @@ class WeaponProjectile : public PhysicalObj
     bool explode_with_collision;
     bool can_drown;
     bool camera_follow_closely;
-    uint begin_time;
 
     ExplosiveWeaponConfig& cfg;
 
   public:
-    Character* dernier_ver_touche;
-    PhysicalObj* dernier_obj_touche;
     WeaponLauncher * launcher;
     int m_timeout_modifier;
 
@@ -68,6 +67,8 @@ class WeaponProjectile : public PhysicalObj
     void ResetTimeOut() { m_timeout_modifier = 0; };
     bool change_timeout_allowed() const;
   protected:
+    void StartTimeout();
+    uint GetMSSinceTimeoutStart() const;
     void Collision();
 
     virtual void SignalGroundCollision(const Point2d& speed_before);
@@ -126,16 +127,20 @@ class WeaponLauncher : public Weapon
     virtual void p_Select();
     virtual WeaponProjectile * GetProjectileInstance() = 0;
     virtual bool ReloadLauncher();
-    virtual void Refresh() { };
   private:
     void DirectExplosion();
-    void NetworkSetTimeoutProjectile() const;
+    void SetTimeoutForAllPlayers(int timeout);
   public:
     WeaponLauncher(Weapon_type type,
                    const std::string &id,
                    EmptyWeaponConfig * params,
-                   weapon_visibility_t visibility = ALWAYS_VISIBLE);
+                   bool drawable = true);
     virtual ~WeaponLauncher();
+
+    // Methods to access data of the projectile
+    int GetDamage();
+    double GetWindFactor();
+    double GetMass();
 
     virtual void Draw();
 
@@ -157,28 +162,31 @@ class WeaponLauncher : public Weapon
     // Signal a projectile timeout (for exemple: grenade, disco grenade ... etc.)
     virtual void SignalProjectileTimeout() { SignalEndOfProjectile(); };
 
+    void SetTimeout(int timeout);
+    int GetTimeout();
+
     // Keep the total amount of active projectile
     void IncActiveProjectile() { ++nb_active_projectile; };
     void DecActiveProjectile() { --nb_active_projectile; };
 
     virtual void IncMissedShots();
-    virtual bool IsInUse() const;
+
     // Handle mouse events
     virtual void HandleMouseWheelUp(bool shift);
     virtual void HandleMouseWheelDown(bool shift);
 
     // Handle special keys
-    virtual void HandleKeyReleased_Num1(bool shift);
-    virtual void HandleKeyReleased_Num2(bool shift);
-    virtual void HandleKeyReleased_Num3(bool shift);
-    virtual void HandleKeyReleased_Num4(bool shift);
-    virtual void HandleKeyReleased_Num5(bool shift);
-    virtual void HandleKeyReleased_Num6(bool shift);
-    virtual void HandleKeyReleased_Num7(bool shift);
-    virtual void HandleKeyReleased_Num8(bool shift);
-    virtual void HandleKeyReleased_Num9(bool shift);
-    virtual void HandleKeyReleased_Less(bool shift);
-    virtual void HandleKeyReleased_More(bool shift);
+    virtual void HandleKeyReleased_Num1();
+    virtual void HandleKeyReleased_Num2();
+    virtual void HandleKeyReleased_Num3();
+    virtual void HandleKeyReleased_Num4();
+    virtual void HandleKeyReleased_Num5();
+    virtual void HandleKeyReleased_Num6();
+    virtual void HandleKeyReleased_Num7();
+    virtual void HandleKeyReleased_Num8();
+    virtual void HandleKeyReleased_Num9();
+    virtual void HandleKeyReleased_Less();
+    virtual void HandleKeyReleased_More();
 
     WeaponProjectile* GetProjectile() { return projectile; };
     ExplosiveWeaponConfig& cfg();

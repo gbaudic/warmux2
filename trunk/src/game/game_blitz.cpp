@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -44,7 +44,6 @@ GameBlitz::GameBlitz()
 
 void GameBlitz::EndOfGame()
 {
-  Network::GetInstance()->SetTurnMaster(true);
   SetState(END_TURN);
   GameMessages::GetInstance()->Add (_("And the winner is..."));
 
@@ -88,11 +87,9 @@ bool GameBlitz::Run()
 void GameBlitz::RefreshClock()
 {
   Time * global_time = Time::GetInstance();
-  if (global_time->IsGamePaused()) return;
-  global_time->Refresh();
 
-  if (1000 < global_time->Read() - pause_seconde) {
-    pause_seconde = global_time->Read();
+  if (1000 < global_time->Read() - last_clock_update) {
+    last_clock_update = global_time->Read();
 
     if (counter) {
       counter--;
@@ -110,10 +107,16 @@ void GameBlitz::RefreshClock()
           SetState(END_TURN);
         } else {
           duration--;
-          Interface::GetInstance()->UpdateTimer(duration);
-          if (duration <= 10) {
-            JukeBox::GetInstance()->Play("default", "time/bip");
-          }
+
+	  if (duration == 12) {
+	    countdown_sample.Play("default", "countdown-end_turn");
+	  }
+
+	  if (duration > 10) {
+	    Interface::GetInstance()->UpdateTimer(duration, false, false);
+	  } else {
+	    Interface::GetInstance()->UpdateTimer(duration, true, false);
+	  }
         }
         break;
 
@@ -122,7 +125,7 @@ void GameBlitz::RefreshClock()
           cur = KillTeam(cur);
         } else {
           duration--;
-          Interface::GetInstance()->UpdateTimer(duration);
+          Interface::GetInstance()->UpdateTimer(duration, false, false);
         }
         SetState(END_TURN);
         break;
@@ -136,7 +139,7 @@ void GameBlitz::RefreshClock()
         if (IsGameFinished())
           break;
 
-        if (Network::GetInstance()->IsTurnMaster() && give_objbox && GetWorld().IsOpen()) {
+        if (give_objbox && GetWorld().IsOpen()) {
           NewBox();
           give_objbox = false;
           break;
@@ -163,8 +166,7 @@ void GameBlitz::__SetState_PLAYING()
 {
   MSG_DEBUG("game.statechange", "Playing" );
 
-  if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal())
-    Wind::GetRef().ChooseRandomVal();
+  Wind::GetRef().ChooseRandomVal();
 
   SetCharacterChosen(false);
 
@@ -174,22 +176,12 @@ void GameBlitz::__SetState_PLAYING()
 
   // Select the next team
   ASSERT (!IsGameFinished());
-
-  if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal()) {
-
-    GetTeamsList().NextTeam();
-
-    // Are we turn master for next turn ?
-    if (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
-      Network::GetInstance()->SetTurnMaster(true);
-    else
-      Network::GetInstance()->SetTurnMaster(false);
-  }
+  GetTeamsList().NextTeam();
 
   // initialize counter
-  Interface::GetInstance()->UpdateTimer(GetCurrentTeam()->second);
+  Interface::GetInstance()->UpdateTimer(GetCurrentTeam()->second, false, true);
   Interface::GetInstance()->EnableDisplayTimer(true);
-  pause_seconde = Time::GetInstance()->Read();
+  last_clock_update = Time::GetInstance()->Read();
 
   give_objbox = true; //hack: make it so that no more than one objbox per turn
 }
@@ -197,7 +189,7 @@ void GameBlitz::__SetState_PLAYING()
 void GameBlitz::__SetState_HAS_PLAYED()
 {
   MSG_DEBUG("game.statechange", "Has played, now can move");
-  pause_seconde = Time::GetInstance()->Read();
+  last_clock_update = Time::GetInstance()->Read();
   CharacterCursor::GetInstance()->Hide();
 }
 
@@ -207,7 +199,9 @@ void GameBlitz::__SetState_END_TURN()
   ActiveTeam().AccessWeapon().SignalTurnEnd();
   ActiveTeam().AccessWeapon().Deselect();
   CharacterCursor::GetInstance()->Hide();
-  pause_seconde = Time::GetInstance()->Read();
+  last_clock_update = Time::GetInstance()->Read();
+  // Ensure the clock sprite isn't NULL:
+  Interface::GetInstance()->UpdateTimer(0, false, true);
 
   // Applying Disease damage and Death mode.
   ApplyDiseaseDamage();

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <map>
 #include <vector>
 #include <WORMUX_point.h>
+#include "character/body.h"
 
 typedef std::vector<Point2f> v_attached;
 
@@ -38,49 +39,53 @@ class Member
 {
 private:
   /* If you need this, implement it (correctly) */
-  Member operator=(const Member&);
+  Member operator = (const Member &);
   /**********************************************/
 
   Member* parent;
-  double angle_rad;
-  float alpha;
-  bool go_through_ground;
+  double  angle_rad;
+  float   alpha;
+  bool    go_through_ground;
   std::map<std::string, v_attached> attached_members;
   Point2f pos;
   Point2f scale;
 
 protected:
-  Sprite* spr;
-
+  Sprite*     spr;
   std::string name;
   std::string type;
-
-  Point2f anchor;
+  Point2f     anchor;
 
 public:
 
   virtual ~Member();
-  Member(const xmlNode* xml, const std::string& main_folder);
-  Member(const Member& m);
+  Member(const xmlNode *     xml, 
+         const std::string & main_folder);
+  Member(const Member & m);
 
-  virtual void Draw(const Point2i & _pos, int flip_x, int direction);
+  virtual void Draw(const Point2i & _pos, 
+                    int             flip_x, 
+                    LRDirection   direction);
 
   void RotateSprite();
   void ResetMovement();
   void ApplySqueleton(Member* parent_member);
-  void ApplyMovement(const member_mvt& mvt, std::vector<class c_junction>& skel_lst);
-  void SetAngle(const double &angle);
-  void SetPos(const Point2f &pos);
+  void ApplyMovement(const member_mvt &                mvt, 
+                     std::vector<class c_junction *> & skel_lst);
+  void SetAngle(const double & angle);
+  void RefreshSprite(LRDirection direction);
 
-  const Sprite& GetSprite() const;
+  void SetPos(const Point2f & pos);
+
+  const Sprite & GetSprite() const;
 
   const Point2i GetPos() const;
-  const Point2f& GetPosFloat() const;
+  const Point2f & GetPosFloat() const;
 
   const Point2i GetAnchorPos() const;
 
-  const std::string& GetName() const;
-  const std::string& GetType() const;
+  const std::string & GetName() const;
+  const std::string & GetType() const;
 
   bool IsGoingThroughGround() const;
 
@@ -90,9 +95,10 @@ public:
 class WeaponMember : public Member
 {
 public:
-  WeaponMember();
-  ~WeaponMember();
-  void Draw(const Point2i & _pos, int flip_x, int direction);
+  WeaponMember(void);
+  void Draw(const Point2i & _pos, 
+            int             flip_x, 
+            LRDirection   direction);
 };
 
 #endif //MEMBER_H

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@ class NetworkMenu : public Menu
 
   /* Options controllers */
   Label* mode_label;
-  SpinButton* player_number;
   Label* connected_players;
   Label* initialized_players;
   CheckBox* play_in_loop;
@@ -56,15 +55,19 @@ class NetworkMenu : public Menu
 
   void PrepareForNewGame();
   void SaveOptions();
-  void OnClick(const Point2i &mousePosition, int button);
-  void OnClickUp(const Point2i &mousePosition, int button);
-  void Draw(const Point2i &mousePosition);
   void WaitingForGameMaster();
-  void HandleEvent(const SDL_Event& event);
 
-  void key_ok();
-  bool signal_ok();
-  bool signal_cancel();
+  virtual void OnClick(const Point2i &mousePosition, int button);
+  virtual void OnClickUp(const Point2i &mousePosition, int button);
+  virtual void Draw(const Point2i &mousePosition);
+  virtual void HandleEvent(const SDL_Event& event);
+
+  virtual void key_ok();
+  virtual bool signal_ok();
+  virtual bool signal_cancel();
+  virtual void signal_begin_run();
+
+ void RequestSavedTeams();
 
 public:
   NetworkMenu();
@@ -75,6 +78,8 @@ public:
   void DelTeamCallback(const std::string& team_id);
   void ChangeMapCallback();
   void SetGameMasterCallback();
+  Team * FindUnusedTeam(const std::string default_team_id);
+  bool HasOpenTeamSlot();
 
   void ReceiveMsgCallback(const std::string& msg);
 };

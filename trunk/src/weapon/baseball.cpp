@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -79,7 +79,10 @@ bool Baseball::p_Shoot()
     // Compute point coordinates
     Point2i relative_pos(static_cast<int>(rayon * cos(angle)),
                          static_cast<int>(rayon * sin(angle)) );
-    Point2i pos_to_check = ActiveCharacter().GetHandPosition() + relative_pos;
+
+    Point2i hand_position;
+    ActiveCharacter().GetHandPosition(hand_position);
+    Point2i pos_to_check = hand_position + relative_pos;
 
     FOR_ALL_LIVING_CHARACTERS(team, character)
     if (&(*character) != &ActiveCharacter())
@@ -97,11 +100,6 @@ bool Baseball::p_Shoot()
   } while (!end);
 
   return true;
-}
-
-bool Baseball::IsInUse() const
-{
-  return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
 }
 
 BaseballConfig& Baseball::cfg()

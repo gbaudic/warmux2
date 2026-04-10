@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "gui/energy_bar.h"
 #include "gui/energy_bar.h"
 #include "gui/progress_bar.h"
+#include "weapon/weapon_strength_bar.h"
 
 // Forward declarations
 class Character;
@@ -78,11 +79,12 @@ public:
    bool display_minimap;
    EnergyBar energy_bar;
    ProgressBar wind_bar;
+   WeaponStrengthBar weapon_strength_bar;
 
    Surface game_menu;
    Surface clock_background;
    Surface small_background_interface;
-   Sprite * clock;
+   Sprite *clock, *clock_normal, *clock_emergency;
    Surface wind_icon;
    Surface wind_indicator;
    Point2i bottom_bar_pos;
@@ -94,16 +96,8 @@ public:
    Surface rounding_style [3][3];
    Surface rounding_style_mask [3][3];
 
-   /*Surface rounding_bottom;
-   Surface rounding_bottom_left;
-   Surface rounding_bottom_right;
-   Surface rounding_top;
-   Surface rounding_top_left;
-   Surface rounding_top_right;
-   Surface rounding_center;
-   Surface rounding_left;
-   Surface rounding_right;
-*/
+   Color m_camera_preview_color;
+   Color m_playing_character_preview_color;
 protected:
   friend class Singleton<Interface>;
    Interface();
@@ -138,8 +132,8 @@ protected:
    Point2i GetMenuPosition() const;
 
    void SetCurrentOverflyWeapon(Weapon * weapon) { weapon_under_cursor = weapon; };
-   void UpdateTimer(uint utimer, const Color& color = black_color);
-   void UpdateWindIndicator(int wind_value) { wind_bar.UpdateValue(wind_value); };
+  void UpdateTimer(uint utimer, bool emergency, bool reset_anim);
+   void UpdateWindIndicator(int wind_value);
    void EnableDisplayTimer (bool _display) {display_timer = _display;};
    void ToggleMinimap() { display_minimap = !display_minimap; };
 };

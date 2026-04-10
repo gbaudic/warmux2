@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -303,9 +303,9 @@ void Map::DrawAuthorName()
     std::string txt;
     txt  = Format(_("Map %s, a creation of: "),
                   ActiveMap()->ReadFullMapName().c_str());
-    author_info1 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_NORMAL);
+    author_info1 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_BOLD);
     txt = ActiveMap()->ReadAuthorInfo();
-    author_info2 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_NORMAL);
+    author_info2 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_BOLD);
   }
 
   /* FIXME use a real layout here... not calculated positions */

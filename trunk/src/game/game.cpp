@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,14 +19,12 @@
  * Init the game, handle drawing and states of the game.
  *****************************************************************************/
 #include <iostream>
-#include "ai/ai_engine.h"
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
 #include "game/game_classic.h"
 #include "game/game_blitz.h"
 #include "game/time.h"
-#include "game/game_init.h"
 #include "game/game_mode.h"
 #include "graphic/fps.h"
 #include "graphic/video.h"
@@ -39,14 +37,17 @@
 #include "interface/joystick.h"
 #include "interface/mouse.h"
 #include "interface/game_msg.h"
+#include "interface/loading_screen.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "map/maps_list.h"
 #include "map/wind.h"
 #include "menu/pause_menu.h"
 #include "menu/results_menu.h"
+#include "menu/network_menu.h"
 #include "network/network.h"
 #include "network/randomsync.h"
+#include "network/network_server.h"
 #include "object/objbox.h"
 #include "object/bonus_box.h"
 #include "object/medkit.h"
@@ -58,12 +59,15 @@
 #include "team/results.h"
 #include <WORMUX_random.h>
 #include "tool/stats.h"
+#include "weapon/weapons_list.h"
 
 #ifdef DEBUG
 // Uncomment this to get an image during the game under Valgrind
 // DON'T USE THIS IF YOU INTEND TO PLAY NETWORKED GAMES!
 //#define USE_VALGRIND
 #endif
+
+const uint MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS = 500;
 
 std::string Game::current_rules = "none";
 
@@ -107,12 +111,224 @@ Game * Game::UpdateGameRules()
 }
 
 
-void Game::MessageLoading() const
+void Game::InitEverything()
 {
-  GameInit loading_sreen; /* displays the loading screen stuff */
+  int icon_count = Network::GetInstance()->IsLocal() ? 4 : 5;
+  LoadingScreen loading_sreen(icon_count);
+
+  Config::GetInstance()->RemoveAllObjectConfigs();
+
+  // Disable sound during the loading of data
+  bool enable_sound = JukeBox::GetInstance()->UseEffects();
+  JukeBox::GetInstance()->ActiveEffects(false);
+
+  Mouse::GetInstance()->Hide();
+
+  std::cout << "o " << _("Initialisation") << std::endl;
+  Time::GetInstance()->Reset();
+
+  // initialize gaming data
+  if (Network::GetInstance()->IsGameMaster())
+    InitGameData_NetGameMaster();
+  else if (Network::GetInstance()->IsLocal())
+    RandomSync().InitRandom();
+
+  // GameMode::GetInstance()->Load(); : done in the game menu to adjust some parameters for local games
+  // done in action_handler for clients
+
+
+  // Camera must not shake as the started shaking time could be from a previous game:
+  Camera::GetInstance()->ResetShake();
+
+  // Load the map
+  std::cout << "o " << _("Initialise map") << std::endl;
+  loading_sreen.StartLoading(1, "map_icon", _("Maps"));
+  InitMap();
+
+  loading_sreen.StartLoading(2, "weapon_icon", _("Weapons"));
+  weapons_list = new WeaponsList(GameMode::GetInstance()->GetWeaponsXml());
+
+  std::cout << "o " << _("Initialise teams") << std::endl;
+  loading_sreen.StartLoading(3, "team_icon", _("Teams"));
+  InitTeams();
+
+  std::cout << "o " << _("Initialise sounds") << std::endl;
+  // Load teams' sound profiles
+  loading_sreen.StartLoading(4, "sound_icon", _("Sounds"));
+  InitSounds();
+
+  InitInterface();
+
+  // Loading is finished, sound effects can be enabled again
+  JukeBox::GetInstance()->ActiveEffects(enable_sound);
+
+  // Waiting for others players
+  if (!Network::GetInstance()->IsLocal()) {
+    std::cout << "o " << _("Waiting for remote players") << std::endl;
+    loading_sreen.StartLoading(5, "network_icon", _("Network"));
+    WaitForOtherPlayers();
+  }
+  ActionHandler::GetInstance()->ExecFrameLessActions();
+  ResetUniqueIds();
+
+  fps->Reset();
+  IgnorePendingInputEvents();
+
+  ActionHandler::GetInstance()->ExecFrameLessActions();
+
+  m_current_turn = 0;
+
+
+  SetState(END_TURN, true); // begin with a small pause
+
+  // Reset time at end of initialisation, so that the first player doesn't loose a few seconds.
+  Time::GetInstance()->Reset();
 
   std::cout << std::endl;
   std::cout << "[ " << _("Starting a new game") << " ]" << std::endl;
+}
+
+void Game::InitGameData_NetGameMaster()
+{
+  if (Network::GetInstance()->IsServer()) {
+    Network::GetInstanceServer()->RejectIncoming();
+  }
+
+  RandomSync().InitRandom();
+
+  SendGameMode();
+
+  Network::GetInstance()->SetState(WNet::NETWORK_LOADING_DATA);
+  Network::GetInstance()->SendNetworkState();
+}
+
+void Game::EndInitGameData_NetGameMaster()
+{
+  // Wait for all clients to be ready to play
+
+  // Note that the loop also ends when there is no connected player.
+  // That's important if we are connected to a dedicated server.
+  while (Network::IsConnected()
+         && Network::GetInstance()->GetNbPlayersWithState(Player::STATE_READY) != Network::GetInstance()->GetNbPlayersConnected()) {
+
+    ActionHandler::GetInstance()->ExecFrameLessActions();
+    SDL_Delay(200);
+  }
+
+  // Before playing we should check that init phase happens correctly on all clients
+  Action a(Action::ACTION_NETWORK_CHECK_PHASE1);
+  Network::GetInstance()->SendActionToAll(a);
+
+  // Note that the loop also ends when there is no connected player.
+  // That's important if we are connected to a dedicated server.
+  while (Network::IsConnected()
+         && Network::GetInstance()->GetNbPlayersWithState(Player::STATE_CHECKED) != Network::GetInstance()->GetNbPlayersConnected()) {
+
+    ActionHandler::GetInstance()->ExecFrameLessActions();
+    SDL_Delay(200);
+  }
+
+  // Let's play !
+  Network::GetInstance()->SetState(WNet::NETWORK_PLAYING);
+  Network::GetInstance()->SendNetworkState();
+}
+
+void Game::EndInitGameData_NetClient()
+{
+  // Tells server that client is ready
+  Network::GetInstance()->SetState(WNet::NETWORK_READY_TO_PLAY);
+  Network::GetInstance()->SendNetworkState();
+
+  // Waiting for other clients
+  std::cout << Network::GetInstance()->GetState() << " : Waiting for people over the network" << std::endl;
+
+  while (Network::IsConnected()
+	 && !Network::GetInstance()->IsGameMaster()
+	 && Network::GetInstance()->GetState() == WNet::NETWORK_READY_TO_PLAY)
+  {
+    ActionHandler::GetInstance()->ExecFrameLessActions();
+    SDL_Delay(100);
+  }
+}
+
+void Game::InitMap()
+{
+  GetWorld().Reset();
+  ObjectsList::GetRef().PlaceBarrels();
+}
+
+void Game::InitTeams()
+{
+  // Check the number of teams
+  if (GetTeamsList().playing_list.size() < 2)
+    Error(_("You need at least two valid teams!"));
+  ASSERT (GetTeamsList().playing_list.size() <= GameMode::GetInstance()->max_teams);
+
+  // Load the teams
+  ASSERT(weapons_list); // weapons must be initialized before the teams
+  GetTeamsList().LoadGamingData(weapons_list);
+
+  GetTeamsList().InitEnergy();
+
+  // Randomize first player
+  GetTeamsList().RandomizeFirstPlayer();
+
+  // First "selection" of a weapon -> fix bug 6576
+  ActiveTeam().AccessWeapon().Select();
+
+  FOR_ALL_CHARACTERS(team, character)
+    (*character).ResetDamageStats();
+
+  ObjectsList::GetRef().PlaceMines();
+}
+
+void Game::InitSounds()
+{
+  FOR_EACH_TEAM(team)
+    if ( (**team).GetSoundProfile() != "default" )
+      JukeBox::GetInstance()->LoadXML((**team).GetSoundProfile()) ;
+}
+
+void Game::InitInterface()
+{
+  CharacterCursor::GetInstance()->Reset();
+  Keyboard::GetInstance()->Reset();
+
+  Interface::GetInstance()->Reset();
+  GameMessages::GetInstance()->Reset();
+
+  ParticleEngine::Load();
+
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
+  Mouse::GetInstance()->CenterPointer();
+  chatsession.Clear();
+  Camera::GetInstance()->Reset();
+}
+
+void Game::WaitForOtherPlayers()
+{
+  if (Network::GetInstance()->IsGameMaster()) {
+    EndInitGameData_NetGameMaster();
+  } else {
+    EndInitGameData_NetClient();
+
+    // We have been elected as game master (the previous one has been disconnected)
+    if (Network::GetInstance()->IsGameMaster())
+      EndInitGameData_NetGameMaster();
+  }
+}
+
+void Game::DisplayError(const std::string &msg)
+{
+  JukeBox::GetInstance()->Play("default", "menu/error");
+
+  std::cerr << msg << std::endl;
+
+  Question question(Question::WARNING);
+  question.Set(msg, true, 0);
+  Time::GetInstance()->SetWaitingForUser(true);
+  question.Ask();
+  Time::GetInstance()->SetWaitingForUser(false);
 }
 
 void Game::Start()
@@ -120,10 +336,10 @@ void Game::Start()
   Keyboard::GetInstance()->Reset();
   Joystick::GetInstance()->Reset();
 
-  MessageLoading();
-
   try
   {
+    InitEverything();
+
     JukeBox::GetInstance()->PlayMusic(ActiveMap()->ReadMusicPlaylist());
 
     bool game_finished = Run();
@@ -139,16 +355,14 @@ void Game::Start()
   }
   catch (const std::exception &e)
   {
-    Question question(Question::WARNING);
+    // thanks to exception mechanism, cancel some things by hand...
+    Mouse::GetInstance()->Show();
+
     std::string err_msg = e.what();
     std::string txt = Format(_("Error:\n%s"), err_msg.c_str());
     std::cout << std::endl << txt << std::endl;
-    question.Set (txt, true, 0);
-    Time::GetInstance()->Pause();
-    question.Ask();
-    Time::GetInstance()->Continue();
+    DisplayError(txt);
   }
-
 }
 
 void Game::UnloadDatas(bool game_finished) const
@@ -215,7 +429,7 @@ std::string Game::GetUniqueId()
 Game::Game():
   state(PLAYING),
   give_objbox(true),
-  pause_seconde(0),
+  last_clock_update(0),
   isGameLaunched(false),
   current_ObjBox(NULL),
   ask_for_menu(false),
@@ -224,32 +438,17 @@ Game::Game():
   time_of_next_frame(0),
   time_of_next_phy_frame(0),
   character_already_chosen(false),
-  m_current_turn(0)
+  m_current_turn(0),
+  waiting_for_network_text("Waiting for turn master"),
+  weapons_list(NULL)
 { }
 
 Game::~Game()
 {
   if(fps)
     delete fps;
-}
-
-void Game::Init()
-{
-  ResetUniqueIds();
-
-  chatsession.Clear();
-  fps->Reset();
-  IgnorePendingInputEvents();
-  Camera::GetInstance()->Reset();
-
-  ActionHandler::GetInstance()->ExecActions();
-
-  m_current_turn = 0;
-
-  FOR_ALL_CHARACTERS(team, character)
-    (*character).ResetDamageStats();
-
-  SetState(END_TURN, true); // begin with a small pause
+  if (weapons_list)
+    delete weapons_list;
 }
 
 // ####################################################################
@@ -270,7 +469,7 @@ void Game::RefreshInput()
   while(SDL_PollEvent(&event)) {
 
     // Emergency exit
-    if (event.key.keysym.sym == SDLK_ESCAPE && (SDL_GetModState() & KMOD_CTRL))
+    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE && (SDL_GetModState() & KMOD_CTRL))
       AppWormux::EmergencyExit();
 
     if ( event.type == SDL_QUIT) {
@@ -292,26 +491,11 @@ void Game::RefreshInput()
 
   // Keyboard, Joystick and mouse refresh
   Mouse::GetInstance()->Refresh();
-  Keyboard::GetInstance()->Refresh();
-  Joystick::GetInstance()->Refresh();
-  AIengine::GetInstance()->Refresh();
-
+  ActiveTeam().RefreshAI();
   GameMessages::GetInstance()->Refresh();
 
   if (!IsGameFinished())
     Camera::GetInstance()->Refresh();
-}
-
-void Game::RefreshActions() const
-{
-  // Execute action
-  do {
-    ActionHandler::GetInstance()->ExecActions();
-    if (Network::GetInstance()->sync_lock) SDL_Delay(SDL_TIMESLICE);
-  } while (Network::GetInstance()->sync_lock &&
-	   !HasBeenNetworkDisconnected());
-
-  Network::GetInstance()->sync_lock = false;
 }
 
 // ####################################################################
@@ -417,6 +601,15 @@ void Game::Draw ()
     StatStop("GameDraw:chatsession");
   }
 
+  if (Time::GetInstance()->GetMSWaitingForNetwork() > MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS) {
+    Point2i pos;
+    pos.x = GetMainWindow().GetWidth()/2;
+    pos.y = GetMainWindow().GetHeight()/2;
+    std::string text = Format(_("Waiting for %s"), ActiveTeam().GetPlayerName().c_str());
+    waiting_for_network_text.Set(text);
+    waiting_for_network_text.DrawCenter(pos);
+  }
+
   // Add one frame to the fps counter ;-)
   fps->AddOneFrame();
 
@@ -496,7 +689,7 @@ bool Game::Run()
 bool Game::HasBeenNetworkDisconnected() const
 {
   const Network* net          = Network::GetInstance();
-  return !net->IsLocal() && (net->GetNbHostsConnected() == 0);
+  return !net->IsLocal() && (net->GetNbPlayersConnected() == 0);
 }
 
 void Game::MessageEndOfGame() const
@@ -522,64 +715,125 @@ void Game::MessageEndOfGame() const
 
 void Game::MainLoop()
 {
-  // Refresh clock value
-  RefreshClock();
-  time_of_next_phy_frame = Time::GetInstance()->Read() + Time::GetInstance()->GetDelta();
+  if (!Time::GetInstance()->IsWaitingForUser()) {
+    // If we are waiting for the network then we have already done those steps.
+    if (!Time::GetInstance()->IsWaitingForNetwork()) {
+      Time::GetInstance()->Increase();
 
-  if (Time::GetInstance()->Read() % 1000 == 20 && Network::GetInstance()->IsGameMaster())
-    PingClient();
-  StatStart("Game:RefreshInput()");
-  RefreshInput();
-  StatStop("Game:RefreshInput()");
+      // Refresh clock value
+      RefreshClock();
 
-  StatStart("Game:RefreshObject()");
-  RefreshObject();
-  StatStop("Game:RefreshObject()");
+      // For example the switch of characters can make it necessary to rebuild the body.
+      // If no cacluate frame action is sheduled the frame calculation will be skipped and the bodies don't get build.
+      // As the draw method needs builded characters we need to build here
+      FOR_ALL_CHARACTERS(team,character) {
+        character->GetBody()->Build();
+        character->GetBody()->RefreshSprites();
+      }
 
-  StatStart("Game:RefreshActions()");
-  // Action from time t must be executed after physical engine frame at time t
-  RefreshActions();
-  StatStop("Game:RefreshActions()");
 
-  // Refresh the map
-  GetWorld().Refresh();
+      if (Network::GetInstance()->IsTurnMaster()) {
+        // The action which verifys the random seed must be the first action sheduled!
+        // Otherwise the following could happen:
+        // 1. Action C gets sheduled which draws values from the random source.
+        // 2. Action V gets sheduled which verifies that random seed is X.
+        // 3. Action C gets executed: As a result the random seed has changed to another value Y.
+        // 4. Action V gets executed: It fails as the random seed is no longer X but Y.
+        RandomSync().Verify();
+
+#ifdef DEBUG
+        Action* action = new Action(Action::ACTION_TIME_VERIFY_SYNC);
+        action->Push((int)Time::GetInstance()->Read());
+        ActionHandler::GetInstance()->NewAction(action);
+#endif
+      }
+
+      if (Time::GetInstance()->Read() % 1000 == 20 && Network::GetInstance()->IsGameMaster())
+        PingClient();
+    }
+    StatStart("Game:RefreshInput()");
+    RefreshInput();
+    StatStop("Game:RefreshInput()");
+    ActionHandler::GetInstance()->ExecFrameLessActions();
+
+    bool is_turn_master = Network::GetInstance()->IsTurnMaster();
+    if (is_turn_master) {
+      Time::GetInstance()->SetWaitingForNetwork(false);
+      Action *a = new Action(Action::ACTION_GAME_CALCULATE_FRAME);
+      ActionHandler::GetInstance()->NewAction(a);
+    }
+    bool actions_executed = ActionHandler::GetInstance()->ExecActionsForOneFrame();
+    ASSERT(actions_executed || !is_turn_master);
+    Time::GetInstance()->SetWaitingForNetwork(!actions_executed);
+
+    if (actions_executed) {
+      StatStart("Game:RefreshObject()");
+      RefreshObject();
+      StatStop("Game:RefreshObject()");
+
+      // Refresh the map
+      GetWorld().Refresh();
+
+      // Build the characters if necessary so that it does not need to happen while drawing.
+      // The build can become necessary again when for example weapons change the movement.
+      FOR_ALL_CHARACTERS(team,character) {
+        character->GetBody()->Build();
+        character->GetBody()->RefreshSprites();
+      }
+    } else {
+      SDL_Delay(1);
+      // Do we wait for a player who has left?
+      if (ActiveTeam().IsAbandoned()) {
+        const std::string & team_id = ActiveTeam().GetId();
+        GetTeamsList().DelTeam(team_id);
+        if (Network::GetInstance()->network_menu != NULL)
+          Network::GetInstance()->network_menu->DelTeamCallback(team_id);
+      }
+    }
+
+  }
 
   // try to adjust to max Frame by seconds
-#ifndef USE_VALGRIND
-  if (time_of_next_frame < Time::GetInstance()->ReadRealTime()) {
-    // Only display if the physic engine isn't late
-    if (time_of_next_phy_frame > Time::GetInstance()->ReadRealTime())
-    {
-#endif
-      StatStart("Game:Draw()");
-      CallDraw();
-      // How many frame by seconds ?
-      fps->Refresh();
-      StatStop("Game:Draw()");
-      time_of_next_frame += AppWormux::GetInstance()->video->GetMaxDelay();
-#ifndef USE_VALGRIND
-    }
-  }
+  bool draw = time_of_next_frame < SDL_GetTicks();
+  // Only display if the physic engine isn't late
+  draw = draw && !(Time::GetInstance()->CanBeIncreased() && !Time::GetInstance()->IsWaiting());
+#ifdef USE_VALGRIND
+  draw = true;
 #endif
 
-  delay = time_of_next_phy_frame - Time::GetInstance()->ReadRealTime();
-  if (delay >= 0)
-    SDL_Delay(delay);
+  if (draw) {
+    StatStart("Game:Draw()");
+    CallDraw();
+    // How many frame by seconds ?
+    fps->Refresh();
+    StatStop("Game:Draw()");
+    uint frame_length =  AppWormux::GetInstance()->video->GetMaxDelay();
+    time_of_next_frame = time_of_next_frame + frame_length;
+
+    // The rate at which frames are calculated may differ over time.
+    // This if statement assures that time_of_next_frame does not get to far behind
+    // as else it would increase the game speed later.
+    if (time_of_next_frame < SDL_GetTicks())
+      time_of_next_frame = SDL_GetTicks();
+  }
+  if (!Time::GetInstance()->IsWaiting())
+    Time::GetInstance()->LetRealTimePassUntilFrameEnd();
 }
 
 bool Game::NewBox()
 {
   uint nbr_teams = GetTeamsList().playing_list.size();
-  if(nbr_teams <= 1) {
+  if (nbr_teams <= 1) {
     MSG_DEBUG("box", "There is less than 2 teams in the game");
     return false;
   }
 
   // if started with "-d box", get one box per turn
-  if (!IsLOGGING("box")) {
-    // .7 is a magic number to get the probability of boxes falling once every round close to .333
-    double randValue = RandomLocal().GetDouble();
-    if(randValue > (1 - pow(.5, 1.0 / nbr_teams))) {
+  if (!IsLOGGING("box") || Network::IsConnected()) {
+    double boxDropProbability = (1 - pow(.5, 1.0 / nbr_teams));
+    MSG_DEBUG("random.get", "Game::NewBox(...) drop box?");
+    double randValue = RandomSync().GetDouble();
+    if (randValue > boxDropProbability) {
       return false;
     }
   }
@@ -587,45 +841,54 @@ bool Game::NewBox()
   // Type of box : 1 = MedKit, 2 = Bonus Box.
   ObjBox * box;
   int type;
-  if(RandomLocal().GetBool()) {
+  MSG_DEBUG("random.get", "Game::NewBox(...) box type?");
+  if(RandomSync().GetBool()) {
     box = new Medkit();
     type = 1;
   } else {
-    box = new BonusBox();
+    box = new BonusBox(weapons_list->GetRandomWeaponToDrop());
     type = 2;
   }
   // Randomize container
   box->Randomize();
-  // Storing value of bonus box and send it over network.
-  Action * a = new Action(Action::ACTION_NEW_BONUS_BOX);
-  a->Push(type);
-  if(!box->PutRandomly(true, 0, false)) {
+
+  if (!box->PutRandomly(true, 0, true)) {
     MSG_DEBUG("box", "Missed to put a box");
     delete box;
-  } else {
-    /* We only randomize value. The real box will be inserted into world later
-       using action handling (see include/action_handler.cpp */
-    box->StoreValue(a);
-    ActionHandler::GetInstance()->NewAction(a);
-    delete box;
-    return true;
+    return false;
   }
-  return false;
-}
 
-void Game::AddNewBox(ObjBox * box)
-{
   ObjectsList::GetRef().AddObject(box);
   Camera::GetInstance()->FollowObject(box);
   GameMessages::GetInstance()->Add(_("It's a present!"));
   SetCurrentBox(box);
+
+  return true;
 }
 
+void Game::RequestBonusBoxDrop()
+{
+  ObjBox* current_box = Game::GetInstance()->GetCurrentBox();
+  if (current_box != NULL) {
+    if (Network::GetInstance()->IsTurnMaster()) {
+      Action a(Action::ACTION_DROP_BONUS_BOX);
+      Network::GetInstance()->SendActionToAll(a);
 
-void Game::Really_SetState(game_loop_state_t new_state)
+      current_box->DropBox();
+    } else {
+      Action a(Action::ACTION_REQUEST_BONUS_BOX_DROP);
+      Network::GetInstance()->SendActionToAll(a);
+    }
+  }
+}
+
+void Game::SetState(game_loop_state_t new_state, bool begin_game)
 {
   // already in good state, nothing to do
-  if (state == new_state) return;
+  if ((state == new_state) && !begin_game) return;
+
+  MSG_DEBUG("game", "Ask for state %d", new_state);
+
   state = new_state;
 
   Interface::GetInstance()->weapons_menu.Hide();
@@ -648,35 +911,6 @@ void Game::Really_SetState(game_loop_state_t new_state)
     m_current_turn++;
     break;
   }
-}
-
-void Game::SetState(game_loop_state_t new_state, bool begin_game) const
-{
-  if (begin_game &&
-      (Network::GetInstance()->IsGameMaster() || Network::GetInstance()->IsLocal()))
-    Network::GetInstance()->SetTurnMaster(true);
-
-  if (!Network::GetInstance()->IsTurnMaster())
-    return;
-
-  // already in good state, nothing to do
-  if ((state == new_state) && !begin_game) return;
-
-  // Send information about energy and position of every characters
-  // ONLY at the beginning of a new turn!
-  // (else you can send unstable information of a character which is moving)
-  // See bug #10668
-  if (Network::GetInstance()->IsTurnMaster() && new_state == PLAYING)
-    SyncCharacters();
-
-  MSG_DEBUG("game", "Ask for state %d", new_state);
-
-  MSG_DEBUG("random.get", "Game::SetState(...): %d");
-  Action *a = new Action(Action::ACTION_GAMELOOP_SET_STATE);
-  uint seed = RandomSync().GetSeed();
-  a->Push((int)seed);
-  a->Push(new_state);
-  ActionHandler::GetInstance()->NewAction(a);
 }
 
 PhysicalObj* Game::GetMovingObject() const
@@ -717,7 +951,7 @@ PhysicalObj* Game::GetMovingObject() const
 bool Game::IsAnythingMoving() const
 {
   // Is the weapon still active or an object still moving ??
-  if (ActiveTeam().GetWeapon().IsInUse())
+  if (ActiveTeam().GetWeapon().IsOnCooldownFromShot())
   {
     MSG_DEBUG("game.endofturn", "Weapon %s is still active", ActiveTeam().GetWeapon().GetName().c_str());
     return true;
@@ -729,7 +963,7 @@ bool Game::IsAnythingMoving() const
 }
 
 // Signal death of a character
-void Game::SignalCharacterDeath (const Character *character) const
+void Game::SignalCharacterDeath (const Character *character)
 {
   std::string txt;
 
@@ -806,7 +1040,7 @@ void Game::SignalCharacterDeath (const Character *character) const
 }
 
 // Signal falling or any kind of damage of a character
-void Game::SignalCharacterDamage(const Character *character) const
+void Game::SignalCharacterDamage(const Character *character)
 {
   MSG_DEBUG("game.endofturn", "%s has been hurt", character->GetName().c_str());
 
@@ -841,15 +1075,16 @@ bool Game::MenuQuitPause() const
 {
   JukeBox::GetInstance()->Pause();
 
-  if (!Network::IsConnected()) // partial bugfix of #10679
-    Time::GetInstance()->Pause();
+  Time::GetInstance()->SetWaitingForUser(true);
+
+  Action a(Action::ACTION_ANNOUNCE_PAUSE);
+  Network::GetInstance()->SendActionToAll(a);
 
   bool exit = false;
   PauseMenu menu(exit);
   menu.Run();
 
-  if (!Network::IsConnected()) // partial bugfix of #10679
-    Time::GetInstance()->Continue();
+  Time::GetInstance()->SetWaitingForUser(false);
 
   JukeBox::GetInstance()->Resume();
 
@@ -858,6 +1093,11 @@ bool Game::MenuQuitPause() const
 
 uint Game::GetCurrentTurn()
 {
-  return (m_current_turn+1)/2 ;
+  uint nbr_teams = GetTeamsList().playing_list.size();
+  return (m_current_turn+nbr_teams-1)/nbr_teams ;
 }
 
+void Game::UpdateTranslation()
+{
+  weapons_list->UpdateTranslation();
+}

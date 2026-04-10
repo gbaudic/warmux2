@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,12 +24,15 @@
 
 #include "include/base.h"
 #include "interface/mouse.h"
+#include "interface/movable_by_user.h"
 #include <WORMUX_point.h>
 #include <WORMUX_rectangle.h>
+#include "game/stopwatch.h"
+
 
 class PhysicalObj;
 
-class Camera : public Rectanglei, public Singleton<Camera>
+class Camera : public Rectanglei, public Singleton<Camera>, public MovableByUser
 {
 private:
   Camera(const Camera&);
@@ -58,7 +61,8 @@ private:
   void SaveMouseCursor();
   void RestoreMouseCursor();
 
-  void TestCamera();
+  void HandleMouseMovement();
+  void HandleMoveIntentions();
   void ScrollCamera();
 
   bool auto_crop;
@@ -68,6 +72,7 @@ private:
   Point2i FreeDegrees() const { return Point2i(HasFixedX()? 0 : 1, HasFixedY()? 0 : 1); };
   Point2i NonFreeDegrees() const { return Point2i(1, 1) - FreeDegrees(); };
   Point2i ComputeShake() const;
+  Stopwatch refresh_stopwatch;
 
 protected:
   friend class Singleton<Camera>;

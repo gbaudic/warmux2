@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,10 +34,12 @@
 #  include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#include "game/game.h"
 #include "graphic/font.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "include/constant.h"
+#include "interface/keyboard.h"
 #include "network/network.h"
 #include "object/object_cfg.h"
 #include "sound/jukebox.h"
@@ -294,7 +296,9 @@ void Config::SetLanguage(const std::string language)
   InitI18N(TranslateDirectory(locale_dir), language);
 
   Font::ReleaseInstances();
-  WeaponsList::UpdateTranslation();
+  if (Game::IsRunning()) {
+    Game::GetInstance()->UpdateTranslation();
+  }
 }
 
 /*
@@ -396,6 +400,15 @@ void Config::LoadDefaultValue()
   }
 #endif
 
+  //== Default keyboard key
+  {
+    const xmlNode *node = GetResourceManager().GetElement(res, "section", "default_keyboard_layout");
+    if (node) {
+      Keyboard::GetInstance()->SetConfig(node);
+    }
+
+  }
+
   GetResourceManager().UnLoadXMLProfile(res);
 }
 
@@ -420,18 +433,21 @@ void Config::LoadXml(const xmlNode *xml)
 
     const xmlNode *team;
 
-    while ((team = XmlReader::GetMarker(elem, "team_" + ulong2str(i))) != NULL)
-      {
-	ConfigTeam one_team;
-	XmlReader::ReadString(team, "id", one_team.id);
-	XmlReader::ReadString(team, "player_name", one_team.player_name);
-	XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
-
-	teams.push_back(one_team);
-
-	// get next team
-	i++;
+    while ((team = XmlReader::GetMarker(elem, "team_" + ulong2str(i))) != NULL) {
+      ConfigTeam one_team;
+      XmlReader::ReadString(team, "id", one_team.id);
+      XmlReader::ReadString(team, "player_name", one_team.player_name);
+      XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+      // The ai element needs a defaut as it has been added afterwards:
+      if (!XmlReader::ReadString(team, "ai", one_team.ai)) {
+        one_team.ai = (i == 1) ? DEFAULT_AI_NAME : NO_AI_NAME;
       }
+
+      teams.push_back(one_team);
+
+      // get next team
+      i++;
+    }
   }
 
   //=== Video ===
@@ -483,18 +499,21 @@ void Config::LoadXml(const xmlNode *xml)
       int i = 0;
       const xmlNode *team;
 
-      while ((team = XmlReader::GetMarker(sub_elem, "team_" + ulong2str(i))) != NULL)
-	{
-	  ConfigTeam one_team;
-	  XmlReader::ReadString(team, "id", one_team.id);
-	  XmlReader::ReadString(team, "player_name", one_team.player_name);
-	  XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+      while ((team = XmlReader::GetMarker(sub_elem, "team_" + ulong2str(i))) != NULL) {
+        ConfigTeam one_team;
+        XmlReader::ReadString(team, "id", one_team.id);
+        XmlReader::ReadString(team, "player_name", one_team.player_name);
+        XmlReader::ReadUint(team, "nb_characters", one_team.nb_characters);
+        // The ai element needs a defaut as it has been added afterwards:
+        if (!XmlReader::ReadString(team, "ai", one_team.ai)) {
+          one_team.ai = NO_AI_NAME;
+        }
 
-	  network_local_teams.push_back(one_team);
+        network_local_teams.push_back(one_team);
 
-	  // get next team
-	  i++;
-	}
+        // get next team
+        i++;
+      }
     }
   }
 
@@ -507,6 +526,16 @@ void Config::LoadXml(const xmlNode *xml)
 
   //=== game mode ===
   XmlReader::ReadString(xml, "game_mode", m_game_mode);
+
+  //=== controls ===
+  if ((elem = XmlReader::GetMarker(xml, "controls")) != NULL)
+  {
+    const xmlNode *node = XmlReader::GetMarker(elem, "keyboard");
+    if (node)
+    {
+      Keyboard::GetInstance()->SetConfig(node);
+    }
+  }
 }
 
 bool Config::Save(bool save_current_teams)
@@ -563,6 +592,7 @@ bool Config::SaveXml(bool save_current_teams)
         config.id = (**it).GetId();
         config.player_name = (**it).GetPlayerName();
         config.nb_characters = (**it).GetNbCharacters();
+        config.ai = (**it).GetAIName();
 
         teams.push_back(config);
       }
@@ -580,6 +610,7 @@ bool Config::SaveXml(bool save_current_teams)
        doc.WriteElement(a_team, "id", (*it).id);
        doc.WriteElement(a_team, "player_name", (*it).player_name);
        doc.WriteElement(a_team, "nb_characters", ulong2str((*it).nb_characters));
+       doc.WriteElement(a_team, "ai", (*it).ai);
     }
   }
 
@@ -642,6 +673,7 @@ bool Config::SaveXml(bool save_current_teams)
        doc.WriteElement(a_team, "id", (*it).id);
        doc.WriteElement(a_team, "player_name", (*it).player_name);
        doc.WriteElement(a_team, "nb_characters", ulong2str((*it).nb_characters));
+       doc.WriteElement(a_team, "ai", (*it).ai);
     }
 
   //=== Misc ===
@@ -651,6 +683,11 @@ bool Config::SaveXml(bool save_current_teams)
 
   //=== game mode ===
   doc.WriteElement(root, "game_mode", m_game_mode);
+
+  //=== controls ===
+   xmlNode *controls_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"controls"));
+   Keyboard::GetInstance()->SaveConfig(controls_node);
+
   return doc.Save();
 }
 
@@ -700,7 +737,7 @@ void Config::SetNetworkLocalTeams()
 	  config.id = (**it).GetId();
 	  config.player_name = (**it).GetPlayerName();
 	  config.nb_characters = (**it).GetNbCharacters();
-
+	  config.ai = (**it).GetAIName();
 	  network_local_teams.push_back(config);
 	}
     }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ public:
   void AddItem(bool selected, const std::string &label,
                const std::string &value,
                Font::font_size_t fsize = Font::FONT_SMALL,
-               Font::font_style_t fstyle = Font::FONT_NORMAL,
+               Font::font_style_t fstyle = Font::FONT_BOLD,
                const Color& color = white_color);
   void Select(const std::string& val);
   void Select(uint index) { BaseListBox::Select(index); }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ void RandomGenerator::InitRandom()
 
 void RandomGenerator::SetRand(uint seed)
 {
-  MSG_DEBUG("random", "srand: %d", seed);
+  MSG_DEBUG("random.set", "srand: %d", seed);
   next = seed;
   initialized = true;
 }

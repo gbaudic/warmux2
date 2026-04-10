@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,10 +28,18 @@
 
 static const int MAX_PACKET_SIZE = 250*1024;
 
+DistantComputer::DistantComputer(WSocket* new_sock) :
+  sock(new_sock),
+  game_id(0),
+  force_disconnection_called(false)
+{
+  WORMUX_ConnectHost(*this);
+}
+
 DistantComputer::DistantComputer(WSocket* new_sock, const std::string& nickname, uint _game_id, uint initial_player_id) :
   sock(new_sock),
-  state(DistantComputer::STATE_NOT_INITIALIZED),
-  game_id(_game_id)
+  game_id(_game_id),
+  force_disconnection_called(false)
 {
   Player theplayer(initial_player_id, nickname);
   players.push_back(theplayer);
@@ -41,8 +49,8 @@ DistantComputer::DistantComputer(WSocket* new_sock, const std::string& nickname,
 
 DistantComputer::DistantComputer(WSocket* new_sock, const std::string& nickname, uint initial_player_id) :
   sock(new_sock),
-  state(DistantComputer::STATE_NOT_INITIALIZED),
-  game_id(0)
+  game_id(0),
+  force_disconnection_called(false)
 {
   Player theplayer(initial_player_id, nickname);
   players.push_back(theplayer);
@@ -109,7 +117,7 @@ bool DistantComputer::ReceiveData(char** data, size_t* len)
 
 bool DistantComputer::SendData(const char* data, size_t len)
 {
-  return sock->SendPacket(data, len);
+  return sock->SendBuffer(data, len);
 }
 
 std::string DistantComputer::GetAddress() const
@@ -135,29 +143,30 @@ std::string DistantComputer::GetNicknames() const
   return nicknames;
 }
 
-void DistantComputer::SetState(DistantComputer::state_t _state)
-{
-  state = _state;
-}
-
-DistantComputer::state_t DistantComputer::GetState() const
-{
-  return state;
-}
-
 uint DistantComputer::GetGameId() const
 {
   return game_id;
 }
 
+int DistantComputer::GetNumberOfPlayersWithState(Player::State state)
+{
+  int counter = 0;
+  std::list<Player>::const_iterator player;
+  for (player = players.begin(); player != players.end(); player++) {
+    if (player->GetState() == state)
+      counter++;
+  }
+  return counter;
+}
+
 void DistantComputer::ForceDisconnection()
 {
-  state = STATE_ERROR;
+  force_disconnection_called = true;
 }
 
 bool DistantComputer::MustBeDisconnected()
 {
-  return (state == STATE_ERROR);
+  return force_disconnection_called;
 }
 
 const std::string DistantComputer::ToString() const

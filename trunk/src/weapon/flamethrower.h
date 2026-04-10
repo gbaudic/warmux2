@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,14 +29,17 @@
 class FlameThrower : public WeaponLauncher
 {
     ParticleEngine particle;
+    bool shooting;
   protected:
     WeaponProjectile * GetProjectileInstance();
     void IncMissedShots();
     bool p_Shoot();
+    void p_Deselect();
   public:
     FlameThrower();
-    virtual void HandleKeyPressed_Shoot(bool shift) { HandleKeyRefreshed_Shoot(shift); };
-    virtual void HandleKeyRefreshed_Shoot(bool shift);
+    virtual void Refresh();
+    virtual void StartShooting();
+    virtual void StopShooting();
 
     void UpdateTranslationStrings();
     std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;

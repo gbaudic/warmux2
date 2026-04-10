@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ private:
   bool game_started;
   std::list<DistantComputer*> cpulist;
 
+  void SendAdminMessage(const std::string& message);
   void SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver) const;
   void StartGame();
   void StopGame();
@@ -77,6 +78,7 @@ private:
   std::string game_name;
   std::string password;
   uint port;
+  bool is_public;
 
   WSocket server_socket;
   WSocketSet* clients_socket_set;
@@ -94,12 +96,13 @@ private:
   void WaitClients();
   void RejectIncoming();
 
-  bool RegisterToIndexServer(bool is_public);
+  bool ConnectToIndexServer();
+  bool RefreshConnexionToIndexServer();
 
 public:
   bool ServerStart(uint port, uint max_nb_games, uint max_nb_clients,
 		   const std::string& game_name, std::string& password,
-		   bool is_public);
+		   bool _is_public);
   void RunLoop();
 
   NetworkGame& GetGame(uint game_id);

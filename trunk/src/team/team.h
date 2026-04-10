@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,19 +25,18 @@
 #include <list>
 #include <vector>
 #include <string>
+#include "ai/ai_player.h"
 #include "team/team_energy.h"
 #include "graphic/surface.h"
 #include "weapon/crosshair.h"
 #include "weapon/weapon.h"
 
+const std::string NO_AI_NAME = "none";
+const std::string DEFAULT_AI_NAME = "default";
+
 class Character;
 class CustomTeam;
-
-typedef enum {
-  TEAM_human_local,
-  TEAM_ai_local,
-  TEAM_remote
-} team_player_type_t;
+class WeaponsList;
 
 class Team
 {
@@ -74,10 +73,11 @@ class Team
     Weapon *active_weapon;
     uint nb_characters;
     uint current_turn;
-
+    AIPlayer * ai;
+    std::string ai_name;
+    bool remote;
+    bool abandoned;
     CustomTeam *attached_custom_team;
-
-    team_player_type_t type_of_player;
 
     Team (const std::string& _teams_dir,
           const std::string& _id,
@@ -86,10 +86,11 @@ class Team
           const std::string& _sound_profile);
 
     bool LoadCharacters();
+    WeaponsList * weapons_list;
   public:
     Team (const std::string &teams_dir, const std::string &id);
 
-    void LoadGamingData();
+    void LoadGamingData(WeaponsList * weapons);
     void UnloadGamingData();
 
     bool IsSameAs(const Team& other) const;
@@ -111,6 +112,7 @@ class Team
 
     void DrawEnergy(const Point2i& pos);
     void Refresh();
+    void RefreshAI();
 
   // Change the weapon.
     void SetWeapon (Weapon::Weapon_type nv_arme);
@@ -159,27 +161,27 @@ class Team
     int& AccessNbUnits();
     void ResetNbUnits();
 
-  // Only for network:
-  // true if the team belong to a local player
-  // false if the team belong to a player on the network or on the AI
-    bool IsLocal() const { return (type_of_player == TEAM_human_local); };
-
-  // true if the team belong to a local AI
-    bool IsLocalAI() const { return (type_of_player == TEAM_ai_local); };
-
-    bool IsRemote() const { return (type_of_player == TEAM_remote); };
+    bool IsAI() const { return ai_name != NO_AI_NAME; }
+    bool IsHuman() const { return !IsAI(); }
+    bool IsLocal() const { return !remote; }
+    bool IsRemote() const { return remote; }
+    bool IsLocalAI() const { return IsLocal() && IsAI(); }
+    bool IsLocalHuman() const { return IsLocal() && IsHuman(); }
 
     bool IsActiveTeam() const;
 
-    void SetLocal() { type_of_player = TEAM_human_local; };
-    void SetLocalAI() { type_of_player = TEAM_ai_local; };
-    void SetRemote() { type_of_player = TEAM_remote; };
+    void SetRemote(bool value) { remote = value; }
+    void SetAIName(const std::string value) { ai_name = value; }
+    const std::string GetAIName() { return ai_name; }
+    void LoadAI();
 
   // reset characters number, type_of_player and player name
     void SetDefaultPlayingConfig();
 
   // Custom team
     void AttachCustomTeam(CustomTeam*);
+    void Abandon() { abandoned = true; }
+    bool IsAbandoned() { return abandoned; }
 };
 
 #endif /* TEAM_H */

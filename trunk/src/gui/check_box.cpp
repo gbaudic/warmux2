@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "tool/resource_manager.h"
 
 CheckBox::CheckBox(const std::string& label, uint width, bool value):
-  txt_label(new Text(label, white_color, Font::FONT_SMALL, Font::FONT_NORMAL)),
+  txt_label(new Text(label, white_color, Font::FONT_SMALL, Font::FONT_BOLD)),
   m_value(value),
   m_checked_image(NULL)
 {

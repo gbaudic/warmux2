@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -144,7 +144,8 @@ void CluzookaCluster::Shoot(const Point2i & start_pos, double strength, double a
   SetXY(start_pos);
   SetSpeed(strength, angle);
 
-  begin_time = Time::GetInstance()->Read();
+  explode_with_timeout = true;
+  StartTimeout();
   m_time_before_spawn = 750;
   // make time a bit random to unsychronize particles
 
@@ -251,8 +252,7 @@ void CluzookaRocket::Refresh()
   if(!IsDrowned())
   {
     //image->SetRotation_rad(GetSpeedAngle());
-    uint time = Time::GetInstance()->Read();
-    float flying_time = ( float )( time - begin_time );
+    float flying_time = ( float )(GetMSSinceTimeoutStart());
 
     float speed_angle = GetSpeedAngle();
     const float time_to_rotate = 500;

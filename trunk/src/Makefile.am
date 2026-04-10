@@ -3,14 +3,19 @@ SUBDIRS = .
 bin_PROGRAMS = wormux
 
 wormux_SOURCES = \
-	ai/ai_engine.cpp \
-        ai/ai_engine.h \
-        ai/ai_engine_stupid.cpp \
-        ai/ai_engine_stupid.h \
-        ai/ai_movement_module.cpp \
-        ai/ai_movement_module.h \
-        ai/ai_shoot_module.cpp \
-        ai/ai_shoot_module.h \
+  ai/ai_command.cpp \
+        ai/ai_command.h \
+        ai/ai_idea.cpp \
+        ai/ai_idea.h \
+        ai/ai_player.h \
+        ai/ai_strategy.cpp \
+        ai/ai_strategy.h \
+        ai/ai_stupid_player.cpp \
+        ai/ai_stupid_player.h \
+        ai/ai_weapons_weighting.cpp \
+        ai/ai_weapons_weighting.h \
+        ai/trajectory.cpp \
+        ai/trajectory.h \
         character/body.cpp \
         character/body.h \
         character/body_list.cpp \
@@ -23,8 +28,6 @@ wormux_SOURCES = \
         character/damage_stats.h \
         character/member.cpp \
         character/member.h \
-        character/move.cpp \
-        character/move.h \
         character/movement.cpp \
         character/movement.h \
         config.h \
@@ -36,12 +39,12 @@ wormux_SOURCES = \
         game/game_blitz.h \
         game/game_classic.cpp \
         game/game_classic.h \
-        game/game_init.cpp \
-        game/game_init.h \
         game/game_mode.cpp \
         game/game_mode.h \
         game/time.cpp \
         game/time.h \
+        game/stopwatch.cpp \
+        game/stopwatch.h \
 	graphic/color.cpp \
         graphic/color.h \
         graphic/colors.h \
@@ -152,6 +155,10 @@ wormux_SOURCES = \
         interface/mouse.h \
         interface/mouse_cursor.cpp \
         interface/mouse_cursor.h \
+        interface/movable_by_user.cpp \
+        interface/movable_by_user.h \
+        interface/move_intention.cpp \
+        interface/move_intention.h \
         interface/weapon_menu.cpp \
         interface/weapon_menu.h \
         main.cpp \
@@ -249,6 +256,8 @@ wormux_SOURCES = \
         particles/bullet.h \
         particles/dark_smoke.cpp \
         particles/dark_smoke.h \
+        particles/explosion_particle.cpp \
+        particles/explosion_particle.h \
         particles/explosion_smoke.cpp \
         particles/explosion_smoke.h \
         particles/fading_text.cpp \

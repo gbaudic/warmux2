@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ void ConnectionStats::OpenFile()
   fd = fopen(full_name.c_str(), "a+");
 
   if (fd == NULL)
-    TELL_ERROR;
+    PRINT_FATAL_ERROR;
 
   fprintf(fd, "# YYYY-MM-DD hh-mm-ss "
 	  "fake_servers, servers, clients, clients_w_empty_list "

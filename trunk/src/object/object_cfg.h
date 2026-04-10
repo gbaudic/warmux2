@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,10 +49,14 @@ public:
   // Object rebound factor when the object collide with the ground.
   double m_rebound_factor;
 
-  ObjectConfig();
+  // Active alignment for wind particles
+  bool m_align_particle_state;
+
+  ObjectConfig(void);
   virtual ~ObjectConfig() { };
 
-  void LoadXml(const std::string& obj_name, const std::string &config_file);
+  void LoadXml(const std::string & obj_name, 
+               const std::string & config_file);
 };
 
 #endif // OBJECT_CFG_H

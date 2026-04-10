@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ Physics::Physics ():
   m_pos_y(),
   m_extern_force(),
   m_last_move(Time::GetInstance()->Read()),
+  m_last_physical_engine_run(Time::GetInstance()->Read()),
   m_phys_width(),
   m_phys_height(),
   m_fix_point_gnd(),
@@ -142,59 +143,6 @@ void Physics::GetSpeed(double &norm, double &angle) const
       ASSERT(false);
       break ;
   }
-}
-
-
-void Physics::StoreValue(Action *a)
-{
-  a->Push((int)m_motion_type);
-  a->Push(m_pos_x);
-  a->Push(m_pos_y);
-  a->Push(m_extern_force);
-  a->Push((int)m_last_move);
-  a->Push(m_phys_width);
-  a->Push(m_phys_height);
-  a->Push(m_fix_point_gnd);
-  a->Push(m_fix_point_dxy);
-  a->Push(m_rope_angle);
-  a->Push(m_rope_length);
-  a->Push(m_rope_elasticity);
-  a->Push(m_elasticity_damping);
-  a->Push(m_balancing_damping);
-  a->Push(m_elasticity_off);
-
-  MSG_DEBUG( "physic.sync", "%s now - x0:%f, x1:%f, x2:%f - y0:%f, y1:%f, y2:%f - extern_force: %f, %f",
-	     typeid(*this).name(),
-             m_pos_x.x0, m_pos_x.x1, m_pos_x.x2,
-             m_pos_y.x0, m_pos_y.x1, m_pos_y.x2,
-             m_extern_force.x, m_extern_force.y);
-}
-
-void Physics::GetValueFromAction(Action *a)
-{
-  m_motion_type        = (MotionType_t)a->PopInt();
-  m_pos_x              = a->PopEulerVector();
-  m_pos_y              = a->PopEulerVector();
-  m_extern_force       = a->PopPoint2d();
-  m_last_move          = (uint)a->PopInt();
-  m_phys_width         = a->PopDouble();
-  m_phys_height        = a->PopDouble();
-  m_fix_point_gnd      = a->PopPoint2d();
-  m_fix_point_dxy      = a->PopPoint2d();
-  m_rope_angle         = a->PopEulerVector();
-  m_rope_length        = a->PopEulerVector();
-  m_rope_elasticity    = a->PopDouble();
-  m_elasticity_damping = a->PopDouble();
-  m_balancing_damping  = a->PopDouble();
-  m_elasticity_off     = !!a->PopInt();
-
-  ASSERT(Time::GetInstance()->Read() >= m_last_move);
-
-  MSG_DEBUG( "physic.sync", "%s now - x0:%f, x1:%f, x2:%f - y0:%f, y1:%f, y2:%f - extern_force: %f, %f",
-	     typeid(*this).name(),
-             m_pos_x.x0, m_pos_x.x1, m_pos_x.x2,
-             m_pos_y.x0, m_pos_y.x1, m_pos_y.x2,
-             m_extern_force.x, m_extern_force.y);
 }
 
 void Physics::SetExternForceXY (const Point2d& vector)
@@ -474,49 +422,46 @@ Point2d Physics::ComputeNextXY(double delta_t){
 
   MSG_DEBUG("physic.compute", "%s: delta: %f", typeid(*this).name(), delta_t);
 
-  if (m_motion_type == FreeFall)
+  if (FreeFall == m_motion_type) {
     ComputeFallNextXY(delta_t);
+  }
 
-  if (m_motion_type == Pendulum)
+  if (Pendulum == m_motion_type) {
     ComputePendulumNextXY(delta_t);
+  }
 
   return Point2d(m_pos_x.x0, m_pos_y.x0);
 }
 
 void Physics::RunPhysicalEngine()
 {
-  double step_t, delta_t = (Time::GetInstance()->Read() - m_last_move) / 1000.0;
+  if (m_last_physical_engine_run < m_last_move)
+    m_last_physical_engine_run = m_last_move;
+
+  ASSERT(Time::GetInstance()->Read() >= m_last_physical_engine_run);
+  double delta_t = (Time::GetInstance()->Read() - m_last_physical_engine_run) / 1000.0;
   Point2d oldPos;
   Point2d newPos;
 
-  step_t = PHYS_DELTA_T;
-
-  //  printf ("Delta_t = %f (last %f - current %f)\n", delta_t, m_last_move/1000.0,
-  //          global_time.Read()/1000.0);
+  m_last_physical_engine_run += floor(delta_t/PHYS_DELTA_T) * PHYS_DELTA_T * 1000;
 
   // Compute object move for each physical engine time step.
-
-  while (delta_t > 0.0){
-    if (delta_t < PHYS_DELTA_T)
-      step_t = delta_t ;
-
+  while (delta_t >= PHYS_DELTA_T)
+  {
     oldPos = GetPos();
+    newPos = ComputeNextXY(PHYS_DELTA_T);
 
-    newPos = ComputeNextXY(step_t);
-
-    if( newPos != oldPos)  {
+    if (newPos != oldPos) {
       // The object has moved. Notify the son class.
-      MSG_DEBUG( "physic.move", "%s moves (%f, %f) -> (%f, %f) - x0:%f, x1:%f, x2:%f - y0:%f, y1:%f, y2:%f - step:%f",
-                 typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y,
-                 m_pos_x.x0, m_pos_x.x1, m_pos_x.x2,
-                 m_pos_y.x0, m_pos_y.x1, m_pos_y.x2,
-                 step_t);
+      MSG_DEBUG("physic.move", "%s moves (%f, %f) -> (%f, %f) - x0:%f, x1:%f, x2:%f - y0:%f, y1:%f, y2:%f - step:%f",
+                typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y,
+                m_pos_x.x0, m_pos_x.x1, m_pos_x.x2,
+                m_pos_y.x0, m_pos_y.x1, m_pos_y.x2,
+                PHYS_DELTA_T);
       NotifyMove(oldPos, newPos);
     }
-
-    delta_t -= PHYS_DELTA_T ;
+    delta_t -= PHYS_DELTA_T;
   }
-
   return;
 }
 

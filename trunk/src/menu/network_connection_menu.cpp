@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,11 +19,6 @@
  * Network connection menu: this menu allows the user to choose between
  * hosting a game or connecting to a server.
  *****************************************************************************/
-
-
-#include "menu/network_connection_menu.h"
-#include "menu/network_menu.h"
-
 #include "game/config.h"
 #include "graphic/video.h"
 #include "gui/button.h"
@@ -38,6 +33,8 @@
 #include "include/app.h"
 #include "include/constant.h"
 #include "network/net_error_msg.h"
+#include "menu/network_connection_menu.h"
+#include "menu/network_menu.h"
 #include "team/teams_list.h"
 #include "tool/resource_manager.h"
 #include "tool/string_tools.h"
@@ -48,7 +45,7 @@ public:
   bool password;
   std::string port, ip_address;
   GameInfoBox(uint width, bool pwd, const std::string& ip, const std::string& p,
-              const std::string& dns, const std::string& name)
+              const std::string& name)
     : HBox(width, true, false)
     , password(pwd)
     , port(p)
@@ -61,7 +58,6 @@ public:
     }
     AddWidget(new Label(ip, 100));
     AddWidget(new Label(p, 40));
-    AddWidget(new Label(dns, 340));
     AddWidget(new Label(name, 200));
     Pack();
   }
@@ -73,9 +69,9 @@ public:
   GameListBox(const Point2i &size, bool b = true) : BaseListBox(size, b) { }
   void Select(uint index) { BaseListBox::Select(index); }
   void AddItem(bool selected, bool pwd, const std::string& ip_address,
-               const std::string& port, const std::string& dns, const std::string& name)
+               const std::string& port, const std::string& name)
   {
-    AddWidgetItem(selected, new GameInfoBox(600, pwd, ip_address, port, dns, name));
+    AddWidgetItem(selected, new GameInfoBox(600, pwd, ip_address, port, name));
   }
   const std::string& GetAddress() { return ((GameInfoBox*)m_items[selected_item])->ip_address; }
   const std::string& GetPort() { return ((GameInfoBox*)m_items[selected_item])->port; }
@@ -114,7 +110,7 @@ int RefreshNetInfo(void *)
     return -1;
   }
 
-  std::list<GameServerInfo> lst = IndexServer::GetInstance()->GetHostList();
+  std::list<GameServerInfo> lst = IndexServer::GetInstance()->GetHostList(false);
   IndexServer::GetInstance()->Disconnect();
 
   SDL_SemWait(net_info.lock);
@@ -276,19 +272,20 @@ NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
   Point2i msg_box_size(max_width,
                        GetMainWindow().GetHeight() - 50 - msg_box_pos.y);
 
-  msg_box = new MsgBox(msg_box_size, Font::FONT_SMALL, Font::FONT_NORMAL);
+  msg_box = new MsgBox(msg_box_size, Font::FONT_SMALL, Font::FONT_BOLD);
   msg_box->SetPosition(msg_box_pos);
 
   widgets.AddWidget(msg_box);
   widgets.Pack();
 
-  msg_box->NewMessage(_("Join #wormux on irc.freenode.net to find some opponents."));
-  msg_box->NewMessage(""); // Skip a line
   msg_box->NewMessage(_("Have a good game!"));
   msg_box->NewMessage(""); // Skip a line
 
   GetResourceManager().UnLoadXMLProfile(res);
 
+  //Double click
+  m_last_click_on_games_lst = 0;
+  m_double_click_interval = 400;
   // ************************************************************************
   InitNetInfo();
 
@@ -317,6 +314,25 @@ void NetworkConnectionMenu::OnClickUp(const Point2i &mousePosition, int button)
 
   if (w == cl_refresh_net_games || w == refresh_net_games_label)
     ThreadRefreshList();
+
+  if (w == cl_server_address || w == cl_port_number || w == cl_server_pwd)
+    cl_net_games_lst->Deselect();
+
+  //Hack to handle double click
+  if (w == cl_net_games_lst)
+  {
+    if (m_last_click_on_games_lst + m_double_click_interval > SDL_GetTicks())
+    {
+      if (cl_net_games_lst->GetSelectedItem() == -1) {
+        cl_net_games_lst->Select(cl_net_games_lst->MouseIsOnWhichItem(mousePosition));
+      }
+      signal_ok();
+    }
+    else
+    {
+      m_last_click_on_games_lst = SDL_GetTicks();
+    }
+  }
 }
 
 void NetworkConnectionMenu::OnClick(const Point2i &mousePosition, int button)
@@ -360,12 +376,16 @@ void NetworkConnectionMenu::__RefreshList()
   for (std::list<GameServerInfo>::iterator it = net_info.lst_games.begin();
        it != net_info.lst_games.end(); ++it) {
     cl_net_games_lst->AddItem(false, it->passworded, it->ip_address,
-                              it->port, it->dns_address, it->game_name);
+                              it->port, it->game_name);
   }
   SDL_SemPost(net_info.lock);
 
-  if (cl_net_games_lst->Size() != 0)
+  if (cl_net_games_lst->Size() != 0) {
+    if (current > ((int) cl_net_games_lst->Size())-1) {
+      current = 0;
+    }
     cl_net_games_lst->Select( current );
+  }
 
   cl_net_games_lst->NeedRedrawing();
 }
@@ -416,15 +436,20 @@ bool NetworkConnectionMenu::HostingServer(const std::string& port,
 {
   bool r = false;
   int net_port;
+  connection_state_t conn;
 
   if (!internet)
     IndexServer::GetInstance()->SetHiddenServer();
 
-  connection_state_t conn = IndexServer::GetInstance()->Connect(Constants::WORMUX_VERSION);
-  if (conn != CONNECTED) {
-    DisplayNetError(conn);
-    msg_box->NewMessage(_("Error: Unable to contact the index server to host a game"), c_red);
-    goto out;
+  if (internet) {
+    SDL_SemWait(net_info.lock);
+
+    conn = IndexServer::GetInstance()->Connect(Constants::WORMUX_VERSION);
+    if (conn != CONNECTED) {
+      DisplayNetError(conn);
+      msg_box->NewMessage(_("Error: Unable to contact the index server to host a game"), c_red);
+      goto out;
+    }
   }
 
   conn = Network::ServerStart(port, game_name, password);
@@ -439,12 +464,14 @@ bool NetworkConnectionMenu::HostingServer(const std::string& port,
     goto out;
   }
 
-  r = IndexServer::GetInstance()->SendServerStatus(game_name, password != "", net_port);
-  if (false == r) {
-    DisplayNetError(CONN_BAD_PORT);
-    msg_box->NewMessage(Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connections from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port.c_str(), port.c_str()),
-                        c_red);
-    goto out;
+  if (internet) {
+    r = IndexServer::GetInstance()->SendServerStatus(game_name, password != "", net_port);
+    if (false == r) {
+      DisplayNetError(CONN_BAD_PORT);
+      msg_box->NewMessage(Format(_("Error: Your server is not reachable from the internet. Check your firewall configuration: TCP Port %s must accept connections from the outside. If you are not directly connected to the internet, check your router configuration: TCP Port %s must be forwarded on your computer."), port.c_str(), port.c_str()),
+			  c_red);
+      goto out;
+    }
   }
 
   if (!Network::GetInstance()->IsConnected()) {
@@ -454,6 +481,8 @@ bool NetworkConnectionMenu::HostingServer(const std::string& port,
   r = true;
 
  out:
+  if (internet)
+    SDL_SemPost(net_info.lock);
   return r;
 }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 class ExplosionSmoke : public Particle
 {
  protected:
-  uint m_initial_size, dx;
+  uint m_initial_size;
  public:
   ExplosionSmoke(const uint size_init);
   void Refresh();

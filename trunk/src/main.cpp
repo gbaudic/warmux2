@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -204,7 +204,7 @@ void AppWormux::DisplayLoadingPicture()
 
   std::string txt_version =
     _("Version") + std::string(" ") + Constants::WORMUX_VERSION;
-  std::string filename = config->GetDataDir() + "menu" PATH_SEPARATOR "loading.png";
+  std::string filename = config->GetDataDir() + "menu" PATH_SEPARATOR "background_loading.jpg";
 
   Surface surfaceLoading(filename.c_str());
   Sprite loading_image(surfaceLoading, true);
@@ -216,15 +216,15 @@ void AppWormux::DisplayLoadingPicture()
   Time::GetInstance()->Reset();
 
   Text text1(_("Wormux launching..."), white_color,
-             Font::FONT_HUGE, Font::FONT_NORMAL, true);
-  Text text2(txt_version, white_color, Font::FONT_HUGE, Font::FONT_NORMAL,
+             Font::FONT_HUGE, Font::FONT_BOLD, true);
+  Text text2(txt_version, white_color, Font::FONT_HUGE, Font::FONT_BOLD,
              true);
 
   Point2i windowCenter = video->window.GetSize() / 2;
 
   text1.DrawCenter(windowCenter);
   text2.DrawCenter(windowCenter
-                   + Point2i(0, (*Font::GetInstance(Font::FONT_HUGE, Font::FONT_NORMAL)).GetHeight() + 20));
+                   + Point2i(0, (*Font::GetInstance(Font::FONT_HUGE, Font::FONT_BOLD)).GetHeight() + 20));
 
   video->window.Flip();
 }
@@ -312,7 +312,7 @@ void DisplayWelcomeMessage()
 
   // print the disclaimer
   std::cout << "Wormux version " << Constants::WORMUX_VERSION
-    << ", Copyright (C) 2001-2009 Wormux Team" << std::endl
+    << ", Copyright (C) 2001-2010 Wormux Team" << std::endl
     << "Wormux comes with ABSOLUTELY NO WARRANTY." << std::endl
     << "This is free software and you are welcome to redistribute it" << std::endl
     << "under certain conditions." << std::endl << std::endl

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -45,4 +45,15 @@ typedef signed   __int16  int16_t;
 typedef unsigned __int32  uint32_t;
 #endif
 
+enum LRDirection
+{
+  DIRECTION_LEFT = -1,
+  DIRECTION_RIGHT = 1
+};
+
+enum UDDirection
+{
+  DIRECTION_UP,
+  DIRECTION_DOWN
+};
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -104,6 +104,7 @@ TeamsSelectionBox::TeamsSelectionBox(const Point2i &_size, bool network) :
     if (j < 2) {
       SetNbTeams(2);
       local_teams_nb->SetValue(2);
+      teams_selections.at(1)->SetAIName(DEFAULT_AI_NAME);
     } else {
       local_teams_nb->SetValue(j);
     }
@@ -127,15 +128,23 @@ Widget* TeamsSelectionBox::ClickUp(const Point2i &mousePosition, uint button)
         if (w == NULL) {
           Rectanglei r(teams_selections.at(i)->GetPositionX(),
                        teams_selections.at(i)->GetPositionY(),
-                       60,
-                       60);
+                       38,
+                       38);
           if ( r.Contains(mousePosition) ) {
             if ( button == Mouse::BUTTON_LEFT() || button == SDL_BUTTON_WHEELDOWN ) {
               NextTeam(i);
             } else if ( button == Mouse::BUTTON_RIGHT() || button == SDL_BUTTON_WHEELUP ) {
               PrevTeam(i);
             }
-          }
+          } else {
+	    Rectanglei r2(teams_selections.at(i)->GetPositionX(),
+			  teams_selections.at(i)->GetPositionY() + 39,
+			  38,
+			  30);
+	    if (r2.Contains(mousePosition)) {
+	      teams_selections.at(i)->SwitchPlayerType();
+	    }
+	  }
         } else {
           return w;
         }

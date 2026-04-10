@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,38 +39,40 @@ void BodyList::FreeMem()
   // The bodies member variable are freed from here, because the playing bodies
   //  only contains pointers to member/movement/clothes of the bodies in the body_list
   std::map<std::string, Body*>::iterator it = list.begin();
-  while(it != list.end())
-  {
+
+  while(it != list.end()) {
     delete it->second;
-    it++;
+    ++it;
   }
   list.clear();
 }
 
-void BodyList::Load(const std::string &name)
+void BodyList::Load(const std::string & name)
 {
   std::string dir = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "body" + PATH_SEPARATOR + name + PATH_SEPARATOR;
   std::string fn = dir + CONFIG_FN;
 
   XmlReader doc;
   if (!doc.Load(fn)) {
-     std::cerr << "Unable to find file " << fn << std::endl;
-     return;
+    std::cerr << "Unable to find file " << fn << std::endl;
+    return;
   }
 
-  Body* body = new Body(doc.GetRoot(), dir);
+  Body * body = new Body(doc.GetRoot(), dir);
+  body->Init();
   list[name] = body;
 }
 
-Body* BodyList::GetBody(const std::string &name)
+Body * BodyList::GetBody(const std::string & name)
 {
-  if(list[name] == NULL)
+  if (list[name] == NULL) {
     Load(name);
+  }
 
-  if(list[name] == NULL)
-  {
+  if (list[name] == NULL) {
     std::cerr << "Unable to load body \"" << name << "\"" << std::endl;
     return NULL;
   }
+
   return new Body(*list[name]);
 }

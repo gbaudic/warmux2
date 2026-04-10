@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ DynamiteStick::DynamiteStick(ExplosiveWeaponConfig& cfg,
   WeaponProjectile("dynamite_bullet", cfg, p_launcher)
 {
   explode_with_collision = false;
+  explode_with_timeout = true;
 
   image->animation.SetLoopMode(false);
   SetSize(image->GetSize());
@@ -102,7 +103,7 @@ void DynamiteStick::SignalDrowning()
 //-----------------------------------------------------------------------------
 
 Dynamite::Dynamite() :
-    WeaponLauncher(WEAPON_DYNAMITE, "dynamite", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+    WeaponLauncher(WEAPON_DYNAMITE, "dynamite", new ExplosiveWeaponConfig())
 {
   UpdateTranslationStrings();
 
@@ -138,6 +139,11 @@ bool Dynamite::p_Shoot ()
   return true;
 }
 
+bool Dynamite::ShouldBeDrawn()
+{
+  return !IsOnCooldownFromShot();
+}
+
 std::string Dynamite::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
   return Format(ngettext(
@@ -145,4 +151,3 @@ std::string Dynamite::GetWeaponWinString(const char *TeamName, uint items_count)
             "%s team has won %u dynamites!",
             items_count), TeamName, items_count);
 }
-

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@
 #include "interface/mouse.h"
 #include "sound/jukebox.h"
 #include "tool/resource_manager.h"
-
-static const int MENU_DELAY = 100;  // 10 fps, much sufficient for menu
 
 Menu::Menu(const std::string& bg, t_action _actions) :
   actions(_actions),
@@ -296,6 +294,8 @@ void Menu::HandleEvents()
 
 void Menu::Run (bool skip_menu)
 {
+  signal_begin_run();
+
   if (skip_menu) {
     signal_ok();
     return;

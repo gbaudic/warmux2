@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@
 
 class BasicConfig
 {
-  std::string config_file;
-
   std::map<std::string, std::string> str_value;
   std::map<std::string, int> int_value;
   std::map<std::string, bool> bool_value;
@@ -41,10 +39,9 @@ protected:
   void SetDefault(const std::string & name, const int & value);
   void SetDefault(const std::string & name, const bool & value);
 
-  void Load();
+  virtual void Load(const std::string & config_file);
   void Display() const;
 public:
-  BasicConfig(const std::string & config_file);
 
   bool Get(const std::string & name, std::string & value) const;
   bool Get(const std::string & name, int & value) const;
@@ -58,5 +55,7 @@ public:
   // (development versions are hidden)
   const std::string SupportedVersions2Str() const;
 };
+
+extern bool WSERVER_Verbose;
 
 #endif

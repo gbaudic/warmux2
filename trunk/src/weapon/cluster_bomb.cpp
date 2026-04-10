@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ void Cluster::Shoot(const Point2i & pos, double strength, double angle)
   // we do need to collide with objects, but if we allow for this, the clusters
   // will explode on spawn (because of colliding with each other)
 
-  begin_time = Time::GetInstance()->Read();
+  StartTimeout();
   Camera::GetInstance()->FollowObject(this);
   ResetConstants();
   SetXY( pos );
@@ -96,8 +96,7 @@ void Cluster::Refresh()
 {
   WeaponProjectile::Refresh();
   // make it rotate
-  uint time = Time::GetInstance()->Read();
-  float flying_time = ( float )( time - begin_time );
+  float flying_time = (float) GetMSSinceTimeoutStart();
   const float rotations_per_second = 4;
   image->SetRotation_rad( rotations_per_second * 2 * M_PI * flying_time / 1000.0f );
 }
@@ -132,6 +131,7 @@ ClusterBomb::ClusterBomb(ClusterBombConfig& cfg,
 {
   m_rebound_sound = "weapon/grenade_bounce";
   explode_with_collision = false;
+  explode_with_timeout = true;
 }
 
 void ClusterBomb::Refresh()
@@ -173,7 +173,7 @@ void ClusterBomb::SetEnergyDelta(int /* delta */, bool /* do_report */){};
 //-----------------------------------------------------------------------------
 
 ClusterLauncher::ClusterLauncher() :
-  WeaponLauncher(WEAPON_CLUSTER_BOMB, "cluster_bomb", new ClusterBombConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+  WeaponLauncher(WEAPON_CLUSTER_BOMB, "cluster_bomb", new ClusterBombConfig())
 {
   UpdateTranslationStrings();
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "include/base.h"
 #include "object/physical_obj.h"
 #include "character/body.h"
+#include "interface/movable_by_user.h"
 
 class Text;
 class Team;
@@ -39,7 +40,7 @@ class DamageStatistics;
 //#define DEBUG_SKIN
 #endif
 
-class Character : public PhysicalObj
+class Character : public PhysicalObj, public MovableByUser
 {
 private:
   /* If you need this, implement it (correctly) */
@@ -73,6 +74,7 @@ private:
   uint animation_time;
   int lost_energy;
   bool hidden; //The character is hidden (needed by teleportation)
+  bool walking_slowly;
 
   // Channel used for sound
   int channel_step;
@@ -83,6 +85,9 @@ private:
   // this is needed because of network needing to know
   // if we have changed of active character
   bool is_playing;
+
+  uint last_direction_change;
+
 public:
 
   // Previous strength
@@ -103,12 +108,15 @@ private:
   void Collision(const Point2d& speed_vector);
   void SetBody(Body* char_body);
 
+  void UpdateFiringAngle();
   void AddFiringAngle(double angle) { SetFiringAngle(firing_angle + angle); };
 
-  void StartWalk(bool slowly);
-  void StopWalk();
+  void StartWalking(bool slowly);
+  void StopWalking();
   bool IsWalking() const;
-
+  void MakeSteps();
+  bool IsChangingDirection();
+  bool ComputeHeightMovement(int & height);
 public:
 
   Character (Team& my_team, const std::string &name, Body *char_body);
@@ -116,6 +124,8 @@ public:
   ~Character();
 
   virtual void SignalExplosion();
+
+  void StartOrStopWalkingIfNecessary();
 
   // Energy related
   void SetEnergyDelta(int delta, bool do_report = true);
@@ -149,16 +159,6 @@ public:
     else disease_damage_per_turn = 0;
   }
 
-  // ================================================
-  // Used to sync value across network
-  virtual void GetValueFromAction(Action *);
-  virtual void StoreValue(Action *);
-
-  static void RetrieveCharacterFromAction(Action *);
-  static void StoreActiveCharacter(Action *);
-  static void StoreCharacter(Action *, uint team_no, uint char_no);
-  // ================================================
-
   void Draw();
   void Refresh();
 
@@ -181,10 +181,8 @@ public:
 
   void UpdateLastMovingTime();
 
-  // Can we move (check a timeout)
-  bool CanMoveRL() const;
-  bool CanJump() const { return CanMoveRL(); };
-  void Move(enum BodyDirection direction, bool slowly);
+  bool HasGroundUnderFeets() const;
+  bool CanJump() const { return HasGroundUnderFeets(); };
 
   // Jumps
   void Jump(double strength, double angle);
@@ -192,13 +190,9 @@ public:
   void HighJump();
   void BackJump();
 
-  // Initialise left or right movement
-  void BeginMovementRL (uint pause, bool slowly = false);
-  bool CanStillMoveRL (uint pause);
-
   // Direction of the character ( -1 == looks to the left / +1 == looks to the right)
-  void SetDirection(BodyDirection_t direction);
-  BodyDirection_t GetDirection() const;
+  void SetDirection(LRDirection direction);
+  LRDirection GetDirection() const;
 
   // Team owner
   const Team& GetTeam() const { return m_team; };
@@ -211,7 +205,8 @@ public:
   bool IsSameAs(const Character& other) const { return (GetName() == other.GetName()); }
   void SetCustomName(const std::string name);
    // Hand position
-  const Point2i & GetHandPosition() const;
+  void GetHandPosition(Point2i & result) const;
+  void GetRelativeHandPosition(Point2i & result) const;
 
   // Damage report
   const DamageStatistics* GetDamageStats() const { return damage_stats; };
@@ -228,33 +223,26 @@ public:
   void SetMovementOnce(const std::string& name, bool force=false);
 
   // Keyboard handling
-  void HandleKeyPressed_MoveRight(bool shift);
-  void HandleKeyRefreshed_MoveRight(bool shift);
-  void HandleKeyReleased_MoveRight(bool shift);
+  void HandleKeyPressed_MoveRight(bool slowly);
+  void HandleKeyReleased_MoveRight(bool slowly);
 
-  void HandleKeyPressed_MoveLeft(bool shift);
-  void HandleKeyRefreshed_MoveLeft(bool shift);
-  void HandleKeyReleased_MoveLeft(bool shift);
+  void HandleKeyPressed_MoveLeft(bool slowly);
+  void HandleKeyReleased_MoveLeft(bool slowly);
 
-  void HandleKeyPressed_Up(bool shift) { HandleKeyRefreshed_Up(shift); };
-  void HandleKeyRefreshed_Up(bool shift);
-  void HandleKeyReleased_Up(bool) const {};
+  void HandleKeyPressed_Up(bool slowly);
+  void HandleKeyReleased_Up(bool slowly);
 
-  void HandleKeyPressed_Down(bool shift) { HandleKeyRefreshed_Down(shift); };
-  void HandleKeyRefreshed_Down(bool shift);
-  void HandleKeyReleased_Down(bool) const {};
+  void HandleKeyPressed_Down(bool slowly);
+  void HandleKeyReleased_Down(bool slowly);
 
-  void HandleKeyPressed_Jump(bool shift);
-  void HandleKeyRefreshed_Jump(bool) const {};
-  void HandleKeyReleased_Jump(bool) const {};
+  void HandleKeyPressed_Jump();
+  void HandleKeyReleased_Jump() const {};
 
-  void HandleKeyPressed_HighJump(bool shift);
-  void HandleKeyRefreshed_HighJump(bool) const { };
-  void HandleKeyReleased_HighJump(bool) const { };
+  void HandleKeyPressed_HighJump();
+  void HandleKeyReleased_HighJump() const { };
 
-  void HandleKeyPressed_BackJump(bool shift);
-  void HandleKeyRefreshed_BackJump(bool) const {};
-  void HandleKeyReleased_BackJump(bool) const {};
+  void HandleKeyPressed_BackJump();
+  void HandleKeyReleased_BackJump() const {};
 
 };
 

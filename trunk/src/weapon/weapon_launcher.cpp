@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include <sstream>
 #include <WORMUX_debug.h>
+#include <limits.h>
 
 #include "character/character.h"
 #include "game/config.h"
@@ -46,6 +47,8 @@
 #include "graphic/video.h"
 #include "include/app.h"
 #endif
+
+const uint INVALID_TIMEOUT_START = UINT_MAX;
 
 WeaponBullet::WeaponBullet(const std::string &name,
                            ExplosiveWeaponConfig& cfg,
@@ -107,22 +110,26 @@ void WeaponBullet::Refresh()
 void WeaponBullet::DoExplosion()
 {
   Point2i pos = GetCenter();
-  ApplyExplosion(pos, cfg, "", false, ParticleEngine::LittleESmoke, GetUniqueId());
+  ApplyExplosion(pos, cfg, "", false, ParticleEngine::LittleESmoke);
 }
 //-----------------------------------------------------------------------------
 
 
 WeaponProjectile::WeaponProjectile(const std::string &name,
                                     ExplosiveWeaponConfig& p_cfg,
-                                    WeaponLauncher * p_launcher)
-  : PhysicalObj(name), cfg(p_cfg)
+                                    WeaponLauncher * p_launcher):
+  PhysicalObj(name),
+  timeout_start(INVALID_TIMEOUT_START),
+  cfg(p_cfg)
 {
   m_allow_negative_y = true;
   SetCollisionModel(true, true, true);
   launcher = p_launcher;
 
   explode_colliding_character = false;
-  explode_with_timeout = true;
+  // explode_with_timeout defaults to false as
+  // the default value true has caused a few hard to find bugs.
+  explode_with_timeout = false;
   explode_with_collision = true;
   can_drown = true;
   camera_follow_closely = false;
@@ -166,23 +173,27 @@ void WeaponProjectile::Shoot(double strength)
   double angle = ActiveCharacter().GetFiringAngle();
   RandomizeShoot(angle, strength);
 
+  Point2i hand_position;
+  ActiveCharacter().GetHandPosition(hand_position);
+  ActiveCharacter().GetHandPosition(hand_position);
   MSG_DEBUG("weapon.projectile", "shoot from position %d,%d (size %d, %d) - hand position:%d,%d",
-	    ActiveCharacter().GetX(),
-	    ActiveCharacter().GetY(),
-	    ActiveCharacter().GetWidth(),
-	    ActiveCharacter().GetHeight(),
-            ActiveCharacter().GetHandPosition().GetX(),
-            ActiveCharacter().GetHandPosition().GetY());
+            ActiveCharacter().GetX(),
+            ActiveCharacter().GetY(),
+            ActiveCharacter().GetWidth(),
+            ActiveCharacter().GetHeight(),
+            hand_position.GetX(),
+            hand_position.GetY());
+
   MSG_DEBUG("weapon.projectile", "shoot with strength:%f, angle:%f, position:%d,%d",
             strength, angle, GetX(), GetY());
 
-  begin_time = Time::GetInstance()->Read();
+  StartTimeout();
 
   ShootSound();
 
   // bug #10236 : problem with flamethrower collision detection
   // Check if the object is colliding something between hand position and gun hole
-  Point2i hand_position = ActiveCharacter().GetHandPosition() - GetSize() / 2;
+  hand_position -= GetSize() / 2;
   Point2i hole_position = launcher->GetGunHolePosition() - GetSize() / 2;
   Point2d f_hand_position(hand_position.GetX() / PIXEL_PER_METER, hand_position.GetY() / PIXEL_PER_METER);
   Point2d f_hole_position(hole_position.GetX() / PIXEL_PER_METER, hole_position.GetY() / PIXEL_PER_METER);
@@ -213,11 +224,16 @@ void WeaponProjectile::Refresh()
     Explosion();
     return;
   }
+  // The RefreshSurface() call is necessary as the image determines the size of the projectile
+  // and we don't want to rely on Draw to call RefreshSurface() as the draw rate differs
+  // for the players in a multiplayer game.
+  image->RefreshSurface();
   SetSize(image->GetSizeMax());
-  // Explose after timeout
-  int tmp = Time::GetInstance()->Read() - begin_time;
 
-  if(cfg.timeout && tmp > 1000 * (GetTotalTimeout())) SignalTimeout();
+  if (cfg.timeout) {
+     if (((int)GetMSSinceTimeoutStart()) > 1000 * GetTotalTimeout())
+       SignalTimeout();
+  }
 }
 
 void WeaponProjectile::SetEnergyDelta(int /*delta*/, bool /*do_report*/)
@@ -234,15 +250,15 @@ void WeaponProjectile::Draw()
 
   if (cfg.timeout && tmp != 0)
   {
-    tmp -= (int)((Time::GetInstance()->Read() - begin_time) / 1000);
+    tmp -= (int)((GetMSSinceTimeoutStart()) / 1000);
     if (tmp >= 0)
     {
       std::ostringstream ss;
       ss << tmp ;
       int txt_x = GetX() + GetWidth() / 2;
       int txt_y = GetY() - GetHeight();
-      (*Font::GetInstance(Font::FONT_SMALL)).WriteCenterTop( Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition(),
-      ss.str(), white_color);
+	  Text text(ss.str());
+      text.DrawCenterTop(Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition());
     }
   }
 
@@ -261,7 +277,7 @@ void WeaponProjectile::Draw()
 
 bool WeaponProjectile::IsImmobile() const
 {
-  if(explode_with_timeout && begin_time + GetTotalTimeout() * 1000 > Time::GetInstance()->Read())
+  if (explode_with_timeout && GetTotalTimeout() * 1000 > (int) GetMSSinceTimeoutStart())
     return false;
   return PhysicalObj::IsImmobile();
 }
@@ -297,6 +313,7 @@ void WeaponProjectile::Collision()
   if (launcher != NULL && !launcher->ignore_collision_signal)
     launcher->SignalProjectileCollision();
 }
+
 
 // Default behavior : signal to launcher projectile is drowning
 void WeaponProjectile::SignalDrowning()
@@ -351,7 +368,7 @@ void WeaponProjectile::SignalExplosion()
 void WeaponProjectile::DoExplosion()
 {
   Point2i pos = GetCenter();
-  ApplyExplosion(pos, cfg, "weapon/explosion", true, ParticleEngine::BigESmoke, GetUniqueId());
+  ApplyExplosion(pos, cfg, "weapon/explosion", true, ParticleEngine::BigESmoke);
 }
 
 void WeaponProjectile::IncrementTimeOut()
@@ -378,6 +395,19 @@ int WeaponProjectile::GetTotalTimeout() const
   return (int)(cfg.timeout)+m_timeout_modifier;
 }
 
+void WeaponProjectile::StartTimeout()
+{
+  timeout_start = Time::GetInstance()->Read();
+}
+
+uint WeaponProjectile::GetMSSinceTimeoutStart() const
+{
+  uint now = Time::GetInstance()->Read();
+  ASSERT (timeout_start  != INVALID_TIMEOUT_START);
+  ASSERT(now >= timeout_start);
+  return now - timeout_start;
+}
+
 // Signal a projectile timeout and explode
 void WeaponProjectile::SignalTimeout()
 {
@@ -399,8 +429,8 @@ bool WeaponProjectile::change_timeout_allowed() const
 WeaponLauncher::WeaponLauncher(Weapon_type type,
                                const std::string &id,
                                EmptyWeaponConfig * params,
-                               weapon_visibility_t visibility) :
-    Weapon(type, id, params, visibility)
+                               bool drawable) :
+    Weapon(type, id, params, drawable)
 {
   projectile = NULL;
   nb_active_projectile = 0;
@@ -420,6 +450,21 @@ WeaponLauncher::~WeaponLauncher()
     delete projectile;
 }
 
+int WeaponLauncher::GetDamage()
+{
+  return cfg().damage;
+}
+
+double WeaponLauncher::GetWindFactor()
+{
+  return projectile->GetWindFactor();
+}
+
+double WeaponLauncher::GetMass()
+{
+  return projectile->GetMass();
+}
+
 bool WeaponLauncher::p_Shoot()
 {
 //   if (m_strength == max_strength)
@@ -432,11 +477,6 @@ bool WeaponLauncher::p_Shoot()
   projectile = NULL;
   ReloadLauncher();
   return true;
-}
-
-bool WeaponLauncher::IsInUse() const
-{
-  return m_last_fire_time > 0 && m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
 }
 
 bool WeaponLauncher::ReloadLauncher()
@@ -459,7 +499,7 @@ void WeaponLauncher::Draw()
   //Display timeout for projectil if can be changed.
   if (projectile->change_timeout_allowed())
   {
-    if( IsInUse() ) //Do not display after launching.
+    if (IsOnCooldownFromShot()) //Do not display after launching.
       return;
 
     int tmp = projectile->GetTotalTimeout();
@@ -467,9 +507,9 @@ void WeaponLauncher::Draw()
     ss << tmp;
     ss << "s";
     int txt_x = ActiveCharacter().GetX() + ActiveCharacter().GetWidth() / 2;
-    int txt_y = ActiveCharacter().GetY() - ActiveCharacter().GetHeight();
-    (*Font::GetInstance(Font::FONT_SMALL)).WriteCenterTop( Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition(),
-    ss.str(), white_color);
+    int txt_y = ActiveCharacter().GetY() - 4*ActiveCharacter().GetHeight()/5;
+	Text text(ss.str());
+      text.DrawCenterTop(Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition());
   }
 
   Weapon::Draw();
@@ -505,88 +545,85 @@ void WeaponLauncher::IncMissedShots()
     GameMessages::GetInstance()->Add (_("Your shot has missed!"));
 }
 
-void WeaponLauncher::HandleKeyReleased_Num1(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num1()
 {
-  projectile->SetTimeOut(1);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(1);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num2(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num2()
 {
-  projectile->SetTimeOut(2);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(2);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num3(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num3()
 {
-  projectile->SetTimeOut(3);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(3);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num4(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num4()
 {
-  projectile->SetTimeOut(4);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(4);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num5(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num5()
 {
-  projectile->SetTimeOut(5);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(5);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num6(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num6()
 {
-  projectile->SetTimeOut(6);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(6);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num7(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num7()
 {
-  projectile->SetTimeOut(7);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(7);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num8(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num8()
 {
-  projectile->SetTimeOut(8);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(8);
 }
 
-void WeaponLauncher::HandleKeyReleased_Num9(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Num9()
 {
-  projectile->SetTimeOut(9);
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(9);
 }
 
-void WeaponLauncher::HandleKeyReleased_Less(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_Less()
 {
-  projectile->DecrementTimeOut();
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(GetTimeout() - 1);
 }
 
-void WeaponLauncher::HandleKeyReleased_More(bool /*shift*/)
+void WeaponLauncher::HandleKeyReleased_More()
 {
-  projectile->IncrementTimeOut();
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(GetTimeout() + 1);
 }
 
-void WeaponLauncher::NetworkSetTimeoutProjectile() const
+void WeaponLauncher::SetTimeoutForAllPlayers(int timeout)
 {
-  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_WEAPON_SET_TIMEOUT,
-                                                     projectile->m_timeout_modifier));
+  Action * a = new Action(Action::ACTION_WEAPON_SET_TIMEOUT, timeout);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
+void WeaponLauncher::SetTimeout(int timeout)
+{
+  GetProjectile()->SetTimeOut(timeout);
+}
+
+int WeaponLauncher::GetTimeout()
+{
+  return GetProjectile()->GetTotalTimeout();
 }
 
 void WeaponLauncher::HandleMouseWheelUp(bool /*shift*/)
 {
-  projectile->IncrementTimeOut();
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(GetTimeout() + 1);
 }
 
 void WeaponLauncher::HandleMouseWheelDown(bool /*shift*/)
 {
-  projectile->DecrementTimeOut();
-  NetworkSetTimeoutProjectile();
+  SetTimeoutForAllPlayers(GetTimeout() - 1);
 }
 
 ExplosiveWeaponConfig& WeaponLauncher::cfg()

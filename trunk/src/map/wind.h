@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,14 +38,15 @@ class WindParticle : public PhysicalObj
 {
 private:
   /* You should not need this */
-  WindParticle(const WindParticle&);
-  const WindParticle& operator=(const WindParticle&);
+  WindParticle(const WindParticle & obj);
+  const WindParticle & operator = (const WindParticle & obj);
 
-  Sprite *sprite;
-  Sprite *flipped;
+  Sprite * sprite;
+  Sprite * flipped;
 
 public:
-  WindParticle(const std::string& xml_file, float scale);
+  WindParticle(const std::string & xml_file, 
+               float scale);
   ~WindParticle();
   void Draw();
   void Refresh();
@@ -69,7 +70,7 @@ private:
 
 public:
   double GetStrength() const;
-  void ChooseRandomVal() const;
+  void ChooseRandomVal();
 
   void SetVal(long val);
   void Refresh();

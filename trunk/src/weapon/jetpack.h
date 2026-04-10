@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,42 +27,41 @@
 class JetPack : public Weapon
 {
   private:
-    double m_x_force;
-    double m_y_force;
-
     bool m_flying;
 
     SoundSample flying_sound;
 
     // Jetpack fuel.
     uint m_last_fuel_down;
+    bool active;
+
+    bool IsInAir();
 
   public:
     JetPack();
     void Reset();
-    virtual void ActionStopUse();
 
-    virtual void HandleKeyPressed_Up(bool shift);
-    virtual void HandleKeyReleased_Up(bool shift);
-    virtual void HandleKeyPressed_MoveLeft(bool shift);
-    virtual void HandleKeyReleased_MoveLeft(bool shift);
-    virtual void HandleKeyPressed_MoveRight(bool shift);
-    virtual void HandleKeyReleased_MoveRight(bool shift);
-    virtual void HandleKeyPressed_Shoot(bool shift);
+    virtual void StartShooting();
+    virtual void StopShooting() {};
+
+    virtual bool IsPreventingLRMovement();
+    virtual bool IsPreventingJumps();
+    virtual bool IsPreventingWeaponAngleChanges();
 
     void UpdateTranslationStrings();
     std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
+
 
   protected:
     void Refresh();
     void p_Select();
     void p_Deselect();
     bool p_Shoot();
+    virtual bool ShouldBeDrawn() { return false; };
+    virtual bool ShouldAmmoUnitsBeDrawn() const;
 
   private:
     void GoUp();
-    void GoLeft();
-    void GoRight();
     void StartFlying();
     void StopFlying();
 };

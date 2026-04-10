@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@
 #include "network/randomsync.h"
 
 BodyMemberParticle::BodyMemberParticle(const Sprite& spr, const Point2i& position) :
-  Particle("body_member_particle")
+  Particle("body_member_particle"),
+  angle_rad(0)
 {
   SetCollisionModel(true, false, false);
   m_left_time_to_live = 100;

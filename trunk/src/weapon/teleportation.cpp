@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,9 +33,9 @@
 #include "team/teams_list.h"
 #include "weapon/teleportation.h"
 
-Teleportation::Teleportation() : Weapon(WEAPON_TELEPORTATION, "teleportation",
-                                        new WeaponConfig(),
-                                        VISIBLE_ONLY_WHEN_INACTIVE)
+Teleportation::Teleportation() :
+  Weapon(WEAPON_TELEPORTATION, "teleportation", new WeaponConfig()),
+  done(false)
 {
   UpdateTranslationStrings();
 
@@ -54,9 +54,6 @@ void Teleportation::UpdateTranslationStrings()
 
 bool Teleportation::p_Shoot ()
 {
-  if(!target_chosen)
-    return false;
-
   // Check we are not going outside of the world !
   if( ActiveCharacter().IsOutsideWorldXY(dst) )
     return false;
@@ -74,30 +71,39 @@ bool Teleportation::p_Shoot ()
 
   ActiveCharacter().Hide();
   ActiveCharacter().body->MakeTeleportParticles(ActiveCharacter().GetPosition(), dst);
-
-  target_chosen = false; // ensure next teleportation cannot be done pressing key space
+  Camera::GetInstance()->SetAutoCrop(false);
   return true;
 }
 
 void Teleportation::Refresh()
 {
+  if (!target_chosen)
+    return;
+  if (done)
+    return;
   if(Time::GetInstance()->Read() - m_last_fire_time > (int)teleportation_anim_duration) {
-    Camera::GetInstance()->SetXYabs(dst - Camera::GetInstance()->GetSize() / 2);
     ActiveCharacter().SetXY(dst);
     ActiveCharacter().SetSpeed(0.0, 0.0);
     ActiveCharacter().Show();
     JukeBox::GetInstance()->Play("default", "weapon/teleport_end");
-    return;
+    Camera::GetInstance()->SetAutoCrop(true);
+    done = true;
   }
+}
+
+bool Teleportation::ShouldBeVisible()
+{
+  return !IsOnCooldownFromShot();
 }
 
 void Teleportation::p_Select()
 {
   if (Network::GetInstance()->IsTurnMaster())
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_FIRE_LEFT);
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_AIM);
 
   Weapon::p_Select();
   target_chosen = false;
+  done = false;
 }
 
 void Teleportation::ChooseTarget(Point2i mouse_pos)
@@ -121,9 +127,4 @@ std::string Teleportation::GetWeaponWinString(const char *TeamName, uint items_c
 WeaponConfig& Teleportation::cfg()
 {
   return static_cast<WeaponConfig&>(*extra_params);
-}
-
-bool Teleportation::IsInUse() const
-{
-  return m_last_fire_time > 0 && m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
 }

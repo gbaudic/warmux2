@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,10 +22,7 @@
 #include <WSERVER_config.h>
 #include <WSERVER_debug.h>
 
-BasicConfig::BasicConfig(const std::string & _config_file) :
-  config_file(_config_file)
-{
-}
+bool WSERVER_Verbose = true;
 
 static ssize_t getline(std::string& line, std::ifstream& file)
 {
@@ -57,20 +54,17 @@ void BasicConfig::SplitVersionsString(const std::string& val, std::list<std::str
   } while (comma_pos != std::string::npos);
 }
 
-void BasicConfig::Load()
+void BasicConfig::Load(const std::string & config_file)
 {
-  DPRINT(INFO, "Loading config file");
-
   int line_nbr = 0;
 
   // Parse the file
   std::ifstream fin;
   fin.open(config_file.c_str(), std::ios::in);
-  if(!fin)
-    {
-      DPRINT(INFO, "Unable to open config file %s", config_file.c_str());
-      exit(EXIT_FAILURE);
-    }
+  if (!fin) {
+    DPRINTMSG(stderr, "Unable to open config file %s: %s", config_file.c_str(), strerror(errno));
+    exit(EXIT_FAILURE);
+  }
 
   ssize_t read;
   std::string line;
@@ -99,6 +93,10 @@ void BasicConfig::Load()
 	continue;
       }
 
+      if (opt == "verbose")
+        if (val == "false")
+          WSERVER_Verbose = false;
+
       // val is considered to be an int if it doesn't contain
       // a '.' (ip address have to be handled as string...
       if(val.find('.',0) == std::string::npos
@@ -122,7 +120,7 @@ void BasicConfig::Load()
 
   fin.close();
 
-  DPRINT(INFO, "Config loaded");
+  DPRINT(INFO, "Config loaded successfully from %s", config_file.c_str());
 
   if (supported_versions.empty()) {
     DPRINT(INFO, "No supported versions ?!? You must fill option 'versions'");
@@ -221,7 +219,7 @@ void BasicConfig::SetDefault(const std::string & name, const int & value)
 
 void BasicConfig::SetDefault(const std::string & name, const std::string & value)
 {
-  bool val;
+  std::string val;
   if( ! Get(name, val) )
     {
       DPRINT(INFO, "Setting to default value : %s", value.c_str());

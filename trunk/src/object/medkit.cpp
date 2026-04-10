@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -89,16 +89,4 @@ void Medkit::LoadXml(const xmlNode*  object)
   r = XmlReader::ReadInt(object,"energy_boost",nbr_health);
   if (!r)
     nbr_health = 24;
-}
-
-void Medkit::GetValueFromAction(Action * a)
-{
-  ObjBox::GetValueFromAction(a);
-  nbr_health = a->PopInt();
-}
-
-void Medkit::StoreValue(Action * a)
-{
-  ObjBox::StoreValue(a);
-  a->Push(nbr_health);
 }

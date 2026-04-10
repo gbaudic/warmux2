@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 //-----------------------------------------------------------------------------
 #include <map>
 #include <list>
+#include <vector>
 #include "include/base.h"
 //-----------------------------------------------------------------------------
 
@@ -37,18 +38,49 @@ class ManMachineInterface
 public:
   typedef enum
   {
-    KEY_QUIT,        KEY_WEAPONS1,                KEY_WEAPONS2,
-    KEY_WEAPONS3,    KEY_WEAPONS4,                KEY_WEAPONS5,
-    KEY_WEAPONS6,    KEY_WEAPONS7,                KEY_WEAPONS8,
-    KEY_PAUSE,       KEY_FULLSCREEN,              KEY_TOGGLE_INTERFACE,
-    KEY_CENTER,      KEY_TOGGLE_WEAPONS_MENUS,    KEY_CHAT,
-    KEY_MOVE_LEFT,   KEY_MOVE_RIGHT,              KEY_UP,   KEY_DOWN,
-    KEY_JUMP,        KEY_HIGH_JUMP,               KEY_BACK_JUMP,
-    KEY_SHOOT,       KEY_CHANGE_WEAPON,
-    KEY_WEAPON_1,    KEY_WEAPON_2,                KEY_WEAPON_3,
-    KEY_WEAPON_4,    KEY_WEAPON_5,                KEY_WEAPON_6,
-    KEY_WEAPON_7,    KEY_WEAPON_8,                KEY_WEAPON_9,
-    KEY_WEAPON_LESS, KEY_WEAPON_MORE,
+    KEY_QUIT,
+    KEY_WEAPONS1,
+    KEY_WEAPONS2,
+    KEY_WEAPONS3,
+    KEY_WEAPONS4,
+    KEY_WEAPONS5,
+    KEY_WEAPONS6,
+    KEY_WEAPONS7,
+    KEY_WEAPONS8,
+    KEY_PAUSE,
+    KEY_FULLSCREEN,
+    KEY_TOGGLE_INTERFACE,
+    KEY_CENTER,
+    KEY_TOGGLE_WEAPONS_MENUS,
+    KEY_CHAT,
+    KEY_MOVE_LEFT,
+    KEY_MOVE_LEFT_SLOWLY,
+    KEY_MOVE_RIGHT,
+    KEY_MOVE_RIGHT_SLOWLY,
+    KEY_UP,
+    KEY_UP_SLOWLY,
+    KEY_DOWN,
+    KEY_DOWN_SLOWLY,
+    KEY_MOVE_CAMERA_LEFT,
+    KEY_MOVE_CAMERA_RIGHT,
+    KEY_MOVE_CAMERA_UP,
+    KEY_MOVE_CAMERA_DOWN,
+    KEY_JUMP,
+    KEY_HIGH_JUMP,
+    KEY_BACK_JUMP,
+    KEY_SHOOT,
+    KEY_CHANGE_WEAPON,
+    KEY_WEAPON_1,
+    KEY_WEAPON_2,
+    KEY_WEAPON_3,
+    KEY_WEAPON_4,
+    KEY_WEAPON_5,
+    KEY_WEAPON_6,
+    KEY_WEAPON_7,
+    KEY_WEAPON_8,
+    KEY_WEAPON_9,
+    KEY_WEAPON_LESS,
+    KEY_WEAPON_MORE,
     KEY_NEXT_CHARACTER,
     KEY_MENU_OPTIONS_FROM_GAME,
     KEY_MINIMAP_FROM_GAME,
@@ -67,17 +99,23 @@ protected:
   } Key_Event_t;
 
   virtual void SetDefaultConfig() { };
-  std::map<int, Key_t> layout;
+  std::map<int, std::vector<Key_t> > layout;
   std::list<uint8> registred_event;
   bool PressedKeys[256]; // stupid default value
-  bool MoveCamera(const Key_t &key) const;
 
   void RegisterEvent(uint8 event_type) { registred_event.push_back(event_type); };
   bool IsRegistredEvent(uint8 event_type);
   void HandleKeyPressed(const Key_t &action_key);
   void HandleKeyReleased(const Key_t &action_key);
 
-  void SetKeyAction(int key, Key_t at) { layout[key] = at; };
+  void SetKeyAction(int key, Key_t at) { layout[key].push_back(at); };
+  void ClearKeyAction();
+
+  int GetKeyFromKeyName(const std::string &name) const;
+  std::string GetKeyNameFromKey(int key) const;
+
+  Key_t GetActionFromActionName(const std::string &name) const;
+  std::string GetActionNameFromAction(Key_t) const;
 
   ManMachineInterface() { SetDefaultConfig(); };
   virtual ~ManMachineInterface() { };
@@ -85,9 +123,6 @@ protected:
 public:
   virtual void HandleKeyEvent(const SDL_Event& event) = 0;
   virtual void Reset();
-
-  // Refresh keys
-  void Refresh() const;
 
   // Get the key associated to an action.
   int GetKeyAssociatedToAction(Key_t at) const;

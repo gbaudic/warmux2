@@ -9,14 +9,6 @@
 MAINTAINERCLEANFILES =
 
 POTFILES = \
-        src/ai/ai_engine.cpp \
-        src/ai/ai_engine.h \
-        src/ai/ai_engine_stupid.cpp \
-        src/ai/ai_engine_stupid.h \
-        src/ai/ai_movement_module.cpp \
-        src/ai/ai_movement_module.h \
-        src/ai/ai_shoot_module.cpp \
-        src/ai/ai_shoot_module.h \
         src/character/body.cpp \
         src/character/body.h \
         src/character/body_list.cpp \
@@ -29,8 +21,6 @@ POTFILES = \
         src/character/damage_stats.h \
         src/character/member.cpp \
         src/character/member.h \
-        src/character/move.cpp \
-        src/character/move.h \
         src/character/movement.cpp \
         src/character/movement.h \
         src/config.h \
@@ -42,8 +32,6 @@ POTFILES = \
         src/game/game_classic.h \
         src/game/game.cpp \
         src/game/game.h \
-        src/game/game_init.cpp \
-        src/game/game_init.h \
         src/game/game_mode.cpp \
         src/game/game_mode.h \
         src/game/time.cpp \

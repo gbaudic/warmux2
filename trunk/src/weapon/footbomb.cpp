@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@ FootBomb::FootBomb(FootBombConfig& cfg,
 {
   m_rebound_sound = "weapon/footbomb_bounce";
   explode_with_collision = false;
+  explode_with_timeout = true;
   m_recursions = cfg.nb_recursions;
 
   // ensure that all football bomb have the same UniqueId
@@ -85,7 +86,7 @@ void FootBomb::Shoot(const Point2i & pos, double strength, double angle, int rec
   // we do need to collide with objects, but if we allow for this, the clusters
   // will explode on spawn (because of colliding with each other)
 
-  begin_time = Time::GetInstance()->Read(); // this resets timeout
+  StartTimeout();
   Camera::GetInstance()->FollowObject(this);
   ResetConstants();
   SetXY( pos );
@@ -98,8 +99,7 @@ void FootBomb::Refresh()
 //  image->SetRotation_rad(GetSpeedAngle());
   if ( IsMoving() )
   {
-    uint time = Time::GetInstance()->Read();
-    float flying_time = ( float )( time - begin_time );
+    float flying_time = (float) GetMSSinceTimeoutStart();
     const float rotations_per_second = 4;
     image->SetRotation_rad( rotations_per_second * 2 * M_PI * flying_time / 1000.0f );
   }
@@ -143,7 +143,7 @@ void FootBomb::SetEnergyDelta(int /* delta */, bool /* do_report */){};
 //-----------------------------------------------------------------------------
 
 FootBombLauncher::FootBombLauncher() :
-  WeaponLauncher(WEAPON_FOOTBOMB, "footbomb", new FootBombConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+  WeaponLauncher(WEAPON_FOOTBOMB, "footbomb", new FootBombConfig())
 {
   UpdateTranslationStrings();
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -157,22 +157,6 @@ void ObjBox::SignalGhostState(bool /*was_already_dead*/)
 {
   if (m_energy > 0) return;
   Explode();
-}
-
-void ObjBox::GetValueFromAction(Action * a)
-{
-  PhysicalObj::GetValueFromAction(a);
-  start_life_points = a->PopInt();
-  SetXY(a->PopPoint2d());
-  SetSpeedXY(a->PopPoint2d());
-}
-
-void ObjBox::StoreValue(Action *a)
-{
-  PhysicalObj::StoreValue(a);
-  a->Push(start_life_points);
-  a->Push(GetPosition());
-  a->Push(GetSpeed());
 }
 
 //-----------------------------------------------------------------------------

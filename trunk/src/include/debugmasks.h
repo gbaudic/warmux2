@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,4 +26,4 @@
  *
  */
 
-std::string used_debug_masks = "action_handler | action_handler.menu | action_time | ai | ai.move | ai.shoot | body | body_anim | body.clothe | body.movement | body.state | bonus | box | camera.shake | character | character.collision | character.energy | damage | explosion | eye | game | game.endofturn | game_mode | game.statechange | ghost | grapple.hook | grapple.node | ground_generator.element | ground_generator.island | jukebox | jukebox.play | lst_objects | map | map.generation | map.load | map.random | menu | mine | mouse | network | network.game_master | network.refresh_games_list | network.state | network.thread | network.traffic | network.turn_master | physical | physical.mem | physic.compute | physic.move | physic.overlapping | physic.physic | physic.position | physic.state | random | random.get | singleton | sprite | team | test_rectangle | weapon | weapon.change | weapon.gnu | weapon.handposition | weapon.polecat | weapon.projectile | weapon.shoot | widget.border | widgetlist | wind | xml | xml.entities | xml.tree";
+std::string used_debug_masks = "action_handler | action_handler.menu | action_time | ai | ai.move | ai.shoot | body | body_anim | body.clothe | body.movement | body.state | bonus | box | camera.shake | character | character.collision | character.energy | damage | explosion | eye | game | game.endofturn | game_mode | game.statechange | ghost | grapple.hook | grapple.node | ground_generator.element | ground_generator.island | jukebox | jukebox.play | lst_objects | map | map.generation | map.load | map.random | menu | mine | mouse | network | network.game_master | network.refresh_games_list | network.state | network.thread | network.traffic | network.turn_master | physical | physical.mem | physic.compute | physic.move | physic.overlapping | physic.physic | physic.position | physic.state | random | random.get | singleton | sprite | team | test_rectangle | time.increase | time.skip | time.waiting | weapon | weapon.change | weapon.gnu | weapon.handposition | weapon.polecat | weapon.projectile | weapon.shoot | widget.border | widgetlist | wind | xml | xml.entities | xml.tree";

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@ private:
 
 protected:
   uint m_last_move;             // Time since last move
+  uint m_last_physical_engine_run;             // Time since last physical engine execution
   double m_phys_width, m_phys_height;
 
   Point2d m_fix_point_gnd;   // Rope fixation point to the ground.
@@ -103,9 +104,8 @@ public:
   void SetRebounding (bool rebounding) { m_rebounding = rebounding; }
   bool GetRebounding () const { return m_rebounding; }
 
-  // Used to sync value across network
-  virtual void GetValueFromAction(Action *);
-  virtual void StoreValue(Action *);
+  void SetAlignParticleState(bool state) { m_align_particle_state = state; }
+  bool GetAlignParticleState(void) const { return m_align_particle_state; }
 
   // Reset the physics constants (mass, air_resistance...) to the default values in the cfg
   void ResetConstants() { *((ObjectConfig*)this) = m_cfg; };

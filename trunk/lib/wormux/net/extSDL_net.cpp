@@ -43,6 +43,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #  ifdef linux /* FIXME: what other platforms have this? */
 #    include <netinet/tcp.h>
 #  endif
+#  ifdef __sun /* Solaris */
+#    include <sys/filio.h>
+#  endif
 #include <netdb.h>
 #include <sys/socket.h>
 #endif /* WIN32 */
@@ -169,4 +172,27 @@ int SDLNet_TCP_NbBytesAvailable(TCPsocket sock)
 #endif
 
 	return nbbytes;
+}
+
+
+/**
+  Returns the resolved IP or the formatted ip if it can't be resolved.
+  The returned pointer MUST NOT be freed.
+  The pointer is valid till the next SDLNET_ResolveIP() or SDLNET_TryToResolveIP() call.
+*/
+const char * SDLNet_TryToResolveIP(IPaddress *ip)
+{
+  const char* dns_addr = SDLNet_ResolveIP(ip);
+  if (dns_addr) {
+    return dns_addr;
+  } else {
+    // We can't resolve the hostname, so just show the ip address
+    unsigned char* str_ip = (unsigned char*)(&(ip->host));
+    static char formatted_ip[16];
+    snprintf(formatted_ip, 16, "%i.%i.%i.%i", (int)str_ip[0],
+       (int)str_ip[1],
+       (int)str_ip[2],
+       (int)str_ip[3]);
+    return formatted_ip;
+  }
 }

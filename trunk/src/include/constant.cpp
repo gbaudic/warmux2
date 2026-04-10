@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ Constants::Constants()
   AUTHORS.push_back ("Christophe GISQUET");
   AUTHORS.push_back ("Sebastien GONZALVE");
   AUTHORS.push_back ("Reiner HERRMANN");
+  AUTHORS.push_back ("Florian KÖBERLE");
   AUTHORS.push_back ("Renaud LOTTIAUX");
   AUTHORS.push_back ("Yannig PERRÉ");
   AUTHORS.push_back ("Olivie SERRES");

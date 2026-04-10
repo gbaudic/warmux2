@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,8 +38,6 @@
 #include "weapon/weapon.h"
 #include "weapon/weapon_strength_bar.h"
 
-WeaponStrengthBar weapon_strength_bar;
-
 const Point2i BORDER_POSITION(5, 5);
 
 const uint MARGIN = 4;
@@ -57,7 +55,9 @@ m_last_minimap_redraw(0)
   game_menu = GetResourceManager().LoadImage( res, "interface/background_interface");
   small_background_interface = GetResourceManager().LoadImage( res, "interface/small_background_interface");
   clock_background = GetResourceManager().LoadImage( res, "interface/clock_background");
-  clock = new Sprite(GetResourceManager().LoadImage( res, "interface/clock"));
+  clock = NULL;
+  clock_normal = GetResourceManager().LoadSprite(res, "interface/clock_normal");
+  clock_emergency = GetResourceManager().LoadSprite(res, "interface/clock_emergency");
   wind_icon = GetResourceManager().LoadImage( res, "interface/wind");
   wind_indicator = GetResourceManager().LoadImage( res, "interface/wind_indicator");
 
@@ -87,10 +87,13 @@ m_last_minimap_redraw(0)
 
   // wind bar
   wind_bar.InitPos(0, 0, wind_indicator.GetWidth() - 4, wind_indicator.GetHeight() - 4);
+  wind_bar.SetMinMaxValueColor(GetResourceManager().LoadColor(res, "interface/wind_color_min"),
+                               GetResourceManager().LoadColor(res, "interface/wind_color_max"));
   wind_bar.InitVal(0, -100, 100);
   wind_bar.border_color.SetColor(0, 0, 0, 0);
   wind_bar.background_color.SetColor(0, 0, 0, 0);
-  wind_bar.value_color = c_red;
+  //wind_bar.value_color = c_red;
+
   wind_bar.SetReferenceValue (true, 0);
 
   // strength bar initialisation
@@ -103,12 +106,18 @@ m_last_minimap_redraw(0)
 
   Color text_color = GetResourceManager().LoadColor(res, "interface/text_color");
   Color energy_text_color = GetResourceManager().LoadColor(res, "interface/energy_text_color");
+
+  m_camera_preview_color = GetResourceManager().LoadColor(res, "interface/camera_preview_color");
+
+  m_playing_character_preview_color = GetResourceManager().LoadColor(res, "interface/playing_character_preview_color");
+
+
   // XXX Unused !?
   // Color turn_timer_text_color = GetResourceManager().LoadColor(res, "interface/turn_timer_text_color");
   // Color global_clock_text_color = GetResourceManager().LoadColor(res, "interface/global_clock_text_color");
 
-  global_timer = new Text(ulong2str(0), gray_color, Font::FONT_BIG, Font::FONT_NORMAL, false);
-  timer = new Text(ulong2str(0), black_color, Font::FONT_MEDIUM, Font::FONT_NORMAL, false);
+  global_timer = new Text(ulong2str(0), gray_color, Font::FONT_BIG, Font::FONT_BOLD, false);
+  timer = new Text(ulong2str(0), black_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
 
   t_character_name = new Text("None", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
   t_team_name = new Text("None", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
@@ -122,7 +131,8 @@ m_last_minimap_redraw(0)
 
 Interface::~Interface()
 {
-  if (clock) delete clock;
+  if (clock_normal) delete clock_normal;
+  if (clock_emergency) delete clock_emergency;
   if (global_timer) delete global_timer;
   if (timer) delete timer;
   if (t_character_name) delete t_character_name;
@@ -248,13 +258,8 @@ void Interface::DrawClock(const Point2i &time_pos) const
     timer->DrawCenter(time_pos - Point2i(0, clock_background.GetHeight()/3));
 
   // Draw clock
-  float scale;
-  if(remaining_turn_time < 10)  // Hurry up !
-    scale = 0.9 + cos((float)Time::GetInstance()->Read() / 250 * M_PI) * 0.1;
-  else
-    scale = 1.0;
-  clock->Scale(1.0, scale);
   Point2i tmp_point = time_pos - clock->GetSize() / 2;
+  clock->Update();
   clock->DrawXY(tmp_point);
 
   // Draw global timer
@@ -324,41 +329,39 @@ void Interface::DrawTeamEnergy() const
 // Draw map preview
 void Interface::DrawMapPreview()
 {
-  Surface&       window  = GetMainWindow();
-  Point2i        offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
-  Rectanglei     rect_preview(offset, GetWorld().ground.GetPreviewSize());
+  Surface &  window  = GetMainWindow();
+  Point2i    offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
+  Rectanglei rect_preview(offset, GetWorld().ground.GetPreviewSize());
 
   if (minimap == NULL ||
-      GetWorld().ground.GetLastPreviewRedrawTime()>m_last_minimap_redraw ||
-      GetWorld().water.GetLastPreviewRedrawTime()>m_last_minimap_redraw){
+      GetWorld().ground.GetLastPreviewRedrawTime() > m_last_minimap_redraw ||
+      GetWorld().water.GetLastPreviewRedrawTime() > m_last_minimap_redraw) {
 
     m_last_minimap_redraw = Time::GetInstance()->Read();
 
     if (minimap) delete minimap;
 
     Surface preview(*GetWorld().ground.GetPreview());
-    minimap = new Surface(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+    minimap = new Surface(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
+
     Point2i mergePos = GetWorld().ground.GetPreviewRect().GetPosition();
     mergePos = -mergePos;
-    minimap->MergeSurface(preview,mergePos);
-
+    minimap->MergeSurface(preview, mergePos);
 
     // Draw water
     if (GetWorld().water.IsActive()) {
-      const Color *color = GetWorld().water.GetColor();
+      const Color * color = GetWorld().water.GetColor();
       ASSERT(color);
       Color water_color = *color;
       water_color.SetColor(water_color.GetRed(),water_color.GetGreen(),water_color.GetBlue(),200) ;
 
-
       // Scale water height according to preview size
-      uint       h = (GetWorld().water.GetSelfHeight() * rect_preview.GetSizeY() + (GetWorld().GetSize().GetY()/2))
+      uint h = (GetWorld().water.GetSelfHeight() * rect_preview.GetSizeY() + (GetWorld().GetSize().GetY()/2))
                   / GetWorld().GetSize().GetY();
 
       Rectanglei water(0, rect_preview.GetSizeY()-h, rect_preview.GetSizeX(), h);
 
-
-      Surface water_surf(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+      Surface water_surf(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
 
       // Draw box with color according to water type
       water_surf.BoxColor(water, water_color);
@@ -370,41 +373,98 @@ void Interface::DrawMapPreview()
 
   window.Blit(*minimap, offset);
 
+  Point2i coord;
+
   FOR_EACH_TEAM(team) {
-    const Surface& icon = (*team)->GetMiniFlag();
-    for (Team::iterator character = (*(team))->begin(),
-           end_character = (*(team))->end();
+    const Surface & icon = (*team)->GetMiniFlag();
+
+    for (Team::iterator character = (*(team))->begin(), end_character = (*(team))->end();
          character != end_character;
          ++character) {
-      if (!character->IsDead()) {
-        Point2i     coord = GetWorld().ground.PreviewCoordinates(character->GetPosition()) + offset;
 
-        window.Blit(icon, coord - icon.GetSize()/2);
-        if (character->IsActiveCharacter()) {
-          uint radius = (icon.GetSize().x < icon.GetSize().y) ? icon.GetSize().y : icon.GetSize().x;
-          radius = (radius/2) + 1;
-          window.CircleColor(coord.x, coord.y, radius, c_white);
-          GetWorld().ToRedrawOnScreen(Rectanglei(coord.x-radius-1, coord.y-radius-1, 2*radius+2, 2*radius+2));
-        }
-	else
-          GetWorld().ToRedrawOnScreen(Rectanglei(coord - icon.GetSize()/2, icon.GetSize()));
+      if (character->IsDead()) {
+        continue;
       }
+
+      coord = GetWorld().ground.PreviewCoordinates(character->GetPosition()) + offset;
+      window.Blit(icon, coord - icon.GetSize()/2);
+
+      if (character->IsActiveCharacter()) {
+        uint radius = (icon.GetSize().x < icon.GetSize().y) ? icon.GetSize().y : icon.GetSize().x;
+        radius = (radius/2) + 1;
+        window.CircleColor(coord.x, coord.y, radius, m_playing_character_preview_color);
+        GetWorld().ToRedrawOnScreen(Rectanglei(coord.x-radius-1, coord.y-radius-1, 2*radius+2, 2*radius+2));
+      } else {
+        GetWorld().ToRedrawOnScreen(Rectanglei(coord - icon.GetSize()/2, icon.GetSize()));
+      }
+
     }
   }
+
+  Point2i cameraTopLeftCorner = GetWorld().ground.PreviewCoordinates(Camera::GetInstance()->GetPosition()) + offset;
+  Point2i cameraBottomRightCorner = GetWorld().ground.PreviewCoordinates(Camera::GetInstance()->GetPosition()+Camera::GetInstance()->GetSize()) + offset;
+
+  bool line_on_top = true;
+  bool line_on_bottom = true;
+  bool line_on_right = true;
+  bool line_on_left = true;
+
+  if (cameraTopLeftCorner.y < offset.y) {
+    cameraTopLeftCorner.y = offset.y;
+    line_on_top = false;
+  }
+
+  if (cameraTopLeftCorner.x < offset.x) {
+    cameraTopLeftCorner.x = offset.x;
+    line_on_left = false;
+  }
+
+  if (cameraBottomRightCorner.y >  offset.y + GetWorld().ground.GetPreviewSize().y) {
+    cameraBottomRightCorner.y = offset.y + GetWorld().ground.GetPreviewSize().y;
+    line_on_bottom = false;
+  }
+
+  if (cameraBottomRightCorner.x > offset.x + GetWorld().ground.GetPreviewSize().x ) {
+    cameraBottomRightCorner.x = offset.x + GetWorld().ground.GetPreviewSize().x;
+    line_on_right = false;
+  }
+
+  if (line_on_top) {
+    GetMainWindow().LineColor(cameraTopLeftCorner.x, cameraBottomRightCorner.x,
+                              cameraTopLeftCorner.y, cameraTopLeftCorner.y,
+                              m_camera_preview_color);
+  }
+
+  if (line_on_right) {
+    GetMainWindow().LineColor(cameraBottomRightCorner.x, cameraBottomRightCorner.x,
+                              cameraTopLeftCorner.y, cameraBottomRightCorner.y,
+                              m_camera_preview_color);
+  }
+
+  if (line_on_bottom) {
+    GetMainWindow().LineColor(cameraTopLeftCorner.x, cameraBottomRightCorner.x,
+                              cameraBottomRightCorner.y,cameraBottomRightCorner.y,
+                              m_camera_preview_color);
+  }
+
+  if (line_on_left) {
+    GetMainWindow().LineColor(cameraTopLeftCorner.x, cameraTopLeftCorner.x,
+                              cameraTopLeftCorner.y, cameraBottomRightCorner.y,
+                              m_camera_preview_color);
+  }
+
+
   GetWorld().ToRedrawOnScreen(rect_preview);
-
-
 }
 
 void Interface::GenerateStyledBox(Surface & source)
 {
-
-  Surface save_surf(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+  Surface save_surf(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
   save_surf.MergeSurface(source, Point2i(0,0));
+
+  source = Surface(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
+
   Rectanglei temp_rect;
-
-  source = Surface(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
-
   temp_rect.SetPosition(Point2i(0,0));
   temp_rect.SetSize(source.GetSize());
 
@@ -426,28 +486,31 @@ void Interface::GenerateStyledBox(Surface & source)
   temp_position.y += temp_rect.GetSize().y - rounding_style[2][2].GetSize().y;
   source.MergeSurface(rounding_style[2][2],temp_position);
 
-
-  for(int i = rounding_style[0][0].GetSize().x; i< (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);i++){
+  for(int i = rounding_style[0][0].GetSize().x;
+      i < (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);
+      ++i) {
     temp_position = temp_rect.GetPosition();
     temp_position.x += i;
     source.MergeSurface(rounding_style[1][0],temp_position);
 
     temp_position.y += temp_rect.GetSize().y - rounding_style[1][2].GetSize().y;
     source.MergeSurface(rounding_style[1][2],temp_position);
-
   }
 
-  for(int i = rounding_style[0][0].GetSize().y; i< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);i++){
+  for(int i = rounding_style[0][0].GetSize().y;
+      i< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);
+      ++i) {
     temp_position = temp_rect.GetPosition();
     temp_position.y += i;
     source.MergeSurface(rounding_style[0][1],temp_position);
 
     temp_position.x += temp_rect.GetSize().x - rounding_style[2][1].GetSize().x;
     source.MergeSurface(rounding_style[2][1],temp_position);
-
   }
 
-  for(int i = rounding_style[0][0].GetSize().x; i< (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);i++){
+  for(int i = rounding_style[0][0].GetSize().x;
+      i < (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);
+      ++i) {
 
     for(int j = rounding_style[0][0].GetSize().y; j< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);j++){
       temp_position = temp_rect.GetPosition() + Point2i(i,j);
@@ -482,15 +545,13 @@ void Interface::Draw()
   if (display_minimap)
     DrawMapPreview();
 
-  if ( Game::GetInstance()->ReadState() == Game::PLAYING && weapon_strength_bar.visible)
-  {
-    // Position on the screen
-    Point2i barPos = (app->video->window.GetSize() - weapon_strength_bar.GetSize()) * Point2d(0.5, 1)
-        - Point2i(0, game_menu.GetHeight() + MARGIN);
 
-    // Drawing on the screen
-     weapon_strength_bar.DrawXY(barPos);
-  }
+  // Position on the screen
+  Point2i barPos = (app->video->window.GetSize() - weapon_strength_bar.GetSize()) * Point2d(0.5, 1)
+      - Point2i(0, game_menu.GetHeight() + MARGIN);
+
+  // Drawing on the screen
+  weapon_strength_bar.DrawXY(barPos);
 
   weapons_menu.Draw();
 
@@ -563,12 +624,43 @@ void Interface::Hide()
     start_hide_display = Time::GetInstance()->Read() - (1000 - ((int)Time::GetInstance()->Read() - start_hide_display));
 }
 
-void Interface::UpdateTimer(uint utimer, const Color& color)
+void Interface::UpdateTimer(uint utimer, bool emergency, bool reset_anim)
 {
-  timer->SetColor(color);
+  Sprite *prev_clock = clock;
+
+  if (emergency) {
+    clock = clock_emergency;
+    timer->SetColor(primary_red_color);
+  } else {
+    clock = clock_normal;
+    timer->SetColor(black_color);
+  }
+
   timer->Set(ulong2str(utimer));
   remaining_turn_time = utimer;
+
+  if (prev_clock != clock || reset_anim) {
+
+    if (clock == clock_normal) {
+      uint frame_delay = utimer * 1000 / clock->GetFrameCount();
+      clock->SetFrameSpeed(frame_delay);
+    }
+
+    clock->animation.SetLoopMode(true);
+    clock->SetCurrentFrame(0);
+    clock->Start();
+  }
 }
+
+void Interface::UpdateWindIndicator(int wind_value)
+{
+  wind_bar.UpdateValue(wind_value);
+  /*
+  int redValue   = 155 * abs(wind_value) / 100;
+  int greenValue = 200 * abs(wind_value) / 100;
+  wind_bar.SetValueColor(Color(redValue, 200 - greenValue, 10, 255)); // Green to Red
+  */
+};
 
 void AbsoluteDraw(const Surface &s, const Point2i& pos)
 {

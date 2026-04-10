@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -106,7 +106,6 @@ protected:
   void SetGameName(const std::string& game_name);
 public:
   NetworkMenu* network_menu;
-  bool sync_lock;
 
   virtual ~Network();
 
@@ -135,6 +134,7 @@ public:
   const std::string& GetPassword() const;
   Player& GetPlayer();
   const Player& GetPlayer() const;
+  Player * LockRemoteHostsAndGetPlayer(uint player_id);
 
   std::list<DistantComputer*>& GetRemoteHosts();
 
@@ -159,14 +159,10 @@ public:
   WNet::net_game_state_t GetState() const;
   void SendNetworkState();
 
-  void SetTurnMaster(bool master);
   bool IsTurnMaster() const;
 
   uint GetNbPlayersConnected() const;
-  uint GetNbHostsConnected() const;
-  uint GetNbHostsInitialized() const;
-  uint GetNbHostsReady() const;
-  uint GetNbHostsChecked() const;
+  uint GetNbPlayersWithState(Player::State player_state) const;
 };
 
 //-----------------------------------------------------------------------------

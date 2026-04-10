@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ public:
   Text(const std::string &new_txt,
        const Color& new_color = white_color,
        Font::font_size_t fsize = Font::FONT_SMALL,
-       Font::font_style_t fstyle = Font::FONT_NORMAL,
+       Font::font_style_t fstyle = Font::FONT_BOLD,
        bool shadowed = true,
        bool dummy = false);
   virtual ~Text();

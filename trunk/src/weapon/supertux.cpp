@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include "include/action_handler.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
-#include "network/network.h"
 #include "object/objects_list.h"
 #include "team/teams_list.h"
 #include "team/team.h"
@@ -88,6 +87,8 @@ SuperTux::SuperTux(SuperTuxWeaponConfig& cfg,
 {
   swimming = false;
   explode_colliding_character = true;
+  explode_with_timeout = true;
+
   camera_follow_closely = true;
 
   SetSize(image->GetSize());
@@ -111,7 +112,7 @@ void SuperTux::Shoot(double strength)
   Time * global_time = Time::GetInstance();
   time_next_action = global_time->Read();
   last_move = global_time->Read();
-  begin_time = global_time->Read();
+  StartTimeout();
 }
 
 void SuperTux::Refresh()
@@ -124,15 +125,6 @@ void SuperTux::Refresh()
     SetExternForce(static_cast<SuperTuxWeaponConfig&>(cfg).speed, angle_rad);
     image->Update();
     last_move = Time::GetInstance()->Read();
-  }
-
-  if(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
-  {
-    Action a(Action::ACTION_WEAPON_SUPERTUX);
-    a.Push(0); // to ask for a position refresh
-    a.Push(angle_rad);
-    a.Push(GetPos());
-    Network::GetInstance()->SendActionToAll(a);
   }
 
   if (!swimming)
@@ -211,7 +203,7 @@ void SuperTuxWeaponConfig::LoadXml(const xmlNode* elem)
 //-----------------------------------------------------------------------------
 
 TuxLauncher::TuxLauncher() :
-  WeaponLauncher(WEAPON_SUPERTUX, "tux", new SuperTuxWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+  WeaponLauncher(WEAPON_SUPERTUX, "tux", new SuperTuxWeaponConfig())
 {
   UpdateTranslationStrings();
 
@@ -254,18 +246,25 @@ bool TuxLauncher::p_Shoot ()
 
 void TuxLauncher::Refresh()
 {
-  if (current_tux)
-    return;
-
-  if (tux_death_time && tux_death_time + 2000 < Time::GetInstance()->Read()) {
-    UseAmmoUnit();
-    tux_death_time = 0;
+  if (current_tux) {
+    const LRMoveIntention * lr_move_intention = ActiveCharacter().GetLastLRMoveIntention();
+    if (lr_move_intention) {
+      if (lr_move_intention->GetDirection() == DIRECTION_LEFT)
+        current_tux->turn_left();
+      else
+        current_tux->turn_right();
+    }
+  } else {
+    if (tux_death_time && tux_death_time + 2000 < Time::GetInstance()->Read()) {
+      UseAmmoUnit();
+      tux_death_time = 0;
+    }
   }
 }
 
-bool TuxLauncher::IsInUse() const
+bool TuxLauncher::ShouldBeDrawn()
 {
-  return (current_tux || tux_death_time);
+  return !(current_tux || tux_death_time);
 }
 
 void TuxLauncher::SignalEndOfProjectile()
@@ -277,168 +276,37 @@ void TuxLauncher::SignalEndOfProjectile()
   tux_death_time = Time::GetInstance()->Read();
 }
 
-void TuxLauncher::HandleKeyPressed_Shoot(bool shift)
+void TuxLauncher::StartShooting()
 {
   if (current_tux || tux_death_time)
     return;
 
-  Weapon::HandleKeyPressed_Shoot(shift);
+  Weapon::StartShooting();
 }
 
-void TuxLauncher::HandleKeyRefreshed_Shoot(bool shift)
-{
-  if (current_tux || tux_death_time)
-    return;
 
-  Weapon::HandleKeyRefreshed_Shoot(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_Shoot(bool shift)
+void TuxLauncher::StopShooting()
 {
   if (current_tux) {
-    Action* a = new Action(Action::ACTION_WEAPON_SUPERTUX);
-    a->Push(1); // to ask for an explosion
-    a->Push(current_tux->GetPos());
-    ActionHandler::GetInstance()->NewAction(a);
+    current_tux->Explosion();
     return;
   } else if (!tux_death_time)
-    Weapon::HandleKeyReleased_Shoot(shift);
+    Weapon::StopShooting();
 }
 
-// Move right
-void TuxLauncher::HandleKeyPressed_MoveRight(bool shift)
+bool TuxLauncher::IsPreventingLRMovement()
 {
-  if (current_tux)
-    current_tux->turn_right();
-  else if (!tux_death_time)
-    ActiveCharacter().HandleKeyPressed_MoveRight(shift);
+  return (current_tux || tux_death_time);
 }
 
-void TuxLauncher::HandleKeyRefreshed_MoveRight(bool shift)
+bool TuxLauncher::IsPreventingJumps()
 {
-  if (current_tux)
-    current_tux->turn_right();
-  else if (!tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_MoveRight(shift);
+  return (current_tux || tux_death_time);
 }
 
-void TuxLauncher::HandleKeyReleased_MoveRight(bool shift)
+bool TuxLauncher::IsPreventingWeaponAngleChanges()
 {
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_MoveRight(shift);
-}
-
-// Move left
-void TuxLauncher::HandleKeyPressed_MoveLeft(bool shift)
-{
-  if (current_tux)
-    current_tux->turn_left();
-  else if (!tux_death_time)
-    ActiveCharacter().HandleKeyPressed_MoveLeft(shift);
-}
-
-void TuxLauncher::HandleKeyRefreshed_MoveLeft(bool shift)
-{
-  if (current_tux)
-    current_tux->turn_left();
-  else if (!tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_MoveLeft(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_MoveLeft(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_MoveLeft(shift);
-}
-
-void TuxLauncher::HandleKeyPressed_Up(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyPressed_Up(shift);
-}
-
-void TuxLauncher::HandleKeyRefreshed_Up(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_Up(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_Up(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_Up(shift);
-}
-
-void TuxLauncher::HandleKeyPressed_Down(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyPressed_Down(shift);
-}
-
-void TuxLauncher::HandleKeyRefreshed_Down(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_Down(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_Down(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_Down(shift);
-}
-
-void TuxLauncher::HandleKeyPressed_Jump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyPressed_Jump(shift);
-}
-
-void TuxLauncher::HandleKeyRefreshed_Jump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_Jump(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_Jump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_Jump(shift);
-}
-
-void TuxLauncher::HandleKeyPressed_HighJump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyPressed_HighJump(shift);
-}
-
-void TuxLauncher::HandleKeyRefreshed_HighJump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_HighJump(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_HighJump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_HighJump(shift);
-}
-
-void TuxLauncher::HandleKeyPressed_BackJump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyPressed_BackJump(shift);
-}
-
-void TuxLauncher::HandleKeyRefreshed_BackJump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyRefreshed_BackJump(shift);
-}
-
-void TuxLauncher::HandleKeyReleased_BackJump(bool shift)
-{
-  if (!current_tux && !tux_death_time)
-    ActiveCharacter().HandleKeyReleased_BackJump(shift);
+  return (current_tux || tux_death_time);
 }
 
 std::string TuxLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
@@ -447,25 +315,6 @@ std::string TuxLauncher::GetWeaponWinString(const char *TeamName, uint items_cou
             "%s team has won %u tux launcher! Never seen a flying penguin?",
             "%s team has won %u tux launchers! Never seen a flying penguin?",
             items_count), TeamName, items_count);
-}
-
-void TuxLauncher::RefreshFromNetwork(double angle, Point2d pos)
-{
-  // Fix bug #9815 : Crash when changing tux angle in network mode.
-  if (!current_tux)
-    return;
-  current_tux->SetAngle(angle);
-  current_tux->SetPhysXY(pos);
-  current_tux->SetSpeedXY(Point2d(0,0));
-}
-
-void TuxLauncher::ExplosionFromNetwork(Point2d tux_pos)
-{
-  if (!current_tux)
-    return;
-
-  current_tux->SetPhysXY(tux_pos);
-  current_tux->Explosion();
 }
 
 SuperTuxWeaponConfig& TuxLauncher::cfg()

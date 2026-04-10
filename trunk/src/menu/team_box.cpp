@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
  *  Teams selection box
  *****************************************************************************/
 
+#include "ai/ai_stupid_player.h"
 #include "gui/button.h"
 #include "gui/label.h"
 #include "gui/picture_widget.h"
@@ -33,17 +34,33 @@
 #include "tool/resource_manager.h"
 
 TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
-  HBox(W_UNDEF, false, false)
+  HBox(W_UNDEF, false, false),
+  ai_name(NO_AI_NAME)
 {
-  associated_team=NULL;
+  associated_team = NULL;
 
   SetMargin(2);
   SetNoBorder();
 
   Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
 
-  team_logo = new PictureWidget(Point2i(48, 48));
-  AddWidget(team_logo);
+  Box * tmp_logo_box = new VBox(W_UNDEF, false, false);
+  tmp_logo_box->SetMargin(1);
+  tmp_logo_box->SetNoBorder();
+
+  team_logo = new PictureWidget(Point2i(38, 38));
+  tmp_logo_box->AddWidget(team_logo);
+
+  player_local_ai_surf = GetResourceManager().LoadImage(res, "menu/player_local_ai");
+  player_local_human_surf = GetResourceManager().LoadImage(res, "menu/player_local_human");
+  player_remote_ai_surf = GetResourceManager().LoadImage(res, "menu/player_remote_ai");
+  player_remote_human_surf = GetResourceManager().LoadImage(res, "menu/player_remote_human");
+
+  player_type =  new PictureWidget(Point2i(38, 30));
+  player_type->SetSurface(player_local_ai_surf);
+  tmp_logo_box->AddWidget(player_type);
+
+  AddWidget(tmp_logo_box);
 
   Box * tmp_box = new VBox(W_UNDEF, false, false);
   tmp_box->SetMargin(2);
@@ -61,17 +78,20 @@ TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
   custom_team_current_id = 0;
 
   player_name = new TextBox(_player_name, 100,
-                            Font::FONT_SMALL, Font::FONT_NORMAL);
+                            Font::FONT_SMALL, Font::FONT_BOLD);
 
   if (custom_team_list.empty()) {
     tmp_player_box->AddWidget(new Label(_("Head commander"), _size.GetX()-50-100,
-                                      Font::FONT_SMALL, Font::FONT_NORMAL, dark_gray_color, false, false));
+                                      Font::FONT_SMALL, Font::FONT_BOLD, dark_gray_color, false, false));
 
     tmp_player_box->AddWidget(player_name);
 
+    next_custom_team = NULL;
+    previous_custom_team = NULL;
+
   } else {
     tmp_player_box->AddWidget(new Label(_("Head commander"), _size.GetX()-60-100,
-					Font::FONT_SMALL, Font::FONT_NORMAL, dark_gray_color, false, false));
+					Font::FONT_SMALL, Font::FONT_BOLD, dark_gray_color, false, false));
 
     next_custom_team = new Button(res, "menu/plus");
 
@@ -96,7 +116,8 @@ TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
 
 void TeamBox::ClearTeam()
 {
-  associated_team=NULL;
+  associated_team = NULL;
+  ai_name = NO_AI_NAME;
 
   NeedRedrawing();
 }
@@ -145,7 +166,7 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
 
     Widget* w = WidgetList::ClickUp(mousePosition, button);
 
-    if ( !associated_team->IsLocal() && !associated_team->IsLocalAI() )
+    if (!associated_team->IsLocal())
       return NULL; // it's not a local team, we can't configure it !!
 
     if (w == nb_characters) {
@@ -155,6 +176,10 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
       return w;
     }
     if (w == player_name) {
+      return w;
+    }
+
+    if (w == NULL) {
       return w;
     }
 
@@ -201,21 +226,57 @@ void TeamBox::SetTeam(Team& _team, bool read_team_values)
 
     // translators: this is the team listing and will expand in a context like "OOo team - Remote"
     team_name->SetText(Format(_("%s Team - Remote"), _team.GetName().c_str()));
+
+    if (previous_custom_team) {
+      previous_custom_team->SetVisible(false);
+      next_custom_team->SetVisible(false);
+    }
   } else {
     team_name->SetFont(primary_red_color, Font::FONT_MEDIUM, Font::FONT_BOLD, true, false);
     team_name->SetText(Format(_("%s Team"), _team.GetName().c_str()));
+
+    if (previous_custom_team) {
+      previous_custom_team->SetVisible(true);
+      next_custom_team->SetVisible(true);
+    }
   }
+  UpdatePlayerType();
   team_logo->SetSurface(_team.GetFlag());
 
   if (read_team_values) {
     player_name->SetText(_team.GetPlayerName());
     nb_characters->SetValue(_team.GetNbCharacters());
+    SetAIName(_team.GetAIName());
   } else if (old_team) {
     UpdateTeam(old_team->GetId());
   }
   previous_player_name = player_name->GetText();
 
   NeedRedrawing();
+}
+
+void TeamBox::SetAIName(const std::string name)
+{
+  ai_name = name;
+  UpdatePlayerType();
+}
+
+void TeamBox::UpdatePlayerType()
+{
+  bool is_human = ai_name == NO_AI_NAME;
+  if (associated_team->IsLocal()) {
+    if (is_human) {
+      player_type->SetSurface(player_local_human_surf);
+    } else {
+      player_type->SetSurface(player_local_ai_surf);
+    }
+  } else {
+    if (is_human) {
+      player_type->SetSurface(player_remote_human_surf);
+    } else {
+      player_type->SetSurface(player_remote_ai_surf);
+    }
+  }
 }
 
 void TeamBox::UpdateTeam(const std::string& old_team_id) const
@@ -226,9 +287,10 @@ void TeamBox::UpdateTeam(const std::string& old_team_id) const
   // set the player name
   associated_team->SetPlayerName(player_name->GetText());
 
-  // change only for local teams...
-  if (associated_team->IsLocal() || associated_team->IsLocalAI()) {
+  associated_team->SetAIName(ai_name);
 
+  // change only for local teams...
+  if (associated_team->IsLocal()) {
     // send team configuration to the remote clients
     if (Network::GetInstance()->IsConnected()) {
       Action* a = new Action(Action::ACTION_GAME_UPDATE_TEAM);
@@ -237,6 +299,7 @@ void TeamBox::UpdateTeam(const std::string& old_team_id) const
       a->Push(associated_team->GetId());
       a->Push(associated_team->GetPlayerName());
       a->Push(int(associated_team->GetNbCharacters()));
+      a->Push(associated_team->GetAIName());
       ActionHandler::GetInstance()->NewAction (a);
     }
   }
@@ -254,4 +317,15 @@ bool TeamBox::IsLocal() const
   }
 
   return false;
+}
+
+void TeamBox::SwitchPlayerType()
+{
+  if (!associated_team)
+    return;
+
+  SetAIName((ai_name == NO_AI_NAME) ? DEFAULT_AI_NAME : NO_AI_NAME);
+  if (Network::GetInstance()->IsConnected()) {
+    ValidOptions();
+  }
 }

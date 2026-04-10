@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -55,8 +55,8 @@ void CharacterCursor::Draw()
 
   // Draw cursor arround character
   Point2i center = ActiveCharacter().GetCenter();
-  uint x = center.x - arrow_jump->GetWidth()/2;
-  uint y = ActiveCharacter().GetY() - arrow_jump->GetHeight() - y_min;
+  uint x = center.x - arrow->GetWidth()/2;
+  uint y = ActiveCharacter().GetY() - arrow->GetHeight() - y_min;
 
   arrow->Draw( Point2i(x, y) );
 }

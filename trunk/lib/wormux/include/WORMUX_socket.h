@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -73,8 +73,11 @@ private:
   bool using_tmp_socket_set;
 
   char *m_packet;
-  int m_packet_size;
-  int m_received;
+  uint32_t m_packet_size;
+  uint32_t m_received;
+
+  bool address_field_valid;
+  std::string address;
 
   bool AddToSocketSet(WSocketSet* _socket_set);
   void RemoveFromSocketSet();
@@ -106,7 +109,7 @@ public:
   bool AddToTmpSocketSet();
   void RemoveFromTmpSocketSet();
 
-  std::string GetAddress() const;
+  const std::string GetAddress();
   bool IsReady(int timeout = 0) const;
   bool IsReady(int timeout, bool force_check_activity) const;
 
@@ -124,9 +127,6 @@ public:
 
   bool ReceiveStr_NoLock(std::string &_str, size_t maxlen);
   bool ReceiveStr(std::string &_str, size_t maxlen);
-
-  // Packet is composed of [ size (4 bytes),  data ]
-  bool SendPacket(const char* data, size_t len);
 
   // ReceivePacket may return true with *data = NULL and len = 0
   // That means that client is still valid BUT there are not enough data CURRENTLY

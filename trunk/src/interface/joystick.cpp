@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -113,21 +113,25 @@ void Joystick::HandleKeyEvent(const SDL_Event& event)
     return;
   }
 
-  std::map<int, Key_t>::iterator it = layout.find(event.jbutton.button);
+  std::map<int, std::vector<Key_t> >::iterator it = layout.find(event.jbutton.button);
 
   if(it == layout.end())
     return;
 
-  Key_t key = it->second;
+  std::vector<Key_t> keys = it->second;
+  std::vector<Key_t>::const_iterator itv;
+  
+  for(itv = keys.begin(); itv != keys.end() ; itv++)
+  {    
+    if(event_type == KEY_PRESSED) {
+      HandleKeyPressed(*itv);
+      return;
+    }
 
-  if(event_type == KEY_PRESSED) {
-    HandleKeyPressed(key);
-    return;
-  }
-
-  if(event_type == KEY_RELEASED) {
-    HandleKeyReleased(key);
-    return;
+    if(event_type == KEY_RELEASED) {
+      HandleKeyReleased(*itv);
+      return;
+    }
   }
 }
 

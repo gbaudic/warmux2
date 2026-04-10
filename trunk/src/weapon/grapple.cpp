@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #include "include/action_handler.h"
 #include "map/camera.h"
 #include "map/map.h"
-#include "network/network.h"
 #include "sound/jukebox.h"
 #include "team/team.h"
 #include "team/teams_list.h"
@@ -142,7 +141,9 @@ class GrappleConfig : public EmptyWeaponConfig
 
 //-----------------------------------------------------------------------------
 
-Grapple::Grapple() : Weapon(WEAPON_GRAPPLE, "grapple", new GrappleConfig())
+Grapple::Grapple() :
+  Weapon(WEAPON_GRAPPLE, "grapple", new GrappleConfig()),
+  last_broken_node_sense(0)
 {
   UpdateTranslationStrings();
 
@@ -153,11 +154,15 @@ Grapple::Grapple() : Weapon(WEAPON_GRAPPLE, "grapple", new GrappleConfig())
   m_hook_sprite->EnableRotationCache(32);
   m_node_sprite = GetResourceManager().LoadSprite(weapons_res_profile,"grapple_node");
 
-  m_is_active = false;
+  attached = false;
   m_attaching = false;
   go_left = false ;
   go_right = false ;
   delta_len = 0 ;
+  move_left_pressed = false;
+  move_right_pressed = false;
+  move_up_pressed = false;
+  move_down_pressed = false;
 }
 
 void Grapple::UpdateTranslationStrings()
@@ -199,15 +204,14 @@ bool Grapple::TryAttachRope()
   // The rope is being launching. Increase the rope length and check
   // collisions.
 
-  Point2i handPos = ActiveCharacter().GetHandPosition();
-  pos = handPos;
+  ActiveCharacter().GetHandPosition(pos);
 
   length = cfg().automatic_growing_speed * delta_time / 10;
   if (length > cfg().max_rope_length)
     {
       // Hum the rope is too short !
       m_attaching = false;
-      m_is_active = false;
+      attached = false;
 
       // Give back one ammo...
       int *ammo = &ActiveTeam().AccessNbAmmos();
@@ -222,16 +226,7 @@ bool Grapple::TryAttachRope()
   Point2i contact_point;
   if (find_first_contact_point(pos, angle, length, 4, contact_point))
     {
-      if (!ActiveTeam().IsLocal() && !ActiveTeam().IsLocalAI())
-        return false;
-
-      // The rope reaches the fixation point. Let's fix it !
-      Action* a = new Action(Action::ACTION_WEAPON_GRAPPLE);
-      a->Push(ATTACH_ROPE);
-      a->Push(contact_point);
-      ActionHandler::GetInstance()->NewAction(a);
-
-      MSG_DEBUG("grapple.hook", "Creating ATTACH_GRAPPLE Action");
+      AttachRope(contact_point);
       return true;
     }
 
@@ -251,8 +246,9 @@ bool Grapple::TryAddNode(int CurrentSense)
   Point2d V;
   Point2i contact_point;
   double angle, rope_angle;
+  Point2i handPos;
 
-  Point2i handPos = ActiveCharacter().GetHandPosition();
+  ActiveCharacter().GetHandPosition(handPos);
 
   // Compute distance between hands and rope fixation point.
 
@@ -284,14 +280,6 @@ bool Grapple::TryAddNode(int CurrentSense)
       // Add a node on the rope and change the fixation point
       AttachNode(contact_point, rope_angle, CurrentSense);
 
-      // Send node addition over the network
-      Action a(Action::ACTION_WEAPON_GRAPPLE);
-      a.Push(ATTACH_NODE);
-      a.Push(contact_point);
-      a.Push(rope_angle);
-      a.Push(CurrentSense);
-      Network::GetInstance()->SendActionToAll(a);
-
       return true;
     }
 
@@ -306,9 +294,10 @@ bool Grapple::TryRemoveNodes(int currentSense)
   // [RCL]: nodeSense check seems to be useless... either remove node senses at all or
   // find an example where it is required
   double currentAngle = ActiveCharacter().GetRopeAngle();
-  Point2i mapRopeStart = ActiveCharacter().GetHandPosition();
+  Point2i mapRopeStart;
+  ActiveCharacter().GetHandPosition(mapRopeStart);
 
-  const int max_nodes_per_turn = 100; // safe value to avoid network congestion
+  const int max_nodes_per_turn = 100; // safe value, was used to avoid network congestion
   int nodes_to_remove = 0;
 
   TraceResult tr;
@@ -357,10 +346,6 @@ bool Grapple::TryRemoveNodes(int currentSense)
 
      // remove last node
      DetachNode();
-     // Send node suppression over the network
-     Action a(Action::ACTION_WEAPON_GRAPPLE);
-     a.Push(DETACH_NODE);
-     Network::GetInstance()->SendActionToAll(a);
   }
 
   return nodes_to_remove > 0;
@@ -371,10 +356,7 @@ void Grapple::NotifyMove(bool collision)
   bool addNode = false;
   int currentSense;
 
-  if (!IsInUse() || m_attaching)
-    return;
-
-  if (!ActiveTeam().IsLocal() && !ActiveTeam().IsLocalAI())
+  if (!attached || m_attaching)
     return;
 
   // Check if the character collide something.
@@ -407,20 +389,29 @@ void Grapple::NotifyMove(bool collision)
 
 void Grapple::Refresh()
 {
-  if (!IsInUse())
+  if (!attached)
     return ;
+
+  if (move_left_pressed && !move_right_pressed) {
+    GoLeft();
+  } else if (move_right_pressed && !move_left_pressed) {
+    GoRight();
+  }
+
+  if (move_up_pressed && !move_down_pressed) {
+    GoUp();
+  } else if (move_down_pressed && !move_up_pressed) {
+    GoDown();
+  }
+
 
   if (m_attaching)
     TryAttachRope();
 
-  if (!ActiveTeam().IsLocal() && !ActiveTeam().IsLocalAI())
-    return;
-
-if (IsInUse() && !m_attaching)
+  if (attached && !m_attaching)
   {
     ActiveCharacter().SetMovement("ninja-rope");
     ActiveCharacter().UpdatePosition();
-    SendActiveCharacterInfo(true);
   }
 }
 
@@ -428,12 +419,13 @@ void Grapple::Draw()
 {
   int x, y;
   double angle, prev_angle;
+  Point2i handPos;
 
   struct CL_Quad {Sint16 x1,x2,x3,x4,y1,y2,y3,y4;} quad;
 
   Weapon::Draw();
 
-  if (!IsInUse())
+  if (!attached)
   {
     return ;
   }
@@ -448,7 +440,7 @@ void Grapple::Draw()
   prev_angle = angle;
 
   // Draw the rope.
-  Point2i handPos = ActiveCharacter().GetHandPosition();
+  ActiveCharacter().GetHandPosition(handPos);
   x = handPos.x;
   y = handPos.y;
 
@@ -498,14 +490,17 @@ void Grapple::AttachRope(const Point2i& contact_point)
   MSG_DEBUG("grapple.hook", "** AttachRope %d,%d", contact_point.x, contact_point.y);
 
   m_attaching = false;
-  m_is_active = true;
+  attached = true;
+  move_left_pressed = false;
+  move_right_pressed = false;
+  move_up_pressed = false;
+  move_down_pressed = false;
 
   rope_nodes.clear();
 
   // The rope reaches the fixation point. Let's fix it !
-  Point2i handPos = ActiveCharacter().GetHandPosition();
-  Point2i pos(handPos.x - ActiveCharacter().GetX(),
-              handPos.y - ActiveCharacter().GetY());
+  Point2i pos;
+  ActiveCharacter().GetRelativeHandPosition(pos);
 
   ActiveCharacter().SetPhysFixationPointXY(
                                            contact_point.x / PIXEL_PER_METER,
@@ -535,7 +530,7 @@ void Grapple::DetachRope()
 {
   ActiveCharacter().UnsetPhysFixationPoint();
   rope_nodes.clear();
-  m_is_active = false;
+  attached = false;
 
   cable_sound.Stop();
 }
@@ -544,12 +539,10 @@ void Grapple::AttachNode(const Point2i& contact_point,
                          double angle,
                          int sense)
 {
-  Point2i handPos = ActiveCharacter().GetHandPosition();
-
   // The rope has collided something...
   // Add a node on the rope and change the fixation point.
-  Point2i pos(handPos.x - ActiveCharacter().GetX(),
-              handPos.y - ActiveCharacter().GetY());
+  Point2i pos;
+  ActiveCharacter().GetRelativeHandPosition(pos);
 
   ActiveCharacter().SetPhysFixationPointXY(contact_point.x / PIXEL_PER_METER,
                                            contact_point.y / PIXEL_PER_METER,
@@ -583,14 +576,13 @@ void Grapple::DetachNode()
 
   m_fixation_point = rope_nodes.back().pos ;
 
-  Point2i handPos = ActiveCharacter().GetHandPosition();
-  int dx = handPos.x - ActiveCharacter().GetX();
-  int dy = handPos.y - ActiveCharacter().GetY();
+  Point2i pos;
+  ActiveCharacter().GetRelativeHandPosition(pos);
 
   ActiveCharacter().SetPhysFixationPointXY(m_fixation_point.x / PIXEL_PER_METER,
                                            m_fixation_point.y / PIXEL_PER_METER,
-                                           (double)dx / PIXEL_PER_METER,
-                                           (double)dy / PIXEL_PER_METER);
+                                           (double)pos.x / PIXEL_PER_METER,
+                                           (double)pos.y / PIXEL_PER_METER);
 }
 
 // =========================== Moves management
@@ -680,109 +672,123 @@ void Grapple::StopLeft()
   ActiveCharacter().SetExternForce(0,0);
 }
 
+void Grapple::StartMovingLeft()
+{
+  move_left_pressed = true;
+}
+
+void Grapple::StopMovingLeft()
+{
+  move_left_pressed = false;
+  StopLeft();
+}
+
+void Grapple::StartMovingRight()
+{
+  move_right_pressed = true;
+}
+
+void Grapple::StopMovingRight()
+{
+  move_right_pressed = false;
+  StopRight();
+}
+
+void Grapple::StartMovingUp()
+{
+  move_up_pressed = true;
+}
+
+void Grapple::StopMovingUp()
+{
+  move_up_pressed = false;
+  StopUp();
+}
+
+void Grapple::StartMovingDown()
+{
+  move_down_pressed = true;
+  cable_sound.Play("default", "weapon/grapple_cable", -1);
+}
+
+void Grapple::StopMovingDown()
+{
+  move_down_pressed = false;
+  StopDown();
+}
+
+bool Grapple::IsPreventingLRMovement()
+{
+  return attached;
+}
+
+bool Grapple::IsPreventingWeaponAngleChanges()
+{
+  return attached;
+}
+
 // =========================== Keys management
 
-void Grapple::HandleKeyPressed_Up(bool shift)
+void Grapple::HandleKeyPressed_Up(bool /*slowly*/)
 {
-  if (IsInUse())  {
-    cable_sound.Play("default", "weapon/grapple_cable", -1);
-    GoUp();
-  }
+  if (attached)
+    StartMovingUpForAllPlayers();
+}
+
+void Grapple::HandleKeyReleased_Up(bool /*slowly*/)
+{
+  if (attached)
+    StopMovingUpForAllPlayers();
+}
+
+void Grapple::HandleKeyPressed_Down(bool /*slowly*/)
+{
+  if (attached)
+    StartMovingDownForAllPlayers();
+}
+
+void Grapple::HandleKeyReleased_Down(bool /*slowly*/)
+{
+  if (attached)
+    StopMovingDownForAllPlayers();
+}
+
+void Grapple::HandleKeyPressed_MoveLeft(bool /*slowly*/)
+{
+  if (attached)
+    StartMovingLeftForAllPlayers();
+}
+
+void Grapple::HandleKeyReleased_MoveLeft(bool /*slowly*/)
+{
+  if (attached)
+    StopMovingLeftForAllPlayers();
+}
+
+void Grapple::HandleKeyPressed_MoveRight(bool /*slowly*/)
+{
+  if (attached)
+    StartMovingRightForAllPlayers();
+}
+
+void Grapple::HandleKeyReleased_MoveRight(bool /*slowly*/)
+{
+  if (attached)
+    StopMovingRightForAllPlayers();
+}
+
+void Grapple::StartShooting()
+{
+  if (!attached)
+    Weapon::StartShooting();
+}
+
+void Grapple::StopShooting()
+{
+  if (attached)
+    DetachRope();
   else
-    ActiveCharacter().HandleKeyPressed_Up(shift);
-}
-
-void Grapple::HandleKeyRefreshed_Up(bool shift)
-{
-  if (IsInUse())
-    GoUp();
-  else
-    ActiveCharacter().HandleKeyRefreshed_Up(shift);
-}
-
-void Grapple::HandleKeyReleased_Up(bool shift)
-{
-  if (IsInUse())
-    StopUp();
-  else
-    ActiveCharacter().HandleKeyReleased_Up(shift);
-}
-
-void Grapple::HandleKeyPressed_Down(bool shift)
-{
-  if (IsInUse()) {
-    cable_sound.Play("default", "weapon/grapple_cable", -1);
-    GoDown();
-  } else
-    ActiveCharacter().HandleKeyPressed_Down(shift);
-}
-
-void Grapple::HandleKeyRefreshed_Down(bool shift)
-{
-  if (IsInUse())
-    GoDown();
-  else
-    ActiveCharacter().HandleKeyRefreshed_Down(shift);
-}
-
-void Grapple::HandleKeyReleased_Down(bool shift)
-{
-  if (IsInUse())
-    StopDown();
-  else
-    ActiveCharacter().HandleKeyReleased_Down(shift);
-}
-
-void Grapple::HandleKeyPressed_MoveLeft(bool shift)
-{
-  if (IsInUse())
-    GoLeft();
-  else
-    ActiveCharacter().HandleKeyPressed_MoveLeft(shift);
-}
-
-void Grapple::HandleKeyRefreshed_MoveLeft(bool shift)
-{
-  if (!IsInUse())
-    ActiveCharacter().HandleKeyRefreshed_MoveLeft(shift);
-}
-
-void Grapple::HandleKeyReleased_MoveLeft(bool shift)
-{
-  if (IsInUse())
-    StopLeft();
-  else
-    ActiveCharacter().HandleKeyReleased_MoveLeft(shift);
-}
-
-void Grapple::HandleKeyPressed_MoveRight(bool shift)
-{
-  if (IsInUse())
-    GoRight();
-  else
-    ActiveCharacter().HandleKeyPressed_MoveRight(shift);
-}
-
-void Grapple::HandleKeyRefreshed_MoveRight(bool shift)
-{
-  if (!IsInUse())
-    ActiveCharacter().HandleKeyRefreshed_MoveRight(shift);
-}
-
-void Grapple::HandleKeyReleased_MoveRight(bool shift)
-{
-  if (IsInUse())
-    StopRight();
-  else
-    ActiveCharacter().HandleKeyReleased_MoveRight(shift);
-}
-
-void Grapple::HandleKeyPressed_Shoot(bool)
-{
-  if (IsInUse()) {
-    NewActionWeaponStopUse();
-  } else
-    NewActionWeaponShoot();
+    Weapon::StopShooting();
 }
 
 void Grapple::PrintDebugRope()

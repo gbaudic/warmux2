@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,21 +28,15 @@
 class Profile;
 class ExplosiveWeaponConfig;
 
+int GetDamageFromExplosion(const ExplosiveWeaponConfig &config, double distance);
+double GetForceFromExplosion(const ExplosiveWeaponConfig &config, double distance);
+
 void ApplyExplosion(const Point2i &pos,
                     const ExplosiveWeaponConfig &config,
                     const std::string& son="weapon/explosion",
                     bool fire_particle = true,
-                    ParticleEngine::ESmokeStyle smoke = ParticleEngine::BigESmoke,
-                    std::string network_id = "LOCAL" // Useful only on network : this is used to know that we should not apply blast and damage to the projectile which has created the explosion (bugfix #8529)
+                    ParticleEngine::ESmokeStyle smoke = ParticleEngine::BigESmoke
                     );
-
-void ApplyExplosion_common (const Point2i &pos,
-                            const ExplosiveWeaponConfig &config,
-                            const std::string& son,
-                            bool fire_particle,
-                            ParticleEngine::ESmokeStyle smoke,
-                            std::string network_id
-                           );
 
 extern Profile *weapons_res_profile;
 

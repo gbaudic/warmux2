@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -209,12 +209,14 @@ void Tile::MergeSprite(const Point2i &position, Surface& surf)
 // Initialize preview depending on current video and map sizes
 void Tile::InitPreview()
 {
-  Point2i offset     =  m_upper_left_offset + m_lower_right_offset;
+  Point2i offset     = m_upper_left_offset + m_lower_right_offset;
   Point2i world_size = size - offset;
-  m_last_video_size = GetMainWindow().GetSize();
+
+  m_last_video_size  = GetMainWindow().GetSize();
   m_shift = 0;
 
-  while (world_size > m_last_video_size/4) {
+  // Task 6730: biggest dimension won't be bigger than one third, often less in fact
+  while (5*world_size.x>2*m_last_video_size.x || 5*world_size.y>2*m_last_video_size.y) {
     world_size >>= 1;
     m_shift++;
   }
@@ -225,7 +227,7 @@ void Tile::InitPreview()
                        SDL_SWSURFACE|SDL_SRCALPHA, true).DisplayFormatAlpha();
   m_preview->SetAlpha(SDL_SRCALPHA, 0);
 
-  m_preview_size = m_preview->GetSize() - (offset / (1<<m_shift));
+  m_preview_size = world_size;
   m_preview_rect = Rectanglei(m_upper_left_offset / (1<<m_shift), m_preview_size);
 
   m_last_preview_redraw = Time::GetInstance()->Read();
@@ -285,12 +287,15 @@ void Tile::LoadImage(Surface& terrain, const Point2i & upper_left_offset, const 
     dst += (CELL_SIZE.y>>m_shift)*pitch;
   }
 
+  TileItem_AlphaSoftware * t;
+
   // Replace transparent tiles by TileItem_Empty tiles
   for (int i=0; i < nbCells.x * nbCells.y; i++) {
-    TileItem_AlphaSoftware* t = static_cast<TileItem_AlphaSoftware*>(item[i]);
+    t = static_cast<TileItem_AlphaSoftware*>(item[i]);
 
-    while (t->need_check_empty)
+    while (t->need_check_empty) {
       t->CheckEmpty();
+    }
 
     if (t->NeedDelete()) {
 #ifdef DBG_TILE
@@ -310,10 +315,9 @@ void Tile::LoadImage(Surface& terrain, const Point2i & upper_left_offset, const 
   }
 }
 
-uchar Tile::GetAlpha(const Point2i &pos) const
+uchar Tile::GetAlpha(const Point2i & pos) const
 {
-  int cell = pos.y / CELL_SIZE.y * nbCells.x + pos.x / CELL_SIZE.x;
-  return item[cell]->GetAlpha(pos % CELL_SIZE);
+  return item[pos.y / CELL_SIZE.y * nbCells.x + pos.x / CELL_SIZE.x]->GetAlpha(pos % CELL_SIZE);
 }
 
 void Tile::DrawTile()
@@ -326,7 +330,7 @@ void Tile::DrawTile()
       item[i.y*nbCells.x + i.x]->Draw( i );
 }
 
-void Tile::DrawTile_Clipped(Rectanglei worldClip) const
+void Tile::DrawTile_Clipped(Rectanglei & worldClip) const
 {
   // Revision 514:
   // worldClip.SetSize( worldClip.GetSize() + 1); // mmm, does anything gives areas
@@ -398,15 +402,21 @@ Surface Tile::GetPart(const Rectanglei& rec)
 
 void Tile::CheckEmptyTiles()
 {
-  for (int i = 0; i < nbCells.x * nbCells.y; i++) {
+  TileItem_AlphaSoftware * t;
+  int cellsCount = nbCells.x * nbCells.y;
 
-    if(item[i]->IsTotallyEmpty())
+  for (int i = 0; i < cellsCount; i++) {
+    if (item[i]->IsTotallyEmpty()) {
       continue;
+    }
 
-    TileItem_AlphaSoftware* t = static_cast<TileItem_AlphaSoftware*>(item[i]);
-    if(t->need_check_empty)
+    t = static_cast<TileItem_AlphaSoftware*>(item[i]);
+
+    if (t->need_check_empty) {
       t->CheckEmpty();
-    if(t->need_delete) {
+    }
+
+    if (t->need_delete) {
       // no need to display this tile as it can be deleted!
 #ifdef DBG_TILE
       printf("Deleting tile %i\n",i);

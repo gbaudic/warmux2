@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 class Team;
 class ConfigTeam;
 class Character;
+class WeaponsList;
 
 class TeamsList : public Singleton<TeamsList>
 {
@@ -63,7 +64,7 @@ public:
   void NextTeam();
   Team* GetNextTeam();
   Team& ActiveTeam();
-  void LoadGamingData();
+  void LoadGamingData(WeaponsList * weapons_list);
   void UnloadGamingData();
   void Clear();
   void RandomizeFirstPlayer();

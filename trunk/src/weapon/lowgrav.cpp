@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,8 +33,9 @@
 
 const double LOW_GRAVITY_FACTOR = 0.4;
 
-LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav",
-                            new WeaponConfig(), NEVER_VISIBLE)
+LowGrav::LowGrav() :
+  Weapon(WEAPON_LOWGRAV, "lowgrav", new WeaponConfig(), false),
+  active(false)
 {
   UpdateTranslationStrings();
 
@@ -56,6 +57,7 @@ void LowGrav::p_Deselect()
   ActiveCharacter().ResetConstants();
   ActiveCharacter().SetClothe("normal");
   ActiveCharacter().SetMovement("breathe");
+  active = false;
 }
 
 bool LowGrav::p_Shoot()
@@ -63,26 +65,24 @@ bool LowGrav::p_Shoot()
   ActiveCharacter().SetGravityFactor(LOW_GRAVITY_FACTOR);
   ActiveCharacter().SetClothe("helmet");
   use.Play("default","weapon/lowgrav",-1);
-
+  active = true;
   return true;
 }
 
-void LowGrav::HandleKeyPressed_Shoot(bool)
+void LowGrav::StopShooting()
 {
-  if (!IsInUse()){
-    NewActionWeaponShoot();
-
-  }else{
-    NewActionWeaponStopUse();
-    use.Stop();
+  if (active) {
+    Deselect();
+  } else {
+    Weapon::StopShooting();
   }
 }
 
 std::string LowGrav::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
   return Format(ngettext(
-            "%s team has won %u lowgrav! I'm Neil Armstrong!",
-            "%s team has won %u lowgravs! I'm Neil Armstrong!",
+            "%s team has won %u lowgrav! Small step for man, giant leap for free software!",
+            "%s team has won %u lowgravs! Small step for man, giant leap for free software!",
             items_count), TeamName, items_count);
 }
 

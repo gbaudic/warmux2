@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,15 +32,17 @@ class Teleportation : public Weapon
     bool target_chosen;
     uint animation_duration;
     Point2i src, dst;
+    bool done;
   protected:
     bool p_Shoot();
     void p_Select();
     void Refresh();
+    virtual bool ShouldBeVisible();
   public:
     Teleportation();
-    void Draw() { if (!IsInUse()) Weapon::Draw(); };
     void ChooseTarget(Point2i mouse_pos);
-    bool IsInUse() const;
+    virtual void StartShooting() {}
+    virtual void StopShooting() {}
     WeaponConfig& cfg();
 
     void UpdateTranslationStrings();

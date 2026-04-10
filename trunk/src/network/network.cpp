@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -153,7 +153,9 @@ void NetworkThread::ReceiveActions()
       // Means an error
       else if (num_ready == -1)
       {
-        fprintf(stderr, "SDLNet_CheckSockets: %s\n", SDLNet_GetError());
+        //Spams a lot under windows without the errno check...
+        if (errno<0)
+          std::cerr << "SDLNet_CheckSockets: " << SDLNet_GetError() << std::endl;
         continue; //Or break?
       }
     }
@@ -220,7 +222,6 @@ Network::Network(const std::string& _game_name, const std::string& passwd) :
   cpu(),
   game_name(_game_name),
   password(passwd),
-  turn_master_player(false),
   game_master_player(false),
   state(WNet::NO_NETWORK),// useless value at beginning
   socket_set(NULL),
@@ -228,8 +229,7 @@ Network::Network(const std::string& _game_name, const std::string& passwd) :
   fout(0),
   fin(0),
 #endif
-  network_menu(NULL),
-  sync_lock(false)
+  network_menu(NULL)
 {
   cpus_lock = SDL_CreateMutex();
   player.SetNickname(Player::GetDefaultNickname());
@@ -292,6 +292,24 @@ void Network::RemoveRemoteHost(std::list<DistantComputer*>::iterator host_it)
   SDL_UnlockMutex(cpus_lock);
 }
 
+
+Player * Network::LockRemoteHostsAndGetPlayer(uint player_id)
+{
+  SDL_LockMutex(cpus_lock);
+  Player * player = NULL;
+
+  if (GetPlayer().GetId() == player_id)
+    player = &(GetPlayer());
+
+  std::list<DistantComputer*>::const_iterator it = cpu.begin();
+  while ((player == NULL) && (it != cpu.end())) {
+    player = (*it)->GetPlayer(player_id);
+    it++;
+  }
+  // Stay locked as the player must belong to a valid host while it gets processed.
+  return player;
+}
+
 //-----------------------------------------------------------------------------
 
 // Static method
@@ -351,9 +369,9 @@ void Network::SendActionToAll(const Action& a) const
 
 void Network::SendActionToOne(const Action& a, DistantComputer* client) const
 {
-  MSG_DEBUG("network.traffic","Send action %s to %s (%s)",
+  MSG_DEBUG("network.traffic","Send action %s to %s",
             ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str(),
-	    client->ToString().c_str());
+            client->ToString().c_str());
 
   SendAction(a, client, true);
 }
@@ -498,21 +516,17 @@ void Network::SendNetworkState()
     a.Push(state);
     SendActionToAll(a);
   } else {
+    int player_id = Network::GetInstance()->GetPlayer().GetId();
     Action a(Action::ACTION_NETWORK_CLIENT_CHANGE_STATE);
+    a.Push(player_id);
     a.Push(state);
     SendActionToAll(a);
   }
 }
 
-void Network::SetTurnMaster(bool master)
-{
-  MSG_DEBUG("network.turn_master", "turn_master: %d", master);
-  turn_master_player = master;
-}
-
 bool Network::IsTurnMaster() const
 {
-  return turn_master_player;
+  return ActiveTeam().IsLocal();
 }
 
 void Network::SetGameMaster()
@@ -573,55 +587,17 @@ uint Network::GetNbPlayersConnected() const
   return r;
 }
 
-uint Network::GetNbHostsConnected() const
+uint Network::GetNbPlayersWithState(Player::State player_state) const
 {
-  return cpu.size();
-}
-
-uint Network::GetNbHostsInitialized() const
-{
-  uint r = 0;
+  uint counter = 0;
 
   SDL_LockMutex(cpus_lock);
   for (std::list<DistantComputer*>::const_iterator client = cpu.begin();
        client != cpu.end();
        client++) {
-    if ((*client)->GetState() == DistantComputer::STATE_INITIALIZED)
-      r++;
+    counter += (*client)->GetNumberOfPlayersWithState(player_state);
   }
   SDL_UnlockMutex(cpus_lock);
 
-  return r;
-}
-
-uint Network::GetNbHostsReady() const
-{
-  uint r = 0;
-
-  SDL_LockMutex(cpus_lock);
-  for (std::list<DistantComputer*>::const_iterator client = cpu.begin();
-       client != cpu.end();
-       client++) {
-    if ((*client)->GetState() == DistantComputer::STATE_READY)
-      r++;
-  }
-  SDL_UnlockMutex(cpus_lock);
-
-  return r;
-}
-
-uint Network::GetNbHostsChecked() const
-{
-  uint r = 0;
-
-  SDL_LockMutex(cpus_lock);
-  for (std::list<DistantComputer*>::const_iterator client = cpu.begin();
-       client != cpu.end();
-       client++) {
-    if ((*client)->GetState() == DistantComputer::STATE_CHECKED)
-      r++;
-  }
-  SDL_UnlockMutex(cpus_lock);
-
-  return r;
+  return counter;
 }

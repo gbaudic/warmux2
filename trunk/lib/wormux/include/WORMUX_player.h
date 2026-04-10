@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define WORMUX_PLAYER_H
 //-----------------------------------------------------------------------------
 #include <SDL_net.h>
-#include <map>
+#include <list>
 #include <string>
 #include <WORMUX_types.h>
 #include <WORMUX_team_config.h>
@@ -32,13 +32,22 @@
 class Player
 {
   friend void WORMUX_DisconnectPlayer(Player& player);
-
+public:
+  typedef enum {
+    STATE_ERROR,
+    STATE_NOT_INITIALIZED,
+    STATE_INITIALIZED,
+    STATE_READY,
+    STATE_CHECKED,
+    STATE_NEXT_GAME
+  } State;
 private:
   uint player_id;
   std::string nickname;
-  std::map<const std::string, ConfigTeam> owned_teams;
+  std::list<ConfigTeam> owned_teams;
   void UpdateNickname();
-
+  std::list<ConfigTeam>::iterator FindTeamWithId(const std::string team_id);
+  State state;
 public:
   Player(uint player_id, const std::string& nickname);
   Player();
@@ -56,7 +65,10 @@ public:
   bool UpdateTeam(const std::string& old_team_id, const ConfigTeam& team_conf);
 
   uint GetNbTeams() const;
-  const std::map<const std::string, ConfigTeam>& GetTeams() const;
+  const std::list<ConfigTeam> & GetTeams() const;
+
+  void SetState(State _state);
+  State GetState() const;
 
   static std::string GetDefaultNickname();
 };

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -101,7 +101,7 @@ void RPG::Refresh()
 {
   AutomaticBazookaConfig &acfg = dynamic_cast<AutomaticBazookaConfig &>(cfg);
   uint time = Time::GetInstance()->Read();
-  float flying_time = time - begin_time;
+  float flying_time = GetMSSinceTimeoutStart();
   uint timestep = time - m_lastrefresh;
   m_lastrefresh = time;
   if (!m_targeted)
@@ -279,7 +279,7 @@ void AutomaticBazooka::ChooseTarget(Point2i mouse_pos)
   m_target->pos = mouse_pos;
   m_target->selected = true;
 
-  if(!ActiveTeam().IsLocal())
+  if(!ActiveTeam().IsLocalHuman())
     Camera::GetInstance()->SetXYabs(mouse_pos - Camera::GetInstance()->GetSize()/2);
   DrawTarget();
   static_cast<RPG *>(projectile)->SetTarget(m_target->pos.x, m_target->pos.y);

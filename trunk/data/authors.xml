@@ -21,6 +21,13 @@
 	<country>France</country>
       </author>
       <author>
+	<nickname>IFlo</nickname>
+	<name>Florian KÖBERLE</name>
+	<description>Programmer</description>
+	<email>florian_AT_fkoeberle_DOT_de</email>
+	<country>Germany</country>
+      </author>
+      <author>
 	<nickname>lynxlynxlynx</nickname>
 	<name>Jaka KRANJC</name>
 	<description>i18n manager, misc</description>
@@ -33,6 +40,14 @@
 	<description>Graphic artist</description>
 	<website>http://yeknan.free.fr/</website>
 	<email>yeknan_AT_yahoo_DOT_fr</email>
+	<country>France</country>
+      </author>
+      <author>
+	<nickname>lami</nickname>
+	<name>Lawrence AZZOUG</name>
+	<description>Initial programmer and graphic artist of the game</description>
+	<website>http://sites.google.com/site/lamilawrence/</website>
+	<email>lami_AT_wormux_DOT_org</email>
 	<country>France</country>
       </author>
     </section>
@@ -74,14 +89,6 @@
 	<name>Christophe GISQUET</name>
 	<description>Win32 port, programmer</description>
 	<email>christophe_DOT_gisquet_AT_gmail_DOT_com</email>
-	<country>France</country>
-      </author>
-      <author>
-	<nickname>lami</nickname>
-	<name>Lawrence AZZOUG</name>
-	<description>Initial programmer and graphic artist of the game</description>
-	<website>http://perso.wanadoo.fr/lami/</website>
-	<email>lami_AT_wormux_DOT_org</email>
 	<country>France</country>
       </author>
       <author>
@@ -244,8 +251,8 @@
       <author>
 	<nickname>Huftis</nickname>
 	<name>Karl Ove HUFTHAMMER</name>
-	<description>Translated Wormux 0.8.3 into Norwegian Nynorsk</description>
-  <website>http://blogg.huftis.org</website>
+	<description>Translated Wormux into Norwegian Nynorsk</description>
+  <website>http://huftis.org/</website>
 	<email>karl_AT_huftis_DOT_org</email>
 	<country>Norway</country>
       </author>
@@ -508,6 +515,14 @@
 	<country>Poland</country>
       </author>
       <author>
+	<nickname>Hugen</nickname>
+	<name>Hugen</name>
+	<description>Haiku package</description>
+	<website>http://www.haiku-os.pl</website>
+	<email>HubertHH_AT_gmail_DOT_com</email>
+	<country>Poland</country>
+      </author>
+      <author>
 	<nickname>Julien</nickname>
 	<name>Julien CATALANO</name>
 	<description>Prepare RPM packages for Mandrake</description>
@@ -570,7 +585,6 @@
 	<description>Patch concerning the rise in the water level</description>
 	<country>Germany</country>
 	<website>http://psycho3d.de</website>
-	<email>-</email>
       </author>
       <author>
 	<nickname>Eric</nickname>
@@ -599,13 +613,6 @@
 	<description>Fix old bug in option menu (crash because of video mode)</description>
 	<email>hamaolli_AT_cc.jyu_DOT_fi</email>
 	<country>Finland</country>
-      </author>
-      <author>
-	<nickname>IFlo</nickname>
-	<name>Florian Köberle</name>
-	<description>network bugfixes</description>
-	<email>florian_AT_fkoeberle_DOT_de</email>
-	<country>Germany</country>
       </author>
       <author>
 	<nickname>Isaac</nickname>
@@ -725,6 +732,13 @@
 	<description>Progressive camera scrolling with mouse patch</description>
 	<email>rvigniel_AT_free.fr</email>
 	<country>France</country>
+      </author>
+      <author>
+	<nickname>SalfranCL</nickname>
+	<name>Leinier Cruz Salfran</name>
+	<description>Index server: ability to go to background and to show/hide debug messages</description>
+	<email>salfrancl_AT_yahoo_DOT_es</email>
+	<country>Cuba</country>
       </author>
       <author>
 	<nickname>Sami</nickname>
@@ -848,7 +862,7 @@
       <author>
 	<nickname>alzen</nickname>
 	<name>Maciej Mroziński</name>
-	<description>lonely_island map</description>
+	<description>2 maps (Lonely Island and Arcade Room)</description>
 	<email>mynick2_AT_o2_DOT_pl</email>
 	<country>Poland</country>
       </author>
@@ -923,6 +937,13 @@
 	<country>Poland</country>
       </author>
       <author>
+	<nickname>Sébastien</nickname>
+	<name>Sébastien MATHIER</name>
+	<description>Draw the map Apocalypse</description>
+	<email>mathier_AT_hotmail_DOT_com</email>
+	<country>Suisse</country>
+      </author>
+      <author>
 	<nickname>tgm</nickname>
 	<name>C.A</name>
 	<description>Map 'FunkyIsland'</description>
@@ -978,10 +999,10 @@
       </author>
       <author>
 	<nickname>Jika</nickname>
-	<name>Julien CLAEYS</name>
+	<name>Julien CLAEYS BOÚÚAERT</name>
 	<description>Bug reports, tests, website help,...</description>
 	<email>julien.claeys_AT_gmail_DOT_com</email>
-	<country>Belgique</country>
+	<country>Belgium</country>
       </author>
       <author>
 	<nickname>Mastzi team</nickname>

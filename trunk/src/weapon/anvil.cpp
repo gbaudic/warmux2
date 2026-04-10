@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -66,9 +66,9 @@ Anvil::Anvil(ExplosiveWeaponConfig& cfg,
              WeaponLauncher * p_launcher) :
   WeaponProjectile ("anvil", cfg, p_launcher)
 {
-  explode_with_collision = false;
   explode_colliding_character = false;
   merge_time = 0;
+  explode_with_timeout = false;
   SetTestRect(0, 0, 0, 0);
 }
 
@@ -125,7 +125,7 @@ void Anvil::PlayCollisionSound()
 //-----------------------------------------------------------------------------
 
 AnvilLauncher::AnvilLauncher() :
-    WeaponLauncher(WEAPON_ANVIL, "anvil_launcher", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+    WeaponLauncher(WEAPON_ANVIL, "anvil_launcher", new ExplosiveWeaponConfig())
 {
   UpdateTranslationStrings();
 
@@ -145,7 +145,10 @@ void AnvilLauncher::UpdateTranslationStrings()
 void AnvilLauncher::ChooseTarget(Point2i mouse_pos)
 {
   target.x = mouse_pos.x - (projectile->GetWidth() / 2);
-  target.y = 0 - projectile->GetHeight();
+
+  // using 1 allows to detect when the ground goes at the very top of the sky
+  // in that case, the current target is rejected (fix bug #12369)
+  target.y = 1 - projectile->GetHeight();
 
   if (!GetWorld().ParanoiacRectIsInVacuum(Rectanglei(target, projectile->GetSize())) ||
      !projectile->IsInVacuumXY(target))
@@ -178,7 +181,7 @@ bool AnvilLauncher::p_Shoot ()
 void AnvilLauncher::p_Select()
 {
   if (Network::GetInstance()->IsTurnMaster())
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_FIRE_LEFT);
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_AIM);
 }
 
 WeaponProjectile * AnvilLauncher::GetProjectileInstance()
@@ -195,4 +198,7 @@ std::string AnvilLauncher::GetWeaponWinString(const char *TeamName, uint items_c
             items_count), TeamName, items_count);
 }
 
-
+bool AnvilLauncher::ShouldBeDrawn()
+{
+  return !IsOnCooldownFromShot();
+}

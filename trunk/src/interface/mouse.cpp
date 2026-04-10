@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2009 Wormux Team.
+ *  Copyright (C) 2001-2010 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,8 +53,8 @@ std::string __pointers[] = {
   "mouse/pointer_arrow_right",
   "mouse/pointer_arrow_left",
   "mouse/pointer_aim",
-  "mouse/pointer_fire_left",
-  "mouse/pointer_fire_right"
+  "mouse/pointer_attack_from_left",
+  "mouse/pointer_attack_from_right",
 };
 std::map<Mouse::pointer_t, MouseCursor> Mouse::cursors;
 
@@ -67,7 +67,7 @@ Mouse::Mouse():
   // Load the different pointers
   Profile *res = GetResourceManager().LoadXMLProfile("cursors.xml", false);
 
-  for (int i=POINTER_SELECT; i < POINTER_FIRE; i++) {
+  for (int i=POINTER_SELECT; i < POINTER_ATTACK; i++) {
     cursors.insert(std::make_pair(Mouse::pointer_t(i),
 				  GetResourceManager().LoadMouseCursor(res, __pointers[i],
 								   Mouse::pointer_t(i))));
@@ -118,13 +118,12 @@ void Mouse::ActionLeftClic(bool) const
     }
 
     if (character_found) {
-      Action * next_character = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
-      Character::StoreActiveCharacter(next_character);
-
       while ( &(*it) != &ActiveCharacter() )
         ActiveTeam().NextCharacter ();
 
-      Character::StoreActiveCharacter(next_character);
+      Action * next_character = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
+      uint next_character_index = (*it).GetCharacterIndex();
+      next_character->Push((int)next_character_index);
       ActionHandler::GetInstance()->NewAction(next_character);
 
       return;
@@ -191,7 +190,7 @@ bool Mouse::HandleClic (const SDL_Event& event) const
   if (Game::GetInstance()->ReadState() != Game::PLAYING)
     return true;
 
-  if(!ActiveTeam().IsLocal())
+  if(!ActiveTeam().IsLocalHuman())
     return true;
 
   if( event.type == SDL_MOUSEBUTTONDOWN ){
@@ -274,11 +273,11 @@ MouseCursor& Mouse::GetCursor(pointer_t pointer) const
 {
   ASSERT(pointer != POINTER_STANDARD);
 
-  if (pointer == POINTER_FIRE) {
+  if (pointer == POINTER_ATTACK) {
     if (ActiveCharacter().GetDirection() == DIRECTION_RIGHT)
-      return GetCursor(POINTER_FIRE_LEFT); // left hand to shoot on the right
+      return GetCursor(POINTER_ATTACK_FROM_LEFT);
     else
-      return GetCursor(POINTER_FIRE_RIGHT);
+      return GetCursor(POINTER_ATTACK_FROM_RIGHT);
   }
   return (*cursors.find(pointer)).second;
 }
