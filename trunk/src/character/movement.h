@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,11 +25,7 @@
 #include "include/base.h"
 #include "tool/point.h"
 
-// Forward declaration
-namespace xmlpp
-{
-  class Element;
-}
+typedef struct _xmlNode xmlNode;
 
 class member_mvt
 {  // Position of a member relative to its superior one
@@ -80,7 +76,7 @@ public:
   std::string type;
 
   ~Movement();
-  Movement(xmlpp::Element *xml);
+  Movement(xmlNode* xml);
 };
 
 #endif //MEMBER_H

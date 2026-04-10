@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,7 +42,9 @@ typedef enum {
   particle_MAGIC_STAR,
   particle_BODY_MEMBER,
   particle_TELEPORT_MEMBER,
-  particle_POLECAT_FART
+  particle_POLECAT_FART,
+  particle_WATER,
+  particle_LAVA
 } particle_t;
 
 enum particle_spr
@@ -50,15 +52,18 @@ enum particle_spr
   SMOKE_spr,
   EXPLOSION_SMOKE_spr,
   ILL_BUBBLE_spr,
-  FIRE_spr, STAR_spr,
+  FIRE_spr,
+  STAR_spr,
+  BULLET_spr,
   MAGIC_STAR_R_spr,
   MAGIC_STAR_Y_spr,
   MAGIC_STAR_B_spr,
   DARK_SMOKE_spr,
-  BULLET_spr,
-  POLECAT_FART_spr
+  POLECAT_FART_spr,
+  WATER_spr,
+  LAVA_spr
 };
-const int particle_spr_nbr = POLECAT_FART_spr + 1;
+const int particle_spr_nbr = LAVA_spr + 1;
 
 class Particle : public PhysicalObj
 {
@@ -85,7 +90,7 @@ class Particle : public PhysicalObj
   void SetOnTop(bool b) { on_top = b; }
   bool IsOnTop() const { return on_top; }
   bool StillUseful() const;
-  const bool CheckOnEndTurn() const { return m_check_move_on_end_turn; }
+  bool CheckOnEndTurn() const { return m_check_move_on_end_turn; }
 };
 
 class ParticleEngine

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,13 +17,13 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#include "gui/spin_button.h"
-#include "graphic/text.h"
-#include "gui/button.h"
 #include <sstream>
+
+#include "gui/spin_button.h"
+#include "gui/button.h"
+#include "graphic/text.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
-#include "gui/button.h"
 
 SpinButton::SpinButton (const std::string &label, int width,
                         int value, int step, int min_value, int max_value,
@@ -48,9 +48,9 @@ SpinButton::SpinButton (const std::string &label, int width,
   uint margin = 5;
 
   m_plus = new Button(res, "menu/plus");
-  m_plus->SetXY(position.x + size.x - 5, position.y);
+  m_plus->SetPosition(position.x + size.x - 5, position.y);
   m_minus = new Button(res, "menu/minus");
-  m_minus->SetXY(position.x + size.x - max_value_w - 5 - 2 * margin, position.y);
+  m_minus->SetPosition(position.x + size.x - max_value_w - 5 - 2 * margin, position.y);
   resource_manager.UnLoadXMLProfile( res);
 
   ValueHasChanged();
@@ -64,31 +64,30 @@ SpinButton::~SpinButton ()
   delete m_minus;
 }
 
-void SpinButton::SetSizePosition(const Rectanglei &rect)
+void SpinButton::Pack()
 {
-  StdSetSizePosition(rect);
-
   std::ostringstream max_value_s;
   max_value_s << GetMaxValue();
   uint max_value_w = (*Font::GetInstance(Font::FONT_SMALL)).GetWidth(max_value_s.str());
 
   uint margin = 5;
 
-  m_plus->SetSizePosition( Rectanglei(position.x + size.x - 5, position.y, 5, 10) );
-  m_minus->SetSizePosition( Rectanglei(position.x + size.x - max_value_w - 5 - 2 * margin, position.y, 5, 10) );
+  m_plus->SetPosition(position.x + size.x - 5, position.y);
+  m_minus->SetPosition(position.x + size.x - max_value_w - 5 - 2 * margin, position.y);
 
   txt_label->SetMaxWidth(size.x - 30);
+  size.y = txt_label->GetHeight();
 }
 
-void SpinButton::Draw(const Point2i &mousePosition, Surface& surf) const
+void SpinButton::Draw(const Point2i &mousePosition) const
 {
   txt_label->DrawTopLeft(position);
 
   if (GetValue() != GetMinValue()) {
-    m_minus->Draw(mousePosition, surf);
+    m_minus->Draw(mousePosition);
   }
   if (GetValue() != GetMaxValue()) {
-    m_plus->Draw(mousePosition, surf);
+    m_plus->Draw(mousePosition);
   }
 
   uint center = (m_plus->GetPositionX() + 5 + m_minus->GetPositionX() )/2;

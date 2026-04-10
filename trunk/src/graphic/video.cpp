@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,9 +17,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#ifdef _MSC_VER
-#  include <algorithm>
-#endif
+#include <algorithm>
 #include <iostream>
 #include <SDL_image.h>
 #include "game/config.h"
@@ -54,7 +52,7 @@ Video::Video(){
   }
 
   SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION );
-  SetWindowIcon( config->GetDataDir() + PATH_SEPARATOR + "wormux_32x32.xpm" );
+  SetWindowIcon( config->GetDataDir() + "wormux_32x32.xpm" );
 
   ComputeAvailableConfigs();
 }

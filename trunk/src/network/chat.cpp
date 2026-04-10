@@ -99,10 +99,8 @@ void Chat::NewMessage(const std::string &msg)
     last_time = now;
   }
 
-
   chat.AddText(msg, MAXLINES);
 }
-
 
 void Chat::HandleKey(const SDL_Event& event)
 {
@@ -117,6 +115,7 @@ void Chat::HandleKey(const SDL_Event& event)
     switch (key.sym){
       
     case SDLK_RETURN:
+    case SDLK_KP_ENTER:
       check_input = false; //Hide input widget
       if ( txt[0] == '/' )
 	ProcessCommand(txt);

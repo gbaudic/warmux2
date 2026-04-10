@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,14 +61,15 @@ SpinButtonWithPicture::~SpinButtonWithPicture ()
   delete txt_value_white;
 }
 
-void SpinButtonWithPicture::SetSizePosition(const Rectanglei &rect)
+void SpinButtonWithPicture::Pack()
 {
-  StdSetSizePosition(rect);
-  txt_label->SetMaxWidth(GetSizeX());
+  txt_label->SetMaxWidth(size.x);
 }
 
-void SpinButtonWithPicture::Draw(const Point2i &/*mousePosition*/, Surface& surf) const
+void SpinButtonWithPicture::Draw(const Point2i &/*mousePosition*/) const
 {
+  Surface& surf = AppWormux::GetInstance()->video->window;
+
   //  the computed positions are to center on the image part of the widget
 
   // 1. first draw the annulus background
@@ -79,7 +80,7 @@ void SpinButtonWithPicture::Draw(const Point2i &/*mousePosition*/, Surface& surf
   // 2. then draw the progress annulus
   static uint small_r = 25;
   static uint big_r = 35;
-  static double open_angle_value = 0.96; // 55 °
+  static double open_angle_value = 0.96; // 55
   uint center_x = tmp_back_x + m_annulus_background.GetWidth() / 2;
   uint center_y = tmp_back_y + m_annulus_background.GetHeight() / 2;
   double angle = (2 * M_PI - open_angle_value) * (GetValue() - GetMinValue()) / (GetMaxValue() - GetMinValue());

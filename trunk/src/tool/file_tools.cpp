@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 #include "tool/i18n.h"
 
 // Test if a file exists
-bool IsFileExist(const std::string &name)
+bool DoesFileExist(const std::string &name)
 {
   std::ifstream f(name.c_str());
   bool exist = f.good();

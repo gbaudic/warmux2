@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ public:
   MouseCursor(Mouse::pointer_t pointer_id, 
 	      std::string filename, Point2i clic_pos);
 
-  const Mouse::pointer_t GetPointerId() const;
+  Mouse::pointer_t GetPointerId() const;
   const Surface& GetSurface() const;
   const Point2i& GetClicPos() const;
 };

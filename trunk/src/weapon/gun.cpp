@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ GunBullet::GunBullet(ExplosiveWeaponConfig& cfg,
 
 void GunBullet::ShootSound()
 {
-  jukebox.Play("share","weapon/gun");
+  JukeBox::GetInstance()->Play("share","weapon/gun");
 }
 
 //-----------------------------------------------------------------------------

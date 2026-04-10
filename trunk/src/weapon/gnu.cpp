@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ void Gnu::Refresh()
     norme = randomSync.GetDouble(2.0, 5.0);
     PutOutOfGround();
     SetSpeedXY(Point2d(m_sens * norme , - norme * 3.0));
-    jukebox.Play("share", "weapon/gnu_bounce");
+    JukeBox::GetInstance()->Play("share", "weapon/gnu_bounce");
   }
 
   //Due to a bug in the physic engine

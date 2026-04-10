@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@
 
 #include <iostream>
 
-AIStupidEngine * AIStupidEngine::singleton = NULL;
-
 AIStupidEngine::AIStupidEngine() :
   m_movement(),
   m_shoot(m_movement),
@@ -39,14 +37,6 @@ AIStupidEngine::AIStupidEngine() :
   m_current_time(0)
 {
   std::cout << "o Artificial Intelligence Stupid engine initialization" << std::endl;
-}
-
-AIStupidEngine* AIStupidEngine::GetInstance()
-{
-  if (singleton == NULL)
-    singleton = new AIStupidEngine();
-
-  return singleton;
 }
 
 // --------------------------------------------------

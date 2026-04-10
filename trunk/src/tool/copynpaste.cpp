@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- ******************************************************************************
+ *****************************************************************************
  * Retrieve string pasted depending on OS mechanisms.
  *****************************************************************************/
-#ifdef HAVE_CONFIG_H
+#ifdef _MSC_VER
+#  include "msvc/config.h"
+#elif defined(HAVE_CONFIG_H)
 #  include "config.h"
 #endif
 
@@ -40,7 +42,7 @@ bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
 
     if (data)
     {
-      int  len = WideCharToMultiByte(CP_UTF8, 0, data, -1, NULL, 0, NULL, NULL);
+      int len = WideCharToMultiByte(CP_UTF8, 0, data, -1, NULL, 0, NULL, NULL);
       if (len > 0)
       {
         // Convert from UTF-16 to UTF-8
@@ -51,6 +53,7 @@ bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
           pos += len-1;
         }
         free(temp);
+        ret = true;
       }
     }
     GlobalUnlock(h);
@@ -76,6 +79,11 @@ bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
   return ret;
 }
 #elif defined(__APPLE__)
+
+#ifdef Status
+#undef Status
+#endif
+
 #include <Carbon/Carbon.h>
 
 bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
@@ -99,7 +107,8 @@ bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
   delete[] buffer;
   return ret;
 }
-#elif defined(HAVE_X11_XLIB_H)
+
+#elif USE_X11
 static char* getSelection(Display *dpy, Window us, Atom selection)
 {
   int    max_events = 50;
@@ -187,7 +196,7 @@ bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
         pos = text.size();
       }
 
-      text.insert(pos, data); 
+      text.insert(pos, data);
       pos += strlen(data);
       XFree(data);
     }

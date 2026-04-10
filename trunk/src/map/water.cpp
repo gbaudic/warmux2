@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "map/maps_list.h"
 #include "game/time.h"
 #include "interface/interface.h"
+#include "particles/particle.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
 
@@ -51,59 +52,82 @@ int pattern_height = 0; // TODO: relocate
  * cycle. The pattern surface is rendered using water.png (and SIN functions)
  * and water_bottom.png.
  */
-void Water::Init(){
-   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
+void Water::Init()
+{
+  std::string image = "gfx/";
+  switch (water_type) {
+  case WATER:
+    image += "water";
+    break;
+  case LAVA:
+    image += "lava";
+    break;
+  default:
+    ASSERT(false);
+    break;
+  }
 
-   surface = resource_manager.LoadImage(res, "gfx/water");
-   surface.SetAlpha(0, 0);
+  Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
 
-   bottom = resource_manager.LoadImage(res, "gfx/water_bottom");
-   bottom.SetAlpha(0, 0);
+  surface = resource_manager.LoadImage(res, image);
+  surface.SetAlpha(0, 0);
 
-   pattern_height = bottom.GetHeight();
+  image += "_bottom";
 
-   pattern.NewSurface(Point2i(pattern_width, pattern_height),
-                      SDL_SWSURFACE|SDL_SRCALPHA, true);
-   /* Convert the pattern into the same format than surface. This allow not to
-    * need conversions on fly and thus saves CPU */
-   pattern.SetSurface(
-       SDL_ConvertSurface(pattern.GetSurface(),
-                          surface.GetSurface()->format,
-                          SDL_SWSURFACE|SDL_SRCALPHA),
-       true /* free old one */);
+  bottom = resource_manager.LoadImage(res, image);
+  bottom.SetAlpha(0, 0);
 
-   // Turn on transparency for water bottom texture
-   bottom.SetSurface(
-       SDL_ConvertSurface(bottom.GetSurface(),
-                          bottom.GetSurface()->format,
-                          SDL_SWSURFACE|SDL_SRCALPHA),
-       true);
+  pattern_height = bottom.GetHeight();
+
+  pattern.NewSurface(Point2i(pattern_width, pattern_height),
+		     SDL_SWSURFACE|SDL_SRCALPHA, true);
+  /* Convert the pattern into the same format than surface. This allow not to
+   * need conversions on fly and thus saves CPU */
+  pattern.SetSurface(
+		     SDL_ConvertSurface(pattern.GetSurface(),
+					surface.GetSurface()->format,
+					SDL_SWSURFACE|SDL_SRCALPHA),
+		     true /* free old one */);
+
+  // Turn on transparency for water bottom texture
+  bottom.SetSurface(
+		    SDL_ConvertSurface(bottom.GetSurface(),
+				       bottom.GetSurface()->format,
+				       SDL_SWSURFACE|SDL_SRCALPHA),
+		    true);
 
 
-   shift1 = 0;
-   resource_manager.UnLoadXMLProfile(res);
+  shift1 = 0;
+  resource_manager.UnLoadXMLProfile(res);
 }
 
-void Water::Reset(){
-  actif = ActiveMap()->UseWater();
-  if(!actif) return;
+void Water::Reset()
+{
+  water_type = ActiveMap()->WaterType();
+
+  if (!IsActive())
+    return;
+
   Init();
-  hauteur_eau = WATER_INITIAL_HEIGHT;
+  water_height = WATER_INITIAL_HEIGHT;
   temps_montee = GO_UP_TIME * 60 * 1000;
   Refresh(); // Calculate first height position
 }
 
-void Water::Free(){
-  if(!actif)
+void Water::Free()
+{
+  if (!IsActive())
     return;
+
   bottom.Free();
   surface.Free();
   pattern.Free();
   pattern_height = 0;
 }
 
-void Water::Refresh(){
-  if (!actif)
+void Water::Refresh()
+{
+  if (!IsActive())
     return;
 
   height_mvt = 0;
@@ -122,15 +146,22 @@ void Water::Refresh(){
     }
     else{
       temps_montee += GO_UP_TIME * 60 * 1000;
-      hauteur_eau += GO_UP_STEP;
+      water_height += GO_UP_STEP;
     }
   }
 
 }
 
-void Water::Draw(){
-  if (!actif)
+void Water::Draw()
+{
+  if (!IsActive())
     return;
+
+  int screen_bottom = (int)Camera::GetInstance()->GetPosition().y + (int)Camera::GetInstance()->GetSize().y;
+  int water_top = world.GetHeight() - (water_height + height_mvt) - 20;
+
+  if ( screen_bottom < water_top )
+    return; // save precious CPU time
 
   /* Now the wave has changed, we need to build the new image pattern */
   pattern.SetAlpha(0, 0);
@@ -204,8 +235,8 @@ void Water::Draw(){
   int x0 = Camera::GetInstance()->GetPosition().x % pattern_width;
 
   int r = 0;
-  for(int y = world.GetHeight() - (hauteur_eau + height_mvt) - 20;
-      y < (int)Camera::GetInstance()->GetPosition().y + (int)Camera::GetInstance()->GetSize().y;
+  for(int y = water_top;
+      y < screen_bottom;
       y += pattern_height)
   {
     Surface *bitmap = r ? &bottom : &pattern;
@@ -224,7 +255,21 @@ int Water::GetHeight(int x) const
   if (IsActive())
     return height[x % pattern_width]
            + world.GetHeight()
-           - (hauteur_eau + height_mvt);
+           - (water_height + height_mvt);
   else
     return world.GetHeight();
+}
+
+void Water::Splash(const Point2i& pos) const
+{
+  switch (water_type) {
+  case WATER:
+    ParticleEngine::AddNow(Point2i(pos.x, pos.y-5), 5, particle_WATER, true, -1, 20);
+    break;
+  case LAVA:
+    ParticleEngine::AddNow(Point2i(pos.x, pos.y-5), 5, particle_LAVA, true, -1, 20);
+    break;
+  default:
+    break;
+  }
 }

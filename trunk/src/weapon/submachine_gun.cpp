@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ class SubMachineGunBullet : public WeaponBullet
   public:
     SubMachineGunBullet(ExplosiveWeaponConfig& cfg,
                         WeaponLauncher * p_launcher);
+    ~SubMachineGunBullet() { };
   protected:
     void ShootSound();
     void RandomizeShoot(double &angle,double &strength);
@@ -69,7 +70,7 @@ void SubMachineGunBullet::RandomizeShoot(double &angle,double &/*strength*/)
 
 void SubMachineGunBullet::ShootSound()
 {
-  jukebox.Play("share", "weapon/m16");
+  JukeBox::GetInstance()->Play("share", "weapon/m16");
 }
 
 //-----------------------------------------------------------------------------
@@ -130,23 +131,10 @@ bool SubMachineGun::p_Shoot()
   return true;
 }
 
-// Overide regular Refresh method
-void SubMachineGun::RepeatShoot()
-{
-  uint tmp = Time::GetInstance()->Read();
-  uint time = tmp - m_last_fire_time;
-
-  if (time >= m_time_between_each_shot)
-    {
-      NewActionWeaponShoot();
-      m_last_fire_time = tmp;
-    }
-}
-
 void SubMachineGun::HandleKeyRefreshed_Shoot(bool /*shift*/)
 {
   if (EnoughAmmoUnit()) {
-    RepeatShoot();
+    Weapon::RepeatShoot();
   }
 }
 

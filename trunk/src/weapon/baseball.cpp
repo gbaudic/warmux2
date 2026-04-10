@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class BaseballConfig : public WeaponConfig
     uint range;
     uint strength;
     BaseballConfig();
-    void LoadXml(xmlpp::Element *elem);
+    void LoadXml(xmlNode* elem);
 };
 
 Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball", new BaseballConfig())
@@ -65,7 +65,7 @@ bool Baseball::p_Shoot()
   double rayon = 0.0;
   bool end = false;
 
-  jukebox.Play ("share","weapon/baseball");
+  JukeBox::GetInstance()->Play ("share","weapon/baseball");
 
   do
   {
@@ -91,7 +91,7 @@ bool Baseball::p_Shoot()
         // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
         character->SetSpeed(cfg().strength / character->GetMass(), angle);
         character->SetMovement("fly");
-        Camera::GetInstance()->FollowObject(&(*character), true);
+        Camera::GetInstance()->FollowObject(&(*character), true, true);
         return true;
       }
     }
@@ -125,7 +125,7 @@ BaseballConfig::BaseballConfig()
   strength = 250;
 }
 
-void BaseballConfig::LoadXml(xmlpp::Element *elem)
+void BaseballConfig::LoadXml(xmlNode* elem)
 {
   WeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "range", range);

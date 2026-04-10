@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,12 +32,18 @@
 #include "tool/point.h"
 #include "object_cfg.h"
 
-typedef enum
+enum MotionType_t
 {
   NoMotion,
   FreeFall,
   Pendulum,
-} MotionType_t;
+};
+
+typedef enum {
+  NO_COLLISION = 0,
+  COLLISION_ON_GROUND,
+  COLLISION_ON_OBJECT
+} collision_t;
 
 class Game;
 class Action;
@@ -83,19 +89,19 @@ public:
   void SetPhysSize (double width, double height) { m_phys_width = width; m_phys_height = height ; };
 
   void SetMass (double mass) { m_mass = mass ; };
-  const double GetMass() const { return m_mass; }
+  double GetMass() const { return m_mass; }
 
   void SetWindFactor (double wind_factor) { m_wind_factor = wind_factor; };
-  const double GetWindFactor () const { return m_wind_factor; }
+  double GetWindFactor () const { return m_wind_factor; }
 
   void SetAirResistFactor (double factor) { m_air_resist_factor = factor; };
-  const double GetAirResistFactor () const{ return m_air_resist_factor; }
+  double GetAirResistFactor () const{ return m_air_resist_factor; }
 
   void SetGravityFactor (double factor) { m_gravity_factor = factor; };
-  const double GetGravityFactor () const { return m_gravity_factor; }
+  double GetGravityFactor () const { return m_gravity_factor; }
 
   void SetRebounding (bool rebounding) { m_rebounding = rebounding; }
-  const bool GetRebounding () const { return m_rebounding; }
+  bool GetRebounding () const { return m_rebounding; }
 
   // Used to sync value across network
   virtual void GetValueFromAction(Action *);
@@ -136,11 +142,13 @@ public:
   double GetRopeLength() const { return m_rope_length.x0; };
   void SetRopeLength(double length) { m_rope_length.x0 = length; };
 
+  MotionType_t GetMotionType() const { return m_motion_type; };
+
   // Physical engine : update position (and state) with current time
   void RunPhysicalEngine();
 
   // Notify the son class that the object has moved.
-  virtual void NotifyMove(Point2d oldPos, Point2d newPos) = 0 ;
+  virtual collision_t NotifyMove(Point2d oldPos, Point2d newPos) = 0;
 
   // Start moving
   void StartMoving();

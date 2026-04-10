@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -75,9 +75,10 @@ void Physics::SetSpeedXY (Point2d vector)
 
   m_pos_x.x1 = vector.x ;
   m_pos_y.x1 = vector.y ;
-  m_motion_type = FreeFall ;
+  // setting to FreeFall is done in StartMoving()
 
-  if (!was_moving && IsMoving()) StartMoving();
+  if (!was_moving && IsMoving())
+    StartMoving();
 }
 
 void Physics::AddSpeedXY (Point2d vector)
@@ -88,9 +89,10 @@ void Physics::AddSpeedXY (Point2d vector)
 
   m_pos_x.x1 += vector.x ;
   m_pos_y.x1 += vector.y ;
-  m_motion_type = FreeFall ;
+  // setting to FreeFall is done in StartMoving()
 
-  if (!was_moving && IsMoving()) StartMoving();
+  if (!was_moving && IsMoving())
+    StartMoving();
 }
 
 void Physics::GetSpeed(double &norm, double &angle) const
@@ -147,6 +149,12 @@ void Physics::StoreValue(Action *a)
   a->Push(m_elasticity_damping);
   a->Push(m_balancing_damping);
   a->Push(m_elasticity_off);
+
+  MSG_DEBUG( "physic.sync", "%s now - x0:%f, x1:%f, x2:%f - y0:%f, y1:%f, y2:%f - extern_force: %f, %f",
+	     typeid(*this).name(),
+             m_pos_x.x0, m_pos_x.x1, m_pos_x.x2,
+             m_pos_y.x0, m_pos_y.x1, m_pos_y.x2,
+             m_extern_force.x, m_extern_force.y);
 }
 
 void Physics::GetValueFromAction(Action *a)
@@ -165,14 +173,20 @@ void Physics::GetValueFromAction(Action *a)
   m_rope_elasticity    = a->PopDouble();
   m_elasticity_damping = a->PopDouble();
   m_balancing_damping  = a->PopDouble();
-  m_elasticity_off     = a->PopInt();
+  m_elasticity_off     = !!a->PopInt();
+
+  MSG_DEBUG( "physic.sync", "%s now - x0:%f, x1:%f, x2:%f - y0:%f, y1:%f, y2:%f - extern_force: %f, %f",
+	     typeid(*this).name(),
+             m_pos_x.x0, m_pos_x.x1, m_pos_x.x2,
+             m_pos_y.x0, m_pos_y.x1, m_pos_y.x2,
+             m_extern_force.x, m_extern_force.y);
 }
 
 void Physics::SetExternForceXY (const Point2d& vector)
 {
   bool was_moving = IsMoving();
 
-  MSG_DEBUG ("physic.physic", "%s EXTERN FORCE.", typeid(*this).name());
+  MSG_DEBUG ("physic.physic", "EXTERN FORCE %s.", typeid(*this).name());
 
   m_extern_force.SetValues(vector);
 
@@ -203,8 +217,13 @@ void Physics::SetPhysFixationPointXY(double g_x, double g_y, double dx,
 
   if (m_motion_type == Pendulum)
     {
-      // We was already fixed. By changing the fixation point, we have
+      // We were already fixed. By changing the fixation point, we have
       // to recompute the angular speed depending of the new rope length.
+      // And don't forget to recompute the angle, too!
+      V.x = fix_point_x - g_x ;
+      V.y = fix_point_y - g_y ;
+      m_rope_angle.x0 = M_PI_2 - V.ComputeAngle() ;
+
       m_rope_angle.x1 = m_rope_angle.x1 * old_length / m_rope_length.x0 ;
     }
   else
@@ -224,7 +243,8 @@ void Physics::SetPhysFixationPointXY(double g_x, double g_y, double dx,
 
       bool was_moving = IsMoving();
       m_motion_type = Pendulum ;
-      if (!was_moving && IsMoving()) StartMoving();
+      if (!was_moving && IsMoving())
+        StartMoving();
     }
 }
 
@@ -259,7 +279,8 @@ void Physics::ChangePhysRopeSize(double dl)
   // Recompute angular speed depending on the new rope length.
   m_rope_angle.x1 = m_rope_angle.x1 * (m_rope_length.x0 - dl) / m_rope_length.x0 ;
 
-  if (!was_moving && IsMoving()) StartMoving();
+  if (!was_moving && IsMoving())
+    StartMoving();
 }
 
 
@@ -274,12 +295,12 @@ void Physics::StartMoving()
   if (m_motion_type == NoMotion)
     m_motion_type = FreeFall ;
 
-  MSG_DEBUG ("physic.physic", "%s starts moving.", typeid(*this).name());
+  MSG_DEBUG ("physic.physic", "Starting to move: %s.", typeid(*this).name());
 }
 
 void Physics::StopMoving()
 {
-  if (IsMoving()) MSG_DEBUG ("physic.physic", "%s stops moving...", typeid(*this).name());
+  if (IsMoving()) MSG_DEBUG ("physic.physic", "Stops moving: %s.", typeid(*this).name());
   // Always called by PhysicalObj::StopMoving
   m_pos_x.x1 = 0 ;
   m_pos_x.x2 = 0 ;
@@ -332,6 +353,14 @@ void Physics::ComputePendulumNextXY (double delta_t)
              + m_rope_length.x0 * sin(m_rope_angle.x0);
   double y = m_fix_point_gnd.y - m_fix_point_dxy.y
              + m_rope_length.x0 * cos(m_rope_angle.x0);
+
+  MSG_DEBUG( "physic.pendulum", "%s angle: %.2f %.2f %.2f pos: %.2f %.2f fixpoint: %.2f, %.2f",
+             typeid(*this).name(),
+             m_rope_angle.x0, m_rope_angle.x1, m_rope_angle.x2,
+             x, y,
+             m_fix_point_gnd.x,
+             m_fix_point_gnd.y
+            );
 
   //  printf ("Physics::ComputePendulumNextXY - Angle(%f,%f,%f)\n",
   //            m_rope_angle.x0, m_rope_angle.x1, m_rope_angle.x2);

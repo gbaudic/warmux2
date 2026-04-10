@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ void DiscoGrenade::Refresh()
   double tmp = Time::GetInstance()->Read() - begin_time;
   // Ah ! Ah ! Ah ! Staying Alive, staying alive ...
   if (GetTotalTimeout() >= 2 && tmp > (1000 * GetTotalTimeout() - 2000) && !have_played_music) {
-    jukebox.Play("share","weapon/alleluia") ;
+    JukeBox::GetInstance()->Play("share","weapon/alleluia") ;
     have_played_music = true;
   }
   image->SetRotation_rad(GetSpeedAngle());

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,13 +25,14 @@
 #include <map>
 #include "graphic/surface.h"
 #include "include/base.h"
+#include "include/singleton.h"
 #include "tool/point.h"
 
 // Forward declarations
 struct SDL_event;
 class MouseCursor;
 
-class Mouse
+class Mouse : public Singleton<Mouse>
 {
 public:
 
@@ -65,19 +66,19 @@ private:
   visibility_t visible;
   pointer_t current_pointer;
 
-  static Mouse * singleton;
-  Mouse();
   void GetDesignatedCharacter() const;
 
   void ActionLeftClic(bool shift = false) const;
   void ActionRightClic(bool shift = false) const;
   void ActionWheelDown(bool shift = false) const;
   void ActionWheelUp(bool shift = false) const;
-  const MouseCursor& GetCursor(pointer_t pointer) const;
+  MouseCursor& GetCursor(pointer_t pointer) const;
+
+protected:
+  friend class Singleton<Mouse>;
+  Mouse();
 
 public:
-  static Mouse * GetInstance();
-
   bool HandleClic (const SDL_Event& event) const;
   void Refresh();
 
@@ -86,7 +87,7 @@ public:
   void CenterPointer();
 
   // Choose the pointer
-  const pointer_t GetPointer() const;
+  pointer_t GetPointer() const;
   pointer_t SetPointer(pointer_t pointer);
   void Draw() const;
 
@@ -94,6 +95,6 @@ public:
   void Show();
   void Hide();
 
-  const visibility_t GetVisibility() const { return visible; };
+  visibility_t GetVisibility() const { return visible; };
 };
 #endif

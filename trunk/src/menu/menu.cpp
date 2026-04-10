@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,12 +19,15 @@
  * Generic menu
  *****************************************************************************/
 
+#include <iostream>
+
 #include "menu/menu.h"
 #include "include/app.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
 #include "gui/button.h"
 #include "gui/box.h"
+#include "gui/question.h"
 #include "interface/mouse.h"
 #include "sound/jukebox.h"
 #include "tool/resource_manager.h"
@@ -62,8 +65,9 @@ Menu::Menu(const std::string& bg, t_action _actions) :
       actions_buttons->AddWidget(b_cancel);
     }
 
-    actions_buttons->SetXY(x, y);
+    actions_buttons->SetPosition(x, y);
     widgets.AddWidget(actions_buttons);
+    widgets.Pack();
   }
 
   widgets.SetContainer(this);
@@ -77,17 +81,17 @@ Menu::~Menu()
 
 void Menu::play_ok_sound()
 {
-  jukebox.Play("share", "menu/ok");
+  JukeBox::GetInstance()->Play("share", "menu/ok");
 }
 
 void Menu::play_cancel_sound()
 {
-  jukebox.Play("share", "menu/cancel");
+  JukeBox::GetInstance()->Play("share", "menu/cancel");
 }
 
 void Menu::play_error_sound()
 {
-  jukebox.Play("share", "menu/error");
+  JukeBox::GetInstance()->Play("share", "menu/error");
 }
 
 void Menu::mouse_ok()
@@ -154,15 +158,26 @@ void Menu::key_right()
 {
 }
 
+void Menu::DisplayError(const std::string &msg)
+{
+  play_error_sound();
+
+  std::cerr << msg << std::endl;
+
+  Question question(Question::WARNING);
+  question.Set(msg, true, 0);
+  question.Ask();
+}
+
 void Menu::DrawBackground()
 {
   background->ScaleSize(AppWormux::GetInstance()->video->window.GetSize());
   background->Blit(AppWormux::GetInstance()->video->window, 0, 0);
 }
 
-void Menu::RedrawBackground(const Rectanglei& rect, Surface& surf)
+void Menu::RedrawBackground(const Rectanglei& rect)
 {
-  background->Blit(surf, rect, rect.GetPosition());
+  background->Blit(AppWormux::GetInstance()->video->window, rect, rect.GetPosition());
 }
 
 void Menu::RedrawMenu()
@@ -204,9 +219,10 @@ void Menu::Run (bool skip_menu)
 	bool used_by_widget = false;
 
 	if (event.key.keysym.sym != SDLK_ESCAPE &&
-	    event.key.keysym.sym != SDLK_RETURN)
+	    event.key.keysym.sym != SDLK_RETURN &&
+	    event.key.keysym.sym != SDLK_KP_ENTER)
 	  used_by_widget = widgets.SendKey(event.key.keysym);
-	
+
 	if (!used_by_widget) {
 	  switch (event.key.keysym.sym)
 	    {
@@ -214,8 +230,9 @@ void Menu::Run (bool skip_menu)
 	      key_cancel();
 	      break;
 	    case SDLK_RETURN:
+	    case SDLK_KP_ENTER:
 	      key_ok();
-	      break;          
+	      break;
 	    case SDLK_UP:
 	      key_up();
 	      break;
@@ -263,7 +280,7 @@ void Menu::Display(const Point2i& mousePosition)
   // to limit CPU
   uint start = SDL_GetTicks();
 
-  widgets.Update(mousePosition, AppWormux::GetInstance()->video->window);
+  widgets.Update(mousePosition);
   Draw(mousePosition);
   AppWormux::GetInstance()->video->Flip();
 
@@ -274,6 +291,7 @@ void Menu::Display(const Point2i& mousePosition)
 }
 
 void Menu::SetActionButtonsXY(int x, int y){
-  if (actions_buttons != NULL)
-    actions_buttons->SetSizePosition( Rectanglei(x, y, actions_buttons->GetSizeX(), actions_buttons->GetSizeY()) );
+  if (actions_buttons != NULL) {
+    actions_buttons->SetPosition(x, y);
+  }
 }

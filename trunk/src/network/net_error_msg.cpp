@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,9 +24,8 @@
 #include "tool/i18n.h"
 #include "gui/question.h"
 
-void DispNetworkError(connection_state_t err)
+const std::string NetworkErrorToString(connection_state_t err)
 {
-  Question question;
   std::string msg;
   switch(err)
   {
@@ -48,10 +47,12 @@ void DispNetworkError(connection_state_t err)
   case CONN_TIMEOUT:
     msg = _("The connection timed out. Check there is no firewall in the way!");
     break;
+  case CONN_WRONG_PASSWORD:
+    msg = _("The server rejected the connection: wrong password!");
+    break;
   default: ASSERT(false);
   }
 
-  question.Set(msg, 1, 0);
-  question.Ask();
+  return msg;
 }
 

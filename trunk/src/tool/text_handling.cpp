@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ bool MoveCursorLeft(const std::string& text, std::string::size_type& pos)
 {
   if (pos != 0)
     {
-      while ((text[--pos] & 0xc0) == 0x80);
+      while ((text[--pos] & 0xc0) == 0x80) {} ;
 
       return true;
     }
@@ -37,7 +37,7 @@ bool MoveCursorRight(const std::string& text, std::string::size_type& pos)
 {
   if (pos < text.size())
     {
-      while ((text[++pos] & 0xc0) == 0x80);
+      while ((text[++pos] & 0xc0) == 0x80) {} ;
 
       return true;
     }
@@ -116,6 +116,7 @@ bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_keysym
   switch (key.sym) {
 
   case SDLK_RETURN:
+  case SDLK_KP_ENTER:
   case SDLK_TAB:
   case SDLK_CLEAR:
   case SDLK_ESCAPE:

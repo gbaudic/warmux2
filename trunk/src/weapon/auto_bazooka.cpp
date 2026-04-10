@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ class AutomaticBazookaConfig : public ExplosiveWeaponConfig {
     double fuel_time;
     double rocket_force;
     AutomaticBazookaConfig();
-    void LoadXml(xmlpp::Element *elem);
+    void LoadXml(xmlNode* elem);
 };
 
 class RPG : public WeaponProjectile
@@ -315,7 +315,7 @@ AutomaticBazookaConfig::AutomaticBazookaConfig() {
     rocket_force = 2500;
 }
 
-void AutomaticBazookaConfig::LoadXml(xmlpp::Element *elem) {
+void AutomaticBazookaConfig::LoadXml(xmlNode* elem) {
     ExplosiveWeaponConfig::LoadXml(elem);
     XmlReader::ReadDouble(elem, "uncontrolled_turn_speed", uncontrolled_turn_speed);
     XmlReader::ReadDouble(elem, "max_controlled_turn_speed", max_controlled_turn_speed);

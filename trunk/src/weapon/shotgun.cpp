@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 
 const uint   SHOTGUN_BUCKSHOT_SPEED  = 30;
 const uint   SHOTGUN_EXPLOSION_RANGE = 1;
-const double SHOTGUN_RANDOM_ANGLE    = 0.02;
+const double SHOTGUN_RANDOM_ANGLE    = 0.04;
 const double SHOTGUN_RANDOM_STRENGTH = 2.0;
 const int    SHOTGUN_BULLETS         = 4;
 
@@ -102,7 +102,7 @@ WeaponProjectile * Shotgun::GetProjectileInstance()
 
 void Shotgun::ShootSound() const
 {
-  jukebox.Play("share", "weapon/shotgun");
+  JukeBox::GetInstance()->Play("share", "weapon/shotgun");
 }
 
 void Shotgun::IncMissedShots()
@@ -118,13 +118,13 @@ bool Shotgun::p_Shoot ()
   announce_missed_shots = false;
   if (IsInUse())
     return false;
+
   for(int i = 0; i < SHOTGUN_BULLETS; i++) {
     projectile->Shoot(SHOTGUN_BUCKSHOT_SPEED);
     projectile = NULL;
     ReloadLauncher();
   }
   ShootSound();
-  m_last_fire_time = Time::GetInstance()->Read();
   return true;
 }
 

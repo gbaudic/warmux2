@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,57 +28,60 @@
 #include "network/network.h"
 
 // Forward declarations
+class Button;
 class TextBox;
-class VBox;
+class PasswordBox;
 class MsgBox;
 class CheckBox;
+class MultiTabs;
+class GameListBox;
 
 class NetworkConnectionMenu : public Menu
 {
- public:
-  typedef enum {
-    NET_HOST,
-    NET_CONNECT_LOCAL,
-    NET_BROWSE_INTERNET
-  } network_menu_action_t;
-
- private:
+private:
   /* If you need this, implement it (correctly)*/
-   NetworkConnectionMenu(const NetworkConnectionMenu&);
-   NetworkConnectionMenu operator=(const NetworkConnectionMenu&);
-   /********************************************/
+  NetworkConnectionMenu(const NetworkConnectionMenu&);
+  NetworkConnectionMenu operator=(const NetworkConnectionMenu&);
+  /********************************************/
 
-   /* Connection controllers */
-   Button *previous_action_bt, *next_action_bt;
+  MultiTabs * tabs;
 
-   Label* action_label;
-   network_menu_action_t current_action;
+  TextBox* srv_port_number;
+  TextBox* srv_game_name;
+  PasswordBox* srv_game_pwd;
+  CheckBox* srv_internet_server;
 
-   Label* server_address_label;
-   TextBox* server_address;
+  Button* cl_refresh_net_games;
+  GameListBox* cl_net_games_lst;
+  PasswordBox* cl_net_server_pwd;
 
-   Label* port_number_label;
-   TextBox* port_number;
+  TextBox* cl_server_address;
+  TextBox* cl_port_number;
+  PasswordBox* cl_server_pwd;
 
-   CheckBox* internet_server;
-   VBox* connection_box;
+  MsgBox *msg_box;
 
-   MsgBox *msg_box;
+  void OnClick(const Point2i &mousePosition, int button);
+  void OnClickUp(const Point2i &mousePosition, int button);
+  void Draw(const Point2i &mousePosition);
 
-   void OnClick(const Point2i &mousePosition, int button);
-   void OnClickUp(const Point2i &mousePosition, int button);
-   void Draw(const Point2i &mousePosition);
+  void DisplayNetError(connection_state_t conn);
 
-   void DisplayError(connection_state_t conn);
+  bool signal_ok();
+  bool signal_cancel();
 
-   bool signal_ok();
-   bool signal_cancel();
+  void RefreshList();
+  bool HostingServer(const std::string& port,
+		     const std::string& game_name,
+                     const std::string& passwd,
+		     bool internet);
+  bool ConnectToClient(const std::string& srv_address,
+		       const std::string& port,
+		       const std::string& passwd);
 
 public:
    NetworkConnectionMenu();
    ~NetworkConnectionMenu();
-
-   void SetAction(network_menu_action_t action);
 };
 
 #endif

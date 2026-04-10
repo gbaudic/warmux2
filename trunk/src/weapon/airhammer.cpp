@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ class AirhammerConfig : public WeaponConfig
     uint range;
     uint damage;
     AirhammerConfig();
-    void LoadXml(xmlpp::Element *elem);
+    void LoadXml(xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------
@@ -80,8 +80,8 @@ void Airhammer::UpdateTranslationStrings()
 bool Airhammer::p_Shoot()
 {
   //if the sound isn't already playing, play it again.
-   select_sound.Stop();
-   if(!drill_sound.IsPlaying()) {
+  select_sound.Stop();
+  if (!drill_sound.IsPlaying()) {
     drill_sound.Play("share","weapon/airhammer", -1);
   }
 
@@ -136,17 +136,6 @@ bool Airhammer::p_Shoot()
 
 //-----------------------------------------------------------------------------
 
-void Airhammer::RepeatShoot() const
-{
-  uint time = Time::GetInstance()->Read() - m_last_fire_time;
-
-  if (time >= m_time_between_each_shot) {
-    NewActionWeaponShoot();
-  }
-}
-
-//-----------------------------------------------------------------------------
-
 void Airhammer::ActionStopUse()
 {
   ActiveTeam().AccessNbUnits() = 0; // ammo units are lost
@@ -165,7 +154,7 @@ void Airhammer::p_Deselect()
 void Airhammer::HandleKeyRefreshed_Shoot(bool)
 {
   if (EnoughAmmoUnit()) {
-    RepeatShoot();
+    Weapon::RepeatShoot();
   }
 }
 
@@ -203,7 +192,7 @@ AirhammerConfig::AirhammerConfig(){
 
 //-----------------------------------------------------------------------------
 
-void AirhammerConfig::LoadXml(xmlpp::Element *elem){
+void AirhammerConfig::LoadXml(xmlNode* elem){
   WeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "range", range);
   XmlReader::ReadUint(elem, "damage", damage);

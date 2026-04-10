@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,16 +34,13 @@
 #include <string>
 #include <map>
 #include "include/base.h"
+#include "include/singleton.h"
 #include "tool/point.h"
 #include "team/team_config.h"
 
 // Forward declarations
 class ObjectConfig;
-
-namespace xmlpp
-{
-  class Element;
-}
+typedef struct _xmlNode xmlNode;
 
 //-----------------------------------------------------------------------------
 #ifdef WIN32
@@ -54,7 +51,7 @@ namespace xmlpp
 
 //-----------------------------------------------------------------------------
 
-class Config
+class Config : public Singleton<Config>
 {
 public:
   static const int ALPHA = 0;
@@ -65,75 +62,86 @@ public:
   void RemoveAllObjectConfigs();
 
   void SetLanguage(const std::string language);
-  inline std::string GetLanguage() const { return default_language; };
+  std::string GetLanguage() const { return default_language; };
 
-  inline bool GetDisplayEnergyCharacter() const { return display_energy_character; };
-  inline void SetDisplayEnergyCharacter(const bool dec) { display_energy_character = dec; };
+  bool GetDisplayEnergyCharacter() const { return display_energy_character; };
+  void SetDisplayEnergyCharacter(const bool dec) { display_energy_character = dec; };
 
-  inline bool GetDisplayNameCharacter() const { return display_name_character; };
-  inline void SetDisplayNameCharacter(const bool dnc) { display_name_character = dnc; };
+  bool GetDisplayNameCharacter() const { return display_name_character; };
+  void SetDisplayNameCharacter(const bool dnc) { display_name_character = dnc; };
 
-  inline bool GetDisplayWindParticles() const { return display_wind_particles; };
-  inline void SetDisplayWindParticles(bool dwp) { display_wind_particles = dwp; };
+  bool GetDisplayWindParticles() const { return display_wind_particles; };
+  void SetDisplayWindParticles(bool dwp) { display_wind_particles = dwp; };
 
-  inline bool GetDefaultMouseCursor() const { return default_mouse_cursor; };
-  inline void SetDefaultMouseCursor(const bool dmc) { default_mouse_cursor = dmc; };
+  bool GetDefaultMouseCursor() const { return default_mouse_cursor; };
+  void SetDefaultMouseCursor(const bool dmc) { default_mouse_cursor = dmc; };
 
-  inline bool IsMouseDisable() const { return disable_mouse; };
-  inline bool IsJoystickDisable() const { return disable_joystick; };
+  bool IsMouseDisable() const { return disable_mouse; };
+  bool IsJoystickDisable() const { return disable_joystick; };
 
-  inline bool GetScrollOnBorder() const { return scroll_on_border; };
-  inline void SetScrollOnBorder(const bool sob) { scroll_on_border = sob; };
+  bool GetScrollOnBorder() const { return scroll_on_border; };
+  void SetScrollOnBorder(const bool sob) { scroll_on_border = sob; };
 
-  inline bool IsVideoFullScreen() const { return video_fullscreen; };
-  inline void SetVideoFullScreen(const bool set_fullscreen) { video_fullscreen = set_fullscreen; };
+  uint GetScrollBorderSize() const { return scroll_border_size; };
+  void SetScrollBorderSize(const uint size) { scroll_border_size = size; };
 
-  inline uint GetVideoWidth() const { return video_width; };
-  inline void SetVideoWidth(const uint width) { video_width = width; };
+  bool IsVideoFullScreen() const { return video_fullscreen; };
+  void SetVideoFullScreen(const bool set_fullscreen) { video_fullscreen = set_fullscreen; };
 
-  inline uint GetVideoHeight() const { return video_height; };
-  inline void SetVideoHeight(const uint height) { video_height = height; };
+  uint GetVideoWidth() const { return video_width; };
+  void SetVideoWidth(const uint width) { video_width = width; };
 
-  inline std::list<Point2i> & GetResolutionAvailable() { return resolution_available; };
-  inline uint GetMaxFps() const { return max_fps; };
+  uint GetVideoHeight() const { return video_height; };
+  void SetVideoHeight(const uint height) { video_height = height; };
 
-  inline bool IsBlingBlingInterface() const { return bling_bling_interface; };
-  inline void SetBlingBlingInterface(bool bling_bling) { bling_bling_interface = bling_bling; };
+  std::list<Point2i> & GetResolutionAvailable() { return resolution_available; };
+  uint GetMaxFps() const { return max_fps; };
 
-  inline bool GetSoundMusic() const { return sound_music; };
-  inline void SetSoundMusic(const bool music) { sound_music = music; };
+  bool IsBlingBlingInterface() const { return bling_bling_interface; };
+  void SetBlingBlingInterface(bool bling_bling) { bling_bling_interface = bling_bling; };
 
-  inline bool GetSoundEffects() const { return sound_effects; };
-  inline void SetSoundEffects(const bool effects) { sound_effects = effects; };
+  bool GetSoundMusic() const { return sound_music; };
+  void SetSoundMusic(const bool music) { sound_music = music; };
 
-  inline uint GetSoundFrequency() const { return sound_frequency; };
-  inline void SetSoundFrequency(const uint freq) { sound_frequency = freq; };
+  bool GetSoundEffects() const { return sound_effects; };
+  void SetSoundEffects(const bool effects) { sound_effects = effects; };
 
-  inline std::list<ConfigTeam> & AccessTeamList() { return teams; };
-  inline const std::string & GetMapName() const { return map_name; };
-  inline void SetMapName(const std::string& new_name) { map_name = new_name; }
+  uint GetSoundFrequency() const { return sound_frequency; };
+  void SetSoundFrequency(const uint freq) { sound_frequency = freq; };
 
-  inline int GetTransparency() const { return transparency; };
+  uint GetVolumeMusic() const { return volume_music; }
+  void SetVolumeMusic(uint vol);
+  uint GetVolumeEffects() const { return volume_effects; }
+  void SetVolumeEffects(uint vol) { volume_effects = vol; }
+  static uint GetMaxVolume();
 
-  inline std::string GetTtfFilename() const { return ttf_filename; };
+  bool GetCheckUpdates() const { return check_updates; }
+  void SetCheckUpdates(const bool check) { check_updates = check; }
 
-  inline std::string GetDataDir() const { return data_dir; };
-  inline std::string GetLocaleDir() const { return locale_dir; };
-  inline std::string GetPersonalDir() const { return personal_dir; };
+  std::list<ConfigTeam> & AccessTeamList() { return teams; };
+  const std::string & GetMapName() const { return map_name; };
+  void SetMapName(const std::string& new_name) { map_name = new_name; }
 
-  static Config * GetInstance();
-  ~Config() { RemoveAllObjectConfigs(); singleton = NULL; };
+  int GetTransparency() const { return transparency; };
 
-  bool Save();
-  inline const std::string &GetGameMode() const { return m_game_mode; }
+  const std::string& GetTtfFilename();
 
-  inline const std::string &GetNetworkHost() const { return m_network_host; }
-  inline void SetNetworkHost(std::string s) { m_network_host = s; }
-  inline const std::string &GetNetworkPort() const { return m_network_port; }
-  inline void SetNetworkPort(std::string s) { m_network_port = s; }
+  std::string GetDataDir() const { return data_dir; };
+  std::string GetLocaleDir() const { return locale_dir; };
+  std::string GetPersonalDataDir() const { return personal_data_dir; };
+  std::string GetChatLogDir() const { return chat_log_dir; };
+
+  bool Save(bool save_current_teams = false);
+  const std::string &GetGameMode() const { return m_game_mode; }
+  void SetGameMode(std::string s) { m_game_mode = s; }
+
+  const std::string &GetNetworkHost() const { return m_network_host; }
+  void SetNetworkHost(std::string s) { m_network_host = s; }
+  const std::string &GetNetworkPort() const { return m_network_port; }
+  void SetNetworkPort(std::string s) { m_network_port = s; }
 
 protected:
-  bool SaveXml();
+  bool SaveXml(bool save_current_teams);
   std::string GetEnv(const std::string & name, const std::string &default_value) const;
 
   std::string default_language;
@@ -142,7 +150,8 @@ protected:
   std::string m_network_port;
   std::string m_filename;
 
-  std::string data_dir, locale_dir, personal_dir;
+  // Code setting it must make sure it ends with the path separator
+  std::string data_dir, locale_dir, personal_data_dir, personal_config_dir, chat_log_dir;
 
   std::list<ConfigTeam> teams;
   std::string map_name;
@@ -154,7 +163,6 @@ protected:
   bool display_name_character;
   bool display_wind_particles;
   bool default_mouse_cursor;
-  bool scroll_on_border;
   bool disable_joystick;
   bool disable_mouse;
 
@@ -165,24 +173,40 @@ protected:
   uint max_fps;
   bool bling_bling_interface;
   std::list<Point2i> resolution_available;
+  bool scroll_on_border;
+  uint scroll_border_size;
 
   // Sound settings
   bool sound_music;
   bool sound_effects;
   uint sound_frequency;
+  uint volume_music;
+  uint volume_effects;
+
   // network
   bool enable_network;
+  bool check_updates;
 
+  // Font setting
+  std::map<std::string, std::string>  fonts;
+  std::string font_dir;
   std::string ttf_filename;
 
   int transparency;
 
-private:
+  friend class Singleton<Config>;
   Config();
-  static Config * singleton;
+  ~Config() { RemoveAllObjectConfigs(); singleton = NULL; }
+
+private:
   bool DoLoading(void);
   void LoadDefaultValue();
-  void LoadXml(const xmlpp::Element *xml);
+  void LoadXml(xmlNode* xml);
+
+  // return true if the directory is created
+  bool MkdirPersonalConfigDir();
+  bool MkdirPersonalDataDir();
+  bool MkdirChatLogDir();
 
   /* this is mutable in order to be able to load config on fly when calling
    * GetObjectConfig() witch is not supposed to modify the object itself */

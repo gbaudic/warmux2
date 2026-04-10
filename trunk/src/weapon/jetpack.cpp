@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -119,6 +119,12 @@ void JetPack::p_Deselect()
   StopUse();
   ActiveCharacter().SetClothe("normal");
   ActiveCharacter().SetMovement("breathe");
+}
+
+void JetPack::ActionStopUse()
+{
+  p_Deselect();
+  ActiveTeam().AccessNbUnits() = 0;
 }
 
 void JetPack::StartUse()

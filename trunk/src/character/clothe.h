@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,12 +21,10 @@
 #ifndef CLOTHE_H
 #define CLOTHE_H
 #include <map>
+#include <vector>
 
 class Member;
-namespace xmlpp
-{
-  class Element;
-}
+typedef struct _xmlNode xmlNode;
 
 class Clothe
 {
@@ -35,7 +33,7 @@ public:
   std::vector<Member*> layers;
 
   ~Clothe();
-  Clothe(xmlpp::Element *xml, std::map<std::string, Member*>& members_lst);
+  Clothe(xmlNode* xml, std::map<std::string, Member*>& members_lst);
   Clothe(Clothe* c, std::map<std::string, Member*>& members_lst);
 };
 

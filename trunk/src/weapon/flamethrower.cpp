@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -51,23 +51,30 @@ class FlameThrowerBullet : public WeaponBullet
 {
   public:
     FlameThrowerBullet(ExplosiveWeaponConfig& cfg,
-		       WeaponLauncher * p_launcher);
+                       WeaponLauncher * p_launcher);
+    bool IsOverlapping(const PhysicalObj* obj) const;
   protected:
     ParticleEngine particle;
     void ShootSound();
     void RandomizeShoot(double &angle, double &strength);
     void DoExplosion();
-    void SignalGroundCollision();
+    void SignalGroundCollision(const Point2d& speed_before);
     void SignalDrowning();
 };
 
 
 FlameThrowerBullet::FlameThrowerBullet(ExplosiveWeaponConfig& cfg,
-				       WeaponLauncher * p_launcher) :
+                                       WeaponLauncher * p_launcher) :
   WeaponBullet("flamethrower_bullet", cfg, p_launcher), particle(40)
 {
   explode_colliding_character = true;
   can_drown = false;
+}
+
+bool FlameThrowerBullet::IsOverlapping(const PhysicalObj* obj) const
+{
+  if(GetName() == obj->GetName()) return true;
+  return m_overlapping_object == obj;
 }
 
 void FlameThrowerBullet::RandomizeShoot(double &angle, double &/*strength*/)
@@ -77,7 +84,7 @@ void FlameThrowerBullet::RandomizeShoot(double &angle, double &/*strength*/)
 
 void FlameThrowerBullet::ShootSound()
 {
-  jukebox.Play("share", "weapon/flamethrower");
+  JukeBox::GetInstance()->Play("share", "weapon/flamethrower");
 }
 
 void FlameThrowerBullet::DoExplosion()
@@ -87,9 +94,9 @@ void FlameThrowerBullet::DoExplosion()
   particle.AddNow(pos, 2, particle_SMOKE, true, 0, 1);
 }
 
-void FlameThrowerBullet::SignalGroundCollision()
+void FlameThrowerBullet::SignalGroundCollision(const Point2d& speed_before)
 {
-  WeaponProjectile::SignalGroundCollision();
+  WeaponProjectile::SignalGroundCollision(speed_before);
   launcher->IncMissedShots();
 }
 
@@ -158,23 +165,10 @@ bool FlameThrower::p_Shoot()
   return true;
 }
 
-// Overide regular Refresh method
-void FlameThrower::RepeatShoot()
-{
-  uint tmp = Time::GetInstance()->Read();
-  uint time = tmp - m_last_fire_time;
-
-  if (time >= m_time_between_each_shot)
-    {
-      NewActionWeaponShoot();
-      m_last_fire_time = tmp;
-    }
-}
-
 void FlameThrower::HandleKeyRefreshed_Shoot(bool /*shift*/)
 {
   if (EnoughAmmoUnit()) {
-    RepeatShoot();
+    Weapon::RepeatShoot();
   }
 }
 

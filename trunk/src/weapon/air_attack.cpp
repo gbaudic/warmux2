@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ class AirAttackConfig : public ExplosiveWeaponConfig
     double speed;
     uint nbr_obus;
     AirAttackConfig();
-    virtual void LoadXml(xmlpp::Element *elem);
+    virtual void LoadXml(xmlNode* elem);
 };
 
 class Obus : public WeaponProjectile
@@ -125,7 +125,7 @@ void Plane::Shoot(double speed, const Point2i& target)
 
   SetSpeedXY (speed_vector);
 
-  Camera::GetInstance()->FollowObject(this, true);
+  Camera::GetInstance()->FollowObject(this, true, true);
 
   lst_objects.AddObject(this);
 }
@@ -150,7 +150,7 @@ void Plane::DropBomb()
   nb_dropped_bombs++;
 
   if (nb_dropped_bombs == 1)
-    Camera::GetInstance()->FollowObject(instance, true);
+    Camera::GetInstance()->FollowObject(instance, true, true);
 
 }
 
@@ -271,7 +271,7 @@ AirAttackConfig::AirAttackConfig()
   speed = 7;
 }
 
-void AirAttackConfig::LoadXml(xmlpp::Element *elem)
+void AirAttackConfig::LoadXml(xmlNode* elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "nbr_obus", nbr_obus);

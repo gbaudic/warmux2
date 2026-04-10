@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ ObjectConfig::ObjectConfig()
 
 void ObjectConfig::LoadXml(const std::string& obj_name, const std::string &config_file)
 {
-  xmlpp::Element* elem = NULL;
+  xmlNode* elem = NULL;
   XmlReader doc;
 
   if (config_file == "") {

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,12 +40,6 @@ typedef enum
   DROWNED
 } alive_t;
 
-typedef enum {
-  NO_COLLISION = 0,
-  COLLISION_ON_GROUND,
-  COLLISION_ON_OBJECT
-} collision_t;
-
 class Action;
 
 extern const double PIXEL_PER_METER;
@@ -64,8 +58,8 @@ private:
   bool m_collides_with_characters;
   bool m_collides_with_objects;
   Point2i m_rebound_position;
+
 protected:
-  collision_t last_collision_type;
   PhysicalObj* m_overlapping_object;
   uint m_minimum_overlapse_time;
   bool m_ignore_movements;
@@ -85,7 +79,7 @@ protected:
   std::string m_rebound_sound;
 
   alive_t m_alive;
-  int energy;
+  int m_energy;
 
   bool m_allow_negative_y;
 
@@ -132,12 +126,16 @@ public:
 
   //----------- Access to datas (read only) ----------
   virtual const std::string &GetName() const { return m_name; }
+
   const std::string &GetUniqueId() const { return m_unique_id; }
+  void SetUniqueId(const std::string& s) { m_unique_id = s; }
+
   int GetCenterX() const { return GetX() +m_test_left +GetTestWidth()/2; };
   int GetCenterY() const { return GetY() +m_test_top +GetTestHeight()/2; };
   const Point2i GetCenter() const { return Point2i(GetCenterX(), GetCenterY()); };
   const Rectanglei GetRect() const { return Rectanglei( GetX(), GetY(), m_width, m_height); };
   bool GoesThroughWall() const { return m_goes_through_wall; }
+  bool IsCharacter() const { return m_is_character; }
 
   //----------- Physics related function ----------
 
@@ -146,8 +144,9 @@ public:
 
   // Move the character until he gets out of the ground
   bool PutOutOfGround();
-  bool PutOutOfGround(double direction); //Where direction is the angle of the direction
+  bool PutOutOfGround(double direction, double max_distance=30); //Where direction is the angle of the direction
                                          // where the object is moved
+                                         // and max_distance is max distance allowed when putting out
 
   // Collision management
   void SetCollisionModel(bool goes_through_wall,
@@ -203,13 +202,13 @@ public:
 
   bool PutRandomly(bool on_top_of_world, double min_dst_with_characters, bool net_sync = true);
 
-  void NotifyMove(Point2d oldPos, Point2d newPos);
+  collision_t NotifyMove(Point2d oldPos, Point2d newPos);
 
 protected:
   virtual void SignalRebound();
-  virtual void SignalObjectCollision(PhysicalObj *) { };
-  virtual void SignalGroundCollision() { };
-  virtual void SignalCollision() { };
+  virtual void SignalObjectCollision(PhysicalObj *, const Point2d& /* my_speed_before */) { };
+  virtual void SignalGroundCollision(const Point2d& /* my_speed_before */) { };
+  virtual void SignalCollision(const Point2d& /* my_speed_before */) { };
   virtual void SignalOutOfMap() { };
 
 private:
@@ -222,6 +221,12 @@ private:
 
   // Directly after a rebound, if we are stuck in a wall, we stop moving
   void CheckRebound();
+
+  void Collide(collision_t collision, PhysicalObj* collided_obj, const Point2d& position);
+
+  void ContactPointAngleOnGround(const Point2d& oldPos,
+				 Point2d& contactPos,
+				 double& contactAngle) const;
 };
 
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@
 #include "graphic/text.h"
 #include "graphic/font.h"
 #include "graphic/sprite.h"
+#include "graphic/video.h"
+#include "include/app.h"
 #include "tool/resource_manager.h"
 
-CheckBox::CheckBox(const std::string& label, int width, bool value):
+CheckBox::CheckBox(const std::string& label, uint width, bool value):
   txt_label(new Text(label, white_color, Font::FONT_SMALL, Font::FONT_NORMAL)),
   m_value(value),
   m_checked_image(NULL)
@@ -33,7 +35,7 @@ CheckBox::CheckBox(const std::string& label, int width, bool value):
   Init(width);
 }
 
-CheckBox::CheckBox(Text *text, int width, bool value):
+CheckBox::CheckBox(Text *text, uint width, bool value):
   txt_label(text),
   m_value(value),
   m_checked_image(NULL)
@@ -41,7 +43,7 @@ CheckBox::CheckBox(Text *text, int width, bool value):
   Init(width);
 }
 
-void CheckBox::Init(int width)
+void CheckBox::Init(uint width)
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   m_checked_image = resource_manager.LoadSprite( res, "menu/check");
@@ -49,7 +51,7 @@ void CheckBox::Init(int width)
 
   m_checked_image->cache.EnableLastFrameCache();
 
-  position = Point2i(-1,-1);
+  position = Point2i(W_UNDEF, W_UNDEF);
   size.x = width;
   size.y = txt_label->GetHeight();
 }
@@ -60,15 +62,24 @@ CheckBox::~CheckBox()
   delete txt_label;
 }
 
-void CheckBox::Draw(const Point2i &/*mousePosition*/, Surface& surf) const
+void CheckBox::Pack()
 {
+  txt_label->SetMaxWidth(size.x - m_checked_image->GetWidth() -2);
+  size.y = std::max(uint(txt_label->GetHeight()),
+		    m_checked_image->GetHeight());
+}
+
+void CheckBox::Draw(const Point2i &/*mousePosition*/) const
+{
+  Surface& surf = AppWormux::GetInstance()->video->window;
+
   txt_label->DrawTopLeft( GetPosition() );
-  
+
   if (m_value)
     m_checked_image->SetCurrentFrame(0);
   else
     m_checked_image->SetCurrentFrame(1);
-  
+
   m_checked_image->Blit(surf, GetPositionX() + GetSizeX() - 16, GetPositionY());
 }
 

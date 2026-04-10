@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ class WeaponProjectile : public PhysicalObj
     bool explode_with_timeout;
     bool explode_with_collision;
     bool can_drown;
+    bool camera_in_advance;
     double begin_time;
 
     ExplosiveWeaponConfig& cfg;
@@ -67,9 +68,9 @@ class WeaponProjectile : public PhysicalObj
     void ResetTimeOut() { m_timeout_modifier = 0; };
     bool change_timeout_allowed() const;
   protected:
-    virtual void SignalObjectCollision(PhysicalObj * obj);
-    virtual void SignalGroundCollision();
-    virtual void SignalCollision();
+    virtual void SignalObjectCollision(PhysicalObj * obj, const Point2d& my_speed_before);
+    virtual void SignalGroundCollision(const Point2d& speed_before);
+    virtual void SignalCollision(const Point2d& speed_before);
     virtual void SignalOutOfMap();
     virtual void SignalTimeout();
     virtual void SignalExplosion();
@@ -93,9 +94,9 @@ class WeaponBullet : public WeaponProjectile
     virtual ~WeaponBullet(){};
     virtual void Refresh();
   protected:
-    virtual void SignalGroundCollision();
+    virtual void SignalGroundCollision(const Point2d& speed_before);
     virtual void SignalOutOfMap();
-    virtual void SignalObjectCollision(PhysicalObj * obj);
+    virtual void SignalObjectCollision(PhysicalObj * obj, const Point2d& my_speed_before);
     void DoExplosion();
 };
 
@@ -141,7 +142,7 @@ class WeaponLauncher : public Weapon
     // Signal that a projectile explosion
     virtual void SignalProjectileExplosion() { SignalEndOfProjectile(); };
     // Signal that a projectile fired by this weapon has hit something (ground, character etc)
-    virtual void SignalProjectileCollision() { SignalEndOfProjectile(); };
+    virtual void SignalProjectileCollision(const Point2d& /*speed_before*/) { SignalEndOfProjectile(); };
     // Signal a projectile is drowning
     virtual void SignalProjectileDrowning() { SignalEndOfProjectile(); };
     // Signal a projectile is fishing out of water (supertux)

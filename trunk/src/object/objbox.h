@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,11 +28,8 @@
 class Team;
 class Character;
 class Sprite;
+typedef struct _xmlNode xmlNode;
 class Action;
-namespace xmlpp
-{
-  class Element;
-}
 
 class ObjBox : public PhysicalObj //it would be nice to name this "Box", but that was already taken...
 {
@@ -44,15 +41,16 @@ class ObjBox : public PhysicalObj //it would be nice to name this "Box", but tha
     SoundSample hit;
 
     virtual void ApplyBox (Team &/*team*/, Character &/*character*/){}
+    void CloseParachute();
 
   public:
     ObjBox(const std::string &name);
     ~ObjBox();
 
     void DropBox();
-    static void LoadXml(xmlpp::Element * /*object*/){};
+    static void LoadXml(xmlNode*  /*object*/){};
 
-    virtual void Draw() {}
+    void Draw();
     virtual void Refresh();
     virtual void Randomize() {};
     virtual void GetValueFromAction(Action *);
@@ -63,11 +61,12 @@ class ObjBox : public PhysicalObj //it would be nice to name this "Box", but tha
     bool parachute;
     Sprite *anim;
     static int start_life_points;
+    void Explode();
     // Signal Fall ending
-    void SignalCollision();
-    virtual void SignalObjectCollision(PhysicalObj *);
-    void SignalDrowning() { SignalCollision(); };
-    void SignalGhostState(bool was_already_dead);
+    virtual void SignalCollision(const Point2d& my_speed_before);
+    virtual void SignalObjectCollision(PhysicalObj *, const Point2d& my_speed_before);
+    virtual void SignalDrowning();
+    virtual void SignalGhostState(bool was_already_dead);
 };
 
 //-----------------------------------------------------------------------------

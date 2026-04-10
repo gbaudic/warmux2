@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,13 +31,13 @@ void SoundSample::Play(const std::string& category,
                        const std::string& sample,
                        const int loop)
 {
-  channel = jukebox.Play(category, sample, loop);
+  channel = JukeBox::GetInstance()->Play(category, sample, loop);
 }
 
 void SoundSample::Stop()
 {
   if (channel != -1)
-    jukebox.Stop(channel);
+    JukeBox::GetInstance()->Stop(channel);
   channel = -1;
 }
 

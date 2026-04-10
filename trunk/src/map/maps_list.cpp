@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,9 +30,7 @@
 #include "tool/random.h"
 #include "tool/xml_document.h"
 #include <iostream>
-#ifdef _MSC_VER
-#  include <algorithm>
-#endif
+#include <algorithm>
 
 extern const uint MAX_WIND_OBJECTS;
 
@@ -49,11 +47,11 @@ InfoMap::InfoMap(const std::string &map_name,
   nb_mine(4),
   nb_barrel(4),
   is_opened(false),
-  use_water(false),
   is_basic_info_loaded(false),
   is_data_loaded(false),
   random_generated(false),
   island_type(RANDOM_GENERATED),
+  water_type(Water::NO_WATER),
   res_profile(NULL)
 {
   wind.nb_sprite = 0;
@@ -66,41 +64,31 @@ void InfoMap::LoadBasicInfo()
   if(is_basic_info_loaded)
     return;
 
-  try
-    {
-      std::string nomfich = m_directory + "config.xml";
+  std::string nomfich = m_directory + "config.xml";
 
-      // Load resources
-      if (!IsFileExist(nomfich))
-        throw _("no configuration file!");
-      // FIXME: not freed
-      res_profile = resource_manager.LoadXMLProfile(nomfich, true);
-      if (!res_profile)
-        throw _("couldn't load config");
-      // Load preview
-      preview = resource_manager.LoadImage(res_profile, "preview");
-      is_basic_info_loaded = true;
-      // Load other informations
-      XmlReader doc;
-      if (!doc.Load(nomfich) || !ProcessXmlData(doc.GetRoot()))
-        throw _("error parsing the config file");
-    }
-
-  catch (const xmlpp::exception &e)
-    {
-      std::string msg = Format(_("XML error during loading map '%s': "), m_map_name.c_str());
-      msg += e.what();
-      throw msg.c_str();
-    }
+  // Load resources
+  if (!DoesFileExist(nomfich))
+    throw _("no configuration file!");
+  // FIXME: not freed
+  res_profile = resource_manager.LoadXMLProfile(nomfich, true);
+  if (!res_profile)
+    throw _("couldn't load config");
+  // Load preview
+  preview = resource_manager.LoadImage(res_profile, "preview");
+  is_basic_info_loaded = true;
+  // Load other informations
+  XmlReader doc;
+  if (!doc.Load(nomfich) || !ProcessXmlData(doc.GetRoot()))
+    throw _("error parsing the config file");
 
   MSG_DEBUG("map.load", "Map loaded: %s", m_map_name.c_str());
 }
 
-bool InfoMap::ProcessXmlData(const xmlpp::Element *xml)
+bool InfoMap::ProcessXmlData(xmlNode *xml)
 {
   XmlReader::ReadBool(xml, "random", random_generated);
   // Read author informations
-  xmlpp::Element *author = XmlReader::GetMarker(xml, "author");
+  xmlNode *author = XmlReader::GetMarker(xml, "author");
   if (author != NULL) {
     std::string
       a_name,
@@ -131,10 +119,16 @@ bool InfoMap::ProcessXmlData(const xmlpp::Element *xml)
   }
 
   XmlReader::ReadString(xml, "name", name);
-  XmlReader::ReadBool(xml, "water", use_water);
   XmlReader::ReadUint(xml, "nb_mine", nb_mine);
   XmlReader::ReadUint(xml, "nb_barrel", nb_barrel);
   XmlReader::ReadBool(xml, "is_open", is_opened);
+
+  // reading water type
+  water_type = Water::NO_WATER;
+  uint wtype;
+  XmlReader::ReadUint(xml, "water", wtype);
+  if (wtype < uint(Water::MAX_WATER_TYPE))
+    water_type = Water::Water_type(wtype);
 
   // Load padding value
   bool add_pad = false;
@@ -144,7 +138,7 @@ bool InfoMap::ProcessXmlData(const xmlpp::Element *xml)
     lower_right_pad = resource_manager.LoadPoint2i(res_profile, "lower_right_pad");
   }
 
-  xmlpp::Element *xmlwind = XmlReader::GetMarker(xml, "wind");
+  xmlNode* xmlwind = XmlReader::GetMarker(xml, "wind");
   if (xmlwind != NULL)
   {
     double rot_speed=0.0;
@@ -194,14 +188,14 @@ void InfoMap::FreeData()
   is_data_loaded = false;
 }
 
-Surface InfoMap::ReadImgGround()
+Surface& InfoMap::ReadImgGround()
 {
   LoadBasicInfo();
   LoadData();
   return img_ground;
 }
 
-Surface InfoMap::ReadImgSky()
+Surface& InfoMap::ReadImgSky()
 {
   LoadBasicInfo();
   LoadData();
@@ -214,19 +208,6 @@ std::string InfoMap::GetConfigFilepath() const
 }
 
 /* ========================================================================== */
-
-MapsList* MapsList::singleton = NULL;
-
-MapsList* MapsList::GetInstance()
-{
-  if (singleton == NULL) {
-    singleton = new MapsList();
-  }
-
-  return singleton;
-}
-
-
 static bool compareMaps(const InfoMap* a, const InfoMap* b)
 {
   return a->GetRawName() < b->GetRawName();
@@ -241,7 +222,7 @@ MapsList::MapsList()
   std::cout << "o " << _("Load maps:");
 
   const Config * config = Config::GetInstance();
-  std::string dirname = config->GetDataDir() + PATH_SEPARATOR + "map" + PATH_SEPARATOR;
+  std::string dirname = config->GetDataDir() + "map" PATH_SEPARATOR;
   FolderSearch *f = OpenFolder(dirname);
   if (f) {
     const char *name;
@@ -252,7 +233,7 @@ MapsList::MapsList()
   }
 
   // Load personal maps
-  dirname = config->GetPersonalDir() + "map" + PATH_SEPARATOR;
+  dirname = config->GetPersonalDataDir() + "map" PATH_SEPARATOR;
   f = OpenFolder(dirname);
   if (f) {
     const char *name;

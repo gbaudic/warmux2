@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,55 +30,11 @@
 #include "team/teams_list.h"
 #include "team/team.h"
 #include "tool/i18n.h"
+#include "tool/string_tools.h"
 
-NetworkTeamsSelectionBox::NetworkTeamsSelectionBox(const Point2i &_size) : HBox(_size.GetY(), true)
+NetworkTeamsSelectionBox::NetworkTeamsSelectionBox(const Point2i &_size) :
+  TeamsSelectionBox(_size, true)
 {
-  AddWidget(new PictureWidget(Point2i(38, -1), "menu/teams_label"));
-
-  // How many teams ?
-  local_teams_nb = new SpinButtonWithPicture(_("Local teams:"),
-					     "menu/team_number",
-					     Point2i(130, -1),
-					     0, 1,
-					     0, NMAX_NB_TEAMS-1);
-  AddWidget(local_teams_nb);
-
-  Box * top_n_bottom_team_options = new VBox(_size.GetX() - local_teams_nb->GetSizeX() - 60, false);
-  top_n_bottom_team_options->SetBorder(Point2i(5,0));
-  top_n_bottom_team_options->SetMargin(10);
-  Box * top_team_options = new HBox(_size.GetY()/2 - 20, false);
-  Box * bottom_team_options = new HBox(_size.GetY()/2 - 20, false);
-  top_team_options->SetBorder(Point2i(0,0));
-  bottom_team_options->SetBorder(Point2i(0,0));
-
-  // Initialize teams
-  uint team_w_size= top_n_bottom_team_options->GetSizeX() * 2 / NMAX_NB_TEAMS;
-
-  for (uint i=0; i < NMAX_NB_TEAMS; i++) {
-    std::string player_name = _("Player") ;
-    char num_player[4];
-    sprintf(num_player, " %d", i+1);
-    player_name += num_player;
-    teams_selections.push_back(new TeamBox(player_name, Point2i(team_w_size, _size.GetY()/2)));
-    if ( i%2 == 0)
-      top_team_options->AddWidget(teams_selections.at(i));
-    else
-      bottom_team_options->AddWidget(teams_selections.at(i));
-  }
-
-  top_n_bottom_team_options->AddWidget(top_team_options);
-  top_n_bottom_team_options->AddWidget(bottom_team_options);
-
-  AddWidget(top_n_bottom_team_options);
-
-  // Load Teams' list
-  GetTeamsList().full_list.sort(compareTeams);
-  GetTeamsList().Clear();
-
-  // No selected team(s) by default
-  for (uint i=0; i<teams_selections.size(); i++) {
-    teams_selections.at(i)->ClearTeam();
-  }
 }
 
 Widget* NetworkTeamsSelectionBox::ClickUp(const Point2i &mousePosition, uint button)
@@ -150,7 +106,7 @@ void NetworkTeamsSelectionBox::PrevTeam(uint i)
       tmp = GetTeamsList().FindByIndex(index);
 
       // Check if that team is already selected
-      for (uint j = 0; j < NMAX_NB_TEAMS; j++) {
+      for (uint j = 0; j < MAX_NB_TEAMS; j++) {
         if (j!= i && tmp == teams_selections.at(j)->GetTeam()) {
           index--;
           to_continue = true;
@@ -194,7 +150,7 @@ void NetworkTeamsSelectionBox::NextTeam(uint i,
       tmp = GetTeamsList().FindByIndex(index);
 
       // Check if that team is already selected
-      for (uint j = 0; j < NMAX_NB_TEAMS; j++) {
+      for (uint j = 0; j < MAX_NB_TEAMS; j++) {
         if (j!= i && tmp == teams_selections.at(j)->GetTeam()) {
           index++;
           to_continue = true;
@@ -258,7 +214,10 @@ void NetworkTeamsSelectionBox::SetLocalTeam(uint i, Team& team, bool remove_prev
 
   team.SetLocal();
 #ifdef WIN32
-  team.SetPlayerName(getenv("USERNAME"));
+  // The username might be in NLS !
+  char* name = LocaleToUTF8(getenv("USERNAME"));
+  team.SetPlayerName(name);
+  delete[] name;
 #else
   team.SetPlayerName(getenv("USER"));
 #endif
@@ -359,7 +318,7 @@ void NetworkTeamsSelectionBox::ValidTeamsSelection()
   }
 }
 
-void NetworkTeamsSelectionBox::SetMaxNbLocalPlayers(uint nb) 
+void NetworkTeamsSelectionBox::SetMaxNbLocalPlayers(uint nb)
 {
   uint current_nb_teams = local_teams_nb->GetValue();
   local_teams_nb->SetMaxValue(nb);

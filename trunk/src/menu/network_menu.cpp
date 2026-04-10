@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,9 +58,9 @@ NetworkMenu::NetworkMenu() :
   waiting_for_server = false;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml",false);
-  Point2i pointZero(-1, -1);
+  Point2i pointZero(W_UNDEF, W_UNDEF);
 
-  Surface window = AppWormux::GetInstance()->video->window;
+  Surface& window = AppWormux::GetInstance()->video->window;
 
   // Calculate main box size
   uint mainBoxWidth = window.GetWidth() - 2*MARGIN_SIDE;
@@ -71,8 +71,9 @@ NetworkMenu::NetworkMenu() :
   // ##  TEAM SELECTION
   // ################################################
   team_box = new NetworkTeamsSelectionBox(Point2i(mainBoxWidth, TEAMS_BOX_H));
-  team_box->SetXY(MARGIN_SIDE, MARGIN_TOP);
+  team_box->SetPosition(MARGIN_SIDE, MARGIN_TOP);
   widgets.AddWidget(team_box);
+  widgets.Pack();
 
   // ################################################
   // ##  MAP SELECTION
@@ -82,8 +83,9 @@ NetworkMenu::NetworkMenu() :
   } else {
     map_box = new MapSelectionBox(Point2i(mainBoxWidth, mapBoxHeight), true);
   }
-  map_box->SetXY(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE);
+  map_box->SetPosition(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE);
   widgets.AddWidget(map_box);
+  widgets.Pack();
 
   // ################################################
   // ##  GAME OPTIONS
@@ -94,7 +96,7 @@ NetworkMenu::NetworkMenu() :
 
   Box* tmp_box = new VBox(200, false);
 
-  mode = new Label("", pointZero, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+  mode = new Label("", 0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
 
   if (Network::GetInstance()->IsClient()) {
     // Client Mode
@@ -110,24 +112,25 @@ NetworkMenu::NetworkMenu() :
     mode->SetText(_("Server mode"));
     tmp_box->AddWidget(mode);
 
-    player_number = new SpinButton(_("Max number of players:"), -1,
+    player_number = new SpinButton(_("Max number of players:"), W_UNDEF,
                                    GameMode::GetInstance()->max_teams, 1, 2,
                                    GameMode::GetInstance()->max_teams);
     team_box->SetMaxNbLocalPlayers(GameMode::GetInstance()->max_teams - 1);
     tmp_box->AddWidget(player_number);
 
     connected_players = new Label(Format(ngettext("%i player connected", "%i players connected", 0), 0),
-                                pointZero, Font::FONT_SMALL, Font::FONT_NORMAL);
+				  0, Font::FONT_SMALL, Font::FONT_NORMAL);
     tmp_box->AddWidget(connected_players);
 
     initialized_players = new Label(Format(ngettext("%i player ready", "%i players ready", 0), 0),
-                                    pointZero, Font::FONT_SMALL, Font::FONT_NORMAL);
+                                    0, Font::FONT_SMALL, Font::FONT_NORMAL);
     tmp_box->AddWidget(initialized_players);
   }
 
   options_box->AddWidget(tmp_box);
-  options_box->SetXY(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE);
+  options_box->SetPosition(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE);
   widgets.AddWidget(options_box);
+  widgets.Pack();
 
   // ################################################
   // ##  CHAT BOX
@@ -135,18 +138,17 @@ NetworkMenu::NetworkMenu() :
   VBox* chat_box = new VBox(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, false);
   chat_box->SetBorder(Point2i(0,0));
 
-  msg_box = new MsgBox(Rectanglei(-1, -1, 400, OPTIONS_BOX_H - 20), Font::FONT_SMALL, Font::FONT_NORMAL);
+  msg_box = new MsgBox(Point2i(400, OPTIONS_BOX_H - 20), Font::FONT_SMALL, Font::FONT_NORMAL);
   msg_box->NewMessage(_("Join #wormux on irc.freenode.net to find some opponents."));
 
-  chat_box->SetXY(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
+  chat_box->SetPosition(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
 		  options_box->GetPositionY());
   chat_box->AddWidget(msg_box);
 
   HBox* tmp2_box = new HBox(16, false);
   tmp2_box->SetMargin(4);
   tmp2_box->SetBorder(Point2i(0,0));
-  line_to_send_tbox = new TextBox(" ",
-                                  Point2i(chat_box->GetSizeX()-20, 0),
+  line_to_send_tbox = new TextBox(" ", chat_box->GetSizeX()-20,
                                   Font::FONT_SMALL, Font::FONT_NORMAL);
   tmp2_box->AddWidget(line_to_send_tbox);
 
@@ -156,6 +158,7 @@ NetworkMenu::NetworkMenu() :
   chat_box->AddWidget(tmp2_box);
 
   widgets.AddWidget(chat_box);
+  widgets.Pack();
 
   resource_manager.UnLoadXMLProfile(res);
 }
@@ -284,7 +287,7 @@ void NetworkMenu::key_ok()
     return;
   }
 
-  index_server.Disconnect();
+  IndexServer::GetInstance()->Disconnect();
 
   Menu::key_ok();
 }
@@ -325,7 +328,7 @@ void NetworkMenu::Draw(const Point2i &/*mousePosition*/)
       }
     }
 
-    index_server.Refresh();
+    IndexServer::GetInstance()->Refresh();
   }
   else {
     close_menu = true;
@@ -408,6 +411,7 @@ void NetworkMenu::WaitingForServer()
             Menu::mouse_cancel();
             break;
           case SDLK_RETURN:
+          case SDLK_KP_ENTER:
             SendChatMsg();
             break;
           case SDLK_F10:

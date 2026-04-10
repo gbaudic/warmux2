@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ void ObjMine::FakeExplosion()
 {
   MSG_DEBUG("mine", "Fake explosion");
 
-  jukebox.Play("share", "weapon/mine_fake");
+  JukeBox::GetInstance()->Play("share", "weapon/mine_fake");
   ParticleEngine::AddNow(GetPosition(), 5, particle_SMOKE, true);
 
   if ( animation )
@@ -271,11 +271,11 @@ MineConfig::MineConfig()
 {
   detection_range = 1;
   speed_detection = 2;
-  timeout = 3;
+  timeout = 2;
   escape_time = 2;
 }
 
-void MineConfig::LoadXml(xmlpp::Element *elem)
+void MineConfig::LoadXml(xmlNode* elem)
 {
   ExplosiveWeaponConfig::LoadXml (elem);
   XmlReader::ReadUint(elem, "escape_time", escape_time);

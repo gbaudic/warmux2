@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -59,8 +59,8 @@ class TeamBox : public HBox
   bool IsLocal() const;
 
   void Update(const Point2i &mousePosition,
-              const Point2i &lastMousePosition,
-              Surface& surf);
+              const Point2i &lastMousePosition);
+
   Widget* Click(const Point2i &mousePosition, uint button);
   Widget* ClickUp(const Point2i &mousePosition, uint button);
 };

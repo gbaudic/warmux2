@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ class BlowtorchConfig : public WeaponConfig
 {
   public:
     BlowtorchConfig();
-    virtual void LoadXml(xmlpp::Element* elem);
+    virtual void LoadXml(xmlNode* elem);
 
     uint range;
 };
@@ -97,15 +97,6 @@ bool Blowtorch::p_Shoot()
   return true;
 }
 
-void Blowtorch::RepeatShoot() const
-{
-  uint time = Time::GetInstance()->Read() - m_last_fire_time;
-
-  if (time >= m_time_between_each_shot) {
-    NewActionWeaponShoot();
-  }
-}
-
 void Blowtorch::HandleKeyPressed_Shoot(bool shift)
 {
   ActiveCharacter().BeginMovementRL(GameMode::GetInstance()->character.walking_pause);
@@ -118,7 +109,7 @@ void Blowtorch::HandleKeyPressed_Shoot(bool shift)
 void Blowtorch::HandleKeyRefreshed_Shoot(bool)
 {
   if (EnoughAmmoUnit()) {
-    RepeatShoot();
+    Weapon::RepeatShoot();
   }
 }
 
@@ -134,7 +125,7 @@ BlowtorchConfig& Blowtorch::cfg()
   return static_cast<BlowtorchConfig&>(*extra_params);
 }
 
-void BlowtorchConfig::LoadXml(xmlpp::Element* elem)
+void BlowtorchConfig::LoadXml(xmlNode* elem)
 {
   WeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "range", range);

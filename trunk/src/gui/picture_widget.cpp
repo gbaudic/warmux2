@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #include "gui/picture_widget.h"
 #include "graphic/colors.h"
 #include "graphic/sprite.h"
+#include "graphic/video.h"
+#include "include/app.h"
 #include "tool/resource_manager.h"
 
 PictureWidget::PictureWidget (const Point2i& _size)
@@ -31,15 +33,14 @@ PictureWidget::PictureWidget (const Point2i& _size)
   disabled = false;
 }
 
-PictureWidget::PictureWidget (const Point2i& _size, const std::string& resource_id)
+PictureWidget::PictureWidget (const Point2i& _size, const std::string& resource_id, bool scale)
 {
   size = _size;
   spr = NULL;
   disabled = false;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  Surface tmp = resource_manager.LoadImage(res, resource_id);
-  SetSurface(tmp, false);
+  SetSurface(resource_manager.LoadImage(res, resource_id), scale, scale);
   resource_manager.UnLoadXMLProfile( res);
 }
 
@@ -75,9 +76,10 @@ void PictureWidget::SetNoSurface()
   spr = NULL;
 }
 
-void PictureWidget::Draw(const Point2i &/*mousePosition*/,
-                         Surface& surf) const
+void PictureWidget::Draw(const Point2i &/*mousePosition*/) const
 {
+  Surface& surf = AppWormux::GetInstance()->video->window;
+
   if (spr != NULL) {
     int x = GetPositionX() + ( GetSizeX()/2 ) - (spr->GetWidth()/2);
     int y = GetPositionY() + ( GetSizeY()/2 ) - (spr->GetHeight()/2);

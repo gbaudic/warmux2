@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
  *****************************************************************************/
 
 #include "gui/button.h"
-#include "tool/resource_manager.h"
+#include "include/app.h"
 #include "graphic/sprite.h"
+#include "graphic/video.h"
+#include "tool/resource_manager.h"
+
 
 Button::Button (const Profile *res_profile,
                 const std::string& resource_id, bool _img_scale):
@@ -37,30 +40,35 @@ Button::~Button()
   delete image;
 }
 
-void Button::Draw(const Point2i &/*mousePosition*/, Surface& surf) const
+void Button::Draw(const Point2i &/*mousePosition*/) const
 {
+  Surface& surf = AppWormux::GetInstance()->video->window;
+
   uint frame = (IsHighlighted());
-  
+
+  // Check that there are enough frames in the image...
+  if (image->GetFrameCount() <= frame) {
+    frame = 0;
+  }
+
   image->SetCurrentFrame(frame);
-  
+
   if (img_scale) {
     // image scalling : easy to place image
     image->Blit(surf, position);
   } else {
     // centering image
     Point2i pos = position;
-    
+
     pos.x += (GetSizeX()/2) - (image->GetWidth()/2);
     pos.y += (GetSizeY()/2) - (image->GetHeight()/2);
-    
+
     image->Blit(surf, pos);
   }
 }
 
-void Button::SetSizePosition(const Rectanglei &rect)
+void Button::Pack()
 {
-  StdSetSizePosition(rect);
-
   if (img_scale)
     image->ScaleSize(size);
 }

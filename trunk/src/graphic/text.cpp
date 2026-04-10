@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -163,25 +163,25 @@ void Text::RenderMultiLines()
     max_line_width = max_width;
   }
   Point2i size(max_line_width, (font->GetHeight()+2) * lines.size());
-  surf.NewSurface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
-  surf = surf.DisplayFormatAlpha();
+  Surface tmp = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
+  surf = tmp.DisplayFormatAlpha();
 
   // for each lines
   for (uint i = 0; i < lines.size(); i++) {
-    Surface tmp=(font->CreateSurface(lines.at(i), color)).DisplayFormatAlpha();
+    tmp=(font->CreateSurface(lines.at(i), color)).DisplayFormatAlpha();
     surf.MergeSurface(tmp, Point2i(0, (font->GetHeight() + 2) * i));
   }
 
   // Render the shadow !
   if (!shadowed) return;
 
-  background.NewSurface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
-  background = background.DisplayFormatAlpha();
+  tmp = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
+  background = tmp.DisplayFormatAlpha();
 
   // Putting pixels of each image in destination surface
   // for each lines
   for (uint i = 0; i < lines.size(); i++) {
-    Surface tmp=(font->CreateSurface(lines.at(i), black_color)).DisplayFormatAlpha();
+    tmp=(font->CreateSurface(lines.at(i), black_color)).DisplayFormatAlpha();
     background.MergeSurface(tmp, Point2i(0, (font->GetHeight() + 2) * i));
   }
 }
@@ -264,7 +264,7 @@ void Text::DrawCursor(const Point2i &text_pos, std::string::size_type cursor_pos
   // the cursor position is expressed in number of bytes, taking care of UTF8 character
 
   //sort of a hacky way to get the cursor pos, but I couldn't find anything better...
-  uint txt_width = 0;
+  uint txt_width = 1;
   if (GetText() != "") {
     Text txt_before_cursor(*this);
     txt_before_cursor.Set(GetText().substr(0, cursor_pos));
@@ -293,8 +293,11 @@ int Text::GetWidth() const
 
 int Text::GetHeight() const
 {
-  if (txt=="" && !dummy) return 0;
-  return surf.GetHeight();
+  Font* font = Font::GetInstance(font_size, font_style);
+  if (txt=="" || dummy) {
+    return font->GetHeight();
+  }
+  return std::max(surf.GetHeight(), font->GetHeight());
 }
 
 void DrawTmpBoxText(Font& font, Point2i pos,

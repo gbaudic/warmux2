@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,14 +21,15 @@
 #ifndef AI_ENGINE
 #define AI_ENGINE
 
-class AIengine
+#include "include/singleton.h"
+
+class AIengine : public Singleton<AIengine>
 {
- private:
-  static AIengine * singleton;
+protected:
+  friend class Singleton<AIengine>;
   AIengine();
 
  public:
-  static AIengine* GetInstance();
   void Refresh() const;
 };
 

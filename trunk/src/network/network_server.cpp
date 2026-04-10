@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 //-----------------------------------------------------------------------------
 #include <SDL_thread.h>
 #include "include/action_handler.h"
+#include "include/constant.h"
 #include "game/game_mode.h"
 #include "tool/debug.h"
 #include "network/distant_cpu.h"
@@ -38,7 +39,7 @@
 
 //-----------------------------------------------------------------------------
 
-NetworkServer::NetworkServer()
+NetworkServer::NetworkServer(const std::string& password) : Network(password)
 {
 #ifdef LOG_NETWORK
   fin = open("./network_server.in", O_CREAT | O_TRUNC | O_WRONLY | O_SYNC, S_IRUSR | S_IWUSR | S_IRGRP);
@@ -57,11 +58,10 @@ void NetworkServer::SendChatMessage(const std::string& txt)
   ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, nickname + std::string("> ") + txt));
 }
 
-void NetworkServer::HandleAction(Action* a, DistantComputer* sender)
+void NetworkServer::HandleAction(Action* a, DistantComputer* sender) const
 {
   // Repeat the packet to other clients:
-  if (a->GetType() != Action::ACTION_RULES_SEND_VERSION
-      && a->GetType() != Action::ACTION_NETWORK_CHANGE_STATE
+  if (a->GetType() != Action::ACTION_NETWORK_CHANGE_STATE
       && a->GetType() != Action::ACTION_NETWORK_CHECK_PHASE2
       && a->GetType() != Action::ACTION_CHAT_MESSAGE)
   {
@@ -69,7 +69,7 @@ void NetworkServer::HandleAction(Action* a, DistantComputer* sender)
     int packet_size;
     a->WritePacket(packet, packet_size);
 
-    for (std::list<DistantComputer*>::iterator client = cpu.begin();
+    for (std::list<DistantComputer*>::const_iterator client = cpu.begin();
          client != cpu.end();
          client++)
       if (*client != sender)
@@ -82,6 +82,68 @@ void NetworkServer::HandleAction(Action* a, DistantComputer* sender)
   ActionHandler::GetInstance()->NewAction(a, false);
 }
 
+bool NetworkServer::HandShake(TCPsocket& client_socket)
+{
+  int r;
+  bool ret = false;
+  std::string version;
+  std::string _password;
+
+  MSG_DEBUG("network", "server: Handshake!");
+
+  // Adding the socket to a temporary socket set
+  SDLNet_SocketSet tmp_socket_set = SDLNet_AllocSocketSet(1);
+  SDLNet_TCP_AddSocket(tmp_socket_set, client_socket);
+
+  // 1) Receive the version number
+  MSG_DEBUG("network", "Server: waiting for client version number");
+
+  r = Network::ReceiveStr(tmp_socket_set, client_socket, version);
+  if (r) {
+    std::cerr << "Error " << r << " when receiving version number"
+	      << std::endl;
+    goto error;
+  }
+
+  MSG_DEBUG("network", "Server: sending version number to client");
+
+  Network::Send(client_socket, Constants::WORMUX_VERSION);
+
+  if (Constants::WORMUX_VERSION != version) {
+    std::cerr << "Client disconnected: wrong version " << version.c_str()
+	     << std::endl;
+    goto error;
+  }
+
+  // 2) Check the password
+  MSG_DEBUG("network", "Server: waiting for password");
+
+  r = Network::ReceiveStr(tmp_socket_set, client_socket, _password);
+  if (r)
+    goto error;
+
+  if (_password != GetPassword()) {
+    std::cerr << "Client disconnected: wrong password " << _password.c_str()
+	      << std::endl;
+    Network::Send(client_socket, 1);
+    goto error;
+  }
+  MSG_DEBUG("network", "Server: password OK");
+
+  Network::Send(client_socket, 0);
+
+  MSG_DEBUG("network", "server: Handshake done successfully :)");
+  ret = true;
+
+ error:
+  if (!ret) {
+    std::cerr << "Server: HandShake with client has failed!" << std::endl;
+  }
+  SDLNet_TCP_DelSocket(tmp_socket_set, client_socket);
+  SDLNet_FreeSocketSet(tmp_socket_set);
+  return ret;
+}
+
 void NetworkServer::WaitActionSleep()
 {
   if (server_socket)
@@ -90,7 +152,14 @@ void NetworkServer::WaitActionSleep()
     TCPsocket incoming = SDLNet_TCP_Accept(server_socket);
     if (incoming)
     {
-      cpu.push_back(new DistantComputer(incoming));
+      if (!HandShake(incoming))
+ 	return;
+
+      DistantComputer * client = new DistantComputer(incoming);
+      cpu.push_back(client);
+
+      ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_NETWORK_CONNECT,
+							 client->GetAddress()));
       printf("New client connected\n");
       if (GetNbConnectedPlayers() >= max_nb_players)
         RejectIncoming();
@@ -126,7 +195,7 @@ connection_state_t NetworkServer::ServerStart(const std::string &port)
   printf("\nConnected\n");
   socket_set = SDLNet_AllocSocketSet(GameMode::GetInstance()->max_teams);
   thread = SDL_CreateThread(Network::ThreadRun, NULL);
-  printf("Thread %u created by thread %u\n", SDL_GetThreadID(thread), SDL_ThreadID());
+  MSG_DEBUG("network", "Thread %u created by thread %u\n", SDL_GetThreadID(thread), SDL_ThreadID());
   return CONNECTED;
 }
 
@@ -178,12 +247,12 @@ void NetworkServer::SetMaxNumberOfPlayers(uint _max_nb_players)
   }
 }
 
-const uint NetworkServer::GetNbConnectedPlayers() const
+uint NetworkServer::GetNbConnectedPlayers() const
 {
   return cpu.size() + 1;
 }
 
-const uint NetworkServer::GetNbInitializedPlayers() const
+uint NetworkServer::GetNbInitializedPlayers() const
 {
   uint r = 0;
 
@@ -197,7 +266,7 @@ const uint NetworkServer::GetNbInitializedPlayers() const
   return r;
 }
 
-const uint NetworkServer::GetNbReadyPlayers() const
+uint NetworkServer::GetNbReadyPlayers() const
 {
   uint r = 0;
 
@@ -211,7 +280,7 @@ const uint NetworkServer::GetNbReadyPlayers() const
   return r;
 }
 
-const uint NetworkServer::GetNbCheckedPlayers() const
+uint NetworkServer::GetNbCheckedPlayers() const
 {
   uint r = 0;
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,12 +52,11 @@ void GameInit::InitGameData_NetServer()
 
   randomSync.Init();
 
+  GameMode::GetInstance()->Load();
   SendGameMode();
 
   Network::GetInstance()->SetState(Network::NETWORK_LOADING_DATA);
   Network::GetInstance()->SendNetworkState();
-
-  GameMode::GetInstance()->Load();
 }
 
 void GameInit::EndInitGameData_NetServer()
@@ -106,6 +105,7 @@ void GameInit::InitMap()
 {
   std::cout << "o " << _("Initialise map") << std::endl;
 
+  Camera::GetInstance()->ResetShake();
   loading_sreen.StartLoading(1, "map_icon", _("Maps"));
   world.Reset();
   MapsList::GetInstance()->ActiveMap()->FreeData();
@@ -144,10 +144,10 @@ void GameInit::InitSounds()
   // Load teams' sound profiles
   loading_sreen.StartLoading(4, "sound_icon", _("Sounds"));
 
-  jukebox.LoadXML("default");
+  JukeBox::GetInstance()->LoadXML("default");
   FOR_EACH_TEAM(team)
     if ( (**team).GetSoundProfile() != "default" )
-      jukebox.LoadXML((**team).GetSoundProfile()) ;
+      JukeBox::GetInstance()->LoadXML((**team).GetSoundProfile()) ;
 }
 
 void GameInit::InitData()
@@ -179,8 +179,8 @@ GameInit::GameInit():
   Config::GetInstance()->RemoveAllObjectConfigs();
 
   // Disable sound during the loading of data
-  bool enable_sound = jukebox.UseEffects();
-  jukebox.ActiveEffects(false);
+  bool enable_sound = JukeBox::GetInstance()->UseEffects();
+  JukeBox::GetInstance()->ActiveEffects(false);
 
   Mouse::GetInstance()->Hide();
 
@@ -195,14 +195,14 @@ GameInit::GameInit():
 
   ParticleEngine::Load();
 
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);  
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
   Mouse::GetInstance()->CenterPointer();
 
   // First "selection" of a weapon -> fix bug 6576
   ActiveTeam().AccessWeapon().Select();
 
   // Loading is finished, sound effects can be enabled again
-  jukebox.ActiveEffects(enable_sound);
+  JukeBox::GetInstance()->ActiveEffects(enable_sound);
 
   // Waiting for others players
   if  (Network::GetInstance()->IsServer())

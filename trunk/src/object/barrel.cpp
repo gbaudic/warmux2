@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,11 +30,12 @@
 
 PetrolBarrel::PetrolBarrel() : PhysicalObj("barrel")
 {
-  Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  img= resource_manager.LoadSprite( res, "object/barrel");
+  Profile *res = resource_manager.LoadXMLProfile("graphism.xml", false);
+  img = resource_manager.LoadSprite(res, "object/barrel");
+  ASSERT(img);
   resource_manager.UnLoadXMLProfile(res);
 
-  energy = 40;
+  m_energy = 25;
 
   SetCollisionModel(false, true, true);
   SetSize(img->GetSize());

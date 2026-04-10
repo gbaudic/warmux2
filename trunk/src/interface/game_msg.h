@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #define GAME_MESSAGES_H
 //-----------------------------------------------------------------------------
 #include "include/base.h"
+#include "include/singleton.h"
 #include "graphic/text.h"
 #include <string>
 #include <list>
@@ -57,11 +58,9 @@ public:
  * void Add(const std::string &message)
  * to add a message
  */
-class GameMessages
+class GameMessages : public Singleton<GameMessages>
 {
  public:
-  static GameMessages * GetInstance();
-
   // remove all messages
   void Reset();
 
@@ -77,7 +76,9 @@ class GameMessages
  private:
   std::list<Message *> liste;
   typedef std::list<Message *>::iterator iterator;
-  static GameMessages * singleton;
+
+protected:
+  friend class Singleton<GameMessages>;
   GameMessages() { };
   ~GameMessages() { Reset(); };
 };

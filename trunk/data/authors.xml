@@ -136,6 +136,13 @@
 	<country>Portugal</country>
       </author>
       <author>
+	<nickname>KonKer</nickname>
+	<name>John Doe</name>
+	<description>Updated Spanish Translation</description>
+	<email>jua56_AT_hotmail_DOT_com</email>
+	<country>Spain</country>
+      </author>
+      <author>
 	<nickname>pepp</nickname>
 	<name>Pierre-eric Pelloux Prayer</name>
 	<description>Write small hack to optimize character drawing</description>
@@ -251,7 +258,7 @@
 	<nickname>Gaia</nickname>
 	<name>Gaia QUERO</name>
 	<description>Updated Italian translation</description>
-	<website>http://www.abctrad.com/</website>
+	<website>http://gaiatrad.com/</website>
 	<email>gaiaquero_AT_yahoo_DOT_fr</email>
 	<country>Italia</country>
       </author>
@@ -370,6 +377,12 @@
         <description>Hungarian translation updates</description>
         <country>Hungary</country>
       </author>
+      <author>
+	<name>Adrián Chaves</name>
+	<description>Translated Wormux in Galician</description>
+	<email>adriyetichaves_AT_gmail_DOT_com</email>
+	<country>Spain</country>
+      </author>
     </section>
 
     <section title="Package maintainers">
@@ -441,6 +454,14 @@
 	<country>Germany</country>
       </author>
       <author>
+    <nickname>Plorf</nickname>
+    <name>Yoann Katchourine</name>
+    <description>Prepare Mac OS X (Intel) packages</description>
+    <website>http://plorf.homeip.net/</website>
+    <email>yplorf@gmail.com></email>
+    <country>France</country>
+        </author>
+        <author>
 	<nickname>Serge</nickname>
 	<name>Serge CLAUS</name>
 	<description>Wormux 0.7.4 package for Ubuntu Dapper</description>
@@ -492,6 +513,13 @@
 	<description>Add autotools (autogen.sh, ./configure, ...) to Wormux</description>
 	<email>isaac_AT_sindominio_DOT_net</email>
 	<country>Spain</country>
+      </author>
+      <author>
+	<nickname>ivze</nickname>
+	<name>Ivan ZELINSKIY</name>
+	<description>Fix wind indicator for x86_64</description>
+	<email>ivze_AT_bk_DOT_ru</email>
+	<country>Russia</country>
       </author>
       <author>
 	<nickname>Jerome</nickname>
@@ -559,16 +587,23 @@
 	<name>Pasi Kallinen</name>
 	<description>Improve the ground generator</description>
 	<website>http://bilious.homelinux.org/</website>
-	<email>paxed@alt.org</email>
+	<email>paxed_AT_alt_DOT_org</email>
 	<country>Finland</country>
       </author>
       <author>
 	<nickname>Progs</nickname>
-	<name>Romain BIGNON</name>
+	<name>Romain Bignon</name>
 	<description>Developer</description>
-	<website>http://coderz.info</website>
-	<email>progs_AT_headfucking.net</email>
+	<website>http://romain.peerfuse.net</website>
+	<email>romain_AT_peerfuse.net</email>
 	<country>France</country>
+      </author>
+      <author>
+	<nickname>RCL</nickname>
+	<name>Dmitry Rekman</name>
+	<description>Developer</description>
+	<email>rcl_AT_mail_DOT_ru</email>
+	<country>Russia</country>
       </author>
       <author>
 	<nickname>Riccardo</nickname>
@@ -593,7 +628,7 @@
       <author>
 	<nickname>Snark</nickname>
 	<name>Julien Puydt</name>
-	<description>Patch to compile without -Wno-unused-parameter, reworked some menu widgets, little additions to class Surface</description>
+	<description>Developer</description>
 	<email>julien.puydt_AT_laposte_DOT_net</email>
 	<country>France</country>
       </author>
@@ -689,6 +724,13 @@
 	<country>France</country>
       </author>
       <author>
+	<nickname>alzen</nickname>
+	<name>Maciej Mroziński</name>
+	<description>lonely_island map</description>
+	<email>mynick2_AT_o2_DOT_pl</email>
+	<country>Poland</country>
+      </author>
+      <author>
 	<nickname>Bertrand</nickname>
 	<name>Bertrand GAFFET</name>
 	<description>Author of the skin Schtroumpf</description>
@@ -728,7 +770,7 @@
 	<name>JS</name>
 	<description>Draw the map EasterIsland</description>
 	<email>jeeseverly_AT_yahoo_dot_fr</email>
-	<country>france</country>
+	<country>France</country>
       </author>
       <author>
 	<nickname>Michael</nickname>
@@ -770,6 +812,13 @@
 	<description>Map 'Leafs'</description>
 	<email>Toon.Verstraelen_AT_ugent_DOT_be</email>
 	<country>Belgium</country>
+      </author>
+      <author>
+	<nickname>Tutur</nickname>
+	<name>Wilfried DUMOUTIER</name>
+	<description>Map 'Contry'</description>
+	<email>wiltur_AT_gmail_DOT_com</email>
+	<country>France</country>
       </author>
       <author>
 	<nickname>Yann</nickname>

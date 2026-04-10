@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,10 +31,7 @@
 class Character;
 class Sprite;
 class EmptyWeaponConfig;
-namespace xmlpp
-{
-  class Element;
-}
+typedef struct _xmlNode xmlNode;
 
 // Infinite ammos constant
 extern const int INFINITE_AMMO;
@@ -52,9 +49,10 @@ class Weapon
 public:
   typedef enum
   {
-    WEAPON_BAZOOKA,        WEAPON_AUTOMATIC_BAZOOKA, WEAPON_RIOT_BOMB, WEAPON_GRENADE,
-    WEAPON_DISCO_GRENADE,  WEAPON_CLUSTER_BOMB,      WEAPON_GUN,       WEAPON_SHOTGUN,
-    WEAPON_SUBMACHINE_GUN, WEAPON_BASEBALL,          WEAPON_FLAMETHROWER,
+    WEAPON_BAZOOKA,       WEAPON_AUTOMATIC_BAZOOKA, WEAPON_CLUZOOKA, WEAPON_RIOT_BOMB,
+    WEAPON_GRENADE,       WEAPON_DISCO_GRENADE,     WEAPON_CLUSTER_BOMB, WEAPON_FOOTBOMB,
+    WEAPON_GUN,           WEAPON_SHOTGUN,           WEAPON_SUBMACHINE_GUN,
+    WEAPON_BASEBALL,      WEAPON_FLAMETHROWER,
 
     WEAPON_DYNAMITE,      WEAPON_MINE,
 
@@ -158,6 +156,7 @@ protected:
   virtual void DrawWeaponFire();
   void DrawAmmoUnits() const;
 
+  void RepeatShoot();
 public:
   Weapon(Weapon_type type,
          const std::string &id,
@@ -296,10 +295,10 @@ public:
 
   // Load parameters from the xml config file
   // Return true if xml has been succesfully load
-  bool LoadXml(const xmlpp::Element * weapon);
+  bool LoadXml(xmlNode*  weapon);
 
   // return the strength of the weapon
-  const double ReadStrength() const { return m_strength; };
+  double ReadStrength() const { return m_strength; };
 
   // Data access
   const std::string& GetName() const;

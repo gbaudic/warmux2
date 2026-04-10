@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ class SyringeConfig : public WeaponConfig
     uint damage;
     uint turns;
     SyringeConfig();
-    void LoadXml(xmlpp::Element *elem);
+    void LoadXml(xmlNode* elem);
 };
 
 SyringeConfig& Syringe::cfg() {
@@ -51,7 +51,7 @@ SyringeConfig::SyringeConfig(){
   damage = 10;
 }
 
-void SyringeConfig::LoadXml(xmlpp::Element *elem){
+void SyringeConfig::LoadXml(xmlNode* elem){
   WeaponConfig::LoadXml(elem);
   XmlReader::ReadUint(elem, "range", range);
   XmlReader::ReadUint(elem, "turns", turns);
@@ -77,7 +77,7 @@ bool Syringe::p_Shoot (){
   double radius = 0.0;
   bool end = false;
 
-  jukebox.Play ("share","weapon/syringe");
+  JukeBox::GetInstance()->Play ("share","weapon/syringe");
 
   do
   {

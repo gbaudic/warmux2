@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,7 +61,6 @@ PhysicalObj::PhysicalObj (const std::string &name, const std::string &xml_config
   m_collides_with_characters(false),
   m_collides_with_objects(false),
   m_rebound_position(-1,-1),
-  last_collision_type(NO_COLLISION),
   // No collision with this object until we have gone out of his collision rectangle
   m_overlapping_object(NULL),
   m_minimum_overlapse_time(0),
@@ -76,7 +75,7 @@ PhysicalObj::PhysicalObj (const std::string &name, const std::string &xml_config
   m_height(0),
   m_rebound_sound(""),
   m_alive(ALIVE),
-  energy(-1),
+  m_energy(-1),
   m_allow_negative_y(false)
 {
   m_cfg = Config::GetInstance()->GetObjectConfig(m_name,xml_config);
@@ -148,7 +147,6 @@ void PhysicalObj::StoreValue(Action *a)
   a->Push(m_collides_with_characters);
   a->Push(m_collides_with_objects);
   a->Push(m_rebound_position);
-  a->Push(last_collision_type);
   a->Push((int)m_minimum_overlapse_time);
   a->Push(m_ignore_movements);
   a->Push(m_is_character);
@@ -159,21 +157,20 @@ void PhysicalObj::StoreValue(Action *a)
   a->Push((int)m_width);
   a->Push((int)m_height);
   a->Push((int)m_alive);
-  a->Push(energy);
+  a->Push(m_energy);
   a->Push(m_allow_negative_y);
 }
 
 void PhysicalObj::GetValueFromAction(Action *a)
 {
   Physics::GetValueFromAction(a);
-  m_goes_through_wall        = a->PopInt();
-  m_collides_with_characters = a->PopInt();
-  m_collides_with_objects    = a->PopInt();
+  m_goes_through_wall        = !!a->PopInt();
+  m_collides_with_characters = !!a->PopInt();
+  m_collides_with_objects    = !!a->PopInt();
   m_rebound_position         = a->PopPoint2i();
-  last_collision_type        = (collision_t)a->PopInt();
   m_minimum_overlapse_time   = (uint)a->PopInt();
-  m_ignore_movements         = a->PopInt();
-  m_is_character             = a->PopInt();
+  m_ignore_movements         = !!a->PopInt();
+  m_is_character             = !!a->PopInt();
   m_test_left                = (uint)a->PopInt();
   m_test_right               = (uint)a->PopInt();
   m_test_top                 = (uint)a->PopInt();
@@ -181,8 +178,8 @@ void PhysicalObj::GetValueFromAction(Action *a)
   m_width                    = (uint)a->PopInt();
   m_height                   = (uint)a->PopInt();
   m_alive                    = (alive_t)a->PopInt();
-  energy                     = a->PopInt();
-  m_allow_negative_y         = a->PopInt();
+  m_energy                   = a->PopInt();
+  m_allow_negative_y         = !!a->PopInt();
 }
 
 void PhysicalObj::SetOverlappingObject(PhysicalObj* obj, int timeout)
@@ -216,14 +213,14 @@ void PhysicalObj::CheckOverlapping()
   if (!m_overlapping_object->GetTestRect().Intersect( GetTestRect() ) &&
       m_minimum_overlapse_time <= Time::GetInstance()->Read())
   {
-    MSG_DEBUG("physic.overlapping", "\"%s\" just stopped overlapping with \"%s\" (%d ms left)", 
+    MSG_DEBUG("physic.overlapping", "\"%s\" just stopped overlapping with \"%s\" (%d ms left)",
 	      GetName().c_str(), m_overlapping_object->GetName().c_str(),
 	      (m_minimum_overlapse_time - Time::GetInstance()->Read()));
     SetOverlappingObject(NULL);
   }
   else
   {
-    MSG_DEBUG("physic.overlapping", "\"%s\" is overlapping with \"%s\"", 
+    MSG_DEBUG("physic.overlapping", "\"%s\" is overlapping with \"%s\"",
 	       GetName().c_str(), m_overlapping_object->GetName().c_str());
   }
 }
@@ -238,30 +235,26 @@ void PhysicalObj::SetTestRect (uint left, uint right, uint top, uint bottom)
 
 void PhysicalObj::SetEnergyDelta(int delta, bool /*do_report*/)
 {
-  if(energy == -1)
+  if (m_energy == -1)
     return;
-  energy += delta;
-  if(energy <= 0 && !IsGhost())
+  m_energy += delta;
+  if (m_energy <= 0 && !IsGhost())
   {
     Ghost();
-    energy = -1;
+    m_energy = -1;
   }
 }
 
 // Move to a point with collision test
-// Return true if collision occured
-void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
+collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
 {
   if (IsGhost())
-    return;
+    return NO_COLLISION;
 
   Point2d pos, offset;
   PhysicalObj* collided_obj = NULL;
 
-  last_collision_type = NO_COLLISION;
-
-  if (IsGhost())
-    return;
+  collision_t collision = NO_COLLISION;
 
   // Convert meters to pixels.
   oldPos *= PIXEL_PER_METER;
@@ -274,7 +267,7 @@ void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
             typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y, lg);
 
   if (lg == 0)
-    return;
+    return NO_COLLISION;
 
   // Compute increments to move the object step by step from the old
   // to the new position.
@@ -290,7 +283,7 @@ void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
               m_goes_through_wall, IsInWater());
 
     SetXY(newPos);
-    return;
+    return NO_COLLISION;
   }
 
   do
@@ -304,7 +297,7 @@ void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
         tmpPos.x = InRange_Long(tmpPos.x, 0, world.GetWidth() - GetWidth() - 1);
         tmpPos.y = InRange_Long(tmpPos.y, 0, world.GetHeight() - GetHeight() - 1);
         MSG_DEBUG( "physic.state", "%s - DeplaceTestCollision touche un bord : %d, %d",  m_name.c_str(), tmpPos.x, tmpPos.y );
-        last_collision_type = COLLISION_ON_GROUND;
+        collision = COLLISION_ON_GROUND;
         break;
       }
 
@@ -312,24 +305,22 @@ void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
 
       MSG_DEBUG("physic.move", "%s moves (%f, %f) -> (%f, %f) : OUTSIDE WORLD",
                 typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y);
-      return;
+      return NO_COLLISION;
     }
 
     // Test if we collide...
     collided_obj = CollidedObjectXY(tmpPos);
-    if( collided_obj != NULL)
+    if (collided_obj != NULL) {
       MSG_DEBUG( "physic.state", "%s collide on %s", m_name.c_str(), collided_obj->GetName().c_str() );
+      collision = COLLISION_ON_OBJECT;
+    } else if (!IsInVacuumXY(tmpPos, false)) {
+      collision = COLLISION_ON_GROUND;
+    }
 
-    if(collided_obj != NULL)
-      last_collision_type = COLLISION_ON_OBJECT;
-    else
-    if(!IsInVacuumXY(tmpPos, false))
-      last_collision_type = COLLISION_ON_GROUND;
-
-    if(last_collision_type != NO_COLLISION) // Nothing more to do!
+    if (collision != NO_COLLISION) // Nothing more to do!
     {
       MSG_DEBUG( "physic.state", "%s - Collision at %d,%d : %s", m_name.c_str(), tmpPos.x, tmpPos.y,
-          last_collision_type == COLLISION_ON_GROUND ? "on ground" : "on an object");
+          collision == COLLISION_ON_GROUND ? "on ground" : "on an object");
 
       // Set the object position to the current position.
       SetXY(Point2d(pos.x - offset.x, pos.y - offset.y));
@@ -341,45 +332,62 @@ void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
     lg -= 1.0 ;
   } while (0 < lg);
 
-  // Notify the weapon that there is a movement
-  // Useful for grapple for example
-  ActiveTeam().AccessWeapon().NotifyMove(!!last_collision_type);
+  Point2d speed_before_collision = GetSpeed();
+  Point2d speed_collided_obj;
+  if (collided_obj)
+    speed_collided_obj = collided_obj->GetSpeed();
 
-  if (last_collision_type == NO_COLLISION ) // Nothing more to do!
+  Collide(collision, collided_obj, pos);
+
+  // ===================================
+  // it's time to signal object(s) about collision!
+  // WARNING: the following calls can send Action(s) over the network (cf bug #11232)
+  // Be sure to keep it isolated here
+  // ===================================
+  ActiveTeam().AccessWeapon().NotifyMove(!!collision);
+  switch (collision) {
+  case NO_COLLISION:
+    // Nothing more to do!
+    ASSERT(!collided_obj);
+    break;
+  case COLLISION_ON_GROUND:
+    SignalGroundCollision(speed_before_collision);
+    SignalCollision(speed_before_collision);
+    break;
+  case COLLISION_ON_OBJECT:
+    SignalObjectCollision(collided_obj, speed_before_collision);
+    collided_obj->SignalObjectCollision(this, speed_collided_obj);
+    SignalCollision(speed_before_collision);
+    collided_obj->SignalCollision(speed_collided_obj);
+    break;
+  }
+  // ===================================
+
+  return collision;
+}
+
+void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, const Point2d& position)
+{
+  Point2d contactPos;
+  double contactAngle;
+
+  switch (collision) {
+  case NO_COLLISION:
+    // Nothing more to do!
+    ASSERT(!collided_obj);
     return;
-  if (last_collision_type == COLLISION_ON_GROUND ) {
-      // Find the contact point and collision angle.
-//       // !!! ContactPoint(...) _can_ return false when CollisionTest(...) is true !!!
-//       // !!! WeaponProjectiles collide on objects, so computing the tangeante to the ground leads
-//       // !!! uninitialised values of cx and cy!!
-//       if( ContactPoint(cx, cy) ){
-    int cx, cy;
-    Point2d contactPos;
-    double ground_angle;
 
-    if (ContactPoint(cx, cy)) {
-      ground_angle = world.ground.Tangent(cx, cy);
-      if(!isNaN(ground_angle)) {
-        contactPos.x = (double)cx / PIXEL_PER_METER;
-        contactPos.y = (double)cy / PIXEL_PER_METER;
-      } else {
-        ground_angle = - GetSpeedAngle();
-        contactPos = pos;
-      }
-    } else {
-      ground_angle = - GetSpeedAngle();
-      contactPos = pos;
-    }
+  case COLLISION_ON_GROUND:
+    ASSERT(!collided_obj);
+    ContactPointAngleOnGround(position, contactPos, contactAngle);
+    break;
 
-    SignalGroundCollision();
-    SignalCollision();
-    // Make it rebound on the ground !!
-    MSG_DEBUG("physic.state", "Rebound on %s at %d,%d", m_name.c_str(), contactPos.x, contactPos.y);
-    Rebound(contactPos, ground_angle);
-    CheckRebound();
-  } else if (last_collision_type == COLLISION_ON_OBJECT ) {
-    SignalObjectCollision(collided_obj);
-    collided_obj->SignalObjectCollision(this);
+  case COLLISION_ON_OBJECT:
+    contactPos = position;
+    contactAngle = - GetSpeedAngle();
+
+    // Compute the new speed norm of this and collided_obj, new speed angle will be set
+    // thanks to Rebound()
 
     // Get the current speed
     double v1, v2, mass1, angle1, angle2, mass2;
@@ -393,20 +401,43 @@ void PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
     //
     // v'1 =  ((m1 - m2) * v1 + 2m1 *v2) / (m1 + m2)
     // v'2 =  ((m2 - m1) * v2 + 2m1 *v1) / (m1 + m2)
-    SignalCollision();
-
     collided_obj->SetSpeed(((mass1 - mass2) * v1 + 2 * mass1 *v2 * m_cfg.m_rebound_factor) / (mass1 + mass2),
-                           angle1);
+			  angle1);
     SetSpeed(((mass2 - mass1) * v2 + 2 * mass1 *v1 * m_cfg.m_rebound_factor) / (mass1 + mass2), angle2);
-
-    // Rebound on the object
-    double contact_angle = - GetSpeedAngle();
-    Point2d contactPos = pos;
-    MSG_DEBUG("physic.state", "Rebound on %s at %d,%d", m_name.c_str(), contactPos.x, contactPos.y);
-    Rebound(contactPos, contact_angle);
-    CheckRebound();
+    break;
   }
-  return;
+
+  // Make it rebound!!
+  MSG_DEBUG("physic.state", "m_name.c_str() rebounds at %d,%d", m_name.c_str(), contactPos.x, contactPos.y);
+
+  Rebound(contactPos, contactAngle);
+  CheckRebound();
+}
+
+void PhysicalObj::ContactPointAngleOnGround(const Point2d& oldPos,
+					    Point2d& contactPos,
+					    double& contactAngle) const
+{
+      // Find the contact point and collision angle.
+//       // !!! ContactPoint(...) _can_ return false when CollisionTest(...) is true !!!
+//       // !!! WeaponProjectiles collide on objects, so computing the tangeante to the ground leads
+//       // !!! uninitialised values of cx and cy!!
+//       if( ContactPoint(cx, cy) ){
+    int cx, cy;
+
+    if (ContactPoint(cx, cy)) {
+      contactAngle = world.ground.Tangent(cx, cy);
+      if(!isNaN(contactAngle)) {
+        contactPos.x = (double)cx / PIXEL_PER_METER;
+        contactPos.y = (double)cy / PIXEL_PER_METER;
+      } else {
+        contactAngle = - GetSpeedAngle();
+        contactPos = oldPos;
+      }
+    } else {
+      contactAngle = - GetSpeedAngle();
+      contactPos = oldPos;
+    }
 }
 
 void PhysicalObj::UpdatePosition ()
@@ -437,26 +468,25 @@ void PhysicalObj::UpdatePosition ()
 
 }
 
-bool PhysicalObj::PutOutOfGround(double direction)
+bool PhysicalObj::PutOutOfGround(double direction, double max_distance)
 {
   if(IsOutsideWorld(Point2i(0, 0)))
     return false;
-
-  const int max_step = 30;
 
   if( IsInVacuum(Point2i(0, 0), false) )
     return true;
 
   double dx = cos(direction);
   double dy = sin(direction);
+  // (dx,dy) is a normal vector (cos^2+sin^2==1)
 
-  int step=1;
-  while(step<max_step && !IsInVacuum(
-                          Point2i((int)(dx * (double)step),(int)(dy * (double)step)), false ))
-    step++;
+  double step=1;
+  while( step<max_distance && !IsInVacuum(
+                          Point2i((int)(dx * step),(int)(dy * step)), false ))
+    step+=1.0;
 
-  if(step<max_step)
-    SetXY( Point2i((int)(dx * (double)step)+GetX(),(int)(dy * (double)step)+GetY()) );
+  if(step<max_distance)
+    SetXY( Point2i((int)(dx * step)+GetX(),(int)(dy * step)+GetY()) );
   else
     return false; //Can't put the object out of the ground
 
@@ -526,6 +556,10 @@ void PhysicalObj::Drown()
   if (EqualsZero(GetGravityFactor()))
     SetGravityFactor(0.1);
 
+  // make a splash in the water :-)
+  if (GetMass() >= 2)
+    world.water.Splash(GetPosition());
+
   StopMoving();
   StartMoving();
   SignalDrowning();
@@ -548,7 +582,7 @@ void PhysicalObj::SignalRebound()
 {
   // TO CLEAN...
    if (!m_rebound_sound.empty())
-     jukebox.Play("share", m_rebound_sound) ;
+     JukeBox::GetInstance()->Play("share", m_rebound_sound) ;
 }
 
 void PhysicalObj::SetCollisionModel(bool goes_through_wall,
@@ -577,7 +611,9 @@ void PhysicalObj::CheckRebound()
   // cause it's almost sure this object is stuck bouncing indefinitely
   if( m_rebound_position != Point2i( -1, -1) )
   {
-    if ( m_rebound_position == GetPosition() )
+    // allow infinite rebounds for Pendulum objects (e.g. characters on rope)
+    // FIXME: test that nothing bad happens because of this
+    if ( Pendulum != GetMotionType() && m_rebound_position == GetPosition() )
     {
       MSG_DEBUG("physic.state", "%s seems to be stuck in ground. Stop moving!", m_name.c_str());
       StopMoving();
@@ -847,7 +883,7 @@ bool PhysicalObj::PutRandomly(bool on_top_of_world, double min_dst_with_characte
     if (ok && on_top_of_world) SetXY(position);
   } while (!ok);
 
-  MSG_DEBUG("physic.position", "Putted after %u try", m_name.c_str(), bcl);
+  MSG_DEBUG("physic.position", "Put '%s' after %u tries", m_name.c_str(), bcl);
 
   return true;
 }

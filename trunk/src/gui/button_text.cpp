@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,11 +35,11 @@ ButtonText::ButtonText(const Profile *res_profile,
   text(new Text(new_text, white_color, font_size, font_style))
 { }
 
-void ButtonText::Draw(const Point2i &mousePosition, Surface& surf) const
+void ButtonText::Draw(const Point2i &mousePosition) const
 {
   Point2i textPosition = position + size/2;
 
-  Button::Draw(mousePosition, surf);
+  Button::Draw(mousePosition);
   text->DrawCenter(textPosition);
 }
 

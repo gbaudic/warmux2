@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define GUI_BUTTON_H
 
 #include "include/base.h"
-#include "widget.h"
+#include "gui/widget.h"
 
 // Forward declarations
 class Sprite;
@@ -45,8 +45,8 @@ public:
           bool img_scale = false);
   virtual ~Button();
 
-  virtual void Draw(const Point2i &mousePosition, Surface& surf) const;
-  virtual void SetSizePosition(const Rectanglei &rect);
+  virtual void Draw(const Point2i &mousePosition) const;
+  virtual void Pack();
 };
 
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -74,15 +74,14 @@ ComboBox::~ComboBox ()
   delete txt_value_white;
 }
 
-void ComboBox::SetSizePosition(const Rectanglei &rect)
+void ComboBox::Pack()
 {
-  StdSetSizePosition(rect);
-  txt_label->SetMaxWidth(GetSizeX());
+  txt_label->SetMaxWidth(size.x);
 }
 
-void ComboBox::Draw(const Point2i &/*mousePosition*/, Surface& /*surf*/) const
+void ComboBox::Draw(const Point2i &/*mousePosition*/) const
 {
-  Surface video_window = AppWormux::GetInstance()->video->window;
+  Surface& video_window = AppWormux::GetInstance()->video->window;
 
   //  the computed positions are to center on the image part of the widget
 
@@ -94,7 +93,7 @@ void ComboBox::Draw(const Point2i &/*mousePosition*/, Surface& /*surf*/) const
   // 2. then draw the progress annulus
   static uint small_r = 25;
   static uint big_r = 35;
-  static double open_angle_value = 0.96; // 55 °
+  static double open_angle_value = 0.96; // 55
   uint center_x = tmp_back_x + m_annulus_background.GetWidth() / 2;
   uint center_y = tmp_back_y + m_annulus_background.GetHeight() / 2;
   double angle;
@@ -164,9 +163,9 @@ void ComboBox::SetChoice (std::vector<std::string>::size_type index)
   std::string text;
 
   if (index >= m_choices.size ())
-    m_index = 0; // loop back
-  else
-    m_index = index;
+    return; /* index = 0; // loop back */
+
+  m_index = index;
 
   txt_value_black->Set(m_choices[m_index].second);
   txt_value_white->Set(m_choices[m_index].second);
@@ -174,7 +173,7 @@ void ComboBox::SetChoice (std::vector<std::string>::size_type index)
   NeedRedrawing();
 }
 
-const int ComboBox::GetIntValue() const
+int ComboBox::GetIntValue() const
 {
   int tmp = 0;
   sscanf(GetValue().c_str(),"%d", &tmp);

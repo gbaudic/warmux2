@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ bool Teleportation::p_Shoot ()
 
   //  Game::GetInstance()->interaction_enabled = false;
 
-  jukebox.Play("share", "weapon/teleport_start");
+  JukeBox::GetInstance()->Play("share", "weapon/teleport_start");
 
   ActiveCharacter().Hide();
   ActiveCharacter().body->MakeTeleportParticles(ActiveCharacter().GetPosition(), dst);
@@ -85,7 +85,7 @@ void Teleportation::Refresh()
     ActiveCharacter().SetXY(dst);
     ActiveCharacter().SetSpeed(0.0, 0.0);
     ActiveCharacter().Show();
-    jukebox.Play("share", "weapon/teleport_end");
+    JukeBox::GetInstance()->Play("share", "weapon/teleport_end");
     return;
   }
 }

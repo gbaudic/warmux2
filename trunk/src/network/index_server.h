@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,22 +28,35 @@
 #include <list>
 #include <string>
 #include <utility>
-#include "network.h"
+#include "network/network.h"
+#include "network/index_svr_msg.h"
+#include "include/singleton.h"
 
-typedef std::pair<std::string, std::string> address_pair;
+class GameServerInfo
+{
+ public:
+  std::string ip_address;
+  std::string port;
+  std::string dns_address;
+  std::string game_name;
+  bool        passworded;
+};
 
-class IndexServer
+#define INDEX_SERVER_BUFFER_LENGTH   1500
+
+class IndexServer : public Singleton<IndexServer>
 {
   /* If you need this, implement it (correctly)*/
   IndexServer(const IndexServer&);
   const IndexServer& operator=(const IndexServer&);
   /*********************************************/
 
-
   // Connection to the server
   TCPsocket socket;
   IPaddress ip;
   SDLNet_SocketSet sock_set;
+  char    buffer[INDEX_SERVER_BUFFER_LENGTH];
+  uint    used;
 
   // Stores the hostname / port of all online servers
   std::map<std::string, int> server_lst;
@@ -58,8 +71,10 @@ class IndexServer
   bool connected;
 
   // Transfer functions
-  void Send(const int &nbr);
-  void Send(const std::string &str);
+  void NewMsg(IndexServerMsg msg_id);
+  void Batch(const int &nbr);
+  void Batch(const std::string &str);
+  void SendMsg();
   int ReceiveInt();
   std::string ReceiveStr();
 
@@ -81,16 +96,17 @@ public:
   // Answers to pings from the server / close connection if distantly closed
   void Refresh();
 
+  // Set it local
+  void SetLocal(const char* hostname = "127.0.0.1") { server_lst[hostname] = 9997; }
+
   // We want to host a game hidden on internet
   void SetHiddenServer() { hidden_server = true; };
 
   // Notify the top server we are hosting a game
-  void SendServerStatus();
+  bool SendServerStatus(const std::string& game_name, bool passwd);
 
   // returns a list with string pairs: first element = hostname/ip, second element = port
-  std::list<address_pair> GetHostList();
+  std::list<GameServerInfo> GetHostList();
 };
-
-extern IndexServer index_server;
 
 #endif

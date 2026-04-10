@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
  *****************************************************************************/
 
+#include <libxml/tree.h>
 #include "weapon/weapon.h"
 #include "weapon/weapon_strength_bar.h"
 #include "weapon/weapon_cfg.h"
@@ -119,7 +120,7 @@ Weapon::Weapon(Weapon_type type,
 
   mouse_character_selection = true;
 
-  xmlpp::Element *elem = resource_manager.GetElement(weapons_res_profile, "position", m_id);
+  xmlNode* elem = resource_manager.GetElement(weapons_res_profile, "position", m_id);
   if (elem != NULL) {
     // E.g. <position name="my_weapon_id" origin="hand" x="-1" y="0" />
     std::string origin_xml;
@@ -164,6 +165,7 @@ void Weapon::Select()
   m_time_anim_begin = Time::GetInstance()->Read();
   m_is_active = false;
   m_strength = 0;
+  m_last_fire_time = 0;
   ActiveTeam().ResetNbUnits();
 
   ActiveCharacter().SetWeaponClothe();
@@ -239,6 +241,14 @@ bool Weapon::CanChangeWeapon() const
 void Weapon::NewActionWeaponShoot() const
 {
   ASSERT(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
+
+  if (ActiveCharacter().IsPreparingShoot()) { // a shot is already in progress
+#ifdef DEBUG
+    fprintf(stderr, "\nWARNING: Weapon::NewActionWeaponShoot: a shot is already in progress!\n");
+    fprintf(stderr, "         Maybe, shot anim for this weapon is longer than m_time_between_each_shot\n\n");
+#endif
+    return;
+  }
 
   Action* a_shoot = new Action(Action::ACTION_WEAPON_SHOOT,
                                m_strength,
@@ -325,7 +335,19 @@ bool Weapon::Shoot()
   return true;
 }
 
-// Calcule la position de l'image de l'arme
+void Weapon::RepeatShoot()
+{
+  uint current_time = Time::GetInstance()->Read();
+
+  if (current_time - m_last_fire_time >= m_time_between_each_shot) {
+    NewActionWeaponShoot();
+    // this is done in Weapon::Shoot() but let's set meanwhile,
+    // to prevent problems with rapid fire weapons such as submachine
+    m_last_fire_time = current_time;
+  }
+}
+
+// Compute position of weapon's image
 void Weapon::PosXY (int &x, int &y) const
 {
   if (origin == weapon_origin_HAND)
@@ -358,7 +380,7 @@ const Point2i Weapon::GetGunHolePosition() const
     angle += ActiveCharacter().GetFiringAngle();
   else
     angle += ActiveCharacter().GetFiringAngle() - M_PI;
- 
+
   return pos + Point2i(static_cast<int>(dst * cos(angle)),
 		       static_cast<int>(dst * sin(angle)));
 }
@@ -533,7 +555,7 @@ void Weapon::Draw(){
     m_image->Blit( AppWormux::GetInstance()->video->window, Point2i(x, y) - Camera::GetInstance()->GetPosition());
 
 #ifdef DEBUG
-  if (IsDEBUGGING("weapon")) {
+  if (IsLOGGING("weapon")) {
     Rectanglei rect(ActiveCharacter().GetHandPosition().GetX()-1 - Camera::GetInstance()->GetPositionX(),
 		    ActiveCharacter().GetHandPosition().GetY()-1 - Camera::GetInstance()->GetPositionY(),
 		    3,
@@ -627,9 +649,9 @@ void Weapon::DrawAmmoUnits() const
   }
 }
 
-bool Weapon::LoadXml(const xmlpp::Element * weapon)
+bool Weapon::LoadXml(xmlNode*  weapon)
 {
-  xmlpp::Element *elem = XmlReader::GetMarker(weapon, m_id);
+  xmlNode* elem = XmlReader::GetMarker(weapon, m_id)->children;
   if (elem == NULL)
   {
       std::cout << Format(_("No element <%s> found in the xml config file!"),

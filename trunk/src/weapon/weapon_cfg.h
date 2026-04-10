@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,10 +23,7 @@
 #define WEAPON_CONFIGURATION_H
 //-----------------------------------------------------------------------------
 #include "include/base.h"
-namespace xmlpp
-{
-  class Element;
-}
+typedef struct _xmlNode xmlNode;
 
 //-----------------------------------------------------------------------------
 
@@ -34,7 +31,7 @@ class EmptyWeaponConfig
 {
 public:
    virtual ~EmptyWeaponConfig() {};
-   virtual void LoadXml(xmlpp::Element *elem) = 0;
+   virtual void LoadXml(xmlNode* elem) = 0;
 };
 
 //-----------------------------------------------------------------------------
@@ -46,7 +43,7 @@ public:
 public:
   WeaponConfig();
   virtual ~WeaponConfig() {};
-  virtual void LoadXml(xmlpp::Element *elem);
+  virtual void LoadXml(xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------
@@ -60,12 +57,11 @@ public:
   uint blast_force ;
   uint explosion_range;
   uint particle_range;
+  uint speed_on_hit;
 public:
   ExplosiveWeaponConfig();
   virtual ~ExplosiveWeaponConfig() {};
-   virtual void LoadXml(xmlpp::Element *elem);
-
-
+  virtual void LoadXml(xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------

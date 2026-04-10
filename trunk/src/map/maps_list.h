@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,15 +24,14 @@
 
 #include <vector>
 #include "include/base.h"
+#include "include/singleton.h"
 #include "graphic/surface.h"
+#include "map/water.h"
 
 // Forward declarations
 class Action;
 class Profile;
-namespace xmlpp
-{
-  class Element;
-}
+typedef struct _xmlNode xmlNode;
 
 class InfoMap {
  public:
@@ -67,19 +66,19 @@ private:
   uint nb_barrel;
 
   bool is_opened;
-  bool use_water;
   bool is_basic_info_loaded;
   bool is_data_loaded;
   bool random_generated;
   Point2i upper_left_pad;
   Point2i lower_right_pad;
   Island_type island_type;
+  Water::Water_type water_type;
 
   struct s_wind wind;
 
   Profile *res_profile;
 
-  bool ProcessXmlData(const xmlpp::Element *xml);
+  bool ProcessXmlData(xmlNode* xml);
   void LoadData();
   void LoadBasicInfo(); // Fails with abort if error
 
@@ -95,19 +94,19 @@ public:
   const std::string& ReadMusicPlaylist() { LoadBasicInfo(); return music_playlist; };
   std::string GetConfigFilepath() const;
 
-  Surface ReadImgGround();
-  Surface ReadImgSky();
+  Surface& ReadImgGround();
+  Surface& ReadImgSky();
   const Surface& ReadPreview() { LoadBasicInfo(); return preview; };
 
-  const struct s_wind& GetWind() const { return wind; }; 
+  const struct s_wind& GetWind() const { return wind; };
 
   uint GetNbBarrel() { LoadBasicInfo(); return nb_barrel; };
   uint GetNbMine() { LoadBasicInfo(); return nb_mine; };
-  const Profile * const ResProfile() const { return res_profile; };
+  Profile * ResProfile() const { return res_profile; };
 
   bool IsOpened() { LoadBasicInfo(); return is_opened; };
-  bool UseWater() { LoadBasicInfo(); return use_water; };
   bool IsRandomGenerated() { LoadBasicInfo(); return random_generated; };
+  Water::Water_type WaterType() { LoadBasicInfo(); return water_type; };
 
   Point2i GetUpperLeftPad() { return upper_left_pad; };
   Point2i GetLowerRightPad() { return lower_right_pad; };
@@ -117,7 +116,7 @@ public:
 };
 
 
-class MapsList
+class MapsList : public Singleton<MapsList>
 {
 public:
   std::vector<InfoMap*> lst;
@@ -129,14 +128,13 @@ private:
   bool random_map;
 
   void LoadOneMap (const std::string &dir, const std::string &file);
+
+protected:
+  friend class Singleton<MapsList>;
   MapsList();
   ~MapsList();
-  static MapsList * singleton;
 
 public:
-  static void CleanUp(void) { if (singleton) delete singleton; singleton = NULL; };
-  static MapsList * GetInstance();
-
   // Return -1 if fails
   int FindMapById (const std::string &id) const;
   void SelectMapByName(const std::string &nom);

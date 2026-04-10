@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #include "network/randomsync.h"
 #include "network/network.h"
 #include "network/network_server.h"
+#include "network/chatlogger.h"
 #include "object/bonus_box.h"
 #include "object/medkit.h"
 #include "object/objbox.h"
@@ -59,15 +60,6 @@
 #include "weapon/weapon.h"
 #include "weapon/weapons_list.h"
 #include "weapon/explosion.h"
-
-ActionHandler * ActionHandler::singleton = NULL;
-
-ActionHandler * ActionHandler::GetInstance()
-{
-  if (singleton == NULL)
-    singleton = new ActionHandler();
-  return singleton;
-}
 
 // ########################################################
 // ########################################################
@@ -200,13 +192,13 @@ void Action_Network_Check_Phase2 (Action *a)
 
 void Action_Player_ChangeWeapon (Action *a)
 {
-  jukebox.Play("share", "change_weapon");
+  JukeBox::GetInstance()->Play("share", "change_weapon");
   ActiveTeam().SetWeapon(static_cast<Weapon::Weapon_type>(a->PopInt()));
 }
 
 void Action_Player_NextCharacter (Action *a)
 {
-  jukebox.Play("share", "character/change_in_same_team");
+  JukeBox::GetInstance()->Play("share", "character/change_in_same_team");
   a->RetrieveCharacter();       // Retrieve current character's informations
   a->RetrieveCharacter();       // Retrieve next character information
   Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
@@ -214,7 +206,7 @@ void Action_Player_NextCharacter (Action *a)
 
 void Action_Player_PreviousCharacter (Action *a)
 {
-  jukebox.Play("share", "character/change_in_same_team");
+  JukeBox::GetInstance()->Play("share", "character/change_in_same_team");
   a->RetrieveCharacter();       // Retrieve current character's informations
   a->RetrieveCharacter();       // Retrieve previous character's information
   Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
@@ -283,6 +275,8 @@ void Action_Rules_SetGameMode (Action *a)
   std::string game_mode = a->PopString();
   std::string game_mode_objects = a->PopString();
 
+  MSG_DEBUG("game_mode", "Receiving game_mode: %s", game_mode_name.c_str());
+
   GameMode::GetInstance()->LoadFromString(game_mode_name,
                                           game_mode,
                                           game_mode_objects);
@@ -307,32 +301,9 @@ void SendGameMode()
   a.Push(game_mode);
   a.Push(game_mode_objects);
 
+  MSG_DEBUG("game_mode", "Sending game_mode: %s", game_mode_name.c_str());
+
   Network::GetInstance()->SendAction(&a);
-}
-
-void Action_Rules_AskVersion (Action */*a*/)
-{
-  if (!Network::GetInstance()->IsClient()) return;
-  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_RULES_SEND_VERSION, Constants::WORMUX_VERSION));
-}
-
-void Action_Rules_SendVersion (Action *a)
-{
-  if (!Network::GetInstance()->IsServer()) return;
-  std::string version= a->PopString();
-  ASSERT(a->creator != NULL);
-
-  if (version != Constants::WORMUX_VERSION)
-  {
-    a->creator->force_disconnect = true;
-    std::string str = Format(_("%s tries to connect with a different version : client=%s, me=%s."),
-                               a->creator->GetAddress().c_str(), version.c_str(), Constants::WORMUX_VERSION.c_str());
-    Network::GetInstance()->network_menu->ReceiveMsgCallback(str);
-    std::cerr << str << std::endl;
-    return;
-  }
-  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_NETWORK_CONNECT, a->creator->GetAddress()));
-  a->creator->version_checked = true;
 }
 
 // ########################################################
@@ -345,12 +316,16 @@ void Action_ChatMessage (Action *a)
   }
   else
   {
+    std::string msg = a->PopString();
+    ChatLogger::GetInstance()->LogMessage(msg);
     if(Game::GetInstance()->IsGameLaunched())
+    {
       //Add message to chat session in Game
-      Game::GetInstance()->chatsession.NewMessage(a->PopString());
+      Game::GetInstance()->chatsession.NewMessage(msg);
+    }
     else if (Network::GetInstance()->network_menu != NULL) {
       //Network Menu
-      Network::GetInstance()->network_menu->ReceiveMsgCallback(a->PopString());
+      Network::GetInstance()->network_menu->ReceiveMsgCallback(msg);
     }
   }
 }
@@ -466,18 +441,21 @@ void SyncCharacters()
 void Action_Character_Jump (Action */*a*/)
 {
   Game::GetInstance()->character_already_chosen = true;
+  ASSERT(!ActiveTeam().IsLocal());
   ActiveCharacter().Jump();
 }
 
 void Action_Character_HighJump (Action */*a*/)
 {
   Game::GetInstance()->character_already_chosen = true;
+  ASSERT(!ActiveTeam().IsLocal());
   ActiveCharacter().HighJump();
 }
 
 void Action_Character_BackJump (Action */*a*/)
 {
   Game::GetInstance()->character_already_chosen = true;
+  ASSERT(!ActiveTeam().IsLocal());
   ActiveCharacter().BackJump();
 }
 
@@ -485,6 +463,17 @@ void Action_Character_SetPhysics (Action *a)
 {
   while(!a->IsEmpty())
     a->RetrieveCharacter();
+}
+
+void SendActiveCharacterAction(const Action& a)
+{
+  ASSERT(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
+  Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
+  Network::GetInstance()->SendAction(&a_begin_sync);
+  SendActiveCharacterInfo();
+  Network::GetInstance()->SendAction(&a);
+  Action a_end_sync(Action::ACTION_NETWORK_SYNC_END);
+  Network::GetInstance()->SendAction(&a_end_sync);
 }
 
 // Send character information over the network (it's totally stupid to send it locally ;-)
@@ -639,6 +628,7 @@ static void Action_Network_Ping(Action */*a*/)
 void Action_Network_Connect(Action *a)
 {
   std::string msg = Format("%s just connected", a->PopString().c_str());
+  ChatLogger::LogMessageIfOpen(msg);
   if(Game::GetInstance()->IsGameLaunched())
     GameMessages::GetInstance()->Add(msg);
   else if (Network::GetInstance()->network_menu != NULL)
@@ -650,6 +640,7 @@ void Action_Network_Connect(Action *a)
 void Action_Network_Disconnect(Action *a)
 {
   std::string msg = Format("%s just disconnected", a->PopString().c_str());
+  ChatLogger::LogMessageIfOpen(msg);
   if (Game::GetInstance()->IsGameLaunched()) {
     GameMessages::GetInstance()->Add(msg);
   } else if (Network::GetInstance()->network_menu != NULL)
@@ -751,7 +742,7 @@ void ActionHandler::Register (Action::Action_t action,
 
 void ActionHandler::Exec(Action *a)
 {
-#ifdef DEBUG
+#ifdef WMX_LOG
   int id=rand();
 #endif
 
@@ -800,8 +791,6 @@ ActionHandler::ActionHandler():
 
   // ########################################################
   // To be sure that rules will be the same on each computer
-  Register (Action::ACTION_RULES_ASK_VERSION, "RULES_ask_version", &Action_Rules_AskVersion);
-  Register (Action::ACTION_RULES_SEND_VERSION, "RULES_send_version", &Action_Rules_SendVersion);
   Register (Action::ACTION_RULES_SET_GAME_MODE, "RULES_set_game_mode", &Action_Rules_SetGameMode);
 
   // ########################################################
@@ -854,5 +843,11 @@ ActionHandler::ActionHandler():
 
   // ########################################################
   SDL_UnlockMutex(mutex);
+}
+
+ActionHandler::~ActionHandler()
+{
+  if (mutex)
+    SDL_DestroyMutex(mutex);
 }
 

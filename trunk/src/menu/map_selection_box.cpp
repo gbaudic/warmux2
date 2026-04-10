@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,13 +33,11 @@
 #include "tool/resource_manager.h"
 
 MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
-  HBox(_size.GetY(), true), selected_map_index(0)
+  VBox(_size.GetX(), Network::IsConnected()), selected_map_index(0)
 {
   display_only = _display_only;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml",false);
-
-  AddWidget(new PictureWidget(Point2i(46, -1), "menu/map_label"));
 
   // PreviousMap/NextMap buttons
   bt_map_plus = new Button(res, "menu/big_plus", false);
@@ -49,10 +47,6 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
   random_map_preview = resource_manager.LoadImage(res, "menu/random_map");
 
   resource_manager.UnLoadXMLProfile(res);
-
-  Box * tmp_map_box = new VBox(_size.GetX()-63, false);
-  tmp_map_box->SetBorder( Point2i(0,0) );
-  tmp_map_box->SetMargin(0);
 
   // compute margin width between previews
   uint map_preview_height = _size.GetY() -2*10 -40;
@@ -67,14 +61,14 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
 
   uint margin = 0;
 
-  if ( uint(tmp_map_box->GetSizeX() - 20) > uint(total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX())) {
-    margin = (tmp_map_box->GetSizeX() - 20 -
+  if ( uint(size.x - 20) > uint(total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX())) {
+    margin = (size.x - 20 -
               (total_width_previews + bt_map_plus->GetSizeX() + bt_map_minus->GetSizeX()) ) / 6;
   }
 
   if (margin < 5) {
     margin = 5;
-    uint total_size_wo_margin = tmp_map_box->GetSizeX() - 20 - 6*margin - bt_map_plus->GetSizeX() - bt_map_minus->GetSizeX();
+    uint total_size_wo_margin = size.x - 20 - 6*margin - bt_map_plus->GetSizeX() - bt_map_minus->GetSizeX();
     map_preview_width = (total_size_wo_margin)/4; // <= total = w + 4*(3/4)w
     map_preview_height = 3/4 * map_preview_width;
   }
@@ -111,25 +105,23 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
     delete bt_map_plus;
   }
 
-  tmp_map_box->AddWidget(previews_box);
+  AddWidget(previews_box);
 
   // Map information
-  map_name_label = new Label("Map", Point2i(-1, -1), Font::FONT_SMALL, 
+  map_name_label = new Label("Map", W_UNDEF, Font::FONT_SMALL,
 			     Font::FONT_BOLD, dark_gray_color, true, false);
-  tmp_map_box->AddWidget(map_name_label);
+  AddWidget(map_name_label);
 
-  map_author_label = new Label("Author", Point2i(-1, -1), Font::FONT_SMALL, 
+  map_author_label = new Label("Author", W_UNDEF, Font::FONT_SMALL,
 			       Font::FONT_NORMAL, dark_gray_color, true, false);
-  tmp_map_box->AddWidget(map_author_label);
-
-  AddWidget(tmp_map_box);
+  AddWidget(map_author_label);
 
   // Load Maps' list
   uint i = MapsList::GetInstance()->GetActiveMapIndex();
 
-  // If network game skip random generated maps 
+  // If network game skip random generated maps
   if (Network::GetInstance()->IsServer() && i != MapsList::GetInstance()->lst.size()) {
-    for (; MapsList::GetInstance()->lst[i]->IsRandomGenerated(); i = (i + 1) % MapsList::GetInstance()->lst.size());
+    for (; MapsList::GetInstance()->lst[i]->IsRandomGenerated(); i = (i + 1) % MapsList::GetInstance()->lst.size()) {} ;
   }
   ChangeMap(i);
 }
@@ -159,7 +151,7 @@ void MapSelectionBox::ChangeMap(uint index)
     selected_map_index = index;
     // We need to do it here to send the right map to still not connected clients
     // in distant_cpu::distant_cpu
-    
+
     if (selected_map_index == MapsList::GetInstance()->lst.size()) { // random map
       MapsList::GetInstance()->SelectMapByName("random");
     } else {
@@ -180,11 +172,11 @@ void MapSelectionBox::ChangeMap(uint index)
   tmp = index - 1;
   tmp = (tmp < 0 ? tmp + MapsList::GetInstance()->lst.size() + 1: tmp);
   UpdateMapInfo(map_preview_before, tmp, false);
-  
+
   tmp = index - 2;
   tmp = (tmp < 0 ? tmp + MapsList::GetInstance()->lst.size() + 1: tmp);
   UpdateMapInfo(map_preview_before2, tmp, false);
-  
+
   UpdateMapInfo(map_preview_after,  (index + 1) % (MapsList::GetInstance()->lst.size() +1), false);
   UpdateMapInfo(map_preview_after2, (index + 2) % (MapsList::GetInstance()->lst.size() +1), false);
 }
@@ -201,7 +193,7 @@ void MapSelectionBox::UpdateMapInfo(PictureWidget * widget, uint index, bool sel
     widget->SetSurface(info->ReadPreview(), true, true);
   }
   catch (const char* msg) {
-    Question question;
+    Question question(Question::WARNING);
     std::string err = Format("Map %s in folder '%s' is invalid: %s",
                              info->GetRawName().c_str(), info->GetDirectory().c_str(), msg);
     std::cerr << err << std::endl;
@@ -300,4 +292,10 @@ void MapSelectionBox::ChangeMapCallback()
 {
   int index = MapsList::GetInstance()->GetActiveMapIndex();
   ChangeMap(index);
+}
+
+void MapSelectionBox::Pack()
+{
+  VBox::Pack();
+  ChangeMapCallback();
 }

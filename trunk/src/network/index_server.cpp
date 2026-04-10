@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  * Obtain information about running games from an index server
  *****************************************************************************/
 
+#include <assert.h>
 #include <SDL_net.h>
 #include "network/download.h"
 #include "game/config.h"
@@ -32,12 +33,11 @@
 #include "tool/debug.h"
 #include "tool/random.h"
 
-IndexServer index_server;
-
 IndexServer::IndexServer():
   socket(),
   ip(),
   sock_set(),
+  used(0),
   server_lst(),
   first_server(server_lst.end()),
   current_server(server_lst.end()),
@@ -86,6 +86,9 @@ connection_state_t IndexServer::Connect()
       return CONNECTED;
   }
 
+  // Undo what was done
+  Disconnect();
+
   return CONN_REJECTED;
 }
 
@@ -132,12 +135,13 @@ void IndexServer::Disconnect()
     return;
   }
 
-  if( !connected )
+  first_server = server_lst.end();
+  current_server = server_lst.end();
+
+  if (!connected)
     return;
 
   MSG_DEBUG("index_server", "Closing connection");
-  first_server = server_lst.end();
-  current_server = server_lst.end();
 
   SDLNet_TCP_DelSocket(sock_set, socket);
   SDLNet_TCP_Close(socket);
@@ -164,11 +168,11 @@ bool IndexServer::GetServerAddress( std::string & address, int & port, uint & nb
       first_server = server_lst.begin();
       while(nbr--)
 	++first_server;
-      
+
       ASSERT(first_server != server_lst.end());
-      
+
       current_server = first_server;
-      
+
       address = current_server->first;
       port = current_server->second;
       return true;
@@ -185,79 +189,71 @@ bool IndexServer::GetServerAddress( std::string & address, int & port, uint & nb
 }
 
 /*************  Basic transmissions  ******************/
-void IndexServer::Send(const int& nbr)
+void IndexServer::NewMsg(IndexServerMsg msg_id)
 {
-  char packet[4];
-  // this is not cute, but we don't want an int -> uint conversion here
-  Uint32 u_nbr = *((const Uint32*)&nbr);
-
-  SDLNet_Write32(u_nbr, packet);
-  SDLNet_TCP_Send(socket, packet, sizeof(packet));
+  assert(used == 0);
+  Batch((int)msg_id);
+  // Reserve 4 bytes for the total message length.
+  used += 4;
 }
 
-void IndexServer::Send(const std::string &str)
+void IndexServer::Batch(const int& nbr)
 {
-  Send(str.size());
-  SDLNet_TCP_Send(socket, (void*)str.c_str(), str.size());
+  assert(used+4 < INDEX_SERVER_BUFFER_LENGTH);
+  used += Network::Batch(buffer+used, nbr);
+}
+
+void IndexServer::Batch(const std::string &str)
+{
+  assert(used+4+str.size() < INDEX_SERVER_BUFFER_LENGTH);
+  used += Network::Batch(buffer+used, str);
+}
+
+void IndexServer::SendMsg()
+{
+  Network::SendBatch(socket, buffer, used);
+  used = 0;
 }
 
 int IndexServer::ReceiveInt()
 {
-  char packet[4];
   //somehow we can get here while being disconnected... this should not be
-  if(!connected)
-    return -1;
-  if(SDLNet_CheckSockets(sock_set, 5000) == 0)
+  if (!connected)
     return -1;
 
-  if(!SDLNet_SocketReady(socket))
-    return -1;
-
-  if( SDLNet_TCP_Recv(socket, packet, sizeof(packet)) < 1 )
-  {
+  int r, nbr;
+  r = Network::ReceiveInt(sock_set, socket, nbr);
+  if (r == -2) {
     Disconnect();
     return 0;
+  } else if (r != 0) {
+    return r;
   }
 
-  Uint32 u_nbr = SDLNet_Read32(packet);
-  int nbr = *((int*)&u_nbr);
   return nbr;
 }
 
 std::string IndexServer::ReceiveStr()
 {
-  if(!connected)
+  if (!connected)
     return "";
 
-  int size = ReceiveInt();
-  if(size <= 0)
-    return "";
+  int r;
+  std::string str("");
 
-  if(SDLNet_CheckSockets(sock_set, 5000) == 0)
-    return "";
-
-  if(!SDLNet_SocketReady(socket))
-    return "";
-
-  char* str = new char[size+1];
-  if( SDLNet_TCP_Recv(socket, str, size) < 1 )
-  {
-    delete[] str;
+  r = Network::ReceiveStr(sock_set, socket, str);
+  if (r == -2) {
     Disconnect();
-    return "";
   }
 
-  str[size] = '\0';
-
-  std::string st(str);
-  delete []str;
-  return st;
+  return str;
 }
 
 bool IndexServer::HandShake()
 {
-  Send(TS_MSG_VERSION);
-  Send(Constants::WORMUX_VERSION);
+  NewMsg(TS_MSG_VERSION);
+  Batch(Constants::WORMUX_VERSION);
+  SendMsg();
 
   int msg = ReceiveInt();
   if(msg == -1)
@@ -275,49 +271,74 @@ bool IndexServer::HandShake()
   return true;
 }
 
-void IndexServer::SendServerStatus()
+bool IndexServer::SendServerStatus(const std::string& game_name, bool pwd)
 {
+  std::string ack;
   ASSERT(Network::GetInstance()->IsServer());
 
-  if(hidden_server)
-    return;
-  Send(TS_MSG_HOSTING);
-  Send(Network::GetInstance()->GetPort());
+  if (hidden_server)
+    return true;
+
+  NewMsg(TS_MSG_REGISTER_GAME);
+  Batch(game_name);
+  Batch((int)pwd);
+  SendMsg();
+  NewMsg(TS_MSG_HOSTING);
+  Batch(Network::GetInstance()->GetPort());
+  SendMsg();
+
+  ack = ReceiveStr();
+  if (ack == "OK")
+    return true;
+
+  Disconnect();
+  return false;
 }
 
-std::list<address_pair> IndexServer::GetHostList()
+std::list<GameServerInfo> IndexServer::GetHostList()
 {
-  Send(TS_MSG_GET_LIST);
+  NewMsg(TS_MSG_GET_LIST);
+  SendMsg();
   int lst_size = ReceiveInt();
-  std::list<address_pair> lst;
+  std::list<GameServerInfo> lst;
   if(lst_size == -1)
     return lst;
   while(lst_size--)
   {
+    GameServerInfo game_server_info;
     IPaddress ip;
     ip.host = ReceiveInt();
     ip.port = ReceiveInt();
-    const char* addr = SDLNet_ResolveIP(&ip);
+    game_server_info.passworded = !!ReceiveInt();
+    game_server_info.game_name = ReceiveStr();
+
+    const char* dns_addr = SDLNet_ResolveIP(&ip);
     char port[10];
     sprintf(port, "%d", ip.port);
+    game_server_info.port = std::string(port);
 
-    address_pair addr_pair;
-    addr_pair.second = std::string(port);
+    // We can't resolve the hostname, so just show the ip address
+    unsigned char* str_ip = (unsigned char*)&ip.host;
+    char formated_ip[16];
+    snprintf(formated_ip, 16, "%i.%i.%i.%i", (int)str_ip[0],
+	     (int)str_ip[1],
+	     (int)str_ip[2],
+	     (int)str_ip[3]);
+    game_server_info.ip_address = std::string(formated_ip);
 
-    if(addr == NULL)
-    {
-      // We can't resolve the hostname, so just show the ip address
-      unsigned char* str_ip = (unsigned char*)&ip.host;
-      char formated_ip[16];
-      snprintf(formated_ip, 16, "%i.%i.%i.%i", (int)str_ip[0],
-                                           (int)str_ip[1],
-                                           (int)str_ip[2],
-                                           (int)str_ip[3]);
-      addr_pair.first = std::string(formated_ip);
-    }
+    if (dns_addr != NULL)
+      game_server_info.dns_address = std::string(dns_addr);
     else
-      addr_pair.first = std::string(addr);
-    lst.push_back(addr_pair);
+      game_server_info.dns_address = game_server_info.ip_address;
+
+    MSG_DEBUG("index_server","ip: %s, port: %s, dns: %s, name: %s, pwd=%s\n",
+	      game_server_info.ip_address.c_str(),
+	      game_server_info.port.c_str(),
+	      game_server_info.dns_address.c_str(),
+	      game_server_info.game_name.c_str(),
+              (game_server_info.passworded) ? "yes" : "no");
+
+    lst.push_back(game_server_info);
   }
   return lst;
 }
@@ -338,7 +359,10 @@ void IndexServer::Refresh()
     return;
 
   if( msg_id == TS_MSG_PING )
-    Send(TS_MSG_PONG);
+  {
+    NewMsg(TS_MSG_PONG);
+    SendMsg();
+  }
   else
     Disconnect();
 }

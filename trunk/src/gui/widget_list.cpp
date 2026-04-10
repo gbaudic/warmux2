@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2007 Wormux Team.
+ *  Copyright (C) 2001-2008 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ WidgetList::WidgetList()
   keyboard_selection = NULL;
 }
 
-WidgetList::WidgetList(const Rectanglei &rect) : Widget(rect)
+WidgetList::WidgetList(const Point2i &size) : Widget(size)
 {
   last_clicked = NULL;
   mouse_selection = NULL;
@@ -61,8 +61,8 @@ void WidgetList::AddWidget(Widget* w)
   w->SetContainer(this);
 }
 
-void WidgetList::Update(const Point2i &mousePosition, Surface& surf)
-{  
+void WidgetList::Update(const Point2i &mousePosition)
+{
   if (mouse_selection != NULL && !mouse_selection->Contains(mousePosition)) {
     mouse_selection = NULL;
   }
@@ -72,12 +72,12 @@ void WidgetList::Update(const Point2i &mousePosition, Surface& surf)
       w++)
   {
     // Then redraw the widget
-    (*w)->Update(mousePosition, lastMousePosition, surf);
+    (*w)->Update(mousePosition, lastMousePosition);
     if (lastMousePosition != mousePosition && (*w)->Contains(mousePosition)) {
       mouse_selection = (*w);
       mouse_selection->SetHighlighted(true);
     }
-    
+
     if ((*w) != mouse_selection && (*w) != keyboard_selection
 	&& !(*w)->Contains(mousePosition)) {
       (*w)->SetHighlighted(false);
@@ -228,5 +228,15 @@ void WidgetList::SetMouseFocusOn(Widget* w)
   if (w != NULL) {
     last_clicked = w ;
     last_clicked->SetFocus(true);
+  }
+}
+
+void WidgetList::Pack()
+{
+  for(std::list<Widget*>::iterator w=widget_list.begin();
+      w != widget_list.end();
+      w++)
+  {
+    (*w)->Pack();
   }
 }
