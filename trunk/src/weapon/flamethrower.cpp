@@ -85,7 +85,7 @@ void FlameThrowerBullet::RandomizeShoot(double &angle, double &/*strength*/)
 
 void FlameThrowerBullet::ShootSound()
 {
-  JukeBox::GetInstance()->Play("share", "weapon/flamethrower");
+  JukeBox::GetInstance()->Play("default", "weapon/flamethrower");
 }
 
 void FlameThrowerBullet::DoExplosion()
@@ -123,7 +123,7 @@ FlameThrower::FlameThrower() : WeaponLauncher(WEAPON_FLAMETHROWER, "flamethrower
   announce_missed_shots = false;
   m_time_between_each_shot = FLAMETHROWER_TIME_BETWEEN_SHOOT;
 
-  m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile, m_id+"_fire"));
+  m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile, m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
 
   ReloadLauncher();

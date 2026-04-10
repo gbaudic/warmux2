@@ -152,9 +152,9 @@ void Game::Start()
 
 void Game::UnloadDatas(bool game_finished) const
 {
-  world.FreeMem();
+  GetWorld().FreeMem();
   ActiveMap()->FreeData();
-  lst_objects.FreeMem();
+  ObjectsList::GetRef().FreeMem();
   ParticleEngine::Stop();
 
   if (!Network::IsConnected() || !game_finished) {
@@ -264,6 +264,13 @@ void Game::RefreshInput()
   SDL_Event event;
   bool refresh_joystick =  Joystick::GetInstance()->GetNumberOfJoystick() > 0;
   while(SDL_PollEvent(&event)) {
+
+     //Emergency exit
+    if(event.key.keysym.sym == SDLK_ESCAPE && (SDL_GetModState() & KMOD_CTRL) )
+    {
+       exit(0);
+    }
+
     if ( event.type == SDL_QUIT) {
       std::cout << "SDL_QUIT received ===> exit TODO" << std::endl;
       UserAsksForMenu();
@@ -319,7 +326,7 @@ void Game::RefreshObject() const
   GetTeamsList().RefreshEnergy();
 
   ActiveTeam().AccessWeapon().Manage();
-  lst_objects.Refresh();
+  ObjectsList::GetRef().Refresh();
   ParticleEngine::Refresh();
   CharacterCursor::GetInstance()->Refresh();
 }
@@ -328,17 +335,17 @@ void Game::Draw ()
 {
   // Draw the sky
   StatStart("GameDraw:sky");
-  world.DrawSky();
+  GetWorld().DrawSky();
   StatStop("GameDraw:sky");
 
   // Draw the map
   StatStart("GameDraw:world");
-  world.Draw();
+  GetWorld().Draw();
   StatStop("GameDraw:world");
 
   // Draw objects
   StatStart("GameDraw:objects");
-  lst_objects.Draw();
+  ObjectsList::GetRef().Draw();
   ParticleEngine::Draw(true);
   StatStart("GameDraw:objects");
 
@@ -364,7 +371,7 @@ void Game::Draw ()
 
   // Draw waters
   StatStart("GameDraw:water");
-  world.DrawWater();
+  GetWorld().DrawWater();
   StatStop("GameDraw:water");
 
   // Draw game messages
@@ -374,7 +381,7 @@ void Game::Draw ()
 
   // Draw optionals
   StatStart("GameDraw:fps_and_map_author_name");
-  world.DrawAuthorName();
+  GetWorld().DrawAuthorName();
   fps->Draw();
   StatStop("GameDraw:fps_and_map_author_name");
 
@@ -509,7 +516,7 @@ void Game::MainLoop()
   StatStop("Game:RefreshObject()");
 
   // Refresh the map
-  world.Refresh();
+  GetWorld().Refresh();
 
   // try to adjust to max Frame by seconds
 #ifndef USE_VALGRIND
@@ -582,7 +589,7 @@ bool Game::NewBox()
 
 void Game::AddNewBox(ObjBox * box)
 {
-  lst_objects.AddObject(box);
+  ObjectsList::GetRef().AddObject(box);
   Camera::GetInstance()->FollowObject(box, true, true);
   GameMessages::GetInstance()->Add(_("It's a present!"));
   SetCurrentBox(box);

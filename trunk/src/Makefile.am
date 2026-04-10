@@ -216,7 +216,7 @@ wormux_SOURCES = \
         weapon/weapon.cpp weapon/weapon.h \
         weapon/weapon_launcher.cpp weapon/weapon_launcher.h \
         weapon/weapons_list.cpp weapon/weapons_list.h \
-        weapon/weapon_strength_bar.h
+        weapon/weapon_strength_bar.cpp weapon/weapon_strength_bar.h
 
 if AUTOPACKAGE
 DEFINE_AUTOPACKAGE=-DUSE_AUTOPACKAGE
@@ -233,9 +233,7 @@ wormux_SOURCES += wormux.rc wormux.ico
 	@WINDRES@ -o $@ -i $<
 endif
 
-if !INCLUDEDINTL
 LIBS+=@LIBINTL@
-endif
 
 if STATIC
 LIBS += -lssl -lcrypto -lz -lpthread

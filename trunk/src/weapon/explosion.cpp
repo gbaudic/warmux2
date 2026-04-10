@@ -70,11 +70,11 @@ void ApplyExplosion_common (const Point2i &pos,
 
   // Make a hole in the ground
   if(config.explosion_range != 0)
-    world.Dig(pos, config.explosion_range);
+    GetWorld().Dig(pos, config.explosion_range);
 
   // Play a sound
   if (son != "") {
-    JukeBox::GetInstance()->Play("share", son);
+    JukeBox::GetInstance()->Play("default", son);
   }
 
   // Apply damage on the character.

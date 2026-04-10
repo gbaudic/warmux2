@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8.2], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8.3], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -22,7 +22,7 @@ AC_CANONICAL_TARGET
 #AC_CONFIG_AUX_DIR([config])
 AM_INIT_AUTOMAKE([foreign 1.5])
 
-AM_GNU_GETTEXT([external])
+AM_GNU_GETTEXT([external], [need-ngettext])
 
 if test "x$USE_NLS" != "xyes"; then
   AC_MSG_WARN([gettext is disabled. If you want internationalisation, please install gettext package.])
@@ -97,6 +97,9 @@ case "${host}" in
      fi
      AC_SUBST(WINDRES)
      ;;
+  *freebsd*) 
+     LIBS="$LIBS -lintl" # a temporary hackish workaround
+     ;;
   *cygwin*) WIN32="yes" ;;
   *-apple-darwin*)
      OSX="yes"
@@ -142,7 +145,6 @@ AM_CONDITIONAL([AUTOPACKAGE], [test "$enable_autopackage" = "yes"])
 
 AM_CONDITIONAL([STATIC], [test x$static = xyes])
 AM_CONDITIONAL([GCC], [test x$GXX = xyes])
-AM_CONDITIONAL([INCLUDEDINTL], [test x$nls_cv_use_gnu_gettext = xyes])
 
 
 dnl ========================================================================
@@ -241,12 +243,12 @@ AC_ARG_ENABLE(fribidi, AC_HELP_STRING([--enable-fribidi], [enable bi-directional
 if test "${enable_fribidi}" = "yes"; then
    use_fribidi="true"
    AC_CHECK_LIB(fribidi, fribidi_log2vis,
-                [ LIBS="$LIBS `fribidi-config --libs`"
-                  CFLAGS="$CFLAGS `fribidi-config --cflags`"
+                [ LIBS="$LIBS `pkg-config --libs fribidi`"
+                  CFLAGS="$CFLAGS `pkg-config --cflags fribidi`"
                   AC_DEFINE(USE_FRIBIDI, 1, [Define to use FriBidi]) ],
                 [ AC_MSG_WARN([unable to use FriBidi])
                   use_fribidi="false" ],
-                [ `fribidi-config --libs` ])
+                [ `pkg-config --libs fribidi` ])
    if ! ${use_fribidi}; then
      AC_MSG_WARN([fribidi is disabled. If you want bi-directional text rendering, please install fribidi dev package.])
    fi
@@ -266,8 +268,7 @@ for PNG in png png12 png13 dummypng; do
     break
   fi
 done
-if test "$LIBPNG_LIB" = "dummypng"; then
-  echo "Got $LIBPNG_CFLAGS $LIBPNG_LIB"
+if test "$PNG" = "dummypng"; then
   AC_MSG_ERROR([*** libpng not found])
 else
   AC_MSG_RESULT(lib$PNG)

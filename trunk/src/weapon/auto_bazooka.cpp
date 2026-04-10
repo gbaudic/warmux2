@@ -91,7 +91,7 @@ void RPG::Shoot(double strength)
   // Sound must be launched before WeaponProjectile::Shoot
   // in case that the projectile leave the battlefield
   // during WeaponProjectile::Shoot (#bug 10241)
-  flying_sound.Play("share","weapon/automatic_rocket_flying", -1);
+  flying_sound.Play("default","weapon/automatic_rocket_flying", -1);
 
   WeaponProjectile::Shoot(strength);
   angle_local=ActiveCharacter().GetFiringAngle();
@@ -211,7 +211,7 @@ AutomaticBazooka::AutomaticBazooka() :
   m_allow_change_timeout = true;
   m_target = new target_t;
   m_target->selected = false;
-  m_target->image = resource_manager.LoadImage( weapons_res_profile, "baz_cible");
+  m_target->image = GetResourceManager().LoadImage( weapons_res_profile, "baz_cible");
   ReloadLauncher();
 }
 
@@ -258,7 +258,7 @@ void AutomaticBazooka::p_Deselect()
   WeaponLauncher::p_Deselect();
   if (m_target->selected) {
     // need to clear the old target
-    world.ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
+    GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
                         m_target->pos.y-m_target->image.GetHeight()/2,
                         m_target->image.GetWidth(),
                         m_target->image.GetHeight()));
@@ -271,7 +271,7 @@ void AutomaticBazooka::ChooseTarget(Point2i mouse_pos)
 {
   if (m_target->selected) {
     // need to clear the old target
-    world.ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
+    GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
                         m_target->pos.y-m_target->image.GetHeight()/2,
                         m_target->image.GetWidth(),
                         m_target->image.GetHeight()));
@@ -292,7 +292,7 @@ void AutomaticBazooka::DrawTarget() const
 
   GetMainWindow().Blit(m_target->image, m_target->pos - m_target->image.GetSize()/2 - Camera::GetInstance()->GetPosition());
 
-  world.ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
+  GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
                                  m_target->pos.y-m_target->image.GetHeight()/2,
                                  m_target->image.GetWidth(),
                                  m_target->image.GetHeight()));

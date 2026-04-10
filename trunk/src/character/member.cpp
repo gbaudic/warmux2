@@ -32,18 +32,18 @@
 #include "tool/string_tools.h"
 #include "tool/xml_document.h"
 
-Member::Member(const xmlNode* xml, const Profile* res):
+Member::Member(const xmlNode* xml, const std::string& main_folder):
   parent(NULL),
   angle_rad(0),
-  anchor(0,0),
-  spr(NULL),
-  name(""),
+  alpha(0),
+  go_through_ground(false),
   attached_members(),
   pos(0,0),
   scale(0,0),
-  alpha(0),
+  spr(NULL),
+  name(""),
   type(""),
-  go_through_ground(false)
+  anchor(0,0)
 {
   if (xml == NULL)
     return;
@@ -51,7 +51,7 @@ Member::Member(const xmlNode* xml, const Profile* res):
   ASSERT(name!="");
 
   // Load the sprite
-  spr = resource_manager.LoadSprite( res, name);
+  spr = GetResourceManager().LoadSprite(xml, name, main_folder);
   //spr->EnableRotationCache(32);
   //spr->EnableFlippingCache();
   spr->cache.EnableLastFrameCache();
@@ -125,15 +125,15 @@ Member::Member(const xmlNode* xml, const Profile* res):
 Member::Member(const Member& m):
   parent(NULL),
   angle_rad(m.angle_rad),
-  anchor(m.anchor),
-  spr(new Sprite(*m.spr)),
-  name(m.name),
+  alpha(m.alpha),
+  go_through_ground(m.go_through_ground),
   attached_members(),
   pos(m.pos),
   scale(m.scale),
-  alpha(m.alpha),
+  spr(new Sprite(*m.spr)),
+  name(m.name),
   type(m.type),
-  go_through_ground(m.go_through_ground)
+  anchor(m.anchor)
 {
   Point2i rot = Point2i((int)anchor.x, (int)anchor.y);
   spr->SetRotation_HotSpot(rot);
@@ -274,7 +274,68 @@ void Member::ApplyMovement(const member_mvt &mvt, std::vector<junction>& skel_ls
   scale = scale * mvt.scale;
 }
 
-WeaponMember::WeaponMember() : Member(NULL, NULL)
+void Member::ResetMovement()
+{
+  pos.x = 0;
+  pos.y = 0;
+  angle_rad = 0;
+  alpha = 1.0;
+  scale.x = 1.0;
+  scale.y = 1.0;
+}
+
+void Member::SetAngle(const double &angle)
+{
+  angle_rad = angle;
+}
+
+const Sprite& Member::GetSprite() const
+{
+  return *spr;
+}
+
+void Member::SetPos(const Point2f &_pos)
+{
+  pos = _pos;
+}
+
+const Point2f& Member::GetPosFloat() const
+{
+  return pos;
+}
+
+const Point2i Member::GetPos() const
+{
+  return Point2i((int)pos.x, (int)pos.y);
+}
+
+const Point2i Member::GetAnchorPos() const
+{
+  return Point2i((int)anchor.x, (int)anchor.y);
+}
+
+const std::string& Member::GetName() const
+{
+  return name;
+}
+
+const std::string& Member::GetType() const
+{
+  return type;
+}
+
+bool Member::IsGoingThroughGround() const
+{
+  return go_through_ground;
+}
+
+const std::map<std::string, v_attached> & Member::GetAttachedMembers() const
+{
+  return attached_members;
+}
+
+
+WeaponMember::WeaponMember() : Member(NULL, "")
 {
   name = "weapon";
   type = "weapon";

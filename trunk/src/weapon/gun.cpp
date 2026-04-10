@@ -54,7 +54,7 @@ GunBullet::GunBullet(ExplosiveWeaponConfig& cfg,
 
 void GunBullet::ShootSound()
 {
-  JukeBox::GetInstance()->Play("share","weapon/gun");
+  JukeBox::GetInstance()->Play("default","weapon/gun");
 }
 
 //-----------------------------------------------------------------------------
@@ -64,7 +64,7 @@ Gun::Gun() : WeaponLauncher(WEAPON_GUN, "gun", new ExplosiveWeaponConfig())
   UpdateTranslationStrings();
 
   m_category = RIFLE;
-  m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
+  m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
   ReloadLauncher();
 }

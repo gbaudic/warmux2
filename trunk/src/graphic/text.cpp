@@ -39,7 +39,7 @@ Text::Text(const std::string &new_txt,
   shadowed = _shadowed;
   dummy = _dummy;
 
-  if( shadowed && !dummy ){
+  if (shadowed) {
     int width = Font::GetInstance(font_size, font_style)->GetWidth("x");
     bg_offset = (unsigned int)width/8; // shadow offset = 0.125ex
     if (bg_offset < 1) bg_offset = 1;
@@ -242,11 +242,11 @@ void Text::DrawTopLeft(const Point2i &position) const
     app->video->window.Blit(background, shad_rect.GetPosition());
     app->video->window.Blit(surf, dst_rect.GetPosition());
 
-    world.ToRedrawOnScreen(Rectanglei(dst_rect.GetPosition(),
+    GetWorld().ToRedrawOnScreen(Rectanglei(dst_rect.GetPosition(),
                                       shad_rect.GetSize() + bg_offset));
   }else{
     app->video->window.Blit(surf, dst_rect.GetPosition());
-    world.ToRedrawOnScreen(dst_rect);
+    GetWorld().ToRedrawOnScreen(dst_rect);
   }
 }
 
@@ -295,9 +295,9 @@ int Text::GetHeight() const
 {
   Font* font = Font::GetInstance(font_size, font_style);
   if (txt=="" || dummy) {
-    return font->GetHeight();
+    return font->GetHeight() + bg_offset;
   }
-  return std::max(surf.GetHeight(), font->GetHeight());
+  return std::max(surf.GetHeight(), font->GetHeight()) + bg_offset;
 }
 
 void DrawTmpBoxText(Font& font, Point2i pos,
@@ -313,7 +313,7 @@ void DrawTmpBoxText(Font& font, Point2i pos,
   app->video->window.BoxColor(rect, boxColor);
   app->video->window.RectangleColor(rect, rectColor);
 
-  world.ToRedrawOnScreen( rect );
+  GetWorld().ToRedrawOnScreen( rect );
 
   pos.y += font.GetHeight(txt)/2;
   font.WriteCenter( pos, txt, white_color);

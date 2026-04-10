@@ -95,7 +95,7 @@ void Anvil::SignalOutOfMap()
 void Anvil::Refresh()
 {
   if(merge_time != 0 && merge_time < Time::GetInstance()->Read()) {
-    world.MergeSprite(GetPosition(), image);
+    GetWorld().MergeSprite(GetPosition(), image);
     Ghost();
   } else {
     WeaponProjectile::Refresh();
@@ -104,13 +104,13 @@ void Anvil::Refresh()
 
 void Anvil::PlayFallSound()
 {
-  falling_sound.Play("share", "weapon/anvil_fall", -1);
+  falling_sound.Play("default", "weapon/anvil_fall", -1);
 }
 
 void Anvil::PlayCollisionSound()
 {
   falling_sound.Stop();
-  JukeBox::GetInstance()->Play("share", "weapon/anvil_collision");
+  JukeBox::GetInstance()->Play("default", "weapon/anvil_collision");
 }
 
 //-----------------------------------------------------------------------------
@@ -138,7 +138,7 @@ void AnvilLauncher::ChooseTarget(Point2i mouse_pos)
   target.x = mouse_pos.x - (projectile->GetWidth() / 2);
   target.y = 0 - projectile->GetHeight();
 
-  if (!world.ParanoiacRectIsInVacuum(Rectanglei(target, projectile->GetSize())) ||
+  if (!GetWorld().ParanoiacRectIsInVacuum(Rectanglei(target, projectile->GetSize())) ||
      !projectile->IsInVacuumXY(target))
     return;
 
@@ -153,7 +153,7 @@ bool AnvilLauncher::p_Shoot ()
 
   projectile->SetXY(target);
   ((Anvil*)projectile)->PlayFallSound();
-  lst_objects.AddObject(projectile);
+  ObjectsList::GetRef().AddObject(projectile);
   Camera::GetInstance()->FollowObject(projectile, true);
   projectile = NULL;
   ReloadLauncher();

@@ -63,7 +63,7 @@ void ObjMine::FakeExplosion()
 {
   MSG_DEBUG("mine", "Fake explosion");
 
-  JukeBox::GetInstance()->Play("share", "weapon/mine_fake");
+  JukeBox::GetInstance()->Play("default", "weapon/mine_fake");
   ParticleEngine::AddNow(GetPosition(), 5, particle_SMOKE, true);
 
   if ( animation )
@@ -94,7 +94,7 @@ void ObjMine::StartTimeout()
     attente = Time::GetInstance()->ReadSec() + cfg.timeout;
     MSG_DEBUG("mine", "EnableDetection : %d", attente);
 
-    timeout_sound.Play("share", "weapon/mine_beep", -1);
+    timeout_sound.Play("default", "weapon/mine_beep", -1);
   }
 }
 
@@ -236,7 +236,7 @@ void Mine::Add(int x, int y)
   projectile->SetOverlappingObject(&ActiveCharacter());
 
   projectile -> SetSpeedXY (ActiveCharacter().GetSpeedXY());
-  lst_objects.AddObject (projectile);
+  ObjectsList::GetRef().AddObject (projectile);
   projectile = NULL;
   ReloadLauncher();
 }

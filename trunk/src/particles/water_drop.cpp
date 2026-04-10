@@ -89,5 +89,19 @@ RadioactiveParticle::RadioactiveParticle()
 {
   // delete std water image
   delete image;
-  image = ParticleEngine::GetSprite(LAVA_spr);
+  image = ParticleEngine::GetSprite(RADIOACTIVE_spr);
+}
+
+DirtyWaterParticle::DirtyWaterParticle()
+{
+  // delete std water image
+  delete image;
+  image = ParticleEngine::GetSprite(DIRTYWATER_spr);
+}
+
+ChocolateWaterParticle::ChocolateWaterParticle()
+{
+  // delete std water image
+  delete image;
+  image = ParticleEngine::GetSprite(CHOCOLATEWATER_spr);
 }

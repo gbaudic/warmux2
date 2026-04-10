@@ -26,6 +26,7 @@
 #include "tool/debug.h"
 #include <libxml/tree.h>
 #include <libxml/parser.h>
+#include <libxml/xinclude.h>
 
 #ifdef DEBUG
 #include <cstring>
@@ -51,14 +52,15 @@ void display_xml_tree(const xmlNode* root, uint level, bool neigh)
 
 void XmlReader::Reset()
 {
-   if (doc)
+  if (doc)
      xmlFreeDoc(doc);
-   doc = NULL;
+
+  doc = NULL;
 }
 
 XmlReader::~XmlReader()
 {
-   Reset();
+  Reset();
 }
 
 bool XmlReader::Load(const std::string &filename)
@@ -67,8 +69,24 @@ bool XmlReader::Load(const std::string &filename)
      return false;
 
   Reset();
+
+  // Activate Entities
+  xmlSubstituteEntitiesDefault(1);
+
   // Read file
   doc = xmlParseFile(filename.c_str());
+
+  // Activate XInclude (to include content of other files)
+  int nb_subst = xmlXIncludeProcessFlags(doc, XML_PARSE_NOENT);
+  if (nb_subst != 0) {
+    printf("(%p) %s: %d substitutions\n", this, filename.c_str(), nb_subst);
+    ASSERT(nb_subst != -1);
+  }
+
+  //#ifdef DEBUG
+  //if (IsLOGGING("xml.entities"))
+  //  xmlDocDump(stderr, doc);
+  //#endif
 
   // Activate DTD validation parser
   //  parser.set_validate (true);

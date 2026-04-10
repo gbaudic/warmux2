@@ -30,11 +30,6 @@
 
 const std::string CONFIG_FN = "config.xml";
 
-//-----------------------------------------------------------------------------
-BodyList body_list;
-//-----------------------------------------------------------------------------
-
-
 BodyList::BodyList()
 {
 }
@@ -43,18 +38,9 @@ void BodyList::FreeMem()
 {
   // The bodies member variable are freed from here, because the playing bodies
   //  only contains pointers to member/movement/clothes of the bodies in the body_list
-
   std::map<std::string, Body*>::iterator it = list.begin();
   while(it != list.end())
   {
-    // Clean the movements list
-    std::map<std::string, Movement*>::iterator it3 = it->second->mvt_lst.begin();
-    while(it3 != it->second->mvt_lst.end())
-    {
-      delete it3->second;
-      it3++;
-    }
-
     delete it->second;
     it++;
   }
@@ -63,7 +49,8 @@ void BodyList::FreeMem()
 
 void BodyList::Load(const std::string &name)
 {
-  std::string fn = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "body" + PATH_SEPARATOR + name + PATH_SEPARATOR + CONFIG_FN;
+  std::string dir = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "body" + PATH_SEPARATOR + name + PATH_SEPARATOR;
+  std::string fn = dir + CONFIG_FN;
 
   XmlReader doc;
   if (!doc.Load(fn)) {
@@ -71,12 +58,8 @@ void BodyList::Load(const std::string &name)
      return;
   }
 
-  Profile *res = resource_manager.LoadXMLProfile( fn, true);
-
-  Body* body = new Body(doc.GetRoot(), res);
+  Body* body = new Body(doc.GetRoot(), dir);
   list[name] = body;
-
-  resource_manager.UnLoadXMLProfile( res);
 }
 
 Body* BodyList::GetBody(const std::string &name)

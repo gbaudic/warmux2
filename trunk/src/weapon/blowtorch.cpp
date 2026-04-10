@@ -31,6 +31,7 @@
 #include "game/game_mode.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
+#include "sound/jukebox.h"
 #include "team/team.h"
 #include "team/teams_list.h"
 #include "tool/i18n.h"
@@ -54,7 +55,7 @@ Blowtorch::Blowtorch() : Weapon(WEAPON_BLOWTORCH, "blowtorch", new BlowtorchConf
 
   m_category = TOOL;
   m_time_between_each_shot = MIN_TIME_BETWEEN_DIG;
-  m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile, "blowtorch_fire"));
+  m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile, "blowtorch_fire"));
 }
 
 void Blowtorch::UpdateTranslationStrings()
@@ -90,8 +91,8 @@ bool Blowtorch::p_Shoot()
   double dy = sin(angle) * h;
 
   Point2i pos = Point2i(hole.x+(int)dx, hole.y+(int)dy);
-  world.Dig(pos, ActiveCharacter().GetHeight()/2 + 2);
-
+  GetWorld().Dig(pos, ActiveCharacter().GetHeight()/2 + 2);
+  JukeBox::GetInstance()->Play("default", "weapon/blowtorch");
   MoveCharacter(ActiveCharacter());
 
   return true;

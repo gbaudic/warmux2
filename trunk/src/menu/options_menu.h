@@ -85,13 +85,14 @@ class OptionMenu : public Menu
    /* Teams controllers */
 
    ListBox *lbox_teams;
-   ButtonPic *add_team;
-   ButtonPic *delete_team;
+   Button *add_team;
+   Button *delete_team;
    CustomTeam  *selected_team;
    TextBox *tbox_team_name;
    Label *team_name;
    std::vector<TextBox *> tbox_character_name_list;
 
+   bool TeamInfoValid();
    void AddTeam();
    void DeleteTeam();
    void LoadTeam();
@@ -101,7 +102,6 @@ class OptionMenu : public Menu
 
    bool signal_ok();
    bool signal_cancel();
-   void key_tab();
 };
 
 #endif

@@ -364,7 +364,7 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
   , msg_box(NULL)
   , winner_box(NULL)
 {
-  Profile *res = resource_manager.LoadXMLProfile("graphism.xml", false);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   uint x = 20;
   uint y = 20;
 
@@ -373,7 +373,7 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
 
   // And the winner is :
   if (first_team) {
-    JukeBox::GetInstance()->Play("share","victory");
+    JukeBox::GetInstance()->Play("default","victory");
 
     winner_box = new VBox(240, true);
     winner_box->AddWidget(new Label(_("Winner"), 240, Font::FONT_BIG, Font::FONT_BOLD,
@@ -394,8 +394,8 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
   }
 
   // Load the podium img
-  podium_img = resource_manager.LoadImage(res, "menu/podium");
-  resource_manager.UnLoadXMLProfile(res);
+  podium_img = GetResourceManager().LoadImage(res, "menu/podium");
+  GetResourceManager().UnLoadXMLProfile(res);
 
   x+=260;
   const Point2i& wsize = GetMainWindow().GetSize();
@@ -419,7 +419,7 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
   for (uint i=0; i<v.size(); i++)
   {
     const Team* team = v[i]->getTeam();
-    const char* name = (team) ? team->GetName().c_str() : _("All teams");
+    const std::string name = (team) ? team->GetName() : _("All teams");
     stats->AddNewTab(name, name, new ResultListBox(v[i], tab_size - 4*BorderSize));
   }
   tabs->AddNewTab("TAB_team", _("Team stats"), stats);

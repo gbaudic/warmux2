@@ -451,7 +451,7 @@ void Character::Draw()
   if (IsLOGGING("body"))
   {
     dy -= HAUT_FONT_MIX;
-    std::string txt = body->GetClothe() + " " + body->GetMovement();
+    std::string txt = body->GetClothe() + " " + body->GetMovement() + " " + body->GetFrameLoop();
     Text skin_text(txt);
     skin_text.DrawCenterTopOnMap(Point2i(GetX(), GetY() - dy));
   }
@@ -504,7 +504,7 @@ void Character::BackJump()
 {
   MSG_DEBUG("character", "BackJump");
   back_jumping = true;
-  JukeBox::GetInstance()->Play (ActiveTeam().GetSoundProfile(), "jump");
+  JukeBox::GetInstance()->Play (ActiveTeam().GetSoundProfile(), "back_jump");
   Jump(GameMode::GetInstance()->character.back_jump_strength,
        GameMode::GetInstance()->character.back_jump_angle);
 }
@@ -1058,9 +1058,9 @@ void Character::HandleKeyPressed_Jump(bool)
 {
   HideGameInterface();
   if (ActiveCharacter().IsImmobile()) {
-    Jump();
     Action a(Action::ACTION_CHARACTER_JUMP);
     SendActiveCharacterAction(a);
+    Jump();
   }
 }
 
@@ -1069,9 +1069,9 @@ void Character::HandleKeyPressed_HighJump(bool)
 {
   HideGameInterface();
   if (ActiveCharacter().IsImmobile()) {
-    HighJump();
     Action a(Action::ACTION_CHARACTER_HIGH_JUMP);
     SendActiveCharacterAction(a);
+    HighJump();
   }
 }
 
@@ -1080,9 +1080,9 @@ void Character::HandleKeyPressed_BackJump(bool)
 {
   HideGameInterface();
   if (ActiveCharacter().IsImmobile()) {
-    BackJump();
     Action a(Action::ACTION_CHARACTER_BACK_JUMP);
     SendActiveCharacterAction(a);
+    BackJump();
   }
 }
 

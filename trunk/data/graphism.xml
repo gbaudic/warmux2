@@ -86,11 +86,16 @@
   <surface name="password_lock" file="menu/padlock.png" />
 
   <!-- For team editor menu -->
-
- <surface name="add_custom_team" file="menu/add_custom_team.png" />
- <surface name="del_custom_team" file="menu/del_custom_team.png" />
-
-
+  <sprite name="add_custom_team">
+    <image file="menu/add_custom_team.png">
+      <grid pos="0,0" size="32,32" array="1,1" />
+    </image>
+  </sprite>
+  <sprite name="del_custom_team">
+    <image file="menu/del_custom_team.png">
+      <grid pos="0,0" size="32,32" array="1,1" />
+    </image>
+  </sprite>
 
   <!-- Buttons -->
 
@@ -195,6 +200,7 @@
   <color name="weapon_strength_bar_value" r="255" g="255" b="255" a="128" />
   <color name="weapon_strength_bar_border" r="0" g="0" b="0" a="255" />
   <color name="weapon_strength_bar_background" r="153" g="153" b="153" a="96" />
+  <surface name="weapon_strength_bar_last_fire" file="interface/lastfire.png" />
   <color name="text_color" r="0" g="0" b="0" a="255" />
   <color name="energy_text_color" r="255" g="255" b="255" a="255" />
   <color name="turn_timer_text_color" r="0" g="0" b="0" a="255" />
@@ -203,14 +209,52 @@
   <surface name="small_background_interface" file="interface/small_background_interface.png" />
   <color name="background_color" r="255" g="255" b="255" a="128" />
   <color name="border_color" r="43" g="53" b="108" a="255" />
-  <point name="weapons_interface_size" x="320" y="320" />
-  <point name="tools_interface_size" x="160" y="320" />
+  <point name="weapons_interface_size" x="290" y="235" />
+  <point name="tools_interface_size" x="290" y="100" />
   <surface name="cross" file="interface/cross.png"/>
   <surface name="clock_background" file="interface/clock_background.png"/>
   <surface name="clock" file="interface/clock.png"/>
   <surface name="wind" file="interface/wind.png"/>
   <surface name="wind_indicator" file="interface/wind_indicator.png"/>
   <surface name="quit_screen" file="interface/quit.png"/>
+  <!-- Game mode options -->
+  <surface name="rounding_bottom" file="interface/rounding_bottom.png" />
+  <surface name="rounding_bottom_left" file="interface/rounding_bottomleft.png" />
+  <surface name="rounding_bottom_right" file="interface/rounding_bottomright.png" />
+  <surface name="rounding_top" file="interface/rounding_top.png" />
+  <surface name="rounding_top_left" file="interface/rounding_topleft.png" />
+  <surface name="rounding_top_right" file="interface/rounding_topright.png" />
+  <surface name="rounding_center" file="interface/rounding_center.png" />
+  <surface name="rounding_left" file="interface/rounding_left.png" />
+  <surface name="rounding_right" file="interface/rounding_right.png" />
+  <surface name="rounding_mask_bottom_left" file="interface/hide_bottomleft.png" />
+  <surface name="rounding_mask_bottom_right" file="interface/hide_bottomright.png" />
+  <surface name="rounding_mask_top_left" file="interface/hide_topleft.png" />
+  <surface name="rounding_mask_top_right" file="interface/hide_topright.png" />
+  <surface name="rounding_mask_bottom" file="interface/hide_bottom.png" />
+  <surface name="rounding_mask_right" file="interface/hide_right.png" />
+  <surface name="rounding_mask_left" file="interface/hide_left.png" />
+  <surface name="rounding_mask_top" file="interface/hide_top.png" />
+  
+  <surface name="square_bottom" file="interface/square_bottom.png" />
+  <surface name="square_bottom_left" file="interface/square_bottomleft.png" />
+  <surface name="square_bottom_right" file="interface/square_bottomright.png" />
+  <surface name="square_top" file="interface/square_top.png" />
+  <surface name="square_top_left" file="interface/square_topleft.png" />
+  <surface name="square_top_right" file="interface/square_topright.png" />
+  <surface name="square_center" file="interface/square_center.png" />
+  <surface name="square_left" file="interface/square_left.png" />
+  <surface name="square_right" file="interface/square_right.png" />
+  <surface name="square_mask_bottom_left" file="interface/hide_bottomleft.png" />
+  <surface name="square_mask_bottom_right" file="interface/hide_bottomright.png" />
+  <surface name="square_mask_top_left" file="interface/hide_topleft.png" />
+  <surface name="square_mask_top_right" file="interface/hide_topright.png" />
+  <surface name="square_mask_bottom" file="interface/hide_bottom.png" />
+  <surface name="square_mask_right" file="interface/hide_right.png" />
+  <surface name="square_mask_left" file="interface/hide_left.png" />
+  <surface name="square_mask_top" file="interface/hide_top.png" />
+  
+  
 </section>
 
 <section name="loading_screen">
@@ -234,6 +278,7 @@
   <color name="lava" r="255" g="148" b="0" a="224" />
   <color name="radioactive" r="255" g="212" b="212" a="224" />
   <color name="dirtywater" r="67" g="107" b="21" a="64" />
+  <color name="chocolate" r="67" g="107" b="21" a="64" />
 </section>
 
 <section name="gfx">
@@ -254,6 +299,9 @@
 
   <surface name="dirtywater" file="gfx/water/dirtywater.png" />
   <surface name="dirtywater_bottom" file="gfx/water/dirtywater_bottom.png" />
+
+  <surface name="chocolate" file="gfx/water/chocolate.png" />
+  <surface name="chocolate_bottom" file="gfx/water/chocolate_bottom.png" />
 
 </section>
 

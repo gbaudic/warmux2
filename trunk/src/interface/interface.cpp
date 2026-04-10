@@ -43,22 +43,44 @@ WeaponStrengthBar weapon_strength_bar;
 
 const Point2i BORDER_POSITION(5, 5);
 
-const uint MARGIN = 10;
+const uint MARGIN = 4;
 
-Interface::Interface()
+Interface::Interface():
+m_last_minimap_redraw(0)
 {
   display = true;
   start_hide_display = 0;
   start_show_display = 0;
   display_minimap = true;
+  minimap = NULL;
 
-  Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  game_menu = resource_manager.LoadImage( res, "interface/background_interface");
-  small_background_interface = resource_manager.LoadImage( res, "interface/small_background_interface");
-  clock_background = resource_manager.LoadImage( res, "interface/clock_background");
-  clock = new Sprite(resource_manager.LoadImage( res, "interface/clock"));
-  wind_icon = resource_manager.LoadImage( res, "interface/wind");
-  wind_indicator = resource_manager.LoadImage( res, "interface/wind_indicator");
+  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  game_menu = GetResourceManager().LoadImage( res, "interface/background_interface");
+  small_background_interface = GetResourceManager().LoadImage( res, "interface/small_background_interface");
+  clock_background = GetResourceManager().LoadImage( res, "interface/clock_background");
+  clock = new Sprite(GetResourceManager().LoadImage( res, "interface/clock"));
+  wind_icon = GetResourceManager().LoadImage( res, "interface/wind");
+  wind_indicator = GetResourceManager().LoadImage( res, "interface/wind_indicator");
+
+  // styled box
+  rounding_style[1][2] = GetResourceManager().LoadImage( res, "interface/rounding_bottom");
+  rounding_style[0][2] = GetResourceManager().LoadImage( res, "interface/rounding_bottom_left");
+  rounding_style[2][2] = GetResourceManager().LoadImage( res, "interface/rounding_bottom_right");
+  rounding_style[1][0] = GetResourceManager().LoadImage( res, "interface/rounding_top");
+  rounding_style[0][0] = GetResourceManager().LoadImage( res, "interface/rounding_top_left");
+  rounding_style[2][0] = GetResourceManager().LoadImage( res, "interface/rounding_top_right");
+  rounding_style[0][1] = GetResourceManager().LoadImage( res, "interface/rounding_left");
+  rounding_style[2][1] = GetResourceManager().LoadImage( res, "interface/rounding_right");
+  rounding_style[1][1] = GetResourceManager().LoadImage( res, "interface/rounding_center");
+
+  rounding_style_mask[1][2] = GetResourceManager().LoadImage( res, "interface/rounding_mask_bottom");
+  rounding_style_mask[0][2] = GetResourceManager().LoadImage( res, "interface/rounding_mask_bottom_left");
+  rounding_style_mask[2][2] = GetResourceManager().LoadImage( res, "interface/rounding_mask_bottom_right");
+  rounding_style_mask[1][0] = GetResourceManager().LoadImage( res, "interface/rounding_mask_top");
+  rounding_style_mask[0][0] = GetResourceManager().LoadImage( res, "interface/rounding_mask_top_left");
+  rounding_style_mask[2][0] = GetResourceManager().LoadImage( res, "interface/rounding_mask_top_right");
+  rounding_style_mask[0][1] = GetResourceManager().LoadImage( res, "interface/rounding_mask_left");
+  rounding_style_mask[2][1] = GetResourceManager().LoadImage( res, "interface/rounding_mask_right");
 
   // energy bar
   energy_bar.InitVal(0, 0, GameMode::GetInstance()->character.init_energy);
@@ -73,18 +95,18 @@ Interface::Interface()
   wind_bar.SetReferenceValue (true, 0);
 
   // strength bar initialisation
-  weapon_strength_bar.InitPos (0, 0, 400, 20);
+  weapon_strength_bar.InitPos (0, 0, 300, 15);
   weapon_strength_bar.InitVal (0, 0, 100);
 
-  weapon_strength_bar.SetValueColor(resource_manager.LoadColor(res, "interface/weapon_strength_bar_value"));
-  weapon_strength_bar.SetBorderColor(resource_manager.LoadColor(res, "interface/weapon_strength_bar_border"));
-  weapon_strength_bar.SetBackgroundColor(resource_manager.LoadColor(res, "interface/weapon_strength_bar_background"));
+  weapon_strength_bar.SetValueColor(GetResourceManager().LoadColor(res, "interface/weapon_strength_bar_value"));
+  weapon_strength_bar.SetBorderColor(GetResourceManager().LoadColor(res, "interface/weapon_strength_bar_border"));
+  weapon_strength_bar.SetBackgroundColor(GetResourceManager().LoadColor(res, "interface/weapon_strength_bar_background"));
 
-  Color text_color = resource_manager.LoadColor(res, "interface/text_color");
-  Color energy_text_color = resource_manager.LoadColor(res, "interface/energy_text_color");
+  Color text_color = GetResourceManager().LoadColor(res, "interface/text_color");
+  Color energy_text_color = GetResourceManager().LoadColor(res, "interface/energy_text_color");
   // XXX Unused !?
-  // Color turn_timer_text_color = resource_manager.LoadColor(res, "interface/turn_timer_text_color");
-  // Color global_clock_text_color = resource_manager.LoadColor(res, "interface/global_clock_text_color");
+  // Color turn_timer_text_color = GetResourceManager().LoadColor(res, "interface/turn_timer_text_color");
+  // Color global_clock_text_color = GetResourceManager().LoadColor(res, "interface/global_clock_text_color");
 
   global_timer = new Text(ulong2str(0), gray_color, Font::FONT_BIG, Font::FONT_NORMAL, false);
   timer = new Text(ulong2str(0), black_color, Font::FONT_MEDIUM, Font::FONT_NORMAL, false);
@@ -96,7 +118,7 @@ Interface::Interface()
   t_weapon_stock = new Text("0", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
   t_character_energy = new Text("Dead", energy_text_color, Font::FONT_SMALL, Font::FONT_BOLD);
 
-  resource_manager.UnLoadXMLProfile( res);
+  GetResourceManager().UnLoadXMLProfile( res);
 }
 
 Interface::~Interface()
@@ -110,10 +132,13 @@ Interface::~Interface()
   if (t_character_energy) delete t_character_energy;
   if (t_weapon_name) delete t_weapon_name;
   if (t_weapon_stock) delete t_weapon_stock;
+  if (minimap) delete minimap;
 }
 
 void Interface::Reset()
 {
+  delete minimap;
+  minimap = NULL;
   start_hide_display = 0;
   start_show_display = 0;
   character_under_cursor = NULL;
@@ -212,7 +237,7 @@ void Interface::DrawTimeInfo() const
 
   // Draw background interface
   app->video->window.Blit(clock_background, turn_time_pos);
-  world.ToRedrawOnScreen(dr);
+  GetWorld().ToRedrawOnScreen(dr);
   DrawClock(turn_time_pos + clock_background.GetSize() / 2);
 }
 
@@ -248,7 +273,7 @@ void Interface::DrawWindIndicator(const Point2i &wind_bar_pos, const bool draw_i
   // draw wind icon
   if(draw_icon) {
     app->video->window.Blit(wind_icon, wind_bar_pos);
-    world.ToRedrawOnScreen(Rectanglei(wind_bar_pos, wind_icon.GetSize()));
+    GetWorld().ToRedrawOnScreen(Rectanglei(wind_bar_pos, wind_icon.GetSize()));
     height = wind_icon.GetHeight() - wind_indicator.GetHeight();
   } else {
     height = MARGIN;
@@ -259,7 +284,7 @@ void Interface::DrawWindIndicator(const Point2i &wind_bar_pos, const bool draw_i
   Point2i tmp = wind_bar_pos + wind_bar_offset + Point2i(2, 2);
   app->video->window.Blit(wind_indicator, wind_bar_pos + wind_bar_offset);
   wind_bar.DrawXY(tmp);
-  world.ToRedrawOnScreen(Rectanglei(wind_bar_pos + wind_bar_offset, wind_indicator.GetSize()));
+  GetWorld().ToRedrawOnScreen(Rectanglei(wind_bar_pos + wind_bar_offset, wind_indicator.GetSize()));
 }
 
 // display wind info
@@ -280,7 +305,7 @@ void Interface::DrawSmallInterface() const
   height = (height < small_background_interface.GetHeight() ? height : small_background_interface.GetHeight());
   Point2i small_interface_position = Point2i(app->video->window.GetWidth() / 2 - small_background_interface.GetWidth() / 2, app->video->window.GetHeight() - height);
   app->video->window.Blit(small_background_interface,small_interface_position);
-  world.ToRedrawOnScreen(Rectanglei(small_interface_position,small_background_interface.GetSize()));
+  GetWorld().ToRedrawOnScreen(Rectanglei(small_interface_position,small_background_interface.GetSize()));
   DrawWindIndicator(small_interface_position + Point2i(MARGIN, 0), false);
   if (display_timer)
     timer->DrawTopLeft(small_interface_position + Point2i(MARGIN * 2 + wind_bar.GetWidth(), MARGIN));
@@ -301,28 +326,50 @@ void Interface::DrawTeamEnergy() const
 void Interface::DrawMapPreview()
 {
   Surface&       window  = GetMainWindow();
-  const Surface* preview = world.ground.GetPreview();
-  Point2i        offset(window.GetWidth() - world.ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
-  Rectanglei     rect_preview(offset, world.ground.GetPreviewSize());
+  Point2i        offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
+  Rectanglei     rect_preview(offset, GetWorld().ground.GetPreviewSize());
 
-  window.Blit(*preview, world.ground.GetPreviewRect(), offset);
+  if (minimap == NULL ||
+      GetWorld().ground.GetLastPreviewRedrawTime()>m_last_minimap_redraw ||
+      GetWorld().water.GetLastPreviewRedrawTime()>m_last_minimap_redraw){
 
-  // Draw water
-  if (world.water.IsActive()) {
-    const Color *color = world.water.GetColor();
-    ASSERT(color);
+    m_last_minimap_redraw = Time::GetInstance()->Read();
 
-    // Scale water height according to preview size
-    uint       h = (world.water.GetSelfHeight() * rect_preview.GetSizeY() + (world.GetSize().GetY()/2))
-                 / world.GetSize().GetY();
-    Rectanglei water(offset.x, offset.y+rect_preview.GetSizeY()-h, rect_preview.GetSizeX(), h);
+    if (minimap) delete minimap;
 
-    // Draw box with color according to water type
-    window.BoxColor(water, *color);
+    Surface preview(*GetWorld().ground.GetPreview());
+    minimap = new Surface(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+    Point2i mergePos = GetWorld().ground.GetPreviewRect().GetPosition();
+    mergePos = -mergePos;
+    minimap->MergeSurface(preview,mergePos);
+
+
+    // Draw water
+    if (GetWorld().water.IsActive()) {
+      const Color *color = GetWorld().water.GetColor();
+      ASSERT(color);
+      Color water_color = *color;
+      water_color.SetColor(water_color.GetRed(),water_color.GetGreen(),water_color.GetBlue(),200) ;
+
+
+      // Scale water height according to preview size
+      uint       h = (GetWorld().water.GetSelfHeight() * rect_preview.GetSizeY() + (GetWorld().GetSize().GetY()/2))
+                  / GetWorld().GetSize().GetY();
+
+      Rectanglei water(0, rect_preview.GetSizeY()-h, rect_preview.GetSizeX(), h);
+
+
+      Surface water_surf(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+
+      // Draw box with color according to water type
+      water_surf.BoxColor(water, water_color);
+      minimap->MergeSurface(water_surf,Point2i(0,0));
+
+    }
+    GenerateStyledBox(*minimap);
   }
 
-  world.ToRedrawOnScreen(rect_preview);
-  window.RectangleColor(rect_preview, white_color);
+  window.Blit(*minimap, offset);
 
   FOR_EACH_TEAM(team) {
     const Surface& icon = (*team)->GetMiniFlag();
@@ -330,21 +377,102 @@ void Interface::DrawMapPreview()
            end_character = (*(team))->end();
          character != end_character;
          ++character) {
-      if (!character -> IsDead()) {
-        Point2i     coord = world.ground.PreviewCoordinates((*character).GetPosition()) + offset;
+      if (!character->IsDead()) {
+        Point2i     coord = GetWorld().ground.PreviewCoordinates(character->GetPosition()) + offset;
 
         window.Blit(icon, coord - icon.GetSize()/2);
         if (character->IsActiveCharacter()) {
           uint radius = (icon.GetSize().x < icon.GetSize().y) ? icon.GetSize().y : icon.GetSize().x;
           radius = (radius/2) + 1;
           window.CircleColor(coord.x, coord.y, radius, c_white);
-          world.ToRedrawOnScreen(Rectanglei(coord.x-radius-1, coord.y-radius-1, 2*radius+2, 2*radius+2));
+          GetWorld().ToRedrawOnScreen(Rectanglei(coord.x-radius-1, coord.y-radius-1, 2*radius+2, 2*radius+2));
         }
 	else
-          world.ToRedrawOnScreen(Rectanglei(coord - icon.GetSize()/2, icon.GetSize()));
+          GetWorld().ToRedrawOnScreen(Rectanglei(coord - icon.GetSize()/2, icon.GetSize()));
       }
     }
   }
+  GetWorld().ToRedrawOnScreen(rect_preview);
+
+
+}
+
+void Interface::GenerateStyledBox(Surface & source)
+{
+
+  Surface save_surf(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+  save_surf.MergeSurface(source, Point2i(0,0));
+  Rectanglei temp_rect;
+
+  source = Surface(Surface(GetWorld().ground.GetPreviewSize(),SDL_SWSURFACE, true));
+
+  temp_rect.SetPosition(Point2i(0,0));
+  temp_rect.SetSize(source.GetSize());
+
+  Point2i temp_position;
+
+  temp_position = temp_rect.GetPosition();
+  source.MergeSurface(rounding_style[0][0], temp_position);
+
+  temp_position = temp_rect.GetPosition();
+  temp_position.x += temp_rect.GetSize().x - rounding_style[2][0].GetSize().x;
+  source.MergeSurface(rounding_style[2][0],temp_position);
+
+  temp_position = temp_rect.GetPosition();
+  temp_position.y += temp_rect.GetSize().y - rounding_style[0][2].GetSize().y;
+  source.MergeSurface(rounding_style[0][2],temp_position);
+
+  temp_position = temp_rect.GetPosition();
+  temp_position.x += temp_rect.GetSize().x - rounding_style[2][2].GetSize().x;
+  temp_position.y += temp_rect.GetSize().y - rounding_style[2][2].GetSize().y;
+  source.MergeSurface(rounding_style[2][2],temp_position);
+
+
+  for(int i = rounding_style[0][0].GetSize().x; i< (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);i++){
+    temp_position = temp_rect.GetPosition();
+    temp_position.x += i;
+    source.MergeSurface(rounding_style[1][0],temp_position);
+
+    temp_position.y += temp_rect.GetSize().y - rounding_style[1][2].GetSize().y;
+    source.MergeSurface(rounding_style[1][2],temp_position);
+
+  }
+
+  for(int i = rounding_style[0][0].GetSize().y; i< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);i++){
+    temp_position = temp_rect.GetPosition();
+    temp_position.y += i;
+    source.MergeSurface(rounding_style[0][1],temp_position);
+
+    temp_position.x += temp_rect.GetSize().x - rounding_style[2][1].GetSize().x;
+    source.MergeSurface(rounding_style[2][1],temp_position);
+
+  }
+
+  for(int i = rounding_style[0][0].GetSize().x; i< (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);i++){
+
+    for(int j = rounding_style[0][0].GetSize().y; j< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);j++){
+      temp_position = temp_rect.GetPosition() + Point2i(i,j);
+      source.MergeSurface(rounding_style[1][1],temp_position);
+    }
+  }
+
+  //Corner
+  save_surf.MergeAlphaSurface(rounding_style_mask[0][0],Point2i(0,0));
+  save_surf.MergeAlphaSurface(rounding_style_mask[2][0],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,0));
+  save_surf.MergeAlphaSurface(rounding_style_mask[0][2],Point2i(0,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
+  save_surf.MergeAlphaSurface(rounding_style_mask[2][2],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
+
+  //Top
+  save_surf.MergeAlphaSurface(rounding_style_mask[1][0],Point2i(rounding_style_mask[0][0].GetSize().x,0));
+  //Bottom
+  save_surf.MergeAlphaSurface(rounding_style_mask[1][2],Point2i(rounding_style_mask[0][0].GetSize().x,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
+  //Left
+  save_surf.MergeAlphaSurface(rounding_style_mask[0][1],Point2i(0,rounding_style_mask[0][0].GetSize().y));
+  //Right
+  save_surf.MergeAlphaSurface(rounding_style_mask[2][1],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,rounding_style_mask[0][0].GetSize().y));
+
+
+   source.MergeSurface(save_surf, Point2i(0,0));
 }
 
 void Interface::Draw()
@@ -368,7 +496,7 @@ void Interface::Draw()
   Rectanglei dr(bottom_bar_pos, game_menu.GetSize());
   app->video->window.Blit(game_menu, bottom_bar_pos);
 
-  world.ToRedrawOnScreen(dr);
+  GetWorld().ToRedrawOnScreen(dr);
 
   // display wind, character and weapon info
   DrawWindInfo();
@@ -403,6 +531,11 @@ int Interface::GetMenuHeight() const
 Point2i Interface::GetSize() const
 {
   return Point2i(GetWidth(), GetHeight());
+}
+
+Point2i Interface::GetMenuPosition() const
+{
+  return bottom_bar_pos;
 }
 
 void Interface::EnableDisplay(bool _display)
@@ -444,7 +577,7 @@ void AbsoluteDraw(const Surface &s, const Point2i& pos)
   if( !rectSurface.Intersect(*Camera::GetInstance()))
     return;
 
-  world.ToRedrawOnMap(rectSurface);
+  GetWorld().ToRedrawOnMap(rectSurface);
 
   rectSurface.Clip(*Camera::GetInstance());
 

@@ -69,7 +69,7 @@ bool Teleportation::p_Shoot ()
 
   //  Game::GetInstance()->interaction_enabled = false;
 
-  JukeBox::GetInstance()->Play("share", "weapon/teleport_start");
+  JukeBox::GetInstance()->Play("default", "weapon/teleport_start");
 
   ActiveCharacter().Hide();
   ActiveCharacter().body->MakeTeleportParticles(ActiveCharacter().GetPosition(), dst);
@@ -85,7 +85,7 @@ void Teleportation::Refresh()
     ActiveCharacter().SetXY(dst);
     ActiveCharacter().SetSpeed(0.0, 0.0);
     ActiveCharacter().Show();
-    JukeBox::GetInstance()->Play("share", "weapon/teleport_end");
+    JukeBox::GetInstance()->Play("default", "weapon/teleport_end");
     return;
   }
 }
@@ -107,7 +107,7 @@ void Teleportation::p_Deselect()
 void Teleportation::ChooseTarget(Point2i mouse_pos)
 {
   dst = mouse_pos - ActiveCharacter().GetSize()/2;
-  if(!world.ParanoiacRectIsInVacuum(Rectanglei(dst,ActiveCharacter().GetSize())) ||
+  if(!GetWorld().ParanoiacRectIsInVacuum(Rectanglei(dst,ActiveCharacter().GetSize())) ||
      !ActiveCharacter().IsInVacuumXY(dst))
     return;
   target_chosen = true;

@@ -62,12 +62,12 @@ Team::Team (const std::string& teams_dir, const std::string& id)
     throw "Invalid file structure: cannot find a name for team ";
 
   // Load flag
-  Profile *res = resource_manager.LoadXMLProfile(nomfich, true);
-  flag = resource_manager.LoadImage(res, "flag");
+  Profile *res = GetResourceManager().LoadXMLProfile(nomfich, true);
+  flag = GetResourceManager().LoadImage(res, "flag");
   mini_flag = flag.RotoZoom(0.0, 0.5, 0.5, true);
-  death_flag = resource_manager.LoadImage(res, "death_flag");
-  big_flag = resource_manager.LoadImage(res, "big_flag");
-  resource_manager.UnLoadXMLProfile(res);
+  death_flag = GetResourceManager().LoadImage(res, "death_flag");
+  big_flag = GetResourceManager().LoadImage(res, "big_flag");
+  GetResourceManager().UnLoadXMLProfile(res);
 
   // Get sound profile
   if (!XmlReader::ReadString(doc.GetRoot(), "sound_profile", m_sound_profile))
@@ -77,6 +77,7 @@ Team::Team (const std::string& teams_dir, const std::string& id)
 
   is_camera_saved = false;
   active_weapon = NULL;
+  attached_custom_team = NULL;
 
   m_player_name = "";
 
@@ -112,7 +113,7 @@ bool Team::LoadCharacters()
     XmlReader::ReadStringAttr(*it, "name", character_name);
     XmlReader::ReadStringAttr(*it, "body", body_name);
 
-    if (!(body = body_list.GetBody(body_name)) )
+    if (!(body = BodyList::GetRef().GetBody(body_name)) )
     {
       std::cerr
           << Format(_("Error: can't find the body \"%s\" for the team \"%s\"."),
@@ -130,10 +131,10 @@ bool Team::LoadCharacters()
     }
     characters.push_back(new_character);
     active_character = characters.begin(); // we need active_character to be initialized here !!
-    if (!characters.back().PutRandomly(false, world.GetDistanceBetweenCharacters()))
+    if (!characters.back().PutRandomly(false, GetWorld().GetDistanceBetweenCharacters()))
     {
       // We haven't found any place to put the characters!!
-      if (!characters.back().PutRandomly(false, world.GetDistanceBetweenCharacters() / 2)) {
+      if (!characters.back().PutRandomly(false, GetWorld().GetDistanceBetweenCharacters() / 2)) {
         std::cerr << std::endl;
         std::cerr << "Error: player " << character_name.c_str() << " will be probably misplaced!" << std::endl;
         std::cerr << std::endl;
@@ -290,7 +291,7 @@ void Team::PrepareTurn()
 
   // Sound the bell, so the local players know when it is their turn
   if (IsLocal())
-    JukeBox::GetInstance()->Play("share", "start_turn");
+    JukeBox::GetInstance()->Play("default", "start_turn");
 }
 
 Character& Team::ActiveCharacter() const

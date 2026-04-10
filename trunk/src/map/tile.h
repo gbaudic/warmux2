@@ -30,8 +30,6 @@ class Sprite;
 class TileItem;
 class TileItem_Empty;
 
-extern TileItem_Empty EmptyTile;
-
 const uint EXPLOSION_BORDER_SIZE = 10;
 
 class Tile : public Rectanglei{
@@ -71,6 +69,8 @@ public:
   void  CheckPreview();
   const Point2i& GetPreviewSize() const { return m_preview_size; };
   const Rectanglei& GetPreviewRect() const { return m_preview_rect; };
+  uint GetLastPreviewRedrawTime() const { return m_last_preview_redraw; };
+
   // Translate world coordinates into a preview ones
   // @warning assumes CELL_SIZE is 64x64
   Point2i PreviewCoordinates(const Point2i& pos) { return (pos-m_upper_left_offset)>>m_shift; };
@@ -85,10 +85,10 @@ protected:
 
   // Ground dimensions
   Point2i nbCells;
-  unsigned int nbr_cell;
 
   void InitPreview();
   Surface*   m_preview;
+  uint       m_last_preview_redraw;
   uint       m_shift;
   Point2i    m_last_video_size;
   Point2i    m_preview_size;

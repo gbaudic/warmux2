@@ -63,7 +63,7 @@ Airhammer::Airhammer() : Weapon(WEAPON_AIR_HAMMER,"airhammer",new AirhammerConfi
 
   m_category = TOOL;
 
-  impact = resource_manager.LoadImage( weapons_res_profile, "airhammer_impact");
+  impact = GetResourceManager().LoadImage( weapons_res_profile, "airhammer_impact");
   m_time_between_each_shot = MIN_TIME_BETWEEN_JOLT;
 }
 
@@ -82,7 +82,7 @@ bool Airhammer::p_Shoot()
   //if the sound isn't already playing, play it again.
   select_sound.Stop();
   if (!drill_sound.IsPlaying()) {
-    drill_sound.Play("share","weapon/airhammer", -1);
+    drill_sound.Play("default","weapon/airhammer", -1);
   }
 
   // initiate movement ;-)
@@ -96,7 +96,7 @@ bool Airhammer::p_Shoot()
                          true, -3.0 * M_PI_4, 5.0 + Time::GetInstance()->Read() % 5);
   ParticleEngine::AddNow(pos + Point2i(3*impact.GetWidth()/4,9), 1, particle_AIR_HAMMER,
                          true, -M_PI_4, 5.0 + Time::GetInstance()->Read() % 5);
-  world.Dig( pos, impact );
+  GetWorld().Dig( pos, impact );
 
   uint range = 0;
   int x,y; // Testing coordinates
@@ -163,7 +163,7 @@ bool Airhammer::IsInUse() const
 
 void Airhammer::p_Select()
 {
-  select_sound.Play("share","weapon/airhammer_select",-1);
+  select_sound.Play("default","weapon/airhammer_select",-1);
 }
 
 std::string Airhammer::GetWeaponWinString(const char *TeamName, uint items_count ) const

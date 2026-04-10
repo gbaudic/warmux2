@@ -80,10 +80,10 @@ bool AIShootModule::IsBazookable(const Character& shooter,
 
   while (distance < 30)
     {
-      if ( world.IsOutsideWorldX(pos.x) || world.IsOutsideWorldY(pos.y) ) {
+      if ( GetWorld().IsOutsideWorldX(pos.x) || GetWorld().IsOutsideWorldY(pos.y) ) {
         break;
       }
-      if (!world.IsInVacuum(pos.x, pos.y))
+      if (!GetWorld().IsInVacuum(pos.x, pos.y))
         return false;
       pos += delta;
       pos.y = int(a * pos.x + b);
@@ -126,13 +126,13 @@ bool AIShootModule::IsDirectlyShootable(const Character& shooter,
     Point2i posi(int(pos.x+0.5), int(pos.y+0.5));
 
     // the point is outside the map
-    if ( world.IsOutsideWorld(posi) )
+    if ( GetWorld().IsOutsideWorld(posi) )
       {
         return false;
       }
 
     // is there a collision on the ground ??
-    if (!world.IsInVacuum(posi)) {
+    if (!GetWorld().IsInVacuum(posi)) {
       return false;
     }
 
@@ -285,7 +285,7 @@ void AIShootModule::ShootWithBazooka()
     std::cout << "Ye = " << Ye << std::endl;
     std::cout << "Xs = " << Xs << std::endl;
     std::cout << "Ys = " << Ys << std::endl;
-    double angle = atan(wind.GetStrength() * 75.0 /*wind factor */ /(30.0/* g */ *20 /* mass*/) );
+    double angle = atan(Wind::GetRef().GetStrength() * 75.0 /*wind factor */ /(30.0/* g */ *20 /* mass*/) );
 
     if (!IsBazookable(ActiveCharacter(), angle))
       {
@@ -301,7 +301,7 @@ void AIShootModule::ShootWithBazooka()
         Xe = Xpe;
         Ye = Ype;
         double V0x = (Xe - Xs ) / 80;
-        double V0y = V0x * (Ye - (Ys))/ (Xe - Xs -V0x) - 1/2.0 * sqrt(30*30 /* g */+ wind.GetStrength() * 75.0 *wind.GetStrength() * 75.0  /20.0 /20.0 /* W/m*/ )  / V0x * (Xe - Xs - V0x)/40 /* pixel per metre */;
+        double V0y = V0x * (Ye - (Ys))/ (Xe - Xs -V0x) - 1/2.0 * sqrt(30*30 /* g */+ Wind::GetRef().GetStrength() * 75.0 *Wind::GetRef().GetStrength() * 75.0  /20.0 /20.0 /* W/m*/ )  / V0x * (Xe - Xs - V0x)/40 /* pixel per metre */;
 
 
         std::cout << "shooting " << V0x <<" "  <<"   " << V0y << " "<< " " <<  atan(V0y/V0x) << " " <<m_enemy->GetName() << std::endl;

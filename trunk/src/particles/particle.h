@@ -45,7 +45,9 @@ typedef enum {
   particle_POLECAT_FART,
   particle_WATER,
   particle_LAVA,
-  particle_RADIOACTIVE
+  particle_RADIOACTIVE,
+  particle_DIRTYWATER,
+  particle_CHOCOLATEWATER,
 } particle_t;
 
 enum particle_spr
@@ -63,9 +65,12 @@ enum particle_spr
   POLECAT_FART_spr,
   WATER_spr,
   LAVA_spr,
-  RADIOACTIVE_spr
+  RADIOACTIVE_spr,
+  DIRTYWATER_spr,
+  CHOCOLATEWATER_spr
 };
-const int particle_spr_nbr = RADIOACTIVE_spr + 1;
+
+const int particle_spr_nbr = CHOCOLATEWATER_spr + 1;
 
 class Particle : public PhysicalObj
 {

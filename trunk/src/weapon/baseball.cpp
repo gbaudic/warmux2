@@ -48,7 +48,7 @@ Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball", new BaseballConfig())
   UpdateTranslationStrings();
 
   m_category = DUEL;
-  m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
+  m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
 }
 
@@ -65,7 +65,7 @@ bool Baseball::p_Shoot()
   double rayon = 0.0;
   bool end = false;
 
-  JukeBox::GetInstance()->Play ("share","weapon/baseball");
+  JukeBox::GetInstance()->Play ("default","weapon/baseball");
 
   do
   {

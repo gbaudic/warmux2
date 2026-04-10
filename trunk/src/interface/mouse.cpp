@@ -65,16 +65,16 @@ Mouse::Mouse():
   visible = MOUSE_VISIBLE;
 
   // Load the different pointers
-  Profile *res = resource_manager.LoadXMLProfile("cursors.xml", false);
+  Profile *res = GetResourceManager().LoadXMLProfile("cursors.xml", false);
 
   for (int i=POINTER_SELECT; i < POINTER_FIRE; i++) {
     cursors.insert(std::make_pair(Mouse::pointer_t(i),
-				  resource_manager.LoadMouseCursor(res, __pointers[i],
+				  GetResourceManager().LoadMouseCursor(res, __pointers[i],
 								   Mouse::pointer_t(i))));
   }
 
   current_pointer = POINTER_STANDARD;
-  resource_manager.UnLoadXMLProfile(res);
+  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 bool Mouse::HasFocus() const
@@ -311,7 +311,7 @@ void Mouse::Draw() const
   const MouseCursor& cursor = GetCursor(current_pointer);
   const Surface& surf = cursor.GetSurface();
   GetMainWindow().Blit(surf, GetPosition() - cursor.GetClicPos());
-  world.ToRedrawOnScreen(Rectanglei(GetPosition().x - cursor.GetClicPos().x,
+  GetWorld().ToRedrawOnScreen(Rectanglei(GetPosition().x - cursor.GetClicPos().x,
                                     GetPosition().y - cursor.GetClicPos().y,
 				    surf.GetWidth(), surf.GetHeight()));
 }

@@ -33,7 +33,9 @@ Clothe::Clothe(const xmlNode* xml, std::map<std::string, Member*>& members_lst):
 
   xmlNodeArray nodes = XmlReader::GetNamedChildren(xml, "c_member");
   xmlNodeArray::const_iterator it;
-  MSG_DEBUG("body.clothe", "   Found %i clothe members\n", nodes.size());
+  MSG_DEBUG("body.clothe", "   Found %i clothe members in %s", nodes.size(), name.c_str());
+
+  ASSERT(nodes.size());
 
   for (it = nodes.begin(); it != nodes.end(); ++it)
   {
@@ -73,11 +75,21 @@ Clothe::Clothe(Clothe* c, std::map<std::string, Member*>& members_lst):
       it != c->layers.end();
       ++it)
   {
-    layers.push_back(members_lst.find((*it)->name)->second);
+    layers.push_back(members_lst.find((*it)->GetName())->second);
   }
 }
 
 Clothe::~Clothe()
 {
   layers.clear();
+}
+
+const std::string & Clothe::GetName() const
+{
+  return name;
+}
+
+const std::vector<Member*>& Clothe::GetLayers() const
+{
+  return layers;
 }

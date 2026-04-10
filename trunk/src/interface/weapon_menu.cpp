@@ -148,29 +148,24 @@ WeaponsMenu::WeaponsMenu():
   old_pointer(Mouse::POINTER_SELECT)
 {
   // Loading value from XML
-  Profile *res = resource_manager.LoadXMLProfile("graphism.xml", false);
-  cross = new Sprite(resource_manager.LoadImage(res, "interface/cross"));
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  cross = new Sprite(GetResourceManager().LoadImage(res, "interface/cross"));
   // Polygon Size
-  Point2i size = resource_manager.LoadPoint2i(res, "interface/weapons_interface_size");
-  weapons_menu = PolygonGenerator::GenerateRoundedRectangle(size.x, size.y, 20);
-  size = resource_manager.LoadPoint2i(res, "interface/tools_interface_size");
-  tools_menu = PolygonGenerator::GenerateRoundedRectangle(size.x, size.y, 20);
+  Point2i size = GetResourceManager().LoadPoint2i(res, "interface/weapons_interface_size");
+  weapons_menu = PolygonGenerator::GenerateDecoratedBox(size.x, size.y);
+  size = GetResourceManager().LoadPoint2i(res, "interface/tools_interface_size");
+  tools_menu = PolygonGenerator::GenerateDecoratedBox(size.x, size.y);
   help = NULL;
   // Setting colors
-  Color plane_color = resource_manager.LoadColor(res, "interface/background_color");
-  Color border_color = resource_manager.LoadColor(res, "interface/border_color");
+  Color plane_color = GetResourceManager().LoadColor(res, "interface/background_color");
+  Color border_color = GetResourceManager().LoadColor(res, "interface/border_color");
   weapons_menu->SetPlaneColor(plane_color);
   weapons_menu->SetBorderColor(border_color);
   tools_menu->SetPlaneColor(plane_color);
   tools_menu->SetBorderColor(border_color);
 
-  // Adding label
-  weapons_menu->AddItem(new Sprite(Font::GenerateSurface(_("Weapons"), dark_gray_color, Font::FONT_BIG)),
-                        weapons_menu->GetMin() + Point2d(20, 20), PolygonItem::LEFT, PolygonItem::TOP);
-  tools_menu->AddItem(new Sprite(Font::GenerateSurface(_("Tools"), dark_gray_color, Font::FONT_BIG)),
-                      tools_menu->GetMin() + Point2d(20, 20), PolygonItem::LEFT, PolygonItem::TOP);
 
-  resource_manager.UnLoadXMLProfile(res);
+  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 WeaponsMenu::~WeaponsMenu()
@@ -196,11 +191,11 @@ void WeaponsMenu::AddWeapon(Weapon* new_item)
   Point2d position;
   Weapon::category_t num_sort = new_item->Category();
   if(num_sort < 6) {
-    position = weapons_menu->GetMin() + Point2d(50 + nb_weapon_type[num_sort - 1] * 50, 80 + (num_sort - 1) * 50);
+    position = weapons_menu->GetMin() + Point2d(30 + nb_weapon_type[num_sort - 1] * 45, 25 + (num_sort - 1) * 45);
     WeaponMenuItem * item = new WeaponMenuItem(new_item, position);
     weapons_menu->AddItem(item);
   } else {
-    position = tools_menu->GetMin() + Point2d(50 + (num_sort - 6) * 50, 80 + nb_weapon_type[num_sort - 1] * 50);
+    position = tools_menu->GetMin() + Point2d(30 + nb_weapon_type[num_sort - 1] * 45, 25 + (num_sort - 6) * 45);
     WeaponMenuItem * item = new WeaponMenuItem(new_item, position);
     tools_menu->AddItem(item);
   }
@@ -219,7 +214,7 @@ void WeaponsMenu::Show()
       motion_start_time = Time::GetInstance()->Read() - (GetIconsDrawTime() - (Time::GetInstance()->Read() - motion_start_time));
     show = true;
 
-    JukeBox::GetInstance()->Play("share", "menu/weapon_menu_show");
+    JukeBox::GetInstance()->Play("default", "menu/weapon_menu_show");
 
     old_pointer = Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
   }
@@ -236,7 +231,7 @@ void WeaponsMenu::Hide(bool play_sound)
     show = false;
 
     if (play_sound)
-      JukeBox::GetInstance()->Play("share", "menu/weapon_menu_hide");
+      JukeBox::GetInstance()->Play("default", "menu/weapon_menu_hide");
 
     Mouse::GetInstance()->SetPointer(old_pointer);
   }
@@ -267,23 +262,21 @@ void WeaponsMenu::RefreshWeaponList()
   weapons_menu->ResetTransformation();
   tools_menu->ResetTransformation();
   // Refreshing Weapons menu
+
   std::vector<PolygonItem *> items = weapons_menu->GetItem();
   std::vector<PolygonItem *>::iterator item = items.begin();
-  PolygonItem * tmp = (*item); item++;
   for(; item != items.end(); item++) {
     delete (*item);
   }
   weapons_menu->ClearItem(false);
-  weapons_menu->AddItem(tmp);
+
   // Tools menu
   items = tools_menu->GetItem();
   item = items.begin();
-  tmp = (*item); item++;
   for(; item != items.end(); item++) {
     delete (*item);
   }
   tools_menu->ClearItem(false);
-  tools_menu->AddItem(tmp);
   // Reinserting weapon
   WeaponsList *weapons_list = WeaponsList::GetInstance();
   for (WeaponsList::weapons_list_it it=weapons_list->GetList().begin();
@@ -295,35 +288,43 @@ void WeaponsMenu::RefreshWeaponList()
 AffineTransform2D WeaponsMenu::ComputeToolTransformation()
 {
   // Init animation parameter
-  Point2d start(GetMainWindow().GetWidth(), 0);
-  Point2i pos(GetMainWindow().GetSize() / 2 + Point2i((int)(tools_menu->GetWidth() / 2) + 10, 0));
+  Point2d start(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5,
+		GetMainWindow().GetHeight() + weapons_menu->GetHeight() + 50);
+  Point2i pos(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5,
+	      GetMainWindow().GetHeight()- tools_menu->GetHeight() - 5 );
+
+  if (Interface::GetRef().GetMenuPosition().GetX() + Interface::GetRef().GetWidth() > start.GetX()) {
+    start.y -= Interface::GetRef().GetHeight();
+    pos.y -= Interface::GetRef().GetHeight();
+  }
+
   Point2d end(POINT2I_2_POINT2D(pos));
-  double zoom_start = 0.2, zoom_end = 1.0;
-  double angle_start = M_PI * GetRotationTime(), angle_end = 0.0;
+
   // Define the animation
   position.SetTranslationAnimation(motion_start_time, GetIconsDrawTime(), Time::GetInstance()->Read(), !show, start, end);
-  zoom.SetShrinkAnimation(motion_start_time, GetIconsDrawTime(), Time::GetInstance()->Read(), !show,
-                          zoom_start, zoom_start, zoom_end, zoom_end);
-  rotation.SetRotationAnimation(motion_start_time, GetIconsDrawTime(), Time::GetInstance()->Read(), !show, angle_start, angle_end);
-  shear.SetShearAnimation(motion_start_time + GetIconsDrawTime(), GetJellyTime(), Time::GetInstance()->Read(), !show, 2.0, 0.2, 0.0);
-  return position * shear * zoom * rotation;
+
+  return position ;
 }
 
 AffineTransform2D WeaponsMenu::ComputeWeaponTransformation()
 {
   // Init animation parameter
-  Point2d start(0, 0);
-  Point2i pos(GetMainWindow().GetSize() / 2 - Point2i((int)(weapons_menu->GetWidth() / 2) + 10, 0));
+  Point2d start(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5,
+		GetMainWindow().GetHeight());
+  Point2i pos(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5,
+	      GetMainWindow().GetHeight()- weapons_menu->GetHeight() - tools_menu->GetHeight() - 10 );
+
+  if (Interface::GetRef().GetMenuPosition().GetX() + Interface::GetRef().GetWidth() > start.GetX()) {
+    start.y -= Interface::GetRef().GetHeight();
+    pos.y -= Interface::GetRef().GetHeight();
+  }
+
   Point2d end(POINT2I_2_POINT2D(pos));
-  double zoom_start = 0.2, zoom_end = 1.0;
-  double angle_start = -M_PI * GetRotationTime(), angle_end = 0.0;
+
  // Define the animation
   position.SetTranslationAnimation(motion_start_time, GetIconsDrawTime(), Time::GetInstance()->Read(), !show, start, end);
-  zoom.SetShrinkAnimation(motion_start_time, GetIconsDrawTime(), Time::GetInstance()->Read(), !show,
-                          zoom_start, zoom_start, zoom_end, zoom_end);
-  rotation.SetRotationAnimation(motion_start_time, GetIconsDrawTime(), Time::GetInstance()->Read(), !show, angle_start, angle_end);
-  shear.SetShearAnimation(motion_start_time + GetIconsDrawTime(), GetJellyTime(), Time::GetInstance()->Read(), !show, 2.0, 0.2, 0.0);
-  return position * shear * zoom * rotation;
+
+  return position ;
 }
 
 void WeaponsMenu::Draw()
@@ -347,7 +348,6 @@ Weapon * WeaponsMenu::UpdateCurrentOverflyItem(const Polygon * poly)
   WeaponMenuItem * tmp;
   Interface::GetInstance()->SetCurrentOverflyWeapon(NULL);
   std::vector<PolygonItem *>::iterator item = items.begin();
-  ++item; // Skeeping first item which is a text label
   for(; item != items.end(); item++) {
     tmp = (WeaponMenuItem *)(*item);
     if(tmp->IsMouseOver()) {

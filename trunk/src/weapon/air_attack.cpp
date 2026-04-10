@@ -71,7 +71,7 @@ Obus::Obus(AirAttackConfig& cfg) :
   WeaponProjectile("air_attack_projectile", cfg, NULL)
 {
   explode_colliding_character = true;
-  falling_sound.Play("share", "weapon/aircraft_bomb_falling");
+  falling_sound.Play("default", "weapon/aircraft_bomb_falling");
 }
 
 Obus::~Obus()
@@ -87,12 +87,12 @@ Plane::Plane(AirAttackConfig &p_cfg) :
 {
   SetCollisionModel(true, false, false);
 
-  image = resource_manager.LoadSprite(weapons_res_profile, "air_attack_plane");
+  image = GetResourceManager().LoadSprite(weapons_res_profile, "air_attack_plane");
   SetSize(image->GetSize());
   obus_dx = 100;
   obus_dy = GetY() + GetHeight();
 
-  flying_sound.Play("share", "weapon/aircraft_flying");
+  flying_sound.Play("default", "weapon/aircraft_flying");
 }
 
 Plane::~Plane()
@@ -123,16 +123,16 @@ void Plane::Shoot(double speed, const Point2i& target)
 
   } else {
     speed_vector.SetValues(-speed, 0) ;
-    SetX(double(world.GetWidth() - 1));
+    SetX(double(GetWorld().GetWidth() - 1));
     //distance_to_release += obus_dx;
-    if(distance_to_release > (world.GetWidth()-cible_x - obus_dx)) distance_to_release=0;
+    if(distance_to_release > (GetWorld().GetWidth()-cible_x - obus_dx)) distance_to_release=0;
   }
 
   SetSpeedXY (speed_vector);
 
   Camera::GetInstance()->FollowObject(this, true, true);
 
-  lst_objects.AddObject(this);
+  ObjectsList::GetRef().AddObject(this);
 }
 
 void Plane::DropBomb()
@@ -149,7 +149,7 @@ void Plane::DropBomb()
   speed_vector.SetValues(speed_vector.x + fx/30.0, speed_vector.y + fy/30.0);
   instance->SetSpeedXY(speed_vector);
 
-  lst_objects.AddObject(instance);
+  ObjectsList::GetRef().AddObject(instance);
 
   last_dropped_bomb = instance;
   nb_dropped_bombs++;

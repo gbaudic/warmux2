@@ -60,24 +60,44 @@ public:
 
 class Movement
 {
+  /* If you need this, implement it (correctly) */
+  const Movement& operator=(const Movement&);
+  Movement(const Movement&);
+  /**********************************************/
+public:
   typedef std::map<std::string, class member_mvt> member_def; // Describe the position of each member for a given frame
 
-public:
+private:
+  uint ref_count;
+
   std::vector<member_def> frames;
-  bool always_moving;
-  int speed;
-  int repeat;
-  uint test_left, test_right, test_top, test_bottom;
-  enum
-  {
-    LOOP,
-    PLAY_ONCE
-  } play_mode;
-
   std::string type;
+  uint nb_loops; // 0 means forever
+  uint duration_per_frame; // in milli-second
+  bool always_moving;
+  uint test_left, test_right, test_top, test_bottom;
 
-  ~Movement();
+public:
   Movement(const xmlNode* xml);
+  ~Movement();
+
+  void SetType(const std::string& type);
+  const std::string& GetType() const;
+
+  uint GetFrameDuration() const;
+  uint GetNbLoops() const;
+
+  bool IsAlwaysMoving() const;
+
+  const std::vector<Movement::member_def> & GetFrames() const;
+
+  uint GetTestLeft() const;
+  uint GetTestRight() const;
+  uint GetTestTop() const;
+  uint GetTestBottom() const;
+
+  static void ShareMovement(Movement* mvt);
+  static void UnshareMovement(Movement* mvt);
 };
 
 #endif //MEMBER_H

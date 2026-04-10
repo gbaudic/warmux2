@@ -46,11 +46,16 @@
 #    include <io.h>
 #  endif
 #endif
+
+#include <assert.h>
+
 //-----------------------------------------------------------------------------
 
 // Standard header, only needed for the following method
 #ifdef WIN32
-#  include <winsock.h>
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#  include <wspiapi.h>
 #else
 #  include <sys/socket.h>
 #  include <netdb.h>
@@ -347,12 +352,11 @@ typedef int SOCKET;
 # define SOCKET_ERROR    (-1)
 # define INVALID_SOCKET  (-1)
 # define closesocket(fd) close(fd)
-
-// For Mac OS X
-#ifndef AI_NUMERICSERV
-#define AI_NUMERICSERV 0
 #endif
 
+// For Mac OS X and Windows
+#ifndef AI_NUMERICSERV
+# define AI_NUMERICSERV 0
 #endif
 
 // static method
@@ -382,53 +386,7 @@ connection_state_t Network::GetError()
 #endif
 }
 
-#ifdef WIN32
-
-connection_state_t WIN32_CheckHost(const std::string &host, int prt)
-{
-  MSG_DEBUG("network", "Checking connection to %s:%i", host.c_str(), prt);
-
-  struct hostent* hostinfo;
-  hostinfo = gethostbyname(host.c_str());
-  if( ! hostinfo )
-    return CONN_BAD_HOST;
-
-  SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
-  if( fd == INVALID_SOCKET )
-    return CONN_BAD_SOCKET;
-
-  // Set the timeout
-  int timeout = 5000; //ms
-
-  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
-  {
-    fprintf(stderr, "Setting receive timeout on socket failed\n");
-    return CONN_BAD_SOCKET;
-  }
-
-  if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
-  {
-    fprintf(stderr, "Setting send timeout on socket failed\n");
-    return CONN_BAD_SOCKET;
-  }
-
-  struct sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(prt);
-  addr.sin_addr.s_addr = inet_addr(inet_ntoa (*(struct in_addr *)*hostinfo->h_addr_list));
-
-  if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == SOCKET_ERROR )
-  {
-    return Network::GetError();
-  }
-  closesocket(fd);
-  return CONNECTED;
-}
-
-#else
-
-connection_state_t POSIX_CheckHost(const std::string &host, int prt)
+connection_state_t Network::CheckHost(const std::string &host, int prt)
 {
   MSG_DEBUG("network", "Checking connection to %s:%i", host.c_str(), prt);
 
@@ -451,45 +409,10 @@ connection_state_t POSIX_CheckHost(const std::string &host, int prt)
   if (r != 0) {
 
     fprintf(stderr, "getaddrinfo returns %d\n", r);
-
-    switch (r) {
-    case EAI_ADDRFAMILY:
-      fprintf(stderr, "The specified network host does not have any network addresses in the requested address family.\n");
-      break;
-    case EAI_AGAIN:
-      fprintf(stderr, "The name server returned a temporary failure indication.  Try again later.\n");
-      break;
-    case EAI_BADFLAGS:
-      fprintf(stderr, "ai_flags contains invalid flags.\n");
-      break;
-    case EAI_FAIL:
-      fprintf(stderr, "The name server returned a permanent failure indication.\n");
-      break;
-    case EAI_FAMILY:
-      fprintf(stderr, "The requested address family is not supported at all.\n");
-      break;
-    case EAI_MEMORY:
-      fprintf(stderr, "Out of memory.\n");
-      break;
-    case EAI_NODATA:
-      fprintf(stderr, "The specified network host exists, but does not have any network addresses defined.\n");
-      break;
-#ifndef WIN32 // AI_NUMERICSERV not defined under Windows
-    case EAI_NONAME:
-      fprintf(stderr, "The node or service is not known; or both node and service are NULL; "
-	      "or AI_NUMERICSERV was specified in hints.ai_flags and  service  was  not  a  numeric port-number string.\n");
-      break;
-#endif
-    case EAI_SERVICE:
-      fprintf(stderr, "The requested service is not available for the requested socket type.  It may be available through another socket type.\n");
-      break;
-    case EAI_SOCKTYPE:
-      fprintf(stderr, "The requested socket type is not supported at all.\n");
-      break;
-    case EAI_SYSTEM:
-      fprintf(stderr, "Other system error, check errno for details.\n");
-      break;
-    }
+    
+    const char * gai_errmsg = gai_strerror(r);
+    assert(NULL != gai_errmsg);
+    fprintf(stderr, "%s\n", gai_errmsg);
 
     if (r == EAI_NONAME) {
       s = CONN_BAD_HOST;
@@ -512,9 +435,13 @@ connection_state_t POSIX_CheckHost(const std::string &host, int prt)
       continue;
 
     // Try to set the timeout
+#ifdef WIN32
+    int timeout = 5000; //ms
+#else
     struct timeval timeout;
     memset(&timeout, 0, sizeof(timeout));
     timeout.tv_sec = 5; // 5seconds timeout
+#endif
 
     if (setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR) {
       fprintf(stderr, "Setting receive timeout on socket failed\n");
@@ -548,16 +475,6 @@ connection_state_t POSIX_CheckHost(const std::string &host, int prt)
  error:
   freeaddrinfo(result); /* No longer needed */
   return s;
-}
-#endif
-
-connection_state_t Network::CheckHost(const std::string &host, int prt)
-{
-#ifdef WIN32
-  return WIN32_CheckHost(host, prt);
-#else
-  return POSIX_CheckHost(host, prt);
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -666,11 +583,13 @@ connection_state_t Network::ServerStart(const std::string& port, const std::stri
     singleton = prev;
     delete net;
   } else if (prev != NULL) {
-
-    // that's ok
-    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION + " - Server mode");
     delete prev;
   }
+
+  if (error == CONNECTED) {
+    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION + " - Server mode");
+  }
+
   return error;
 }
 

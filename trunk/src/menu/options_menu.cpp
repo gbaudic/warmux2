@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ OptionMenu::OptionMenu() :
 {
   AppWormux * app = AppWormux::GetInstance();
   Config * config = Config::GetInstance();
-  Profile *res = resource_manager.LoadXMLProfile("graphism.xml", false);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   Point2i option_size(140, 130);
 
   uint max_width = app->video->window.GetWidth()-50;
@@ -126,51 +126,43 @@ OptionMenu::OptionMenu() :
   tabs->AddNewTab("unused", _("Graphic"), graphic_options);
 
   /* Language selection */
-  Box * language_options = new GridBox(max_width, option_size, false);
   lbox_languages = new ListBox(option_size);
-  language_options->AddWidget(lbox_languages);
-
-  tabs->AddNewTab("unused", _("Language"), language_options);
+  tabs->AddNewTab("unused", _("Language"), lbox_languages);
 
   /* Team editor */
 
-  Box * teams_editor = new VBox(max_width, false, true);
-  Box * teams_editor_sup = new GridBox(max_width, option_size, true);
-  Box * teams_editor_inf = new VBox(max_width, true,false);
-
-  add_team = new ButtonPic(_("Add custom team"), "menu/add_custom_team",Point2i(100,100));
-  teams_editor_sup->AddWidget(add_team);
-
-  delete_team = new ButtonPic(_("Delete custom team"), "menu/del_custom_team",Point2i(100,100));
-  teams_editor_sup->AddWidget(delete_team);
-
-  lbox_teams = new ListBox(option_size,false);
-  teams_editor_sup->AddWidget(lbox_teams);
-
-  std::string s = _("Player name");
-  s +=" : ";
-
-  team_name = new Label(s, 0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
-  teams_editor_inf->AddWidget(team_name);
-
-
-  tbox_team_name = new TextBox("", 100,
-                            Font::FONT_MEDIUM, Font::FONT_NORMAL);
-  teams_editor_inf->AddWidget(tbox_team_name);
-
-  Point2i names_size(140, 50);
-
   // bug #12193 : Missed assertion in game option (custom team editor) while playing
-  if(Game::GetInstance()->IsGameFinished()) {
-    Box * teams_editor_names = new GridBox(max_width, names_size, false);
-    s = _("Character");
-    for(unsigned i=0; i < 10 ; i++) {
-      std::ostringstream oss;
-      oss << i+1;
-      tbox_character_name_list.push_back(new TextBox("",100,Font::FONT_MEDIUM, Font::FONT_NORMAL));
-      Label * lab = new Label(s+oss.str()+" : ",0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+  if (Game::GetInstance()->IsGameFinished()) {
+    Box * teams_editor = new HBox(option_size.x, false, true);
+    Box * teams_editor_inf = new VBox(max_width - option_size.x - 10, true, false);
 
-      Box * name_box = new VBox(max_width, true, true);
+    lbox_teams = new ListBox(option_size, false);
+    teams_editor->AddWidget(lbox_teams);
+
+    Box * box_team_name = new HBox(30, false, true);
+
+    team_name = new Label(Format("%s:", _("Head commander")), 150, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+    box_team_name->AddWidget(team_name);
+
+    tbox_team_name = new TextBox("", 160, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+    box_team_name->AddWidget(tbox_team_name);
+
+    teams_editor_inf->AddWidget(box_team_name);
+
+    Label* label_ch_names = new Label(_("Character names:"), 0, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+    teams_editor_inf->AddWidget(label_ch_names);
+
+    Point2i names_size(190, 20);
+
+    Box * teams_editor_names = new GridBox(max_width - option_size.x - 40, names_size, false);
+    for (uint i=0; i < 10; i++) {
+      std::ostringstream oss;
+      oss << i+1 << ":";
+      tbox_character_name_list.push_back(new TextBox("",160,Font::FONT_MEDIUM, Font::FONT_NORMAL));
+      Label * lab = new Label(oss.str(), 30, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+
+      Box * name_box = new HBox(20, false, true);
+      name_box->SetNoBorder();
 
       name_box->AddWidget(lab);
       name_box->AddWidget(tbox_character_name_list[i]);
@@ -180,12 +172,29 @@ OptionMenu::OptionMenu() :
 
     teams_editor_inf->AddWidget(teams_editor_names);
 
+    Box * team_action_box = new HBox(35, false, true);
+    team_action_box->SetNoBorder();
+
+    add_team = new Button(res, "menu/add_custom_team");
+    team_action_box->AddWidget(add_team);
+
+    delete_team = new Button(res, "menu/del_custom_team");
+    team_action_box->AddWidget(delete_team);
+
+    teams_editor_inf->AddWidget(team_action_box);
+
     teams_editor_inf->Pack();
-    teams_editor->AddWidget(teams_editor_sup);
     teams_editor->AddWidget(teams_editor_inf);
     tabs->AddNewTab("unused", _("Teams editor"), teams_editor);
     selected_team = NULL;
     ReloadTeamList();
+  } else {
+    lbox_teams = NULL;
+    add_team = NULL;
+    delete_team = NULL;
+    selected_team = NULL;
+    tbox_team_name = NULL;
+    team_name = NULL;
   }
 
   /* Misc options */
@@ -271,12 +280,14 @@ OptionMenu::OptionMenu() :
   lbox_languages->AddItem(config->GetLanguage() == "eo",    "Esperanto",           "eo");
   lbox_languages->AddItem(config->GetLanguage() == "en",    "English",             "en");
   lbox_languages->AddItem(config->GetLanguage() == "el",    "Ελληνικά",            "el");
+  lbox_languages->AddItem(config->GetLanguage() == "et",    "Eesti keel",          "et");
   lbox_languages->AddItem(config->GetLanguage() == "fa",    "فارسی (Farsi)",       "fa");
   lbox_languages->AddItem(config->GetLanguage() == "fr",    "Français",            "fr");
   lbox_languages->AddItem(config->GetLanguage() == "gl",    "Galego",              "gl");
   lbox_languages->AddItem(config->GetLanguage() == "he",    "עברית (Hebrew)",      "he");
   lbox_languages->AddItem(config->GetLanguage() == "hu",    "Magyar",              "hu");
   lbox_languages->AddItem(config->GetLanguage() == "it",    "Italiano",            "it");
+  lbox_languages->AddItem(config->GetLanguage() == "kw",    "Kernewek",            "kw");
   lbox_languages->AddItem(config->GetLanguage() == "lv",    "latviešu valoda",     "lv");
   lbox_languages->AddItem(config->GetLanguage() == "nb",    "Norsk",               "nb");
   lbox_languages->AddItem(config->GetLanguage() == "nl",    "Nederlands",          "nl");
@@ -295,7 +306,7 @@ OptionMenu::OptionMenu() :
 
   opt_updates->SetValue(config->GetCheckUpdates());
 
-  resource_manager.UnLoadXMLProfile(res);
+  GetResourceManager().UnLoadXMLProfile(res);
 
   widgets.AddWidget(tabs);
   widgets.Pack();
@@ -317,7 +328,7 @@ void OptionMenu::OnClickUp(const Point2i &mousePosition, int button)
     Config::GetInstance()->SetVolumeMusic(toVolume(volume_music->GetValue()));
   else if (w == volume_effects) {
     Config::GetInstance()->SetVolumeEffects(toVolume(volume_effects->GetValue()));
-    JukeBox::GetInstance()->Play("share", "menu/clic");
+    JukeBox::GetInstance()->Play("default", "menu/clic");
   }
   else if (w == music_cbox) {
     JukeBox::GetInstance()->ActiveMusic(music_cbox->GetValue());
@@ -328,17 +339,17 @@ void OptionMenu::OnClickUp(const Point2i &mousePosition, int button)
   else if (w == lbox_teams) {
     SelectTeam();
   }
-  else if (w ==add_team){
+  else if (w == add_team) {
     AddTeam();
   }
-  else if (w ==delete_team){
+  else if (w == delete_team) {
     DeleteTeam();
   }
 }
 
-void OptionMenu::OnClick(const Point2i &/*mousePosition*/, int /*button*/)
+void OptionMenu::OnClick(const Point2i &mousePosition, int button)
 {
-
+  widgets.Click(mousePosition, button);
 }
 
 void OptionMenu::SaveOptions()
@@ -349,8 +360,9 @@ void OptionMenu::SaveOptions()
   // Graphic options
   config->SetDisplayWindParticles(opt_display_wind_particles->GetValue());
   // bug #11826 : Segmentation fault while exiting the menu.
-  if(!Game::GetInstance()->IsGameFinished())
-    wind.Reset();
+  if (!Game::GetInstance()->IsGameFinished())
+    Wind::GetRef().Reset();
+
   config->SetDisplayEnergyCharacter(opt_display_energy->GetValue());
   config->SetDisplayNameCharacter(opt_display_name->GetValue());
   config->SetScrollOnBorder(opt_scroll_on_border->GetValue());
@@ -396,11 +408,12 @@ void OptionMenu::SaveOptions()
   config->Save();
 
   //Team editor
-  if((!lbox_teams->IsSelectedItem()) && (tbox_team_name->GetText().size()>0))
-  {
-    AddTeam();
+  if (Game::GetInstance()->IsGameFinished()) {
+    if (!lbox_teams->IsSelectedItem()) {
+      AddTeam();
+    }
+    SaveTeam();
   }
-  SaveTeam();
 }
 
 bool OptionMenu::signal_ok()
@@ -423,26 +436,24 @@ void OptionMenu::Draw(const Point2i &/*mousePosition*/)
 
 void OptionMenu::CheckUpdates()
 {
-  if (!Config::GetInstance()->GetCheckUpdates() || Constants::WORMUX_VERSION.find("svn") != std::string::npos)
+  if (!Config::GetInstance()->GetCheckUpdates()
+      || Constants::WORMUX_VERSION.find("svn") != std::string::npos)
     return;
 
-  try
-  {
-    std::string latest_version = Downloader::GetInstance()->GetLatestVersion();
-    const char  *cur_version   = Constants::GetInstance()->WORMUX_VERSION.c_str();
-    if (latest_version != cur_version)
-    {
-      Question new_version;
-      std::string txt = Format(_("A new version %s is available, while your version is %s."
-                                 "You may want to check whether an update is available for your OS!"),
-                               latest_version.c_str(), cur_version);
-      new_version.Set(txt, true, 0);
-      new_version.Ask();
-    }
+  try {
+      std::string latest_version = Downloader::GetInstance()->GetLatestVersion();
+      const char  *cur_version   = Constants::GetInstance()->WORMUX_VERSION.c_str();
+      if (latest_version != cur_version) {
+	Question new_version;
+	std::string txt = Format(_("A new version %s is available, while your version is %s."
+				   "You may want to check whether an update is available for your OS!"),
+				 latest_version.c_str(), cur_version);
+	new_version.Set(txt, true, 0);
+	new_version.Ask();
+      }
   }
-  catch (const char* err)
-  {
-    std::cerr << Format(_("Version verification failed because: %s\n"), err);
+  catch (const std::string err) {
+    AppWormux::DisplayError(Format(_("Version verification failed because: %s\n"), err.c_str()));
   }
 }
 
@@ -459,122 +470,137 @@ uint OptionMenu::fromVolume(uint vol)
 
 
 // Team editor function
+bool OptionMenu::TeamInfoValid()
+{
+  if (tbox_team_name->GetText().empty())
+    return false;
+
+  for (uint i = 0; i < tbox_character_name_list.size(); i++) {
+    if (tbox_character_name_list[i]->GetText().empty()) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 void OptionMenu::AddTeam()
 {
-    SaveTeam();
-    CustomTeam *new_team = new CustomTeam();
-    new_team->NewTeam();
-    new_team->Save();
-    if((!lbox_teams->IsSelectedItem()) && (tbox_team_name->GetText().size()>0))
-    {
-      selected_team = new_team;
-      SaveTeam();
-    }
-    selected_team = new_team;
-    ReloadTeamList();
-    lbox_teams->NeedRedrawing();
+  if (!Game::GetInstance()->IsGameFinished())
+    return;
+
+  if (!TeamInfoValid())
+    return;
+
+  CustomTeam *new_team = new CustomTeam(tbox_team_name->GetText());
+  new_team->NewTeam();
+
+  selected_team = new_team;
+  SaveTeam();
+
+  ReloadTeamList();
+  lbox_teams->NeedRedrawing();
 }
 
 void OptionMenu::DeleteTeam()
 {
-  if(selected_team !=NULL)
-  {
+  if (!Game::GetInstance()->IsGameFinished())
+    return;
+
+  if (selected_team) {
     selected_team->Delete();
     selected_team = NULL;
-    if(lbox_teams->IsSelectedItem())
-    {
+    if (lbox_teams->IsSelectedItem()) {
       lbox_teams->Deselect();
-
     }
     ReloadTeamList();
     LoadTeam();
     lbox_teams->NeedRedrawing();
   }
-
 }
 
 void OptionMenu::LoadTeam()
 {
+  if (!Game::GetInstance()->IsGameFinished())
+    return;
 
-    if(selected_team != NULL)
-    {
-      tbox_team_name->SetText(selected_team->GetName());
-      std::vector<std::string> character_names = selected_team->GetCharactersNameList();
+  if (selected_team) {
+    tbox_team_name->SetText(selected_team->GetName());
+    std::vector<std::string> character_names = selected_team->GetCharactersNameList();
 
-      for(unsigned i=0; i< character_names.size() && i<tbox_character_name_list.size(); i++)
-      {
-        tbox_character_name_list[i]->SetText(character_names[i]);
-      }
-
-    }else{
-      tbox_team_name->SetText("");
-
-      for(unsigned i=0; i< tbox_character_name_list.size(); i++)
-      {
-        tbox_character_name_list[i]->SetText("");
-
-      }
+    for (uint i = 0; i < character_names.size() && i < tbox_character_name_list.size(); i++) {
+      tbox_character_name_list[i]->SetText(character_names[i]);
     }
+
+  } else {
+    tbox_team_name->SetText("");
+
+    for (uint i = 0; i < tbox_character_name_list.size(); i++) {
+      tbox_character_name_list[i]->SetText("");
+    }
+  }
 }
 
 void OptionMenu::ReloadTeamList()
 {
+  if (!Game::GetInstance()->IsGameFinished())
+    return;
+
   lbox_teams->ClearItems();
   std::string selected_team_name ="";
-  if(selected_team != NULL){
+  if (selected_team) {
     selected_team_name = selected_team->GetName();
   }
 
   GetCustomTeamsList().LoadList();
   std::vector<CustomTeam *> custom_team_list = GetCustomTeamsList().GetList();
 
-  for(unsigned i=0; i< custom_team_list.size() ; i++)
-  {
-      if( custom_team_list[i]->GetName() == selected_team_name){
-          selected_team = custom_team_list[i];
-          LoadTeam();
-      }
+  for (uint i = 0; i < custom_team_list.size(); i++) {
+    if (custom_team_list[i]->GetName() == selected_team_name) {
+      selected_team = custom_team_list[i];
+      LoadTeam();
+    }
 
-      lbox_teams->AddItem((selected_team == custom_team_list[i]),   custom_team_list[i]->GetName(),  custom_team_list[i]->GetName());
+    lbox_teams->AddItem((selected_team == custom_team_list[i]),
+			custom_team_list[i]->GetName(),
+			custom_team_list[i]->GetName());
 
   }
 }
 
+bool OptionMenu::SaveTeam()
+{
+  if (!Game::GetInstance()->IsGameFinished())
+    return false;
 
-bool OptionMenu::SaveTeam(){
-if(selected_team !=NULL)
-  {
+  if (!TeamInfoValid())
+    return false;
+
+  if (selected_team) {
     bool is_name_changed = (selected_team->GetName().compare(tbox_team_name->GetText()) != 0);
     selected_team->SetName(tbox_team_name->GetText());
-    for(unsigned i=0; i<tbox_character_name_list.size(); i++)
-      {
-        selected_team->SetCharacterName(i,tbox_character_name_list[i]->GetText());
-      }
+    for (uint i = 0; i < tbox_character_name_list.size(); i++) {
+      selected_team->SetCharacterName(i,tbox_character_name_list[i]->GetText());
+    }
     selected_team->Save();
     return is_name_changed;
   }
 
-    return false;
+  return false;
 }
 
 void OptionMenu::SelectTeam()
 {
-  if(lbox_teams->IsSelectedItem())
-  {
+  if (!Game::GetInstance()->IsGameFinished())
+    return;
+
+  if (lbox_teams->IsSelectedItem()) {
     bool is_changed_name = SaveTeam();
     std::string s_selected_team = lbox_teams->ReadValue();
     selected_team = GetCustomTeamsList().GetByName(s_selected_team);
     LoadTeam();
-    if(is_changed_name)
-    {
-        ReloadTeamList();
+    if (is_changed_name) {
+      ReloadTeamList();
     }
-
   }
-}
-
-void OptionMenu::key_tab()
-{
-  Menu::key_tab();
 }

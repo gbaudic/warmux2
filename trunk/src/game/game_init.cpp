@@ -107,8 +107,8 @@ void GameInit::InitMap()
 
   Camera::GetInstance()->ResetShake();
   loading_sreen.StartLoading(1, "map_icon", _("Maps"));
-  world.Reset();
-  lst_objects.PlaceBarrels();
+  GetWorld().Reset();
+  ObjectsList::GetRef().PlaceBarrels();
 }
 
 void GameInit::InitTeams()
@@ -132,7 +132,7 @@ void GameInit::InitTeams()
   // Randomize first player
   GetTeamsList().RandomizeFirstPlayer();
 
-  lst_objects.PlaceMines();
+  ObjectsList::GetRef().PlaceMines();
 }
 
 void GameInit::InitSounds()
@@ -142,7 +142,6 @@ void GameInit::InitSounds()
   // Load teams' sound profiles
   loading_sreen.StartLoading(4, "sound_icon", _("Sounds"));
 
-  JukeBox::GetInstance()->LoadXML("default");
   FOR_EACH_TEAM(team)
     if ( (**team).GetSoundProfile() != "default" )
       JukeBox::GetInstance()->LoadXML((**team).GetSoundProfile()) ;

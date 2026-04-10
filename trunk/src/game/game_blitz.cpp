@@ -106,14 +106,14 @@ void GameBlitz::RefreshClock()
 
       case PLAYING:
         if (duration <= 1) {
-          JukeBox::GetInstance()->Play("share", "end_turn");
+          JukeBox::GetInstance()->Play("default", "end_turn");
           cur = KillTeam(cur);
           SetState(END_TURN);
         } else {
           duration--;
           Interface::GetInstance()->UpdateTimer(duration);
           if (duration <= 10) {
-            JukeBox::GetInstance()->Play("share", "time/bip");
+            JukeBox::GetInstance()->Play("default", "time/bip");
           }
         }
         break;
@@ -137,7 +137,7 @@ void GameBlitz::RefreshClock()
         if (IsGameFinished())
           break;
 
-        if (Network::GetInstance()->IsTurnMaster() && give_objbox && world.IsOpen()) {
+        if (Network::GetInstance()->IsTurnMaster() && give_objbox && GetWorld().IsOpen()) {
           NewBox();
           give_objbox = false;
           break;
@@ -165,7 +165,7 @@ void GameBlitz::__SetState_PLAYING()
   MSG_DEBUG("game.statechange", "Playing" );
 
   if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal())
-    wind.ChooseRandomVal();
+    Wind::GetRef().ChooseRandomVal();
 
   character_already_chosen = false;
 

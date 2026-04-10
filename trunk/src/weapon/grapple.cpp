@@ -70,15 +70,15 @@ bool find_first_contact_point (Point2i from, double angle, uint length,
   // make it return the last point still in vacuum
   Point2i new_contact_point = contact_point;
   bool contact_point_uncertain = true;
-  while(!world.IsOutsideWorld(new_contact_point) &&
+  while(!GetWorld().IsOutsideWorld(new_contact_point) &&
         (length > 0))
     {
-      if ( !world.IsInVacuum( new_contact_point ) )
+      if ( !GetWorld().IsInVacuum( new_contact_point ) )
       {
-        ASSERT( contact_point_uncertain || world.IsInVacuum( contact_point ) );
+        ASSERT( contact_point_uncertain || GetWorld().IsInVacuum( contact_point ) );
 
         // for uncertain contact points, see if it's in vacuum
-        if ( contact_point_uncertain && !world.IsInVacuum( contact_point ) )
+        if ( contact_point_uncertain && !GetWorld().IsInVacuum( contact_point ) )
         {
            // it's not, so try our best to return a contact point in vacuum
            // try searching in area NxN around our original point and return
@@ -97,7 +97,7 @@ bool find_first_contact_point (Point2i from, double angle, uint length,
              for ( int j = -search_radius; j <= search_radius; j ++ )
              {
                cur = contact_point + Point2i( i, j );
-               if ( world.IsInVacuum( cur ) )
+               if ( GetWorld().IsInVacuum( cur ) )
                {
                  // check for new closest
                  int distance = i * i + j * j;
@@ -150,9 +150,9 @@ Grapple::Grapple() : Weapon(WEAPON_GRAPPLE, "grapple", new GrappleConfig())
   m_category = MOVE;
   use_unit_on_first_shoot = false;
 
-  m_hook_sprite = resource_manager.LoadSprite(weapons_res_profile,"grapple_hook");
+  m_hook_sprite = GetResourceManager().LoadSprite(weapons_res_profile,"grapple_hook");
   m_hook_sprite->EnableRotationCache(32);
-  m_node_sprite = resource_manager.LoadSprite(weapons_res_profile,"grapple_node");
+  m_node_sprite = GetResourceManager().LoadSprite(weapons_res_profile,"grapple_node");
 
   m_is_active = false;
   m_attaching = false;
@@ -183,7 +183,7 @@ bool Grapple::p_Shoot()
   m_initial_angle = ActiveCharacter().GetFiringAngle();
   last_mvt=Time::GetInstance()->Read();
 
-  if (TryAttachRope()) JukeBox::GetInstance()->Play("share", "weapon/grapple_attaching");
+  if (TryAttachRope()) JukeBox::GetInstance()->Play("default", "weapon/grapple_attaching");
   return true;
 }
 
@@ -325,7 +325,7 @@ bool Grapple::TryRemoveNodes(int currentSense)
     // (NOTE: since nodes are often in ground, we're ignoring traces hitting ground
     // right at the end)
     const float end_proximity_threshold = 0.95f;
-    if ( world.TraceRay( mapRopeStart, it->pos, tr ) && tr.m_fraction < end_proximity_threshold )
+    if ( GetWorld().TraceRay( mapRopeStart, it->pos, tr ) && tr.m_fraction < end_proximity_threshold )
     {
         // collision detected!
         if ( nodes_to_remove > 0 )
@@ -534,8 +534,7 @@ void Grapple::AttachRope(const Point2i& contact_point)
 
 void Grapple::DetachRope()
 {
-  if(m_is_active)
-    ActiveCharacter().UnsetPhysFixationPoint() ;
+  ActiveCharacter().UnsetPhysFixationPoint();
   rope_nodes.clear();
   m_is_active = false;
 
@@ -643,7 +642,7 @@ void Grapple::StopDown()
 void Grapple::GoRight()
 {
   if (!go_right) {
-    cable_sound.Play("share", "weapon/grapple_cable");
+    cable_sound.Play("default", "weapon/grapple_cable");
   }
   go_right = true ;
   ActiveCharacter().SetExternForce(cfg().push_force,0);
@@ -664,7 +663,7 @@ void Grapple::StopRight()
 void Grapple::GoLeft()
 {
   if (!go_left) {
-    cable_sound.Play("share", "weapon/grapple_cable");
+    cable_sound.Play("default", "weapon/grapple_cable");
   }
   go_left = true ;
   ActiveCharacter().SetExternForce(-cfg().push_force,0);
@@ -687,7 +686,7 @@ void Grapple::StopLeft()
 void Grapple::HandleKeyPressed_Up(bool shift)
 {
   if (IsInUse())  {
-    cable_sound.Play("share", "weapon/grapple_cable", -1);
+    cable_sound.Play("default", "weapon/grapple_cable", -1);
     GoUp();
   }
   else
@@ -713,7 +712,7 @@ void Grapple::HandleKeyReleased_Up(bool shift)
 void Grapple::HandleKeyPressed_Down(bool shift)
 {
   if (IsInUse()) {
-    cable_sound.Play("share", "weapon/grapple_cable", -1);
+    cable_sound.Play("default", "weapon/grapple_cable", -1);
     GoDown();
   } else
     ActiveCharacter().HandleKeyPressed_Down(shift);

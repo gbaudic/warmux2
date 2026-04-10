@@ -34,6 +34,7 @@
 #include "map/map.h"
 #include "network/randomsync.h"
 #include "object/objects_list.h"
+#include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
 #include "tool/debug.h"
@@ -46,9 +47,9 @@ Medkit::Medkit()
   : ObjBox("medkit") {
   SetTestRect (29, 29, 63, 6);
 
-  Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  anim = resource_manager.LoadSprite( res, "object/medkit");
-  resource_manager.UnLoadXMLProfile(res);
+  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  anim = GetResourceManager().LoadSprite( res, "object/medkit");
+  GetResourceManager().UnLoadXMLProfile(res);
 
   SetSize(anim->GetSize());
   anim->animation.SetLoopMode(false);
@@ -58,6 +59,7 @@ Medkit::Medkit()
 
 void Medkit::ApplyBonus(Character * c)
 {
+  JukeBox::GetInstance()->Play("default","box/medkit_picking_up");
   ApplyMedkit(c->AccessTeam(), *c);
   Ghost();
 }

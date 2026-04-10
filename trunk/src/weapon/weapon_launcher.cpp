@@ -62,7 +62,7 @@ WeaponBullet::WeaponBullet(const std::string &name,
 // Signal that the bullet has hit the ground
 void WeaponBullet::SignalGroundCollision(const Point2d& speed_before)
 {
-  JukeBox::GetInstance()->Play("share", "weapon/ricoche1");
+  JukeBox::GetInstance()->Play("default", "weapon/ricoche1");
   WeaponProjectile::SignalGroundCollision(speed_before);
   launcher->IncMissedShots();
 }
@@ -128,7 +128,7 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
   can_drown = true;
   camera_in_advance = true;
 
-  image = resource_manager.LoadSprite( weapons_res_profile, name);
+  image = GetResourceManager().LoadSprite( weapons_res_profile, name);
   image->EnableRotationCache(32);
   SetSize(image->GetSize());
 
@@ -162,7 +162,7 @@ void WeaponProjectile::Shoot(double strength)
 
   // Set the initial position.
   SetOverlappingObject(&ActiveCharacter(), 100);
-  lst_objects.AddObject(this);
+  ObjectsList::GetRef().AddObject(this);
   Camera::GetInstance()->FollowObject(this, true, camera_in_advance);
 
   double angle = ActiveCharacter().GetFiringAngle();
@@ -297,8 +297,8 @@ void WeaponProjectile::SignalDrowning()
   if (launcher != NULL && !launcher->ignore_drowning_signal)
     launcher->SignalProjectileDrowning();
 
-  if (can_drown) JukeBox::GetInstance()->Play("share", "sink");
-  //else JukeBox::GetInstance()->Play("share", "pschiiit");
+  if (can_drown) JukeBox::GetInstance()->Play("default", "sink");
+  //else JukeBox::GetInstance()->Play("default", "pschiiit");
 }
 
 // Default behavior : signal to launcher a projectile is going out of water

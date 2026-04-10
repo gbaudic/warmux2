@@ -74,12 +74,12 @@ void GameClassic::RefreshClock()
 
       case PLAYING:
         if (duration <= 1) {
-	  JukeBox::GetInstance()->Play("share", "end_turn");
+	  JukeBox::GetInstance()->Play("default", "end_turn");
 	  SetState(END_TURN);
         } else {
           duration--;
 	  if (duration == 12) {
-	    countdown_sample.Play("share", "countdown-end_turn");
+	    countdown_sample.Play("default", "countdown-end_turn");
 	  }
 	  if (duration > 10) {
 	    Interface::GetInstance()->UpdateTimer(duration, black_color);
@@ -113,7 +113,7 @@ void GameClassic::RefreshClock()
             break;
           }
 
-          if (Network::GetInstance()->IsTurnMaster() && give_objbox && world.IsOpen()) {
+          if (Network::GetInstance()->IsTurnMaster() && give_objbox && GetWorld().IsOpen()) {
             NewBox();
             give_objbox = false;
             break;
@@ -147,7 +147,7 @@ void GameClassic::__SetState_PLAYING()
   pause_seconde = Time::GetInstance()->Read();
 
   if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal())
-    wind.ChooseRandomVal();
+    Wind::GetRef().ChooseRandomVal();
 
   character_already_chosen = false;
 
@@ -224,7 +224,7 @@ void GameClassic::ApplyDeathMode () const
 {
   if (IsGameFinished()) return;
 
-  if(Time::GetInstance()->Read() > GameMode::GetInstance()->duration_before_death_mode * 1000)
+  if (Time::GetInstance()->Read() > GameMode::GetInstance()->duration_before_death_mode * 1000)
   {
     GameMessages::GetInstance()->Add (_("Hurry up, you are too slow !!"));
     FOR_ALL_LIVING_CHARACTERS(team, character)

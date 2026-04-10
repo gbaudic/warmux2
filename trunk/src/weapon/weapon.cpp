@@ -111,17 +111,17 @@ Weapon::Weapon(Weapon_type type,
 
   if (m_visibility != NEVER_VISIBLE)
   {
-    m_image = new Sprite( resource_manager.LoadImage(weapons_res_profile, m_id));
+    m_image = new Sprite( GetResourceManager().LoadImage(weapons_res_profile, m_id));
     if(!EqualsZero(min_angle - max_angle))
       m_image->cache.EnableLastFrameCache();
   }
 
-  icon = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_ico"), true);
+  icon = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_ico"), true);
   icon->cache.EnableLastFrameCache();
 
   mouse_character_selection = true;
 
-  const xmlNode* elem = resource_manager.GetElement(weapons_res_profile, "position", m_id);
+  const xmlNode* elem = GetResourceManager().GetElement(weapons_res_profile, "position", m_id);
   if (elem != NULL) {
     // E.g. <position name="my_weapon_id" origin="hand" x="-1" y="0" />
     std::string origin_xml;
@@ -143,7 +143,7 @@ Weapon::Weapon(Weapon_type type,
     ASSERT(false);
   }
 
-  elem = resource_manager.GetElement(weapons_res_profile, "hole", m_id);
+  elem = GetResourceManager().GetElement(weapons_res_profile, "hole", m_id);
   if (elem != NULL) {
     // E.g. <hole name="my_weapon_id" dx="-1" dy="0" />
     XmlReader::ReadIntAttr(elem, "dx", hole_delta.x);
@@ -448,7 +448,7 @@ void Weapon::InitLoading(){
   if (max_strength == 0)
     return ;
 
-  loading_sound.Play("share","weapon/load");
+  loading_sound.Play("default","weapon/load");
 
   m_first_time_loading = Time::GetInstance()->Read();
 
@@ -562,7 +562,7 @@ void Weapon::Draw(){
 		    3,
 		    3);
 
-    world.ToRedrawOnMap(rect);
+    GetWorld().ToRedrawOnMap(rect);
 
     GetMainWindow().RectangleColor(rect, c_red);
 
@@ -578,7 +578,7 @@ void Weapon::Draw(){
                   GetGunHolePosition().GetY() - Camera::GetInstance()->GetPositionY()- 1,
       	    	  3, 3);
 
-  world.ToRedrawOnMap(rect);
+  GetWorld().ToRedrawOnMap(rect);
   GetMainWindow().RectangleColor(rect, c_red);
 
 //  rect = Rectangle(
