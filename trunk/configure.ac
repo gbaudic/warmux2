@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8.1], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8.2], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -358,6 +358,12 @@ LIBPNG_LIBS=`$PACKAGE_CONFIG lib$PNG --libs`
 CFLAGS="$CFLAGS $LIBXML_CFLAGS $LIBPNG_CFLAGS"
 CXXFLAGS="$CXXFLAGS $LIBXML_CFLAGS $LIBPNG_CFLAGS"
 LIBS="$LIBS $LIBXML_LIBS $LIBPNG_LIBS"
+
+dnl === Add Werror flag for gcc/g++ if debug mode is enabled ==============
+if test "x${debug}" = "xyes"; then
+   CFLAGS="$CFLAGS -Werror"
+   CXXFLAGS="$CXXFLAGS -Werror"
+fi
 
 dnl ========================================================================
 dnl == Check for header files                                              =

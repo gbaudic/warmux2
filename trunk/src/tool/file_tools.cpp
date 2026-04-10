@@ -33,6 +33,7 @@
 #  undef DeleteFile  // windows.h defines it I think
 #else
 #  include <stdlib.h> // getenv
+#  include <unistd.h> // not needed by mingw
 #endif
 
 #include "tool/i18n.h"
