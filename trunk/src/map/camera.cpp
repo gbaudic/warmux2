@@ -22,277 +22,164 @@
  *****************************************************************************/
 
 #include "camera.h"
-//-----------------------------------------------------------------------------
 #include "map.h"
 #include "maps_list.h"
-#include "../team/teams_list.h"
-#include "../graphic/video.h"
+#include "../include/app.h"
 #include "../interface/mouse.h"
-#include "../tool/Rectangle.h"
-#include <iostream>
-
-using namespace Wormux;
-//-----------------------------------------------------------------------------
+#include "../team/teams_list.h"
+#include "../tool/debug.h"
+#include "../tool/rectangle.h"
+#include "../tool/math_tools.h"
 
 // Marge de cadrage 
 const int MARGE = 200;
-
-#if 0
-// Pause entre deux scroll
-const int PAUSE_SCROLLING = 1; // ms
-#endif
-
-#ifdef DEBUG
-
-//#define DEBUG_MSG_SCROLL
-//#define DEBUG_OBJ_SUIVI
-
-#endif
-#define COUT_DBG std::cout << "[Camera] "
-
 const double VITESSE_CAMERA = 20;
-//-----------------------------------------------------------------------------
-Camera camera;
-//-----------------------------------------------------------------------------
+const Point2i marge(200, 200);
+const Point2i vitesseCamera(20, 20);
 
-Camera::Camera()
-{
-  pos.x=0;
-  pos.y=0;
-  selec_rectangle=false;
-  pause = SDL_GetTicks();
+Camera camera;
+
+Camera::Camera(){
   lance = false;
   autorecadre = true;
   obj_suivi = NULL;
 }
 
-//-----------------------------------------------------------------------------
+bool Camera::HasFixedX() const{
+  return (int)world.GetWidth() <= GetSizeX();
+}
 
-// Decalage du fond
-int Camera::GetX() const { return pos.x; }
-int Camera::GetY() const { return pos.y; }
+bool Camera::HasFixedY() const{
+  return (int)world.GetHeight() <= GetSizeY();
+}
 
-//-----------------------------------------------------------------------------
+Point2i Camera::FreeDegrees() const{
+	return Point2i( HasFixedX()? 0:1,
+			HasFixedY()? 0:1 );
+}
 
-bool Camera::HasFixedX() const { return (world.GetWidth() <= GetWidth()); }
-bool Camera::HasFixedY() const { return (world.GetHeight() <= GetHeight()); }
+Point2i Camera::NonFreeDegrees() const{
+	return Point2i(1, 1) - FreeDegrees();
+}
 
-//-----------------------------------------------------------------------------
+void Camera::SetXYabs(int x, int y){ 
+  AppWormux * app = AppWormux::GetInstance();
 
-void Camera::SetXYabs (int x, int y)
-{ 
-#ifdef DEBUG_MSG_SCROLL
-  int sauve_fond_x = pos.x, sauve_fond_y = pos.y;
-#endif
-  if(!TerrainActif().infinite_bg)
-  {
-    if (!HasFixedX()) {
-      pos.x = BorneLong(x, 0, world.GetWidth()-GetWidth());
-    } else {
-      //pos.x = BorneLong(x, 0, GetWidth()-world.GetWidth());
-        pos.x = BorneLong(x, world.GetWidth()-GetWidth(), 0);
-    }
-  }
-  else
-  {
-    pos.x = x;
-  }
-
-  if(!TerrainActif().infinite_bg)
-  {
-    if (!HasFixedY()) {
-      pos.y = BorneLong(y, 0, world.GetHeight()-GetHeight());
-    } else {
-      //pos.y = BorneLong(y, 0, GetHeight()-world.GetHeight());
-          pos.y = BorneLong(y, world.GetHeight()-GetHeight(), 0);
-    }
-  }
-  else
-  {
-    if( y > (int)world.GetHeight()-(int)GetHeight() )
-      pos.y = (int)world.GetHeight()-(int)GetHeight();
+  if( !TerrainActif().infinite_bg ){
+    if( !HasFixedX() )
+      position.x = BorneLong(x, 0, world.GetWidth() - GetSizeX());
     else
-      pos.y = y;
-  }    
-  lance = true;
-#ifdef DEBUG_MSG_SCROLL
-  if ((pos.x != sauve_fond_x) || (pos.y != sauve_fond_y )) 
-  {
-    COUT_DBG << "SetXY : " << x << "," << y 
-	     << ", fond:" << pos.x << "," << pos.y << std::endl;
+      position.x = - (app->video.window.GetWidth() - world.GetWidth())/2;
+    
+	if( !HasFixedY() )
+      position.y = BorneLong(y, 0, world.GetHeight()-GetSizeY());
+    else
+      position.y = - (app->video.window.GetHeight() - world.GetHeight())/2;
+  }else{
+    position.x = x;
 
+    if( y > (int)world.GetHeight() - GetSizeY() )
+      position.y = world.GetHeight() - GetSizeY();
+    else
+      position.y = y;
   }
-#endif
+  lance = true;
 }
 
-//-----------------------------------------------------------------------------
-
-void Camera::SetXY(int dx, int dy)
-{ 
-  if (camera.HasFixedX()) dx = 0;
-  if (camera.HasFixedY()) dy = 0;
-  if ((dx == 0) && (dy == 0)) return;
-  SetXYabs (pos.x+dx,pos.y+dy);
+void Camera::SetXYabs(const Point2i &pos){
+	SetXYabs(pos.x, pos.y);
 }
 
-//-----------------------------------------------------------------------------
+void Camera::SetXY(Point2i pos){
+	pos = pos * FreeDegrees();
+	if( pos.IsNull() )
+		return;
+	
+	SetXYabs(position + pos);
+}
 
-void Camera::CentreObjSuivi ()
-{ Centre (*obj_suivi); }
-
-//-----------------------------------------------------------------------------
+void Camera::CenterOnFollowedObject(){
+  CenterOn(*obj_suivi);
+}
 
 // Centrage immédiat sur un objet
-void Camera::Centre (const PhysicalObj &obj)
-{
-  if (obj.IsGhost()) return;
+void Camera::CenterOn(const PhysicalObj &obj){
+  if (obj.IsGhost())
+    return;
 
-#ifdef DEBUG_MSG_SCROLL
-  COUT_DBG << "Se centre sur " << obj.m_name << std::endl;
-#endif
+  MSG_DEBUG( "camera.scroll", "centering on %s", obj.m_name.c_str() );
 
-  int x,y;
+  Point2i pos(0, 0);
 
-  if (!HasFixedX()) {
-    x  = (int)obj.GetX();
-    x -= ((int)GetWidth() - (int)obj.GetWidth())/(int)2;
-  } else {
-    x = ((int)world.GetWidth() - (int)GetWidth()) / 2;
-  }
-  if (!HasFixedY()) {
-    y  = (int)obj.GetY();
-    y -= ((int)GetHeight() - (int)obj.GetHeight())/(int)2;
-  } else {
-    y = ((int)world.GetHeight() - (int)GetHeight()) / 2;
-  }
-  SetXYabs (x,y);
+  pos += FreeDegrees() * obj.GetPosition() - ( GetSize() - obj.GetSize() )/2;
+  pos += NonFreeDegrees() * ( world.GetSize() - GetSize() )/2;
+
+  SetXYabs( pos );
 }
 
-//-----------------------------------------------------------------------------
-
-void Camera::AutoRecadre ()
-{
-  int dx, dy;
-  int x,y;
-  int larg,haut;
-
-  if (!obj_suivi || obj_suivi -> IsGhost()) return;
-
-  x = (int)obj_suivi -> GetX();
-  y = (int)obj_suivi -> GetY(); 
-  if (y < 0 && !TerrainActif().infinite_bg) y = 0;
-  larg = obj_suivi -> GetWidth();
-  haut = obj_suivi -> GetHeight();
-
-  if (!EstVisible(*obj_suivi)) 
-  {
-#ifdef DEBUG_MSG_SCROLL
-    COUT_DBG << "L'objet n'est pas visible." << std::endl;
-#endif
-    Centre (*obj_suivi);
+void Camera::AutoRecadre(){
+  if( !obj_suivi || obj_suivi -> IsGhost() )
+    return;
+  
+  if( !IsVisible(*obj_suivi) ){
+	MSG_DEBUG("camera.scroll", "The object is not visible.");
+	CenterOnFollowedObject();
     return;
   }
 
-  double dst_max = (GetWidth() - 2*MARGE)/2;
-  double dst;
-  if ((int)GetWidth() + pos.x < x+larg+MARGE)
-    dst = x+larg+MARGE - ((int)GetWidth() + pos.x);  // positif
-  else if (x-MARGE < pos.x)
-    dst = (int)(x-MARGE) - pos.x; // négatif
-  else
-    dst = 0;
-  dx = (int)(dst*VITESSE_CAMERA / dst_max);
+  Point2i pos = obj_suivi->GetPosition();
+  Point2i size = obj_suivi->GetSize();
+  
+  if( pos.y < 0 && !TerrainActif().infinite_bg )
+    pos.y = 0;
 
-  dst_max = ((int)GetHeight() - 2*MARGE)/2;
-  if ((int)GetHeight() + pos.y < y+haut+MARGE)
-    dst = y+haut+MARGE - (GetHeight() + pos.y);
-  else if (y-MARGE < pos.y)
-    dst = (int)(y-MARGE) - pos.y;
-  else
-    dst = 0;
-  dy = (int)(dst*VITESSE_CAMERA / dst_max);
-
-  SetXY (dx, dy);
+  Point2i dstMax = GetSize()/2 - marge;
+  Point2i cameraBR = GetSize() + position;
+  Point2i objectBRmargin = pos + size + marge;
+  Point2i dst(0, 0);
+ 
+  dst += cameraBR.inf(objectBRmargin) * (objectBRmargin - cameraBR);
+  dst += (pos - marge).inf(position) * (pos - marge - position);
+  
+  SetXY( dst * vitesseCamera / dstMax );
 }
 
-//-----------------------------------------------------------------------------
-
-void Camera::Refresh()
-{
+void Camera::Refresh(){
   lance = false;
 
   // Camera à la souris
-  mouse.TestCamera();
+  Mouse::GetInstance()->TestCamera();
   if (lance) return;
 
 #ifdef TODO_KEYBOARD // ??? 
   // Camera au clavier
   clavier.TestCamera();
-  if (lance) return;
+  if (lance)
+    return;
 #endif
    
-  if (autorecadre) AutoRecadre();
+  if (autorecadre)
+    AutoRecadre();
 }
 
-//-----------------------------------------------------------------------------
-
 void Camera::ChangeObjSuivi (PhysicalObj *obj, bool suit, bool recentre,
-			     bool force_recentrage)
-{
-#ifdef DEBUG_OBJ_SUIVI
-  COUT_DBG << "Suit l'objet " << obj -> m_name
-	   << ", recentre=" << recentre
-	   << ", suit=" << suit << std::endl;
-#endif
+			     bool force_recentrage){
+  MSG_DEBUG( "camera.tracking", "Following object %s, recentre=%d, suit=%d", obj->m_name.c_str(), recentre, suit);
   if (recentre) 
-  {
-    if ((obj_suivi != obj) || !EstVisible(*obj) || force_recentrage) 
+    if ((obj_suivi != obj) || !IsVisible(*obj) || force_recentrage) 
     {
-      Centre (*obj);
+      CenterOn(*obj);
       autorecadre = suit;
-#ifdef DEBUG_OBJ_SUIVI
-    } else {
-      COUT_DBG << "Finalement ne le suit pas ..." << std::endl;
-#endif
     }
-  }
   obj_suivi = obj;
 }
 
-//-----------------------------------------------------------------------------
-
-void Camera::StopFollowingObj (PhysicalObj* obj)
-{
+void Camera::StopFollowingObj (PhysicalObj* obj){
   if( obj_suivi == obj )
-  {
-    ChangeObjSuivi((PhysicalObj*)&ActiveCharacter(),true,true,true);
-  }
+    ChangeObjSuivi((PhysicalObj*)&ActiveCharacter(), true, true, true);
 }
 
-//-----------------------------------------------------------------------------
-
-uint Camera::GetWidth() const { return video.GetWidth(); }
-uint Camera::GetHeight() const { return video.GetHeight(); }
-
-//-----------------------------------------------------------------------------
-
-bool Camera::EstVisible (const PhysicalObj &obj)
-{
-#ifdef TODO_KEYBOARD // ??? 
-  CL_Rect rect;
-  rect.left = GetX();
-  rect.top = GetY();
-  rect.right = rect.left + GetWidth();
-  rect.bottom = rect.top + GetHeight();
-  return RectTouche (rect, obj.GetRect());
-#else
-   Rectanglei rect;
-   rect.x = GetX();
-   rect.y = GetY();
-   rect.w = GetWidth();
-   rect.h = GetHeight();
-   return rect.Intersect (obj.GetRect());
-#endif
+bool Camera::IsVisible(const PhysicalObj &obj){
+   return Intersect( obj.GetRect() );
 }
 
-//-----------------------------------------------------------------------------

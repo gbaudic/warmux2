@@ -21,33 +21,31 @@
 
 #ifndef SKY_H
 #define SKY_H
-//-----------------------------------------------------------------------------
-#include <SDL.h>
-#include "../include/base.h"
+
 #include "tile.h"
+#include <list>
+#include "../graphic/surface.h"
+#include "../include/base.h"
+#include "../tool/point.h"
+#include "../tool/rectangle.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
-
-   
-class Sky : public Tile
-{  
- private:
-  int lastx, lasty;
-  void CompleteDraw();
+class Sky{
+private:
+	Surface image;
+	Point2i lastPos;
+	Point2i tstVect;
+	Point2i margin;
+	void CompleteDraw();
+	void RedrawParticleList(std::list<Rectanglei> &list);
+	void RedrawParticle(const Rectanglei &particle) const;
+	Point2i GetSkyPos() const;
 
 public:
-  Sky();
-  void Init();
-  void Reset();
-  void Draw();
-  void Free() { FreeMem(); } 
-
- private:
-   SDL_Surface *image;
+	Sky();
+	void Init();
+	void Reset();
+	void Draw();
+	void Free();
 };
 
-}
-//-----------------------------------------------------------------------------
 #endif

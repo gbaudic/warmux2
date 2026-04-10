@@ -21,15 +21,12 @@
 
 #ifndef AIR_ATTACK_H
 #define AIR_ATTACK_H
-//-----------------------------------------------------------------------------
-#include <SDL.h>
+#include "../graphic/surface.h"
 #include "../graphic/sprite.h"
 #include "../include/base.h"
-#include "weapon.h"
+#include "launcher.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+class AirAttack;
 
 class AirAttackConfig : public ExplosiveWeaponConfig
 { 
@@ -41,73 +38,55 @@ public:
   virtual void LoadXml(xmlpp::Element *elem);
 };
 
-//-----------------------------------------------------------------------------
-
 class Obus : public WeaponProjectile
 {
-private:
-  SDL_Surface *impact; 
 public:
-  Obus();
-  void Draw();
-  void Refresh();
-  void Reset();
-  void Init();
+  Obus(AirAttackConfig& cfg);
 
 protected:
   void SignalCollision();
 };
 
-//-----------------------------------------------------------------------------
-
 class Avion : public PhysicalObj
 {
-public:
+public:  
+  std::list<Obus*> obus;
+  typedef std::list<Obus*>::iterator iterator;
+  bool obus_laches;
+  bool obus_actifs;
+
   int obus_dx, obus_dy;
   Sprite *image;
 private:
   int cible_x;
-  int vitesse;
+  AirAttackConfig &cfg;
 
 public:
-  Avion();
-  void Tire();
-  void Reset();
-  void Init();
+  Avion(AirAttackConfig& cfg);
+  void Shoot(double speed);
   void Draw();
   void Refresh();
   bool PeutLacherObus() const;
   int LitCibleX() const;
   int GetDirection() const;
+  void Avion::SignalGhostState (bool was_dead);
 };
-
-//-----------------------------------------------------------------------------
 
 class AirAttack : public Weapon
 {
 private:
-  std::vector<Obus*> obus;
-  typedef std::vector<Obus*>::iterator iterator;
-  typedef std::vector<Obus*>::const_iterator const_iterator;
-  bool obus_laches;
-  bool obus_actifs;
-
-  void p_Init();
   bool p_Shoot();
 
 public:
   Avion avion;
 
   AirAttack();
-  void p_Select();
-  void Refresh();
-  void Draw();
   void FinTir();
+  void Refresh();
   virtual void ChooseTarget ();
+
+ private:
   AirAttackConfig& cfg();
 };
 
-extern AirAttack air_attack;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

@@ -21,30 +21,27 @@
 
 #ifndef WEAPON_TOOLS_H
 #define WEAPON_TOOLS_H
-//-----------------------------------------------------------------------------
+
 #include <SDL.h>
-#include "../tool/resource_manager.h"
+#include "weapon.h"
+#include "../graphic/surface.h"
 #include "../include/base.h"
-#include "../weapon/weapon.h"
 #include "../object/physical_obj.h"
-#include "../tool/Point.h"
-//-----------------------------------------------------------------------------
+#include "../object/particle.h"
+#include "../tool/point.h"
 
 // Applique au explosion au point centre
 // Lance ExceptionMortVer() si le ver actif meurt
-
-void AppliqueExplosion (const Point2i &explosion,
-			const Point2i &trou,
-			SDL_Surface *impact,
-			const ExplosiveWeaponConfig &config,
-			PhysicalObj *obj_exclu, 
-			const std::string& son="weapon/explosion",
-			bool fire_particle = true
-			);
+void ApplyExplosion (const Point2i &pos,
+		     const ExplosiveWeaponConfig &config,
+		     PhysicalObj *obj_exclu, 
+		     const std::string& son="weapon/explosion",
+		     bool fire_particle = true,
+           ParticleEngine::ESmokeStyle smoke = ParticleEngine::BigESmoke
+		     );
 
 void UpdateStrengthBar(double strength);
 
 extern Profile *weapons_res_profile; 
 
-//-----------------------------------------------------------------------------
 #endif //WEAPON_TOOLS_H

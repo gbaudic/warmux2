@@ -16,62 +16,37 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Jet Pack :-)
+ * Low gravity weapon
  *****************************************************************************/
 
-#include "../weapon/lowgrav.h"
-//-----------------------------------------------------------------------------
-#include "../tool/i18n.h"
-#include "../team/teams_list.h"
-#include "../sound/jukebox.h"
+#include "lowgrav.h"
+#include "weapon_tools.h"
 #include "../game/game.h"
 #include "../game/game_loop.h"
-#include "../interface/game_msg.h"
 #include "../object/physical_obj.h"
-#include "../weapon/weapon_tools.h"
-
-//-----------------------------------------------------------------------------
-namespace Wormux 
-{
-LowGrav lowgrav;
-//-----------------------------------------------------------------------------
+#include "../sound/jukebox.h"
+#include "../interface/game_msg.h"
+#include "../team/teams_list.h"
+#include "../tool/i18n.h"
 
 // Espace entre l'espace en l'image
 const uint ESPACE = 5;
 
 const double LOW_GRAVITY_FACTOR = 0.4;
 
-//-----------------------------------------------------------------------------
-
-LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav")
+LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav", 
+			    new WeaponConfig(), NEVER_VISIBLE)
 {
   m_name = _("LowGrav");
-  m_visibility = NEVER_VISIBLE;
 
   override_keys = true ;
-  use_unit_on_first_shoot = false;
+  use_unit_on_first_shoot = false;  
 }
-
-//-----------------------------------------------------------------------------
-
-void LowGrav::p_Init()
-{
-  m_name = _("lowgrav");
-#ifdef CL
-  icone = CL_Surface("lowgrav_ico", &graphisme.weapons);
-#else
-   icone = resource_manager.LoadImage(weapons_res_profile,"lowgrav_ico");
-#endif
-}
-
-//-----------------------------------------------------------------------------
 
 void LowGrav::Refresh()
 {
   ActiveCharacter().UpdatePosition();
 }
-
-//-----------------------------------------------------------------------------
 
 void LowGrav::p_Deselect()
 {
@@ -80,8 +55,6 @@ void LowGrav::p_Deselect()
   m_is_active = false;
 }
 
-//-----------------------------------------------------------------------------
-
 bool LowGrav::p_Shoot()
 {
   ActiveCharacter().SetGravityFactor(LOW_GRAVITY_FACTOR);
@@ -89,13 +62,9 @@ bool LowGrav::p_Shoot()
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 void LowGrav::Draw()
 {
 }
-
-//-----------------------------------------------------------------------------
 
 void LowGrav::HandleKeyEvent(int action, int event_type)
 {
@@ -112,11 +81,8 @@ void LowGrav::HandleKeyEvent(int action, int event_type)
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void LowGrav::SignalTurnEnd()
 {
   p_Deselect();
 }
 
-} // namespace Wormux

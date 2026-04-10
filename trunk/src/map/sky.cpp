@@ -20,158 +20,62 @@
  *****************************************************************************/
 
 #include "sky.h"
-//-----------------------------------------------------------------------------
 #include "camera.h"
 #include "map.h"
 #include "maps_list.h"
-#include <limits.h>
-#include <SDL.h>
+#include "../graphic/surface.h"
 #include "../include/app.h"
-#include <iostream>
-//-----------------------------------------------------------------------------
-namespace Wormux
-{
 
 // Vitesse (comprise entre 0 et 0.5)
-const double VITESSE_CIEL_X = 0.3;
-const double VITESSE_CIEL_Y = 1;
+const Point2d SKY_SPEED( 0.3, 1);
 
-//-----------------------------------------------------------------------------
-
-Sky::Sky()
-{
-  image = NULL;
+Sky::Sky(){
 }
 
-//-----------------------------------------------------------------------------
+void Sky::Init(){
+ 	// That is temporary -> image will be loaded directly without alpha chanel
+	Surface tmp_image = lst_terrain.TerrainActif().LitImgCiel();
+	tmp_image.SetAlpha( 0, 0);
+	image = tmp_image.DisplayFormat();
 
-void Sky::Init()
-{
-   // That is temporary -> image will be loaded directly without alpha chanel
-   SDL_Surface *tmp_image = lst_terrain.TerrainActif().LitImgCiel();
-   SDL_SetAlpha(tmp_image, 0, 0);
-   image = SDL_DisplayFormat(tmp_image);
+	tstVect = image.GetSize().inf( camera.GetSize() );
+	margin = tstVect * (camera.GetSize() - image.GetSize())/2;
 }
 
-//-----------------------------------------------------------------------------
-
-void Sky::Reset()
-{
-  Init();
-  lastx = lasty = INT_MAX;
+void Sky::Reset(){
+	Init();
+	lastPos.SetValues(INT_MAX, INT_MAX);
 }
 
-//-----------------------------------------------------------------------------
-
-void Sky::CompleteDraw()
-{
-   int x = static_cast<int>(camera.GetX() * VITESSE_CIEL_X);
-   int y = static_cast<int>(camera.GetY() * VITESSE_CIEL_Y);
-
-   if(!TerrainActif().infinite_bg)
-   {
-     SDL_Rect ds = {x, y,app.sdlwindow->w,app.sdlwindow->h};
-     SDL_Rect dr = {0,0,app.sdlwindow->w,app.sdlwindow->h};
-     SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-   }
-   else
-   {
-     int w,h;
-
-     while(x<0)
-       x += image->w;
-     while(x>image->w)
-       x -= image->w;
-     while(y<0)
-       y += image->h;
-     while(y>image->h)
-       y -= image->h;
-
-     w = image->w - x;
-     if(w >= static_cast<int>(camera.GetWidth()))
-       w = camera.GetWidth();
-
-     h = image->h - y;
-     if(h >= static_cast<int>(camera.GetHeight()))
-       h = camera.GetHeight();
-
-     SDL_Rect ds = {x, y, w, h};
-     SDL_Rect dr = {0,0, w, h};
-     SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-
-     if(w < static_cast<int>(camera.GetWidth()))
-     {
-       SDL_Rect ds = {x+w-image->w, y, (int)camera.GetWidth()-w, h};
-       SDL_Rect dr = {w,0, (int)camera.GetWidth()-w, h};
-       SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-     }
-     if(h < static_cast<int>(camera.GetHeight()))
-     {
-       SDL_Rect ds = {x, y+h-image->h, w, (int)camera.GetHeight()-h};
-       SDL_Rect dr = {0,h, w, (int)camera.GetHeight()-h};
-       SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-     }
-     if(w < static_cast<int>(camera.GetWidth()) && h < static_cast<int>(camera.GetHeight()))
-     {
-       SDL_Rect ds = {x+w-image->w, y+h-image->h, camera.GetWidth()-w, camera.GetHeight()-h};
-       SDL_Rect dr = {w,h, camera.GetWidth()-w, camera.GetHeight()-h};
-       SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-     }
-
-   }
+void Sky::Free(){
+	image.Free();
 }
-
-//-----------------------------------------------------------------------------
 
 void Sky::Draw()
 {
-  int cx = camera.GetX();
-  int cy = camera.GetY();
-
-  if (lastx != cx || lasty != cy) {
-    CompleteDraw();
-    lastx = cx;
-    lasty = cy;
+  if( lastPos != camera.GetPosition() ){
+	lastPos = camera.GetPosition();
+	RedrawParticle(camera);
     return;
   }
-
-  lastx = cx;
-  lasty = cy;
-
-  int sky_cx = static_cast<int>(camera.GetX() * VITESSE_CIEL_X);
-  int sky_cy = static_cast<int>(camera.GetY() * VITESSE_CIEL_Y);
-
-  std::list<Rectanglei>::iterator it;
-  for (it = world.to_redraw_now->begin(); 
-       it != world.to_redraw_now->end(); 
-       ++it)
-  {
-    SDL_Rect ds = { sky_cx + it->x - cx, 
-		    sky_cy + it->y - cy, 
-		    it->w+1, 
-		    it->h+1};
-    SDL_Rect dr = {it->x-cx,
-		   it->y-cy, 
-		   it->w+1, 
-		   it->h+1};
-    SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-  }
-
-  for (it = world.to_redraw_particles_now->begin(); 
-       it != world.to_redraw_particles_now->end(); 
-       ++it)
-  {
-    SDL_Rect ds = { sky_cx + it->x - cx, 
-		    sky_cy + it->y - cy, 
-		    it->w+1, 
-		    it->h+1};
-    SDL_Rect dr = {it->x-cx,
-		   it->y-cy, 
-		   it->w+1, 
-		   it->h+1};
-    SDL_BlitSurface( image, &ds, app.sdlwindow, &dr);
-  }
+  
+  RedrawParticleList(*world.to_redraw_now);
+  RedrawParticleList(*world.to_redraw_particles_now);
 }
 
-//-----------------------------------------------------------------------------
-} // namespace Wormux
+void Sky::RedrawParticleList(std::list<Rectanglei> &list){
+  std::list<Rectanglei>::iterator it;
+
+  for( it = list.begin(); it != list.end(); ++it )
+	  RedrawParticle(*it);
+}
+
+void Sky::RedrawParticle(const Rectanglei &particle) const{
+    Rectanglei ds(GetSkyPos() + particle.GetPosition() - camera.GetPosition() - margin, 
+		    particle.GetSize() );
+    AppWormux::GetInstance()->video.window.Blit(image, ds, particle.GetPosition() - camera.GetPosition());
+}
+
+Point2i Sky::GetSkyPos() const{
+	return (Point2i(1, 1) - tstVect) * camera.GetPosition() * SKY_SPEED;
+}

@@ -22,18 +22,22 @@
  *****************************************************************************/
 
 #include "game_mode.h"
-//-----------------------------------------------------------------------------
-#include "../tool/i18n.h"
+#include <iostream>
 #include "config.h"
-#include "../tool/file_tools.h"
 #include "game_loop.h"
+#include "../tool/file_tools.h"
+#include "../tool/i18n.h"
 #include "../weapon/all.h"
 #include "../weapon/weapons_list.h"
-#include <iostream>
-//-----------------------------------------------------------------------------
-namespace Wormux {
-GameMode game_mode;
-//-----------------------------------------------------------------------------
+
+GameMode * GameMode::singleton = NULL;
+
+GameMode * GameMode::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new GameMode();
+  }
+  return singleton;
+}
 
 GameMode::GameMode()
 {
@@ -56,8 +60,6 @@ GameMode::GameMode()
   character.super_jump_angle = -80;
 }
 
-//-----------------------------------------------------------------------------
-
 // Load data options from the selected game_mode
 bool GameMode::LoadXml(xmlpp::Element *xml)
 {
@@ -67,15 +69,14 @@ bool GameMode::LoadXml(xmlpp::Element *xml)
     if (txt == "always") 
       allow_character_selection = ALWAYS;
     else if (txt == "never") 
-	    allow_character_selection = NEVER;
+      allow_character_selection = NEVER;
     else if (txt == "change_on_end_turn") 
-	    allow_character_selection = CHANGE_ON_END_TURN;
+      allow_character_selection = CHANGE_ON_END_TURN;
     else if (txt == "before_first_action_and_end_turn") 
-	    allow_character_selection = BEFORE_FIRST_ACTION_AND_END_TURN;
+      allow_character_selection = BEFORE_FIRST_ACTION_AND_END_TURN;
     else if (txt == "before_first_action") 
       allow_character_selection = BEFORE_FIRST_ACTION;
   }
-
 
   LitDocXml::LitUint (xml, "duration_turn", duration_turn);
   LitDocXml::LitUint (xml, "duration_move_player", duration_move_player);
@@ -127,8 +128,6 @@ bool GameMode::LoadXml(xmlpp::Element *xml)
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 bool GameMode::Load(const std::string &mode)
 {
   if (mode == m_current) return true;
@@ -138,13 +137,22 @@ bool GameMode::Load(const std::string &mode)
   try
   {
     LitDocXml doc;
-    std::string filename = std::string("game_mode") + std::string(PATH_SEPARATOR)
-			 + mode + std::string(".xml");
-    fullname = config.GetWormuxPersonalDir() + filename;
+    std::string filename = 
+      PATH_SEPARATOR
+      + std::string("game_mode") 
+      + std::string(PATH_SEPARATOR)
+      + mode 
+      + std::string(".xml");
 
-	if (!FichierExiste(fullname)) fullname = config.data_dir+filename;
-    if (!doc.Charge(fullname)) return false;
-    if (!LoadXml (doc.racine())) return false;
+    Config * config = Config::GetInstance();
+    fullname = config->GetPersonalDir() + filename;
+
+    if( !IsFileExist(fullname) )
+      fullname = config->GetDataDir() + filename;
+    if( !doc.Charge(fullname) )
+      return false;
+    if( !LoadXml (doc.racine()) )
+      return false;
   }
   catch (const xmlpp::exception &e)
   {
@@ -156,8 +164,6 @@ bool GameMode::Load(const std::string &mode)
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 bool GameMode::AllowCharacterSelection() const
 {
   switch (allow_character_selection)
@@ -166,7 +172,7 @@ bool GameMode::AllowCharacterSelection() const
 
   case GameMode::BEFORE_FIRST_ACTION:
   case GameMode::BEFORE_FIRST_ACTION_AND_END_TURN:
-	  return (game_loop.ReadState() == gamePLAYING) && !game_loop.character_already_chosen;
+	  return (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING) && !GameLoop::GetInstance()->character_already_chosen;
 
   case GameMode::CHANGE_ON_END_TURN:
   case GameMode::NEVER:
@@ -176,5 +182,3 @@ bool GameMode::AllowCharacterSelection() const
   return true;
 }
 
-//-----------------------------------------------------------------------------
-}

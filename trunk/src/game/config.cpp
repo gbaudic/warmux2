@@ -21,37 +21,41 @@
  * peut être modifiée avec le fichier de configuration.
  *****************************************************************************/
 
-//-----------------------------------------------------------------------------
-#include "../team/teams_list.h"
-#include "../graphic/video.h"
-#include "../sound/jukebox.h"
-#include "../team/skin.h"
-#include "../map/maps_list.h"
-#include "../weapon/weapons_list.h"
-#include "../include/action.h"
-#include "../interface/keyboard.h"
+#include "config.h"
+
 #include <sstream>
+#include <string>
 #include <iostream>
 #include <sys/stat.h>
-#include "../include/constant.h"
+#include <errno.h>
+#ifdef WIN32
+#  include <direct.h>
+#endif
 #include "game_mode.h"
+#include "errno.h"
+#include "../graphic/video.h"
+#include "../include/action.h"
+#include "../include/app.h"
+#include "../interface/keyboard.h"
+#include "../include/constant.h"
+#include "../map/maps_list.h"
+#include "../sound/jukebox.h"
+#include "../team/teams_list.h"
+#include "../team/skin.h"
 #include "../tool/file_tools.h"
 #include "../tool/string_tools.h"
 #include "../tool/i18n.h"
-//-----------------------------------------------------------------------------
-#include "config.h"
-namespace Wormux 
-{
-Config config;
-
-#ifndef WIN32
-const std::string REP_CONFIG="~/.wormux/";
-#else
-const std::string REP_CONFIG="";
-#endif
+#include "../weapon/weapons_list.h"
 
 const std::string NOMFICH="config.xml";
-//-----------------------------------------------------------------------------
+Config * Config::singleton = NULL;
+
+Config * Config::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new Config();
+  }
+  return singleton;
+}
 
 Config::Config()
 {
@@ -63,16 +67,6 @@ Config::Config()
   display_wind_particles = true;
   transparency = ALPHA;
    
-  // directories
-#ifndef WIN32
-  data_dir = INSTALL_DATADIR PATH_SEPARATOR;
-  locale_dir = INSTALL_LOCALEDIR PATH_SEPARATOR;
-#else
-  data_dir = "data\\";
-  locale_dir = "locale\\";
-#endif
-  ttf_filename = data_dir+"font" + PATH_SEPARATOR + "DejaVuSans.ttf";
-
   // video
   tmp.video.width = 800;
   tmp.video.height = 600;
@@ -81,25 +75,39 @@ Config::Config()
   tmp.sound.music = true;
   tmp.sound.effects = true;
   tmp.sound.frequency = 44100;
+}
+
+void Config::Init()
+{
+  Constants::GetInstance();
+
+  // directories
+#ifndef WIN32
+  data_dir = *GetEnv(Constants::ENV_DATADIR, Constants::DEFAULT_DATADIR);
+  locale_dir = *GetEnv(Constants::ENV_LOCALEDIR, Constants::DEFAULT_LOCALEDIR);
+#else
+  data_dir = "data\\";
+  locale_dir = "locale\\";
+#endif
+  std::string dft_font_path = std::string(data_dir + PATH_SEPARATOR + "font" + PATH_SEPARATOR + "DejaVuSans.ttf");
+  ttf_filename = *GetEnv(Constants::ENV_FONT_PATH, dft_font_path);
 
 #ifndef WIN32
-  personal_dir = RepertoireHome()+"/.wormux/";
+  personal_dir = GetHome()+"/.wormux/";
 #else
-  personal_dir ="";
+  personal_dir = GetHome()+"\\Wormux\\";
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
-bool Config::Charge()
+bool Config::Load()
 {
   bool result = ChargeVraiment();
   std::string dir;
-  dir = TraduitRepertoire(locale_dir);
-  I18N_SetDir (dir);
+  dir = TranslateDirectory(locale_dir);
+  I18N_SetDir (dir + PATH_SEPARATOR);
 
-  dir = TraduitRepertoire(data_dir);
-  resource_manager.AddDataPath(dir);
+  dir = TranslateDirectory(data_dir);
+  resource_manager.AddDataPath(dir + PATH_SEPARATOR);
   return result;
 }
 
@@ -111,9 +119,6 @@ bool Config::ChargeVraiment()
     // Charge la configuration XML
     LitDocXml doc;
     m_nomfich = personal_dir+NOMFICH;
-#ifdef __MINGW32__
-printf("charge %s",m_nomfich.c_str());
-#endif
     if (!doc.Charge (m_nomfich)) return false;
     if (!ChargeXml (doc.racine())) return false;
     m_xml_charge = true;
@@ -129,28 +134,11 @@ printf("charge %s",m_nomfich.c_str());
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 // Lit les données sur une équipe
 bool Config::ChargeXml(xmlpp::Element *xml)
 {
   xmlpp::Element *elem;
-  std::string config_version;
   
-  if (!LitDocXml::LitString  (xml, "version", config_version)
-      || config_version != VERSION)
-  {
-      std::cerr << "! " << _("Warning: Don't load configuration (old version of Wormux).") << std::endl;
-      return false;
-  }
-
-
-  //=== Directories ===
-  LitDocXml::LitString  (xml, "data_dir", data_dir);
-  LitDocXml::LitString  (xml, "locale_dir", locale_dir);
-  if(!LitDocXml::LitString  (xml, "ttf_filename", ttf_filename))
-    ttf_filename = data_dir+"font" + PATH_SEPARATOR + "DejaVuSans.ttf";
- 
   //=== Map ===
   LitDocXml::LitString  (xml, "map", tmp.map_name);
 
@@ -167,7 +155,7 @@ bool Config::ChargeXml(xmlpp::Element *xml)
   {
     uint max_fps;
     if (LitDocXml::LitUint (elem, "max_fps", max_fps)) 
-      video.SetMaxFps(max_fps);
+      AppWormux::GetInstance()->video.SetMaxFps(max_fps);
 
     LitDocXml::LitBool (elem, "display_wind_particles", display_wind_particles);  
     LitDocXml::LitBool (elem, "display_energy_character", display_energy_character);
@@ -175,22 +163,6 @@ bool Config::ChargeXml(xmlpp::Element *xml)
     LitDocXml::LitInt (elem, "width", tmp.video.width);
     LitDocXml::LitInt (elem, "height", tmp.video.height);
     LitDocXml::LitBool (elem, "full_screen", tmp.video.fullscreen);
-
-    std::string transparency_str;
-    if ( LitDocXml::LitString (elem, "transparency", transparency_str))
-      {
-	if ( transparency_str == "alpha" )
-	  transparency = ALPHA;
-	else if ( transparency_str == "colorkey" )
-	  transparency = COLORKEY;
-	else
-	  {
-	    std::cerr << "o Unknow transparency \"" << transparency_str  
-		      << "\" in config.xml [IGNORED]." << std::endl;
-	  }	  
-      }
-     
-	 
   }
 
   //=== Son ===
@@ -207,43 +179,41 @@ bool Config::ChargeXml(xmlpp::Element *xml)
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 void Config::SetKeyboardConfig()
 {
-	clavier.SetKeyAction(SDLK_LEFT,		ACTION_MOVE_LEFT);		
-	clavier.SetKeyAction(SDLK_RIGHT,	ACTION_MOVE_RIGHT);
-	clavier.SetKeyAction(SDLK_UP,			ACTION_UP);
-	clavier.SetKeyAction(SDLK_DOWN,	ACTION_DOWN);
-	clavier.SetKeyAction(SDLK_RETURN,	ACTION_JUMP);
-	clavier.SetKeyAction(SDLK_BACKSPACE, ACTION_SUPER_JUMP);
-	clavier.SetKeyAction(SDLK_SPACE, ACTION_SHOOT);
-	clavier.SetKeyAction(SDLK_TAB, ACTION_CHANGE_CHARACTER);
-	clavier.SetKeyAction(SDLK_ESCAPE, ACTION_QUIT);
-	clavier.SetKeyAction(SDLK_p, ACTION_PAUSE);
-	clavier.SetKeyAction(SDLK_F10, ACTION_FULLSCREEN);
-	clavier.SetKeyAction(SDLK_F9, ACTION_TOGGLE_INTERFACE);
-	clavier.SetKeyAction(SDLK_F1, ACTION_WEAPONS1);
-	clavier.SetKeyAction(SDLK_F2, ACTION_WEAPONS2);
-	clavier.SetKeyAction(SDLK_F3, ACTION_WEAPONS3);
-	clavier.SetKeyAction(SDLK_F4, ACTION_WEAPONS4);
-	clavier.SetKeyAction(SDLK_F5, ACTION_WEAPONS5);
-	clavier.SetKeyAction(SDLK_F6, ACTION_WEAPONS6);
-	clavier.SetKeyAction(SDLK_F7, ACTION_WEAPONS7);
-	clavier.SetKeyAction(SDLK_F8, ACTION_WEAPONS8);
-	clavier.SetKeyAction(SDLK_c, ACTION_CENTER);
+  Clavier * clavier = Clavier::GetInstance();
+  
+  clavier->SetKeyAction(SDLK_LEFT,		ACTION_MOVE_LEFT);		
+  clavier->SetKeyAction(SDLK_RIGHT,	ACTION_MOVE_RIGHT);
+  clavier->SetKeyAction(SDLK_UP,			ACTION_UP);
+  clavier->SetKeyAction(SDLK_DOWN,	ACTION_DOWN);
+  clavier->SetKeyAction(SDLK_RETURN,	ACTION_JUMP);
+  clavier->SetKeyAction(SDLK_BACKSPACE, ACTION_HIGH_JUMP);
+  clavier->SetKeyAction(SDLK_SPACE, ACTION_SHOOT);
+  clavier->SetKeyAction(SDLK_TAB, ACTION_CHANGE_CHARACTER);
+  clavier->SetKeyAction(SDLK_ESCAPE, ACTION_QUIT);
+  clavier->SetKeyAction(SDLK_p, ACTION_PAUSE);
+  clavier->SetKeyAction(SDLK_F10, ACTION_FULLSCREEN);
+  clavier->SetKeyAction(SDLK_F9, ACTION_TOGGLE_INTERFACE);
+  clavier->SetKeyAction(SDLK_F1, ACTION_WEAPONS1);
+  clavier->SetKeyAction(SDLK_F2, ACTION_WEAPONS2);
+  clavier->SetKeyAction(SDLK_F3, ACTION_WEAPONS3);
+  clavier->SetKeyAction(SDLK_F4, ACTION_WEAPONS4);
+  clavier->SetKeyAction(SDLK_F5, ACTION_WEAPONS5);
+  clavier->SetKeyAction(SDLK_F6, ACTION_WEAPONS6);
+  clavier->SetKeyAction(SDLK_F7, ACTION_WEAPONS7);
+  clavier->SetKeyAction(SDLK_F8, ACTION_WEAPONS8);
+  clavier->SetKeyAction(SDLK_c, ACTION_CENTER);
 }
 
-//-----------------------------------------------------------------------------
-
-void Config::Applique()
+void Config::Apply()
 {
   SetKeyboardConfig();
 
   // Charge le mode jeu
   weapons_list.Init();
   
-  game_mode.Load(m_game_mode);
+  GameMode::GetInstance()->Load(m_game_mode);
 
   // Son
   jukebox.ActiveMusic (tmp.sound.music);
@@ -264,24 +234,23 @@ void Config::Applique()
     lst_terrain.ChangeTerrain (0);
 }
 
-//-----------------------------------------------------------------------------
-
-bool Config::Sauve()
+bool Config::Save()
 {
-  // Le répertoire de config n'existe pas ? le créer
-  std::string rep = TraduitRepertoire(REP_CONFIG);
+  std::string rep = personal_dir;
+  
+  // Create the directory if it doesn't exist
 #ifndef WIN32
-  if (!FichierExiste (rep))
-  {
-    if (mkdir (rep.c_str(), 0750) != 0)
-    {
-      std::cout << "o Erreur lors de la création répertoire " << rep 
-		<< ", impossible de créer le fichier de configuration." 
-		<< std::endl;
-      return false;
-    }
-  }
+   if (mkdir (personal_dir.c_str(), 0750) != 0 && errno != EEXIST)
+#else
+  if (_mkdir (personal_dir.c_str()) != 0 && errno != EEXIST)
 #endif
+  {
+    std::cerr << "o " 
+      << Format(_("Error while creating directory \"%s\": unable to store configuration file."), 
+          rep.c_str())
+      << std::endl;
+    return false;
+  }
 
   if (!SauveXml())
   {
@@ -290,20 +259,13 @@ bool Config::Sauve()
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 bool Config::SauveXml()
 {
   EcritDocXml doc;
 
   doc.Cree (m_nomfich, "config", "1.0", "iso-8859-1");
   xmlpp::Element *racine = doc.racine();
-  doc.EcritBalise (racine, "version", VERSION);
-
-  //=== Directories ===
-  doc.EcritBalise (racine, "data_dir", data_dir);
-  doc.EcritBalise (racine, "locale_dir", locale_dir);
-  doc.EcritBalise (racine, "ttf_filename", ttf_filename);
+  doc.EcritBalise (racine, "version", Constants::VERSION);
 
   //=== Terrain ===
   doc.EcritBalise (racine, "map", lst_terrain.TerrainActif().name);
@@ -319,16 +281,18 @@ bool Config::SauveXml()
   }
 
   //=== Video ===
+  AppWormux * app = AppWormux::GetInstance();
+
   xmlpp::Element *noeud_video = racine -> add_child("video");
   doc.EcritBalise (noeud_video, "display_wind_particles", ulong2str(display_wind_particles));  
   doc.EcritBalise (noeud_video, "display_energy_character", ulong2str(display_energy_character));
   doc.EcritBalise (noeud_video, "display_name_character", ulong2str(display_name_character));
-  doc.EcritBalise (noeud_video, "width", ulong2str(video.GetWidth()));
-  doc.EcritBalise (noeud_video, "height", ulong2str(video.GetHeight()));
+  doc.EcritBalise (noeud_video, "width", ulong2str(app->video.window.GetWidth()));
+  doc.EcritBalise (noeud_video, "height", ulong2str(app->video.window.GetHeight()));
   doc.EcritBalise (noeud_video, "full_screen", 
-		   ulong2str(static_cast<uint>(video.IsFullScreen())) );	  
+		   ulong2str(static_cast<uint>(app->video.IsFullScreen())) );	  
   doc.EcritBalise (noeud_video, "max_fps", 
-          long2str(static_cast<int>(video.GetMaxFps())));
+          long2str(static_cast<int>(app->video.GetMaxFps())));
 
   if ( transparency == ALPHA )
     doc.EcritBalise (noeud_video, "transparency", "alpha");
@@ -348,9 +312,83 @@ bool Config::SauveXml()
   return doc.Sauve();
 }
 
-//-----------------------------------------------------------------------------
+/*
+ * Return the value of the environment variable 'name' or
+ * 'dft' if not set
+ */
+std::string * Config::GetEnv(const std::string & name, const std::string & dft) {
+  std::string * value;
+  char * c_value = std::getenv(name.c_str());
+  
+  if (c_value != NULL) {
+    value = new std::string(c_value);
+  } else {
+    value = new std::string(dft);
+  }
+  return value;
+}
 
-std::string Config::GetWormuxPersonalDir() const { return personal_dir; }
+std::string Config::GetDataDir() const
+{
+  return data_dir;
+}
 
-//-----------------------------------------------------------------------------
+std::string Config::GetLocaleDir() const
+{
+  return locale_dir;
+}
+
+std::string Config::GetPersonalDir() const
+{
+  return personal_dir;
+}
+
+bool Config::GetExterieurMondeVide() const
+{
+  return exterieur_monde_vide;
+}
+
+bool Config::GetDisplayEnergyCharacter() const 
+{
+  return display_energy_character;
+}
+
+bool Config::GetDisplayNameCharacter() const
+{
+  return display_name_character;
+}
+
+bool Config::GetDisplayWindParticles() const
+{
+  return display_wind_particles;
+}
+
+std::string Config::GetTtfFilename() const
+{
+  return ttf_filename;
+}
+
+void Config::SetDisplayEnergyCharacter(bool dec)
+{
+  display_energy_character = dec;
+}
+
+void Config::SetDisplayNameCharacter(bool dnc)
+{
+  display_name_character = dnc;
+}
+
+void Config::SetDisplayWindParticles(bool dwp)
+{
+  display_wind_particles = dwp;
+}
+
+void Config::SetExterieurMondeVide(bool emv)
+{
+  exterieur_monde_vide = emv;
+}
+
+int Config::GetTransparency() const
+{
+  return transparency;
 }

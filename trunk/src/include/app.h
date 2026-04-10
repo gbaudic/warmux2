@@ -21,21 +21,23 @@
 
 #ifndef APP_WORMUX_H
 #define APP_WORMUX_H
-//-----------------------------------------------------------------------------
+
 #include <SDL.h>
 #include <string>
 #include "base.h"
 #include "../game/config.h"
-//-----------------------------------------------------------------------------
+#include "../graphic/video.h"
 
 class AppWormux
 {
 public:
-  SDL_Surface* sdlwindow;
+  Video video;
 
 private:
   int x, y;
   std::string titre_fenetre;
+
+  static AppWormux * singleton;
 
 private:
   void Init(int, char**);
@@ -46,12 +48,12 @@ private:
   void InitFonts();
   void End();
   void DisplayWelcomeMessage();
+  AppWormux();
 
 public:
-  AppWormux();
+  static AppWormux * GetInstance();
+
   int main( int argc, char ** argv );
 };
 
-extern AppWormux app;
-//-----------------------------------------------------------------------------
 #endif

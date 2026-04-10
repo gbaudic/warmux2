@@ -19,89 +19,48 @@
  * Suicide.
  *****************************************************************************/
 
-#include "../weapon/suicide.h"
-//-----------------------------------------------------------------------------
-#include "../tool/i18n.h"
-#include "../team/teams_list.h"
-#include "../game/game_loop.h"
-#include "weapon_tools.h"
+#include "suicide.h"
 #include <iostream>
-//-----------------------------------------------------------------------------
-namespace Wormux 
-{
-Suicide suicide;
+#include "weapon_tools.h"
+#include "../game/game_loop.h"
+#include "../team/teams_list.h"
+#include "../tool/i18n.h"
 
 // Espace entre l'espace en l'image
 const uint ESPACE = 5;
 
-//-----------------------------------------------------------------------------
-
-Suicide::Suicide() : Weapon(WEAPON_SUICIDE, "suicide")
+Suicide::Suicide() : Weapon(WEAPON_SUICIDE, "suicide", new ExplosiveWeaponConfig())
 {  
   m_name = _("Commit suicide");
-  extra_params = new ExplosiveWeaponConfig();
-  sound_channel = -1;
+  sound_channel = -1;  
 }
-
-//-----------------------------------------------------------------------------
 
 void Suicide::p_Select()
 {
   is_dying = false;
 }
 
-//-----------------------------------------------------------------------------
-
-void Suicide::p_Init()
-{
-#ifdef CL
-  hole_image = CL_Surface("suicide_hole", &graphisme.weapons);
-#else
-  hole_image = resource_manager.LoadImage( weapons_res_profile, "suicide_hole"); 
-#endif
-}
-
-//-----------------------------------------------------------------------------
-
 bool Suicide::p_Shoot()
 { 
-#ifdef CL
-  jukebox.Play ("weapon/suicide", false, &son);
-#else
   sound_channel = jukebox.Play ("share", "weapon/suicide");
-#endif
 
-  game_loop.interaction_enabled=false;
+  GameLoop::GetInstance()->interaction_enabled=false;
   is_dying = true;
 
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 void Suicide::Refresh()
 {
   if (!is_dying) return;
 
-#ifdef CL
-  m_is_active = son -> is_playing();
-#else
-  if ( sound_channel != -1 && Mix_Playing(sound_channel) ) {
-    m_is_active = true;
-  } else {
-    m_is_active = false;
-  }
-#endif
+  m_is_active = sound_channel != -1 && Mix_Playing(sound_channel);
 
-  if (!m_is_active) {
-    if ( !ActiveCharacter().IsDead() ) ActiveCharacter().Die();
-  }
+  if( !m_is_active )
+    if( !ActiveCharacter().IsDead() )
+      ActiveCharacter().Die();
 }
-
-//-----------------------------------------------------------------------------
 
 ExplosiveWeaponConfig& Suicide::cfg()
 { return static_cast<ExplosiveWeaponConfig&>(*extra_params); }
 
-//-----------------------------------------------------------------------------
-} // namespace Wormux

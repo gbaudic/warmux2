@@ -40,8 +40,6 @@
 #include <sys/stat.h>
 #endif
 
-using namespace Wormux;
-using namespace std;
 
 const std::string NOMFICH_CONFIG = "config.xml";
 //-----------------------------------------------------------------------------
@@ -150,7 +148,7 @@ void Skin::LoadManySkins(xmlpp::Element *root, Profile *res) {
       anim.utilise = true;
       anim.image = resource_manager.LoadSprite( res, skin_name);
       anim.image->Start();
-      anim.image->SetShowOnFinish(Sprite::show_blank);
+      anim.image->animation.SetShowOnFinish(SpriteAnimation::show_blank);
       LitDocXml::LitBool(xml_config, "not_while_playing", anim.not_while_playing);
       continue;
     }
@@ -176,8 +174,8 @@ void Skin::LoadManySkins(xmlpp::Element *root, Profile *res) {
       LitDocXml::LitBool(xml_config, "full_walk", config.full_walk);
       if(config.full_walk)
       {
-        config.image->SetShowOnFinish(Sprite::show_first_frame);
-        config.image->SetLoopMode();
+        config.image->animation.SetShowOnFinish(SpriteAnimation::show_first_frame);
+        config.image->animation.SetLoopMode(true);
         config.image->Finish();
       }
       GetXmlConfig(xml_config,config);
@@ -273,7 +271,7 @@ void LoadOneSkin (const std::string &dir, const std::string &file)
 #endif
 
   // The config file doesn't exist ?
-  if (!FichierExiste(fullname+PATH_SEPARATOR+NOMFICH_CONFIG)) return;
+  if (!IsFileExist(fullname+PATH_SEPARATOR+NOMFICH_CONFIG)) return;
 
   // Try to load the skin
   Skin skin;
@@ -293,7 +291,7 @@ void InitSkins()
   std::cout << "o " << _("Load skins:");
   std::cout.flush();
    
-  std::string dirname = config.data_dir + "skin" + PATH_SEPARATOR;
+  std::string dirname = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "skin" + PATH_SEPARATOR;
 #if !defined(WIN32) || defined(__MINGW32__)
   struct dirent *file;
   DIR *dir = opendir(dirname.c_str());
@@ -325,7 +323,7 @@ void InitSkins()
 #endif
    
 #if !defined(WIN32) || defined(__MINGW32__)
-  dirname = config.GetWormuxPersonalDir()+"skin"+PATH_SEPARATOR;
+  dirname = Config::GetInstance()->GetPersonalDir() + PATH_SEPARATOR + "skin" + PATH_SEPARATOR;
   dir = opendir(dirname.c_str());
   if (dir != NULL) {
     while ((file = readdir(dir)) != NULL)

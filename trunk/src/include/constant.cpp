@@ -20,63 +20,33 @@
  *****************************************************************************/
 
 #include "constant.h"
-//-----------------------------------------------------------------------------
-namespace Wormux {
 
-const std::string VERSION("0.7beta3");
+const std::string Constants::VERSION = "0.7";
 
-//-----------------------------------------------------------------------------
-
-#ifndef INSTALL_DATADIR
-#  define INSTALL_DATADIR "data/"
-#endif
-
-// Installation directory (with slash)
-const std::string DEFAULT_DATADIR(INSTALL_DATADIR);
-
-//-----------------------------------------------------------------------------
-
-#ifndef INSTALL_LOCALEDIR
-#  define INSTALL_LOCALEDIR "locale/"
-#endif
-
-// Installation diretory (with slash)
-const std::string DEFAULT_LOCALEDIR(INSTALL_LOCALEDIR);
-
-//-----------------------------------------------------------------------------
+const std::string Constants::DEFAULT_DATADIR = INSTALL_DATADIR;
+const std::string Constants::DEFAULT_LOCALEDIR = INSTALL_LOCALEDIR;
+const std::string Constants::ENV_DATADIR = "WORMUX_DATADIR";
+const std::string Constants::ENV_LOCALEDIR = "WORMUX_LOCALEDIR";
+const std::string Constants::ENV_FONT_PATH = "WORMUX_FONT_PATH";
 
 // Nombre de boucles maximum pour le test ...
-const uint NBR_BCL_MAX_EST_VIDE = 200; // Un objet est dans le vide ?
+const uint Constants::NBR_BCL_MAX_EST_VIDE = 200; // Un objet est dans le vide ?
 
-// Taille (et position) de l'image de fond (et du plateau de jeu)
-uint FOND_X = 0;
-uint FOND_Y = 0;
+std::vector<std::string> Constants::AUTHORS;
 
-std::vector<std::string> AUTHORS;
-
-const std::string WEB_SITE("http://www.wormux.org/");
-const std::string EMAIL("wormux-dev@gna.org");
-
-//-----------------------------------------------------------------------------
+const std::string Constants::WEB_SITE = "http://www.wormux.org";
+const std::string Constants::EMAIL = "wormux-dev@gna.org";
 
 // Dimensions min/max du terrain (en pixel)
-const uint LARG_MIN_TERRAIN = 100;
-const uint HAUT_MIN_TERRAIN = 200;
-const uint TAILLE_MAX_TERRAIN = 4000*4000;
-
-// Taille des cellules du terrain
-const uint LARG_CELLULE_TERRAIN = 300;
-const uint HAUT_CELLULE_TERRAIN = 300;
+const Point2i Constants::MAP_MIN_SIZE = Point2i(100, 200);
+const int Constants::MAP_MAX_SIZE = 4000*4000;
 
 // Hauteur minimale libre pour que le terrain soit qualifié " d'ouvert "
-const uint HAUT_MIN_TERRAIN_OUVERT = 40;
+const uint Constants::HAUT_MIN_TERRAIN_OUVERT = 40;
 
-// Distance minimale entre les vers lors de l'initialisation d'une partie
-const double DST_MIN_ENTRE_VERS = 200.0;
+Constants * Constants::singleton = NULL;
 
-//-----------------------------------------------------------------------------
-
-void InitConstants()
+Constants::Constants()
 {
   AUTHORS.push_back ("Lawrence AZZOUG");
   AUTHORS.push_back ("Laurent DEFERT SIMONNEAU");
@@ -86,5 +56,9 @@ void InitConstants()
   AUTHORS.push_back ("Victor STINNER");
 }
 
-//-----------------------------------------------------------------------------
+Constants * Constants::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new Constants();
+  }
+  return singleton;
 }

@@ -20,66 +20,50 @@
  *****************************************************************************/
 
 #include "wind.h"
-//----------------------------------------------------------------------------
+#include "camera.h"
+#include "../game/time.h"
+#include "../graphic/sprite.h"
 #include "../include/action_handler.h"
-#include "../tool/random.h"
+#include "../include/app.h"
 #include "../map/map.h"
 #include "../map/maps_list.h"
-#include "../game/time.h"
-#include "../tool/xml_document.h"
-#include "camera.h"
-#include <SDL.h>
+#include "../tool/random.h"
 #include "../tool/resource_manager.h"
-#include "../graphic/sprite.h"
-#include "../include/app.h"
-#include "camera.h"
-//----------------------------------------------------------------------------
+#include "../tool/xml_document.h"
 
 const uint MAX_WIND_OBJECTS = 200;
-
 const uint BARRE_LARG = 80;
 const uint BARRE_HAUT = 10;
 const double force = 5; // Force maximale du vent en m/(sec*sec)
 const uint barre_speed = 20;
 
-//----------------------------------------------------------------------------
-namespace Wormux {
 Wind wind;
-//-----------------------------------------------------------------------------
 
-WindParticle::WindParticle() : PhysicalObj("WindParticle", 0.0)
+WindParticle::WindParticle() :
+  PhysicalObj("WindParticle", 0.0)
 {
   m_type = objUNBREAKABLE;
-  m_wind_factor = 1;
-  m_air_resist_factor = 0;
-  sprite = NULL;
-}
-
-//-----------------------------------------------------------------------------
-
-void WindParticle::Init()
-{
-  double mass, wind_factor ;
-
-  if(sprite != NULL)
-    delete sprite;
 
   sprite = resource_manager.LoadSprite( TerrainActif().res_profile, "wind_particle");
   if(sprite->GetFrameCount()==1)
-    sprite->EnableLastFrameCache();
-  sprite->SetCurrentFrame ( RandomLong(0, sprite->GetFrameCount()-1));
+    sprite->cache.EnableLastFrameCache();
+  sprite->SetCurrentFrame ( randomObj.GetLong(0, sprite->GetFrameCount()-1));
    
-  SetXY(RandomLong(0, world.GetWidth()-1), RandomLong(0, world.GetHeight()-1));
+  SetXY( randomObj.GetPoint(world.GetSize()) );
+
+  double mass, wind_factor ; 
 
   //Mass = mass_mean + or - 25%
   mass = TerrainActif().wind.particle_mass;
-  mass *= (1.0 + RandomLong(-100, 100)/400.0);
+  mass *= (1.0 + randomObj.GetLong(-100, 100)/400.0);
   SetMass (mass);
-  SetSize( sprite->GetWidth(), sprite->GetHeight());
+  SetSize( sprite->GetSize() );
   wind_factor = TerrainActif().wind.particle_wind_factor ;
-  wind_factor *= (1.0 + RandomLong(-100, 100)/400.0);  
+  wind_factor *= (1.0 + randomObj.GetLong(-100, 100)/400.0);  
   SetWindFactor(wind_factor);
   StartMoving();
+  m_air_resist_factor = TerrainActif().wind.particle_air_resist_factor ;
+  m_air_resist_factor *= (1.0 + randomObj.GetLong(-100, 100)/400.0);
 
   // Fixe le rectangle de test
   int dx = 0 ;
@@ -89,18 +73,21 @@ void WindParticle::Init()
   m_allow_negative_y = true;
 }
 
-//-----------------------------------------------------------------------------
-
-void WindParticle::Reset()
-{ 
-}
-
-//-----------------------------------------------------------------------------
-
 void WindParticle::Refresh()
 {
-  sprite->Update();
+  sprite->Update(); 
+  
+  double initial_air_resist_factor = m_air_resist_factor;
+  m_air_resist_factor *= (1.0 + randomObj.GetLong(-100, 100)/400.0);
+
+  double initial_wind_factor = m_wind_factor;
+  m_wind_factor *= (1.0 + randomObj.GetLong(-100, 100)/400.0);
+
   UpdatePosition();
+  
+  m_air_resist_factor = initial_air_resist_factor;
+  m_wind_factor = initial_wind_factor;
+
   if (IsGhost())
   {
     int x, y;
@@ -112,23 +99,20 @@ void WindParticle::Refresh()
       else
         x = -GetWidth()+1;
     } else {
-      x = RandomLong(0, world.GetWidth()-1);
+      x = randomObj.GetLong(0, world.GetWidth()-1);
       y = -GetHeight()+1;
     }
     Ready();
-    SetXY(x, y);
+    SetXY( Point2i(x, y) );
   }
 }
 
-//-----------------------------------------------------------------------------
-
 void WindParticle::Draw()
 {
-  if(TerrainActif().wind.need_flip)
-  {
-    DoubleVector speed;
+  if(TerrainActif().wind.need_flip){
+    Point2d speed;
     GetSpeedXY(speed);
-    float scale_x,scale_y;
+    float scale_x, scale_y;
     sprite->GetScaleFactors( scale_x, scale_y);
     if((speed.x<0 && scale_x>0)
     || (speed.x>0 && scale_x<0))
@@ -137,10 +121,8 @@ void WindParticle::Draw()
       sprite->Scale( scale_x, scale_y);
     }
   }
-  sprite->Draw(GetX(), GetY());
+  sprite->Draw(GetPosition());
 }
-
-//-----------------------------------------------------------------------------
 
 void WindParticle::Resize(double size)
 {
@@ -149,17 +131,9 @@ void WindParticle::Resize(double size)
   sprite->SetAlpha( size);
 }
 
-//-----------------------------------------------------------------------------
+//---------------------------------------------------
 
-
-   SDL_Color c_white  = {0xFF, 0xFF, 0xFF, 0x70};
-   SDL_Color c_black  = {0x00, 0x00, 0x00, 0x70};
-   SDL_Color c_red    = {0xFF, 0x00, 0x00, 0x70};
-   SDL_Color c_yellow = {0x00, 0xFF, 0xFF, 0x70};
-   SDL_Color c_grey   = {0xF0, 0xF0, 0xF0, 0x70};
-   
-Wind::Wind()
-{
+Wind::Wind(){
   m_val = m_nv_val = 0;
   barre.InitPos (10, 10, BARRE_LARG, BARRE_HAUT);
   barre.InitVal (0, -100, 100);
@@ -168,99 +142,59 @@ Wind::Wind()
   barre.value_color = c_red;
   barre.AjouteMarqueur (100, c_white);
   barre.SetReferenceValue (true, 0);
-
-  wind_particle_array = new WindParticle[MAX_WIND_OBJECTS];
 }
 
-//-----------------------------------------------------------------------------
-
-Wind::~Wind()
-{
-  delete []wind_particle_array;
-}
-
-//-----------------------------------------------------------------------------
-
-void Wind::Init()
-{
-}
-
-//-----------------------------------------------------------------------------
-
-void Wind::Reset()
-{
+void Wind::Reset(){
   m_last_move = 0;
   m_last_part_mvt = 0;
   m_val = m_nv_val = 0;
   barre.Actu (m_val);
 
-  for(uint i=0;i<TerrainActif().wind.nb_sprite; i++)
-  {
-    wind_particle_array[i].Init();
-    wind_particle_array[i].Resize((double)i/(double)TerrainActif().wind.nb_sprite);
+  particles.clear();
+  
+  const uint nb = TerrainActif().wind.nb_sprite;
+
+  for (uint i=0; i<nb; ++i){
+    WindParticle particle;
+    particle.Resize( (double)i / nb );
+    particles.push_back( particle );
   }
 }
 
-//-----------------------------------------------------------------------------
-
-double Wind::GetStrength() const
-{
-  return m_nv_val*force/100.0;
+double Wind::GetStrength() const{
+  return m_nv_val * force / 100.0;
 }
 
-//-----------------------------------------------------------------------------
-
-void Wind::ChooseRandomVal()
-{
-  int val = RandomLong(-100, 100);
-  action_handler.NewAction (ActionInt(ACTION_WIND, val));
+void Wind::ChooseRandomVal(){
+  int val = randomObj.GetLong(-100, 100);
+  ActionHandler::GetInstance()->NewAction (ActionInt(ACTION_WIND, val));
 }
 
-//-----------------------------------------------------------------------------
-
-void Wind::SetVal(long val)
-{
+void Wind::SetVal(long val){
   m_nv_val = val;
 }
 
-//-----------------------------------------------------------------------------
-
-void Wind::DrawParticles()
-{
-  //  TerrainActif().wind.nbr_sprite = 1 ;
-
-  for(uint i=0;i<TerrainActif().wind.nb_sprite; i++)
-    wind_particle_array[i].Draw();
+void Wind::DrawParticles(){
+  iterator it=particles.begin(), end=particles.end();
+  for (; it != end; ++it) it -> Draw();
 }
 
-//-----------------------------------------------------------------------------
-
-void Wind::Refresh()
-{
-  if(m_last_move + barre_speed < global_time.Read())
-  {
+void Wind::Refresh(){
+  if(m_last_move + barre_speed < Time::GetInstance()->Read()){
     if(m_val>m_nv_val)
       --m_val;
     else
     if(m_val<m_nv_val)
       ++m_val;
-    m_last_move = global_time.Read();
+    m_last_move = Time::GetInstance()->Read();
     barre.Actu(m_val); 
   }
 
-  for(uint i=0;i<TerrainActif().wind.nb_sprite; i++)
-    {
-      wind_particle_array[i].Refresh();
-    }
+  iterator it=particles.begin(), end=particles.end();
+  for (; it != end; ++it) it -> Refresh();
 }
 
-//-----------------------------------------------------------------------------
-
-void Wind::Draw()
-{
+void Wind::Draw(){
   barre.Draw();
 }
 
-//-----------------------------------------------------------------------------
-} //namespace Wormux
-//-----------------------------------------------------------------------------

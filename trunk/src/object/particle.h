@@ -22,24 +22,17 @@
 
 #ifndef PARTICLE_H
 #define PARTICLE_H
-//-----------------------------------------------------------------------------
-#include <SDL.h>
 #include "physical_obj.h"
-//#include "../team/character.h"
+#include "../graphic/sprite.h"
+#include "../graphic/surface.h"
 #include "../include/base.h"
 #include "../weapon/weapon_cfg.h"
-#include "../graphic/sprite.h"
-//-----------------------------------------------------------------------------
 
 typedef enum { 
   particle_SMOKE,
   particle_FIRE,
   particle_STAR
 } particle_t;
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
 
 class Particle : public PhysicalObj
 {
@@ -55,14 +48,21 @@ class Particle : public PhysicalObj
  public:
   Particle();
   virtual void Init()=0;
-  void Draw();
-  void Refresh();
-  void Reset(){};
+  virtual void Draw();
+  virtual void Refresh();
   bool StillUseful();
 };
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+class ExplosionSmoke : public Particle
+{
+  uint m_initial_size, dx;
+  float mvt_freq;
+ public:
+  ExplosionSmoke(const uint size_init);
+  void Init();
+  void Refresh();
+  void Draw();
+};
 
 class Smoke : public Particle
 {
@@ -70,7 +70,6 @@ class Smoke : public Particle
   Smoke();
   void Init();
 };
-//-----------------------------------------------------------------------------
 
 class StarParticle : public Particle
 {
@@ -78,45 +77,49 @@ class StarParticle : public Particle
   StarParticle();
   void Init();
 };
-//-----------------------------------------------------------------------------
 
 class FireParticle : public Particle
 {
- protected:
-//  Character* dernier_ver_touche;
-//  PhysicalObj* dernier_obj_touche;
-
  public: 
-  SDL_Surface *impact;
   FireParticle();
   void Init();
   void SignalFallEnding();
 };
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+
+typedef struct {
+  Particle * particle;
+  bool upper_objects; // if true displayed on top of characters and weapons
+} drawed_particle_t;
 
 class ParticleEngine
 {
  private:
   uint m_last_refresh;
   uint m_time_between_add;
-  particle_t type_particle;
-  std::list<Particle *> particles;
+
+  static std::list<drawed_particle_t> lst_particles;
+
+  static void AddLittleESmoke(const Point2i &pos, const uint &radius);
+  static void AddBigESmoke(const Point2i &pos, const uint &radius);
 
  public:
-  ParticleEngine();
-  ParticleEngine(particle_t type, uint time=100);
-  void AddPeriodic(uint x, uint y, 
+  ParticleEngine(uint time=100);
+  void AddPeriodic(const Point2i &position, 
+		   particle_t type,
+		   bool upper,
 		   double angle=-1, double norme=-1);
-  void AddNow(uint x, uint y, 
-	      uint nb_particles, particle_t type, 
-	      double angle=-1, double norme=-1);
-  void Refresh();
-  void Draw();
-  void Stop();
-};
 
-extern ParticleEngine global_particle_engine;
+  static void AddNow(const Point2i &position, 
+		     uint nb_particles, particle_t type,
+		     bool upper,
+		     double angle=-1, double norme=-1);
+
+  enum ESmokeStyle { NoESmoke, LittleESmoke, BigESmoke }; // Style of smoke explosion (quantitie of smoke)
+  static void AddExplosionSmoke(const Point2i &pos, const uint &radius, ESmokeStyle &style);
+
+  static void Refresh();
+  static void Draw(bool upper);
+  static void Stop();
+};
 
 #endif

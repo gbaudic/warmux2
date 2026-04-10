@@ -21,56 +21,32 @@
 
 #ifndef HOLLY_GRENADE_H
 #define HOLLY_GRENADE_H
-//-----------------------------------------------------------------------------
-#include "../include/base.h"
+
+#include "launcher.h"
+#include "../graphic/surface.h"
 #include "../gui/progress_bar.h"
-#include "weapon.h"
-#include "grenade.h"
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+#include "../include/base.h"
+
+class HollyGrenadeLauncher;
 
 // The Holly Grenade
 class HollyGrenade : public WeaponProjectile
 {
 protected:
-  double temps_debut_tir;
   bool sing_alleluia;
 
   ParticleEngine smoke_engine;
 public:
-  HollyGrenade();
-  void Tire (double force);
-  void Init();
+  HollyGrenade(ExplosiveWeaponConfig& cfg);
   void Refresh();
-  void Draw();
 protected:
   void SignalCollision();
 };
 
-//-----------------------------------------------------------------------------
-
-class HollyGrenadeLauncher : public Weapon
+class HollyGrenadeLauncher : public WeaponLauncher
 {
- private:
-  void p_Init();
-  bool p_Shoot();
-
 public:
-  SDL_Surface* impact;    // Image (alpha) de l'impact
-
-  HollyGrenade grenade;
-
-
   HollyGrenadeLauncher();
-  void Refresh();
-  GrenadeConfig& cfg();
-
-protected:
-  void Explosion();
 };
 
-extern HollyGrenadeLauncher holly_grenade_launcher;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

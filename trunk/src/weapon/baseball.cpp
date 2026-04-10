@@ -20,31 +20,17 @@
  *****************************************************************************/
 
 #include "baseball.h"
-//-----------------------------------------------------------------------------
-#ifdef CL
-#include <ClanLib/core.h>
-#include "../tool/geometry_tools.h"
-#else
-#include "../tool/Point.h"
-#endif
-#include "../team/macro.h"
 #include "../game/game_loop.h"
+#include "../team/macro.h"
+#include "../tool/point.h"
 #include "../tool/i18n.h"
-//-----------------------------------------------------------------------------
-namespace Wormux 
-{
-Baseball baseball;
 
-Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball")
+Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball", new BaseballConfig())
 {
   m_name = _("Baseball");
-  extra_params = new BaseballConfig();
 }
 
-//-----------------------------------------------------------------------------
-
-bool Baseball::p_Shoot ()
-{
+bool Baseball::p_Shoot (){
   double angle = ActiveTeam().crosshair.GetAngleRad();
   int ver_x, ver_y;
   int x,y;
@@ -53,11 +39,7 @@ bool Baseball::p_Shoot ()
   bool fin = false;
 
   RotationPointXY (ver_x, ver_y);
-#ifdef CL
-  jukebox.Play ("weapon/baseball");
-#else
   jukebox.Play ("share","weapon/baseball");
-#endif
 
   do
   {
@@ -76,15 +58,11 @@ bool Baseball::p_Shoot ()
     y = ver_y +(int)dy;
 
     // Teste un ver après l'autre
-    POUR_TOUS_VERS_VIVANTS(equipe,ver)
+    FOR_ALL_LIVING_CHARACTERS(equipe,ver)
     if (&(*ver) != &ActiveCharacter())
     {
       // On a touché un ver ?
-#ifdef CL
-      if (ObjTouche(*ver, CL_Point(x, y)))
-#else
-      if (ObjTouche(*ver, Point2<int>(x, y)))
-#endif
+      if( ver->ObjTouche(Point2i(x, y)) )
       {
 	// Inflige les dégats au ver touché
 	(*ver).SetEnergyDelta (-cfg().damage);
@@ -97,35 +75,22 @@ bool Baseball::p_Shoot ()
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
-void Baseball::Refresh()
-{
+void Baseball::Refresh(){
   if (m_is_active)
     m_is_active = false;
 }
 
-//-----------------------------------------------------------------------------
+BaseballConfig& Baseball::cfg() {
+  return static_cast<BaseballConfig&>(*extra_params);
+}
 
-BaseballConfig& Baseball::cfg() 
-{ return static_cast<BaseballConfig&>(*extra_params); }
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
-BaseballConfig::BaseballConfig()
-{ 
+BaseballConfig::BaseballConfig(){ 
   longueur =  70;
   force = 250;
 }
 
-void BaseballConfig::LoadXml(xmlpp::Element *elem)
-{
+void BaseballConfig::LoadXml(xmlpp::Element *elem){
   WeaponConfig::LoadXml(elem);
   LitDocXml::LitUint (elem, "longueur", longueur);
   LitDocXml::LitUint (elem, "force", force);
 }
-
-//-----------------------------------------------------------------------------
-} // namespace Wormux

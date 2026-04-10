@@ -19,24 +19,19 @@
  * Jet Pack :-)
  *****************************************************************************/
 
-#include "../weapon/jetpack.h"
-//-----------------------------------------------------------------------------
-#include "../tool/i18n.h"
-#include "../team/teams_list.h"
-#include "../sound/jukebox.h"
+#include "jetpack.h"
+#include "weapon_tools.h"
 #include "../game/game.h"
 #include "../game/game_loop.h"
+#include "../game/game_mode.h"
 #include "../game/time.h"
 #include "../interface/game_msg.h"
+#include "../map/camera.h"
 #include "../object/physical_obj.h"
-#include "../game/game_mode.h"
-#include "../weapon/weapon_tools.h"
+#include "../sound/jukebox.h"
+#include "../team/teams_list.h"
+#include "../tool/i18n.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux 
-{
-JetPack jetpack;
-//-----------------------------------------------------------------------------
 
 // Espace entre l'espace en l'image
 const uint ESPACE = 5;
@@ -44,33 +39,24 @@ const double JETPACK_FORCE = 750.0;
 
 const uint DELTA_FUEL_DOWN = 200 ;  // Delta time between 2 fuel unit consumption.
 
-//-----------------------------------------------------------------------------
-
-JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack")
+JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack",
+			    new WeaponConfig(),
+			    NEVER_VISIBLE)
 {
   m_name = _("JetPack");
-  m_visibility = NEVER_VISIBLE;
   m_unit_visibility = VISIBLE_ONLY_WHEN_ACTIVE;
 
   override_keys = true ;
-  use_unit_on_first_shoot = false;
-}
+  use_unit_on_first_shoot = false;  
 
-//-----------------------------------------------------------------------------
-
-void JetPack::p_Init()
-{
   m_name = _("jetpack");
-  icone = resource_manager.LoadImage(weapons_res_profile,"jetpack_ico");
   m_x_force = 0.0;
   m_y_force = 0.0;
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::Refresh()
 {
-  DoubleVector F ;
+  Point2d F;
 
   if (m_is_active)
     {
@@ -80,11 +66,11 @@ void JetPack::Refresh()
       ActiveCharacter().SetExternForceXY(F);
       ActiveCharacter().UpdatePosition();
 
-      if (!VectorNull(F))
+      if( !F.IsNull() )
 	{
 	  // We are using fuel !!!
 
-	  uint current = global_time.Read() ;
+	  uint current = Time::GetInstance()->Read() ;
 	  double delta = (double)(current - m_last_fuel_down);
 
 	  while (delta >= DELTA_FUEL_DOWN)
@@ -105,13 +91,9 @@ void JetPack::Refresh()
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::p_Select()
 {
 }
-
-//-----------------------------------------------------------------------------
 
 void JetPack::p_Deselect()
 {
@@ -123,18 +105,18 @@ void JetPack::p_Deselect()
   ActiveCharacter().SetSkin("walking");
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::StartUse()
 {
   if ( (m_x_force == 0) && (m_y_force == 0))
     {
-      m_last_fuel_down = global_time.Read();
+      m_last_fuel_down = Time::GetInstance()->Read();
       channel = jukebox.Play(ActiveTeam().GetSoundProfile(),"weapon/jetpack", -1);
+
+      camera.ChangeObjSuivi (&ActiveCharacter(),true, true, true); 
+// 			     bool suit, bool recentre,
+// 			     bool force_recentrage=false);
     }
 }
-
-//-----------------------------------------------------------------------------
 
 void JetPack::StopUse()
 {
@@ -146,16 +128,12 @@ void JetPack::StopUse()
   }
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::GoUp()
 {
   StartUse();
-  m_y_force = -(ActiveCharacter().GetMass() * game_mode.gravity + JETPACK_FORCE) ;
+  m_y_force = -(ActiveCharacter().GetMass() * GameMode::GetInstance()->gravity + JETPACK_FORCE) ;
   ActiveCharacter().SetSkin("jetpack-up");
 }
-
-//-----------------------------------------------------------------------------
 
 void JetPack::GoLeft()
 {
@@ -166,8 +144,6 @@ void JetPack::GoLeft()
   m_x_force = - JETPACK_FORCE ;
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::GoRight()
 {
   StartUse();
@@ -177,15 +153,11 @@ void JetPack::GoRight()
   m_x_force = JETPACK_FORCE ;
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::StopUp()
 {
   m_y_force = 0.0 ;
   StopUse();
 }
-
-//-----------------------------------------------------------------------------
 
 void JetPack::StopLeft()
 {
@@ -193,15 +165,11 @@ void JetPack::StopLeft()
   StopUse();
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::StopRight()
 {
   m_x_force = 0.0 ;
   StopUse();
 }
-
-//-----------------------------------------------------------------------------
 
 void JetPack::HandleKeyEvent(int action, int event_type)
 {
@@ -240,8 +208,6 @@ void JetPack::HandleKeyEvent(int action, int event_type)
   } ;
 }
 
-//-----------------------------------------------------------------------------
-
 bool JetPack::p_Shoot()
 {
   m_is_active = true;
@@ -250,12 +216,8 @@ bool JetPack::p_Shoot()
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 void JetPack::SignalTurnEnd()
 {
   p_Deselect();
 }
 
-//-----------------------------------------------------------------------------
-} // namespace Wormux

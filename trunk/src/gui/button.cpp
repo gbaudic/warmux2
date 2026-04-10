@@ -24,48 +24,30 @@
 #include "../graphic/sprite.h"
 #include "../include/app.h"
 
-//-----------------------------------------------------------------------------
-
-Button::Button (uint x, uint y, uint w, uint h,
-		const Profile *res_profile, const std::string& resource_id)
-  : Widget(x, y, w, h)
-{
+Button::Button (const Rectanglei &rect, const Profile *res_profile, const std::string& resource_id) : Widget(rect){
   image = resource_manager.LoadSprite(res_profile,resource_id);
-  image->EnableLastFrameCache();
-  image->ScaleSize(w,h);
+  image->cache.EnableLastFrameCache();
+  image->ScaleSize(rect.GetSize());
 }
 
-//-----------------------------------------------------------------------------
-
-Button::Button (uint x, uint y, const Profile *res_profile, const std::string& resource_id)
-  : Widget(x, y, 1, 1)
-{
-  image = resource_manager.LoadSprite(res_profile,resource_id);
-  w = image->GetWidth();
-  h = image->GetHeight();
+Button::Button (const Point2i &m_position, const Profile *res_profile, const std::string& resource_id){
+  image = resource_manager.LoadSprite(res_profile, resource_id);
+  position = m_position;
+  size = image->GetSize();
 }
 
-//-----------------------------------------------------------------------------
-
-Button::~Button()
-{
+Button::~Button(){
 	delete image;
 }
 
-//-----------------------------------------------------------------------------
+void Button::Draw(const Point2i &mousePosition){
+  uint frame = Contains(mousePosition)?1:0;
 
-void Button::Draw (uint mouse_x, uint mouse_y)
-{
-  uint frame = MouseIsOver(mouse_x,mouse_y)?1:0;
-  image->SetCurrentFrame (frame);
-  image->Blit(app.sdlwindow, x, y);
+  image->SetCurrentFrame(frame);
+  image->Blit(AppWormux::GetInstance()->video.window, position);
 }
 
-//-----------------------------------------------------------------------------
-
-void Button::SetSizePosition(uint _x, uint _y, uint _w, uint _h)
-{
-  StdSetSizePosition(_x, _y, _w, _h);
-  image->ScaleSize(w,h);
+void Button::SetSizePosition(const Rectanglei &rect){
+  StdSetSizePosition(rect);
+  image->ScaleSize(size);
 }
-//-----------------------------------------------------------------------------

@@ -21,21 +21,26 @@
 
 #ifndef MOUSE_H
 #define MOUSE_H
-//-----------------------------------------------------------------------------
+
 #include <SDL.h>
 #include "../include/base.h"
-#include "../tool/Point.h"
-//-----------------------------------------------------------------------------
+#include "../tool/point.h"
 
 class Mouse
 {
 private:
   bool scroll_actif;
-  int sauve_x, sauve_y;
+  Point2i savedPos;
 
-public:
-  void TraiteClic (const SDL_Event *event); 
+  static Mouse * singleton;
+
+ private:
   Mouse();
+  
+public:
+  static Mouse * GetInstance();
+
+  void TraiteClic (const SDL_Event *event); 
 
   void Reset();
 
@@ -47,17 +52,12 @@ public:
   void ChoixVerPointe();
 
   // Lit la position dans le monde
-  int GetX() const;
-  int GetY() const;
-  int GetXmonde() const;
-  int GetYmonde() const;
+  Point2i GetPosition() const;
+  Point2i GetWorldPosition() const;
   bool ClicG() const;
   bool ClicD() const;
   bool ClicM() const;
   void ScrollCamera() const;
-  Point2i GetPosMonde () const;
 };
 
-extern Mouse mouse;
-//-----------------------------------------------------------------------------
 #endif

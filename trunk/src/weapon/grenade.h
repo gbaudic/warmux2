@@ -22,67 +22,28 @@
 
 #ifndef GRENADE_H
 #define GRENADE_H
-//-----------------------------------------------------------------------------
+
 #include <SDL.h>
 #include "../include/base.h"
+#include "../graphic/surface.h"
 #include "../gui/progress_bar.h"
 #include "../object/physical_obj.h"
-#include "weapon.h"
-
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+#include "launcher.h"
 
 // La Grenade
 class Grenade : public WeaponProjectile
 {
-protected:
-  double temps_debut_tir;
 public:
-  Grenade();
-  void Tire (double force);
-  uint ChoixFrame(double angle);
-  void Init();
+  Grenade(ExplosiveWeaponConfig& cfg);
   void Refresh();
-  void Draw();
 protected:
   void SignalCollision();
 };
 
-//-----------------------------------------------------------------------------
-
-class GrenadeConfig : public ExplosiveWeaponConfig
-{ 
-public: 
-  uint timeout;
-  double rebound_factor;
-public:
-  GrenadeConfig();
-  virtual void LoadXml(xmlpp::Element *elem);
-};
-
-//-----------------------------------------------------------------------------
-
-class GrenadeLauncher : public Weapon
+class GrenadeLauncher : public WeaponLauncher
 {
-private:
-  void p_Init();
-  bool p_Shoot();
-
-public:
-  SDL_Surface *impact;
-  Grenade grenade;
-  int time;
-
+ public:
   GrenadeLauncher();
-  void Refresh();
-  GrenadeConfig& cfg();
-
-protected:
-  void Explosion();
 };
 
-extern GrenadeLauncher lance_grenade;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

@@ -20,25 +20,14 @@
  *****************************************************************************/
 
 #include "game_msg.h"
-//-----------------------------------------------------------------------------
+#include <iostream>
 #include "../game/time.h"
 #include "../graphic/video.h"
 #include "../graphic/font.h"
-#include "../include/global.h"
-#include <iostream>
-using namespace Wormux;
-//-----------------------------------------------------------------------------
-GameMessages game_messages;
-//-----------------------------------------------------------------------------
-
-// Hauteur de la police de caractere
-#define HAUT_POLICE 20 // pixels
+#include "../include/app.h"
 
 // Hauteur de la police de caractere "mini"
 #define HAUT_POLICE_MINI 12 // pixels
-
-// Interligne (pour les messages)
-#define INTERLIGNE 5 // pixels
 
 // Interligne police "mini" (pour les messages)
 #define INTERLIGNE_MINI 3 // pixels
@@ -48,62 +37,64 @@ GameMessages game_messages;
 
 const uint NBR_MSG_MAX = 14;
 
-//-----------------------------------------------------------------------------
+GameMessages * GameMessages::singleton = NULL;
+
+GameMessages * GameMessages::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new GameMessages();
+  }
+  return singleton;
+}
+
+GameMessages::GameMessages() {
+}
 
 // Remise a zéro
-void GameMessages::Reset()
-{ liste.clear(); }
+void GameMessages::Reset(){
+  liste.clear();
+}
 
-//-----------------------------------------------------------------------------
-
-void GameMessages::Draw()
-{
+void GameMessages::Draw(){
   // Affichage des messages
   uint msgy = 50;
-  for (iterator i=liste.begin(); i != liste.end(); ++i)
-  {
-    i -> text->DrawCenterTop(video.GetWidth()/2, msgy);
+  
+  for( iterator i=liste.begin(); i != liste.end(); ++i ){
+    i -> text->DrawCenterTop(AppWormux::GetInstance()->video.window.GetWidth()/2, msgy);
     
-    msgy += HAUT_POLICE_MINI+INTERLIGNE_MINI;
+    msgy += HAUT_POLICE_MINI + INTERLIGNE_MINI;
   }
 }
 
-//-----------------------------------------------------------------------------
-
 // Actualisation : Supprime les anciens messages
-void GameMessages::Refresh()
-{
+void GameMessages::Refresh(){
   bool fin;
-  iterator i,actuel;
-  for (i=liste.begin(); i != liste.end(); )
-  {
+  iterator i, actuel;
+  
+  for( i=liste.begin(); i != liste.end(); ){
     actuel = i;
     ++i;
-    if (DUREE_VIE_MSG < global_time.Read() - actuel -> time)
-    {
+    if( DUREE_VIE_MSG < Time::GetInstance()->Read() - actuel -> time ){
       fin = (i == liste.end());
       delete (actuel->text);
       liste.erase (actuel);
-      if (fin) break;
+      if( fin )
+        break;
     }
   }
 }
 
-//-----------------------------------------------------------------------------
-
 // Ajoute un message
-void GameMessages::Add(const std::string &message)
-{
+void GameMessages::Add(const std::string &message){
   // Affiche le message dans la console
   std::cout << "o MSG: " << message << std::endl;
 
   // Ajoute le message à la liste (avec son heure d'arrivée)
-  Text * tmp = new Text(message, white_color, &global().small_font());
-  Text * tmp2 = new Text(message, black_color, &global().small_font());
+  Text * tmp = new Text(message, white_color, Font::GetInstance(Font::FONT_SMALL));
+  Text * tmp2 = new Text(message, black_color, Font::GetInstance(Font::FONT_SMALL));
 
-  liste.push_back (message_t(tmp, tmp2, global_time.Read()));
+  liste.push_back (message_t(tmp, tmp2, Time::GetInstance()->Read()));
 
-  while (NBR_MSG_MAX < liste.size()) liste.pop_front();
+  while( NBR_MSG_MAX < liste.size() )
+    liste.pop_front();
 }
 
-//-----------------------------------------------------------------------------

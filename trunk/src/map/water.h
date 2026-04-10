@@ -19,15 +19,12 @@
  * Refresh de l'eau pouvant apparaitre en bas du terrain.
  *****************************************************************************/
 
-#ifndef EAU_H
-#define EAU_H
-//-----------------------------------------------------------------------------
-#include <SDL.h>
-#include <vector>
-#include "../include/base.h"
-//-----------------------------------------------------------------------------
+#ifndef WATER_H
+#define WATER_H
 
-struct SDL_Surface;
+#include <vector>
+#include "../graphic/surface.h"
+#include "../include/base.h"
 
 const uint WATER_INITIAL_HEIGHT = 100;
 
@@ -42,8 +39,8 @@ private:
   uint hauteur_eau;
   uint temps_montee;
   std::vector<int> height;
-  SDL_Surface *surface;
-  SDL_Surface *pattern;
+  Surface surface;
+  Surface pattern;
 public:
   void Init();
   void Reset();
@@ -53,5 +50,4 @@ public:
   bool IsActive();
   int GetHeight(int x);
 };
-//-----------------------------------------------------------------------------
 #endif

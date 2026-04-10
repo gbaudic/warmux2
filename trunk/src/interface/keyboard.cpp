@@ -16,35 +16,32 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Keyboard managment. Use ClanLIB event.
+ * Keyboard managment.
  *****************************************************************************/
 
 #include "keyboard.h"
-//-----------------------------------------------------------------------------
 #include <sstream>
-#include "../team/macro.h"
-#include "../game/time.h"
-#include "../include/action_handler.h"
-#include "../weapon/weapon.h"
-#include "../weapon/weapons_list.h"
+#include <iostream>
+#include "cursor.h"
 #include "game_msg.h"
-#include "../map/camera.h"
 #include "interface.h"
-#include "../team/move.h"
-#include "../tool/i18n.h"
-#include "../tool/math_tools.h"
+#include "../game/config.h"
 #include "../game/game.h"
 #include "../game/game_loop.h"
 #include "../game/game_mode.h"
-#include "../sound/jukebox.h"
-#include "../game/config.h"
+#include "../game/time.h"
 #include "../graphic/video.h"
-#include "cursor.h"
+#include "../include/action_handler.h"
 #include "../include/constant.h"
 #include "../map/camera.h"
-#include <iostream>
-using namespace Wormux;
-//-----------------------------------------------------------------------------
+#include "../team/macro.h"
+#include "../team/move.h"
+#include "../tool/i18n.h"
+#include "../tool/math_tools.h"
+#include "../sound/jukebox.h"
+#include "../map/camera.h"
+#include "../weapon/weapon.h"
+#include "../weapon/weapons_list.h"
 
 // Active le mode tricheur ?
 #ifdef DEBUG
@@ -55,15 +52,17 @@ using namespace Wormux;
 // Vitesse du definalement au clavier
 #define SCROLL_CLAVIER 20 // ms
 
-//-----------------------------------------------------------------------------
-Clavier clavier;
-//-----------------------------------------------------------------------------
+Clavier * Clavier::singleton = NULL;
+
+Clavier * Clavier::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new Clavier();
+  }
+  return singleton;
+}
 
 Clavier::Clavier()
 {}
-
-//-----------------------------------------------------------------------------
-
 
 void Clavier::Reset()
 {
@@ -73,14 +72,10 @@ void Clavier::Reset()
     PressedKeys[i] = false ;
 }
 
-//-----------------------------------------------------------------------------
-
 void Clavier::SetKeyAction(int key, Action_t at)
 {
   layout[key] = at;
 }
-
-//-----------------------------------------------------------------------------
 
 void Clavier::HandleKeyEvent( const SDL_Event *event)
 {
@@ -133,8 +128,6 @@ void Clavier::HandleKeyEvent( const SDL_Event *event)
   ActiveCharacter().HandleKeyEvent( action, event_type);
 }
 
-//-----------------------------------------------------------------------------
-
 // Handle a pressed key
 void Clavier::HandleKeyPressed (const Action_t &action)
 {
@@ -144,7 +137,7 @@ void Clavier::HandleKeyPressed (const Action_t &action)
   if(!ActiveTeam().is_local)
     return;
 
-  if (game_loop.ReadState() == gamePLAYING &&
+  if (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING &&
       ActiveTeam().GetWeapon().CanChangeWeapon())
     {
       int weapon_sort = -1;
@@ -183,8 +176,8 @@ void Clavier::HandleKeyPressed (const Action_t &action)
 	  break;
 
         case ACTION_CHANGE_CHARACTER:
-	  if (game_mode.AllowCharacterSelection())
-	    action_handler.NewAction(ActionInt(action,
+	  if (GameMode::GetInstance()->AllowCharacterSelection())
+	    ActionHandler::GetInstance()->NewAction(ActionInt(action,
 					ActiveTeam().NextCharacterIndex()));
 	  return ;
 
@@ -196,14 +189,12 @@ void Clavier::HandleKeyPressed (const Action_t &action)
         {
           Weapon_type weapon;
           if (weapons_list.GetWeaponBySort(weapon_sort, weapon))
-            action_handler.NewAction(ActionInt(ACTION_CHANGE_WEAPON, weapon));
+            ActionHandler::GetInstance()->NewAction(ActionInt(ACTION_CHANGE_WEAPON, weapon));
 
           return;
         }
     }
 }
-
-//-----------------------------------------------------------------------------
 
 // Handle a released key
 void Clavier::HandleKeyReleased (const Action_t &action)
@@ -211,14 +202,15 @@ void Clavier::HandleKeyReleased (const Action_t &action)
   PressedKeys[action] = false ;
 
   // We manage here only actions which are active on KEY_RELEASED event.
+  Interface * interface = Interface::GetInstance();
 
   switch(action) {
     case ACTION_QUIT:
-      game.SetEndOfGameStatus( true );
+      Game::GetInstance()->SetEndOfGameStatus( true );
       return;
 
     case ACTION_PAUSE:
-      game.Pause();
+      Game::GetInstance()->Pause();
       return;
 
     case ACTION_FULLSCREEN:
@@ -228,24 +220,22 @@ void Clavier::HandleKeyReleased (const Action_t &action)
       return;
 
     case ACTION_TOGGLE_INTERFACE:
-      interface.EnableDisplay (!interface.IsDisplayed());
+      interface->EnableDisplay (!interface->IsDisplayed());
       return;
 
     case ACTION_CENTER:
-      curseur_ver.SuitVerActif();
+      CurseurVer::GetInstance()->SuitVerActif();
       camera.ChangeObjSuivi (&ActiveCharacter(), true, true, true);
       return;
 
     case ACTION_TOGGLE_WEAPONS_MENUS:
-      interface.weapons_menu.SwitchDisplay();
+      interface->weapons_menu.SwitchDisplay();
       return;
 
     default:
       break ;
   }
 }
-
-//-----------------------------------------------------------------------------
 
 // Refresh keys which are still pressed.
 void Clavier::Refresh()
@@ -266,10 +256,7 @@ void Clavier::Refresh()
   }
 }
 
-//-----------------------------------------------------------------------------
-                                                                                    
 void Clavier::TestCamera()
 {
 }
 
-//-----------------------------------------------------------------------------

@@ -20,29 +20,15 @@
  *****************************************************************************/
 
 #include "jukebox.h"
-//-----------------------------------------------------------------------------
 #include <iostream>
 
 #include "../game/config.h"
+#include "../tool/debug.h"
 #include "../tool/i18n.h"
 #include "../tool/random.h"
 #include "../tool/file_tools.h"
-//-----------------------------------------------------------------------------
 
-#ifdef DEBUG
-
-// Débogue le jukebox ?
-//#define DBG_SON
-
-#define COUT_DBG std::cerr << "[Sound] "
-
-#endif
-
-using namespace Wormux;
-
-//-----------------------------------------------------------------------------
 JukeBox jukebox;
-//-----------------------------------------------------------------------------
 
 JukeBox::JukeBox()
 {
@@ -54,23 +40,17 @@ JukeBox::JukeBox()
   m_config.channels = 2; // stereo
 }
 
-//-----------------------------------------------------------------------------
-
 void JukeBox::Pause() 
 {
     Mix_Pause(-1);
     Mix_PauseMusic();
 }
 
-//-----------------------------------------------------------------------------
-
 void JukeBox::Resume() 
 {    
     Mix_Resume(-1);
     Mix_ResumeMusic();
 }
-
-//-----------------------------------------------------------------------------
 
 void JukeBox::Init() 
 {
@@ -105,8 +85,6 @@ void JukeBox::Init()
   LoadXML("share");
 }
 
-//-----------------------------------------------------------------------------
-
 void JukeBox::End() 
 {
   if (!m_init) return;
@@ -119,10 +97,6 @@ void JukeBox::End()
 
   Mix_CloseAudio();
 }
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
 
 void JukeBox::SetFrequency (int frequency)
 {
@@ -139,8 +113,6 @@ void JukeBox::SetFrequency (int frequency)
   Init();
 }
 
-//-----------------------------------------------------------------------------
-
 void JukeBox::SetNumbersOfChannel(int channels)
 {
   if (m_config.channels == channels) return;
@@ -152,10 +124,6 @@ void JukeBox::SetNumbersOfChannel(int channels)
   Init();
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
 void JukeBox::LoadXML(const std::string& profile)
 {
 
@@ -164,21 +132,20 @@ void JukeBox::LoadXML(const std::string& profile)
   // is xml_file already loaded ?
   std::set<std::string>::iterator it_profile = m_profiles_loaded.find(profile) ;
   if (it_profile !=  m_profiles_loaded.end()) {
-#ifdef DBG_SON
-    COUT_DBG << "Profile " << profile << "is already loaded !" << std::endl ;
-    return ;
-#endif
+	  MSG_DEBUG("jukebox", "Profile %s is already loaded !", profile.c_str());
+      return;
   } 
   LitDocXml doc;
 
   // Load the XML
-  std::string folder = config.data_dir + "sound"+ PATH_SEPARATOR + profile + PATH_SEPARATOR;
+  std::string folder = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "sound"+ PATH_SEPARATOR + profile + PATH_SEPARATOR;
   std::string xml_filename = folder + "profile.xml";
-  if (!FichierExiste(xml_filename)) {
+  if( !IsFileExist(xml_filename) ){
     std::cerr << "[Sound] Error : file " << xml_filename << " not found" << std::endl;
     return;
   }
-  if (!doc.Charge (xml_filename)) return;
+  if( !doc.Charge (xml_filename) )
+    return;
 
   xmlpp::Node::NodeList nodes = doc.racine() -> get_children("sound");
   xmlpp::Node::NodeList::iterator 
@@ -194,13 +161,11 @@ void JukeBox::LoadXML(const std::string& profile)
       LitDocXml::LitAttrString(elem, "sample", sample);
       LitDocXml::LitAttrString(elem, "file", file);
 
-#ifdef DBG_SON
-      COUT_DBG << "Load sound sample " << profile << "/" << sample << " : " << file << std::endl;
-#endif
+	  MSG_DEBUG("jukebox", "Load sound sample %s/%s: %s", profile.c_str(), sample.c_str(), file.c_str());
 
       // Charge le son
       std::string sample_filename = folder + file;
-      if ( !FichierExiste(sample_filename) ) {
+      if( !IsFileExist(sample_filename) ){
 	std::cerr << "Sound error: File " << sample_filename.c_str() 
 		  << " does not exist !" << std::endl; 
 	continue;
@@ -213,10 +178,6 @@ void JukeBox::LoadXML(const std::string& profile)
   // The profile is loaded
   m_profiles_loaded.insert(profile);
 }
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
 
 int JukeBox::Play (const std::string& category, const std::string& sample, 
 		   const int loop)
@@ -232,7 +193,7 @@ int JukeBox::Play (const std::string& category, const std::string& sample,
     // Choose a random sound sample
     if (nb_sons > 1)
     {
-      uint selection = uint(RandomLong(0, nb_sons));
+      uint selection = uint(randomObj.GetLong(0, nb_sons));
       if (selection == nb_sons) --selection ;
 
       it = p.first ;
@@ -249,22 +210,16 @@ int JukeBox::Play (const std::string& category, const std::string& sample,
     return Play("default", sample, loop) ; // try with default profile
   } 
 
-#ifdef DBG_SON
-    COUT_DBG << "Error : No sound found for sample " << category << "/" << sample << std::endl; 
-#endif    
+  MSG_DEBUG("jukebox", "Error: No sound found for sample %s/%s", category.c_str(), sample.c_str());
   return -1;
 }
 
-
-//-----------------------------------------------------------------------------
 int JukeBox::Stop (int channel)
 {
   if(!m_config.music && !m_config.effects) return 0;
   if (channel == -1) return 0;
   return Mix_HaltChannel(channel);
 }
-
-//-----------------------------------------------------------------------------
 
 int JukeBox::StopAll()
 {
@@ -274,24 +229,15 @@ int JukeBox::StopAll()
   return Mix_HaltChannel(-1);
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
 int JukeBox::PlaySample (Mix_Chunk * sample, int loop)
 {
   if (loop != -1) loop--;
 
   int channel = Mix_PlayChannel(-1, sample, loop);
 
-#ifdef DBG_SON
   if (channel == -1) {
-    std::cerr << "[Sound] Error : Jukebox::PlaySample: " << Mix_GetError() << std::endl;
+	MSG_DEBUG("jukebox", "Error: Jukebox::PlaySample: %s", Mix_GetError());
   }
-#endif
   return channel;
 }
-
-//-----------------------------------------------------------------------------
-
 

@@ -22,10 +22,10 @@
 #ifndef WEAPONS_LIST_H
 #define WEAPONS_LIST_H
 //-----------------------------------------------------------------------------
-#include "../include/base.h"
-#include "weapon.h"
 #include <list>
 #include <map>
+#include "weapon.h"
+#include "../include/base.h"
 //-----------------------------------------------------------------------------
 
 // Classe de gestion des armes
@@ -44,7 +44,7 @@ private:
   // The int is used to classify weapon by sort
   std::multimap<uint, Weapon*> m_weapons_map;
   typedef std::multimap<uint, Weapon*>::value_type keybind;
-  void InitAndAddToList(Weapon* arme, uint num_sort);
+  void AddToList(Weapon* arme, uint num_sort);
 
 public:
   WeaponsList();

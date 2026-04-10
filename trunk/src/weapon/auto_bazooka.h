@@ -19,79 +19,55 @@
  * Weapon bazooka : projette une roquette avec un angle et une force donnée.
  *****************************************************************************/
 
-#ifndef BAZ_TETE_C_H
-#define BAZ_TETE_C_H
-//-----------------------------------------------------------------------------
-#include "../include/base.h"
-#include "../weapon/weapon.h"
+#ifndef AUTO_BAZOOKA_H
+#define AUTO_BAZOOKA_H
+#include "launcher.h"
+#include "../graphic/surface.h"
 #include "../gui/progress_bar.h"
+#include "../include/base.h"
 #include "../object/physical_obj.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+class AutomaticBazooka;
 
 // Roquette du bazooka à tête chercheuse
 class RoquetteTeteCherche : public WeaponProjectile
 {
 protected:
   double angle_local;
-  double temps_debut_tir;
   Point2i m_cible;
   bool m_attire;
 public:
-  RoquetteTeteCherche();
-  void Tire (double force, uint cible_x,uint cible_y);
-  uint ChoixFrame(double angle);
-  void Init();
-  void Reset();
+  RoquetteTeteCherche(ExplosiveWeaponConfig& cfg);
   void Refresh();
-protected:
+  void Shoot(double strength);
   void SetTarget (int x,int y);
+ protected:
   void SignalCollision();
 };
 
-//-----------------------------------------------------------------------------
-
-class AutomaticBazooka : public Weapon
+class AutomaticBazooka : public WeaponLauncher
 {
 private:
-
+  
   struct s_cible
   {
     Point2i pos;
     bool choisie;
-    SDL_Surface *image;
+    Surface image;
   } cible;
   
-  void p_Init();
-  bool p_Shoot();
-
 public:
-  SDL_Surface *impact;
-  RoquetteTeteCherche roquette;
 
   AutomaticBazooka();
+
   void Draw ();
   void Refresh();
   void p_Select(); 
   void p_Deselect();
 
   bool IsReady() const;
-
-  // Le bazooka explose car il a été poussé à bout !
-  void ExplosionDirecte();
-
   virtual void ChooseTarget();
   void DrawTarget();
-
-  ExplosiveWeaponConfig& cfg();
-
-protected:
-  void Explosion();
 };
 
-extern AutomaticBazooka auto_bazooka;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

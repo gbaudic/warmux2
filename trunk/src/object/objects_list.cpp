@@ -22,94 +22,50 @@
 #include "../object/objects_list.h"
 //-----------------------------------------------------------------------------
 #include "../include/app.h"
+#include "../game/game_loop.h"
+#include "../map/map.h"
 #include "../map/maps_list.h"
 #include "../map/camera.h"
-#ifdef CL
-# include "../weapon/mine.h"
-#endif
-#include "bonus_box.h"
+#include "../tool/random.h"
+#include "../tool/rectangle.h"
+#include "../weapon/mine.h"
 #include <vector>
-using namespace Wormux;
-//-----------------------------------------------------------------------------
-ListeObjets lst_objets;
-//-----------------------------------------------------------------------------
-
-#undef POUR_CHAQUE_OBJET
-#define POUR_CHAQUE_OBJET(objet) \
-  for (ListeObjets::iterator objet=Debut(), \
-       fin_pour_chaque_objet=Fin(); \
-       objet != fin_pour_chaque_objet; \
-       ++objet)
 
 //-----------------------------------------------------------------------------
-
-void ListeObjets::CreeListe()
-{
-  liste.clear();
-}
-
-//-----------------------------------------------------------------------------
-
-void ListeObjets::VideListe()
-{
-  iterator it,actuel;
-  for (it=liste.begin(); it != liste.end(); )
-  {
-    actuel = it;
-    ++it;
-    if (actuel -> efface)
-    {
-      bool fin = (it == liste.end());
-      liste.erase (actuel);
-      if (fin) break;
-    }
-  }
-}
-
+ObjectsList lst_objects;
 //-----------------------------------------------------------------------------
 
 // Initialise la liste des objets standards
-void ListeObjets::Init()
+void ObjectsList::Init()
 {
-  CreeListe();
-  POUR_CHAQUE_OBJET (objet) (*objet).ptr -> Init();
-}
-
-//-----------------------------------------------------------------------------
-
-// Initialise la liste des objets standards
-void ListeObjets::Reset()
-{
-  VideListe();
+  lst.clear();
 
   for (uint i=0; i<lst_terrain.TerrainActif().nb_mine; ++i)
   {
-#ifdef CL
-    ObjMine *obj = new ObjMine();
-    AjouteObjet (obj, true);
-#endif
+    ObjMine *obj = new ObjMine(*MineConfig::GetInstance());
+
+    obj -> SetXY ( randomObj.GetPoint( Rectanglei(0, 0, world.GetWidth(), 1) ) );
+    AddObject (obj);
   }
-
-  POUR_CHAQUE_OBJET(objet) (*objet).ptr -> Reset();
 }
 
 //-----------------------------------------------------------------------------
 
-void ListeObjets::AjouteObjet (PhysicalObj *ptr_obj, bool efface_fin_partie)
+void ObjectsList::AddObject (PhysicalObj* obj)
 {
-  liste.push_back (objet_t(ptr_obj,efface_fin_partie));
+  lst.push_back (object_t(obj,false));
 }
 
 //-----------------------------------------------------------------------------
 
-void ListeObjets::RetireObjet (PhysicalObj *ptr_obj)
+void ObjectsList::RemoveObject (PhysicalObj* obj)
 {
-  POUR_CHAQUE_OBJET(it)
+  FOR_EACH_OBJECT(it)
   {
-    if (it -> ptr == ptr_obj) 
+    if ( it->ptr == obj) 
     {
-      liste.erase (it);
-      camera.StopFollowingObj(it->ptr);
+      it->to_remove = true;
+      camera.StopFollowingObj(obj);
       return;
     }
   }
@@ -117,20 +73,27 @@ void ListeObjets::RetireObjet (PhysicalObj *ptr_obj)
 
 //-----------------------------------------------------------------------------
 
-void ListeObjets::Refresh()
+void ObjectsList::Refresh()
 {
-  POUR_CHAQUE_OBJET(objet)
+  ObjectsList::iterator object=lst_objects.Begin();
+
+  while(object != lst_objects.End())
   {
-    objet -> ptr -> UpdatePosition();
-    objet -> ptr -> Refresh();
+    if (!object->to_remove && !object->ptr->IsGhost()) {
+      object->ptr->UpdatePosition();
+      object->ptr->Refresh();
+      object++;
+    } else {
+      object = lst.erase(object);
+    }
   }
 }
 
 //-----------------------------------------------------------------------------
 
-void ListeObjets::Draw()
+void ObjectsList::Draw()
 {
-  POUR_CHAQUE_OBJET(objet) (*objet).ptr -> Draw ();
+  FOR_EACH_OBJECT(object) object->ptr->Draw ();
 }
 
 
@@ -138,11 +101,11 @@ void ListeObjets::Draw()
 
 // Tous les objets sont prêts ? (ou alors un objet est en cours
 // d'animation ?)
-bool ListeObjets::TousReady()
+bool ObjectsList::AllReady()
 {
-  POUR_CHAQUE_OBJET(objet)
+  FOR_EACH_OBJECT(object)
   {
-    if (!objet -> ptr -> IsReady()) return false;
+    if (!object->ptr->IsReady()) return false;
   }
   return true;
 }

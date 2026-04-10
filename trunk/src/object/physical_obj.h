@@ -26,13 +26,10 @@
 
 #ifndef PHYSICAL_OBJECT_H
 #define PHYSICAL_OBJECT_H
-//-----------------------------------------------------------------------------
-//#include "../include/base.h"
-//#include "../tool/math_tools.h"
-#include "../object/physics.h"
-#include "../tool/Point.h"
-#include "../tool/Rectangle.h"
-//-----------------------------------------------------------------------------
+
+#include "physics.h"
+#include "../tool/point.h"
+#include "../tool/rectangle.h"
 
 // Alive state
 typedef enum
@@ -42,8 +39,6 @@ typedef enum
   GHOST,
   DROWNED
 } alive_t;
-
-//-----------------------------------------------------------------------------
 
 // Object type
 typedef enum
@@ -56,30 +51,28 @@ typedef enum
   objCLASSIC
 } type_objet_t;
 
-//-----------------------------------------------------------------------------
-extern const double PIXEL_PER_METER ;
+extern const double PIXEL_PER_METER;
 
-double MeterDistance (const Point2i &p1, const Point2i &p2) ;
-//-----------------------------------------------------------------------------
+double MeterDistance (const Point2i &p1, const Point2i &p2);
 
 class PhysicalObj : public Physics
 {
 public:
   // Object name (useful for debug ;-))
   std::string m_name;
-
   type_objet_t m_type;
 
 private:
   // Object size and position.
   uint m_width, m_height;
-  int m_posx, m_posy ;
+  int m_posx, m_posy;
 
   // Rectangle used for collision tests
   uint m_test_left, m_test_right, m_test_top, m_test_bottom;
 
-protected:
+  bool exterieur_monde_vide;
 
+protected:
   // Used by the sons of this class to allow modification of READY/BUSY state
   // (Unused by PhysicalObj)
   bool m_ready;
@@ -98,15 +91,16 @@ public:
   // Set/Get position
   void SetX (int x);
   void SetY (int y);
-  void SetXY (int x, int y);
+  void SetXY(const Point2i &position);
   int GetX() const;
   int GetY() const;
-  const Point2i GetPos() const; 
+  const Point2i GetPosition() const; 
      
   // Set/Get size
-  void SetSize (uint width, uint height);
+  void SetSize(const Point2i &newSize);
   int GetWidth() const;
   int GetHeight() const;
+  Point2i GetSize() const;
 
   // Set/Get test rectangles
   void SetTestRect (uint left, uint right, uint top, uint bottom);
@@ -116,7 +110,6 @@ public:
 
   //----------- Access to datas (read only) ----------
 
-  // Get Center position.
   int GetCenterX() const;
   int GetCenterY() const;
   const Point2i GetCenter() const;
@@ -133,21 +126,21 @@ public:
   bool PutOutOfGround(double direction); //Where direction is the angle of the direction
                                          // where the object is moved
 
-  bool NotifyMove(double old_x, double old_y, double new_x, double new_y,
-		  double &contact_x, double &contact_y, double &contact_angle);
+  bool NotifyMove(Point2d oldPos, Point2d newPos, Point2d &contactPos,
+		  double &contact_angle);
 
-  bool IsInVacuumXY (int x, int y) const;
-  bool IsInVacuum (int dx, int dy) const; // relative to current position
-  bool FootsInVacuum () const;
-  bool FootsInVacuumXY (int x, int y) const;
+  bool IsInVacuumXY(const Point2i &position) const;
+  bool IsInVacuum(const Point2i &offset) const; // relative to current position
+  bool FootsInVacuum() const;
+  bool FootsInVacuumXY(const Point2i &position) const;
   
   bool FootsOnFloor(int y) const;
 
-  bool IsInWater () const;
+  bool IsInWater() const;
 
   // The object is outside of the world
-  bool IsOutsideWorldXY (int x, int y) const;
-  bool IsOutsideWorld (int dx, int dy) const;
+  bool IsOutsideWorldXY(Point2i position) const;
+  bool IsOutsideWorld(const Point2i &offset) const;
 
   // Refresh datas
   virtual void Refresh() = 0;
@@ -155,14 +148,7 @@ public:
   // Draw the object
   virtual void Draw() = 0;
 
-  // Initialisation of datas (only called once)
-  virtual void Init() = 0;
-
-  // Reset datas
-  virtual void Reset() = 0;
-
   //-------- state ----
-
   void Ready();
   void Die();
   void Ghost();
@@ -173,10 +159,17 @@ public:
   bool IsGhost() const;
   bool IsDrowned() const;
 
+  // Est-ce que deux objets se touchent ? (utilise les rectangles de test)
+  bool ObjTouche(const PhysicalObj &b) const;
+
+  // Est-ce que le point p touche l'objet ?
+  bool ObjTouche(const Point2i &p) const;
+
+
 protected:
 
   // The object fall directly to the ground (or become a ghost)
-  void DirectFall () ;
+  void DirectFall();
 
 private:
   //Renvoie la position du point de contact entre
@@ -184,18 +177,9 @@ private:
   bool ContactPoint (int &x, int &y);
 
   // Collision test for point (x,y)
-  bool CollisionTest (int x, int y);
+  bool CollisionTest(const Point2i &position);
 
-  void SignalRebound() ;
-
-
+  void SignalRebound();
 };
 
-// Est-ce que deux objets se touchent ? (utilise les rectangles de test)
-bool ObjTouche (const PhysicalObj &a, const PhysicalObj &b);
-
-// Est-ce que le point p touche l'objet a ?
-bool ObjTouche (const PhysicalObj &a, const Point2i &p);
-
-//-----------------------------------------------------------------------------
 #endif

@@ -21,15 +21,43 @@
 
 #ifndef COLORS_H
 #define COLORS_H
-//--------------------------------------------------------------------------
+
 #include <SDL_video.h>
-//--------------------------------------------------------------------------
+#include "color.h"
 
 // Greyscale
-const SDL_Color white_color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
-const SDL_Color lightgray_color = { 169, 169, 169, SDL_ALPHA_OPAQUE };
-const SDL_Color gray_color = { 128, 128, 128, SDL_ALPHA_OPAQUE };
-const SDL_Color black_color = {  0, 0, 0, SDL_ALPHA_OPAQUE };
+const Color white_color (255, 255, 255, SDL_ALPHA_OPAQUE);
+const Color lightgray_color (169, 169, 169, SDL_ALPHA_OPAQUE);
+const Color gray_color (128, 128, 128, SDL_ALPHA_OPAQUE);
+const Color black_color (0, 0, 0, SDL_ALPHA_OPAQUE);
 
-//--------------------------------------------------------------------------
+const Color c_white  (0xFF, 0xFF, 0xFF, 0x70);
+const Color c_black  (0x00, 0x00, 0x00, 0x70);
+const Color c_red    (0xFF, 0x00, 0x00, 0x70);
+const Color c_yellow (0x00, 0xFF, 0xFF, 0x70);
+const Color c_grey   (0xF0, 0xF0, 0xF0, 0x70);
+			   
+
+// Green
+const Color green_color (68, 120, 51, SDL_ALPHA_OPAQUE);
+
+const Color primary_red_color(255, 0, 0, SDL_ALPHA_OPAQUE);
+
+// Default colors:
+const Color defaultColorBox(80, 80, 159, 206);
+const Color defaultColorRect(49, 32, 122, 255);
+
+const Color defaultOptionColorBox(34, 133, 175, 206);
+const Color defaultOptionColorRect(59,88,129,206);
+
+//const Color defaultListColor1(255, 255, 255, 255*3/10);
+const Color defaultListColor1(75, 163, 200, 255*3/10);
+const Color defaultListColor2(0, 0, 255*6/10, 255*8/10);
+const Color defaultListColor3(0, 0, 255*6/10, 255*4/10);
+
+const Color WeaponStrengthBarValue(255, 255, 255, 127);
+const Color WeaponStrengthBarBorder(0, 0, 0, 127);
+const Color WeaponStrengthBarBackground(255*6/10, 255*6/10, 255*6/10, 96);
+
+
 #endif

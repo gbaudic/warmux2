@@ -21,277 +21,165 @@
  * énergie (gain ou perte!), etc.
  *****************************************************************************/
 
-#include "../object/bonus_box.h"
-//-----------------------------------------------------------------------------
-#include "../include/constant.h" // NBR_BCL_MAX_EST_VIDE
-#include "../map/map.h"
-#include "../team/macro.h"
-#include "../game/time.h"
-#include "../interface/game_msg.h"
-#include "../tool/i18n.h"
-#include "../tool/random.h"
-#ifdef CL
-#include "../tool/geometry_tools.h"
-#else
-#include "../tool/resource_manager.h"
-#include "../graphic/sprite.h"
-#include "../include/app.h"
-#endif
+#include "bonus_box.h"
 #include <sstream>
 #include <iostream>
-using namespace Wormux;
-using namespace std;
-//-----------------------------------------------------------------------------
+#include "../game/game_loop.h"
+#include "../game/time.h"
+#include "../graphic/sprite.h"
+#include "../include/app.h"
+#include "../include/constant.h" // NBR_BCL_MAX_EST_VIDE
+#include "../interface/game_msg.h"
+#include "../map/map.h"
+#include "../object/objects_list.h"
+#include "../team/macro.h"
+#include "../tool/debug.h"
+#include "../tool/i18n.h"
+#include "../tool/random.h"
+#include "../tool/resource_manager.h"
 
-#ifdef DEBUG
+#define FAST
 
-#define APPARAIT_VITE
-//#define DEBUG_CADRE_TEST
-//#define MSG_DBG_CAISSE
-//#define DBG_PLACEMENT
-
-#define COUT_DBG0 cout << "[caisse]"
-#define COUT_DBG COUT_DBG0 " "
-#define COUT_PLACEMENT COUT_DBG0 "[placement "<<bcl<<"] "
-#endif
-
-// Taille du sprite de la caisse
-const double MASSE_CAISSE = 150;
-
-// Combien de temps avant qu'on fabrique une caisse ?
-#ifdef APPARAIT_VITE
-  const uint TEMPS_MIN_CREATION = 1; // secondes
-  const uint TEMPS_MAX_CREATION = 3; // secondes
+#ifdef FAST
+  const uint MIN_TIME_BETWEEN_CREATION = 1; // seconds
+  const uint MAX_TIME_BETWEEN_CREATION = 3; // seconds
 #else
-  const uint TEMPS_MIN_CREATION = 10; // secondes
-  const uint TEMPS_MAX_CREATION = 5*60; // secondes
+  const uint MIN_TIME_BETWEEN_CREATION = 10; // seconds
+  const uint MAX_TIME_BETWEEN_CREATION = 5*60; // seconds
 #endif
 
-const uint VITESSE_CAISSE = 5; // meter / seconde
-const uint VITESSE_REPLI_PARACHUTE = 170; // ms par image
-const uint NBR_ESSAI_PLACEMENT_MAX = 20;
+const uint SPEED = 5; // meter / seconde
+const uint SPEED_PARACHUTE = 170; // ms par image
+const uint NB_MAX_TRY = 20;
 
 // Bonus offert par la caisse
-const uint BONUS_ENERGIE=100;
-const uint BONUS_PIEGE=75;
-const uint BONUS_TELEPORTE=5;
+const uint BONUS_ENERGY=100;
+const uint BONUS_TRAP=75;
+const uint BONUS_TELEPORTATION=5;
 const uint BONUS_DYNAMITE=10;
-const uint BONUS_AERIENNE=1;
-const uint BONUS_BAZ_TETE_C=5;
+const uint BONUS_AIR_ATTACK=1;
+const uint BONUS_AUTO_BAZOOKA=5;
 
-//-----------------------------------------------------------------------------
-Caisse caisse;
-//-----------------------------------------------------------------------------
-
-Caisse::Caisse()
-  : PhysicalObj("caisse", 0.0)
-{
+BonusBox::BonusBox()
+  : PhysicalObj("BonusBox", 0.0){
   SetTestRect (29, 29, 63, 6);
   m_allow_negative_y = true;
-  desactive = true;
-  pos_valide = false;
-  m_wind_factor = 0.0;
-}
+  enable = false;
+  m_wind_factor = 0.3;
+  m_air_resist_factor = 20;
 
-//-----------------------------------------------------------------------------
-
-void Caisse::Init()
-{
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   anim = resource_manager.LoadSprite( res, "objet/caisse");
-  SetSize (anim->GetWidth(), anim->GetHeight());
+  SetSize(anim->GetSize());
+  anim->animation.SetLoopMode(false);  
+  anim->SetCurrentFrame(0);
+  
+  parachute = true;  
+
+  SetMass (30);
+  SetSpeed (SPEED, M_PI_2);
 }
 
-//-----------------------------------------------------------------------------
-
-void Caisse::FreeMem()
-{
+BonusBox::~BonusBox(){
   delete anim;
 }
 
-//-----------------------------------------------------------------------------
+void BonusBox::Draw()
+{ 
+  anim->Draw(GetPosition());
+}
 
-void Caisse::Reset()
+void BonusBox::Refresh()
 {
-  if (desactive) return;
-
-  pos_valide = false;
-  uint bcl=0;
-  bool ok;
-#ifdef DBG_PLACEMENT
-  COUT_PLACEMENT << "Cherche une place ..." << std::endl;
-#endif
-  do
+  // Si un ver touche la caisse, on la réinitialise
+  FOR_ALL_LIVING_CHARACTERS(equipe, ver)
   {
-    ok = true;
-    Ready();
-    if (NBR_ESSAI_PLACEMENT_MAX <= ++bcl) 
+    if( ObjTouche(*ver) )
     {
-#ifdef DBG_PLACEMENT
-      COUT_PLACEMENT << "Impossible de trouver une position initiale." << std::endl;
-#endif
+      // Offre des dynamites
+      ApplyBonus (**equipe, *ver);
+
+      lst_objects.RemoveObject(this);
+
       return;
     }
+  }
 
-    // Placement au hasard en X
-    int x = RandomLong(0, world.GetWidth() - GetWidth());
-    int y = -GetHeight()+1;
-    SetXY (x, y);
-#ifdef DBG_PLACEMENT
-    COUT_PLACEMENT << "Test en " << x <<"," << y << std::endl;
-#endif
+  // Refresh animation
+  if (!m_ready && !parachute) anim->Update();
+  
+  m_ready = anim->IsFinished();
 
-    // Vérifie que la caisse est dans le vide
-    ok = !IsGhost() && IsInVacuum(0,0) && IsInVacuum(0,1);
-    if (!ok) 
-    {
-#ifdef DBG_PLACEMENT
-      COUT_PLACEMENT << "Placement dans un mur" << std::endl;
-#endif
-      continue;
-    }
-
-    // Vérifie que la caisse ne tombe pas dans le vide
-    DirectFall();
-    ok &= !IsGhost();
-    if (!ok)
-    {
-      continue;
-#ifdef DBG_PLACEMENT
-      COUT_PLACEMENT << "Placement dans le vide" << std::endl;
-#endif
-    }
-
-    // Vérifie que le caisse ne touche aucun ver au début
-    POUR_TOUS_VERS_VIVANTS(equipe, ver)
-    {
-      if (ObjTouche(*this, *ver)) 
-      {
-#ifdef DBG_PLACEMENT
-	COUT_PLACEMENT << "La caisse touche le ver " << (*ver).m_name << std::endl;
-#endif
-	ok = false;
-      }
-    }
-    if (ok) SetXY (x,y);
-  } while (!ok);
-#ifdef DBG_PLACEMENT
-  COUT_PLACEMENT << "Placée après " << bcl << " essai(s)" << std::endl;
-#endif
-  pos_valide = true;
-
-  affiche = false;
-  Ready();
-  parachute = true;
-#ifdef CL
-  anim.set_play_loop(false);
-  anim.set_frame(0);
-#else
-   anim->SetCurrentFrame(0);
-   anim->Start();
-#endif
-
-  temps_caisse = RandomLong(TEMPS_MIN_CREATION, 
-			    TEMPS_MAX_CREATION-TEMPS_MIN_CREATION);
-  temps_caisse *= 1000;
-  temps_caisse += global_time.Read();
-  bonus = RandomLong (1, nbr_bonus_diff);
-
-  SetMass (0);
-  Ghost();
+//   if (m_ready){
+// 	  //MSG_DEBUG("bonus", "game_loop.SetState (gamePLAYING)");
+// 	  //game_loop.SetState (gamePLAYING);
+//   }
 }
-
-//-----------------------------------------------------------------------------
-
-void Caisse::Draw()
-{ 
-  if (!affiche) return;
-#ifdef CL
-  anim.draw (GetX(), GetY());
-#if defined(DEBUG_CADRE_TEST)
-  CL_Rect rect=LitRectTest();
-  CL_Display::draw_rect (rect, CL_Color::red);
-#endif
-#else
-  anim->Draw(GetX(), GetY());
-#endif
-}
-
-//-----------------------------------------------------------------------------
 
 // Signale la fin d'une chute
-void Caisse::SignalFallEnding()
+void BonusBox::SignalFallEnding()
 {
-#ifdef MSG_DBG_CAISSE
-  COUT_DBG << "Fin de la chute : parachute=" << parachute << std::endl;
-#endif
+  m_air_resist_factor = 1.0;
+
+  MSG_DEBUG("bonus", "Fin de la chute: parachute=%d", parachute);
   if (!parachute) return;
 
-#ifdef MSG_DBG_CAISSE
-  COUT_DBG << "Début de l'animation 'repli du parachute'." << std::endl;
-#endif
+  MSG_DEBUG("bonus", "Début de l'animation 'repli du parachute'.");
   parachute = false;
-#ifdef CL
-  anim.restart();
-#else
+
   anim->SetCurrentFrame(0);
   anim->Start();
-#endif
-  SetMass (MASSE_CAISSE);
-  UpdatePosition();
 }
-
+//-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-void Caisse::AppliqueBonus (Team &equipe, Character &ver)
-{
+void BonusBox::ApplyBonus (Team &equipe, Character &ver){
   std::ostringstream txt;
-
-  switch (bonus)
-  {
-  case bonusTELEPORTE: 
+  uint bonus = randomObj.GetLong (1, nb_bonus);
+  switch (bonus){
+  case bonusTELEPORTATION: 
     txt << Format(ngettext(
                 "%s team has won %u teleportation.", 
                 "%s team has won %u teleportations.", 
-                BONUS_TELEPORTE),
-            ActiveTeam().GetName().c_str(), BONUS_TELEPORTE);
-    equipe.m_nb_ammos[ _("Teleportation") ] += BONUS_TELEPORTE;
+                BONUS_TELEPORTATION),
+            ActiveTeam().GetName().c_str(), BONUS_TELEPORTATION);
+    equipe.m_nb_ammos[ _("Teleportation") ] += BONUS_TELEPORTATION;
     break;
 
-  case bonusENERGIE:
+  case bonusENERGY:
     txt << Format(ngettext(
                 "%s has won %u point of energy!",
                 "%s has won %u points of energy!",
-                BONUS_ENERGIE),
-            ver.m_name.c_str(), BONUS_ENERGIE);
-    ver.SetEnergyDelta (BONUS_ENERGIE);
+                BONUS_ENERGY),
+            ver.m_name.c_str(), BONUS_ENERGY);
+    ver.SetEnergyDelta (BONUS_ENERGY);
     break;
 
-  case bonusPIEGE:
+  case bonusTRAP:
     txt << Format(ngettext(
                 "%s has lost %u point of energy.",
                 "%s has lost %u points of energy.",
-                BONUS_PIEGE),
-            ver.m_name.c_str(), BONUS_PIEGE);
-    ver.SetEnergyDelta (-BONUS_PIEGE);
+                BONUS_TRAP),
+            ver.m_name.c_str(), BONUS_TRAP);
+    ver.SetEnergyDelta (-BONUS_TRAP);
     break;
 
-  case bonusAERIENNE:
+  case bonusAIR_ATTACK:
     txt << Format(ngettext(
                 "'%s has won %u air attack",
                 "'%s has won %u air attacks",
-                BONUS_AERIENNE),
-            ActiveTeam().GetName().c_str(), BONUS_AERIENNE);
-    equipe.m_nb_ammos[ _("Air attack") ] += BONUS_AERIENNE;
+                BONUS_AIR_ATTACK),
+            ActiveTeam().GetName().c_str(), BONUS_AIR_ATTACK);
+    equipe.m_nb_ammos[ _("Air attack") ] += BONUS_AIR_ATTACK;
     break;
 
-  case bonusBAZ_TETE_C:
+  case bonusAUTO_BAZOOKA:
     txt << Format(ngettext(
                 "%s team has won %u automatic bazooka!",
                 "%s team has won %u automatic bazookas!",
-                BONUS_BAZ_TETE_C),
-		  ActiveTeam().GetName().c_str(), BONUS_BAZ_TETE_C);
-    equipe.m_nb_ammos[ _("Automatic bazooka") ] += BONUS_BAZ_TETE_C;
+                BONUS_AUTO_BAZOOKA),
+		  ActiveTeam().GetName().c_str(), BONUS_AUTO_BAZOOKA);
+    equipe.m_nb_ammos[ _("Automatic bazooka") ] += BONUS_AUTO_BAZOOKA;
     break;
 
   default: std::cout << bonus << std::endl; assert (false);
@@ -305,78 +193,98 @@ void Caisse::AppliqueBonus (Team &equipe, Character &ver)
     break;
   }
 
-  game_messages.Add (txt.str());
+  GameMessages::GetInstance()->Add (txt.str());
 }
 
 //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+// Static methods 
+bool BonusBox::enable = false;
+uint BonusBox::time = 0;
 
-bool Caisse::FaitApparaitre()
+// Active les caisses ?
+void BonusBox::Enable (bool _enable)
 {
-  if (desactive) return false;
+  MSG_DEBUG("bonus", "Enable ? %d", _enable);
+  enable = _enable;
+}
 
-  if (!pos_valide) Reset();
+bool BonusBox::PlaceBonusBox (BonusBox& bonus_box)
+{
+  uint bcl=0;
+  bool ok;
+  MSG_DEBUG("bonus", "Cherche une place...");
+  
+  do
+  {
+    ok = true;
+    bonus_box.Ready();
+    if (bcl >= NB_MAX_TRY) 
+    {
+      MSG_DEBUG("bonux", "Impossible de trouver une position initiale.");
+      return false;
+    }
 
-  if (affiche || (global_time.Read() < temps_caisse)) return false;
-  affiche = true;
-  m_ready = false;
-  Ready();
-  SetSpeed (VITESSE_CAISSE, M_PI_2);
+    // Placement au hasard en X
+    int x = randomObj.GetLong(0, world.GetWidth() - bonus_box.GetWidth());
+    int y = -bonus_box.GetHeight()+1;
+    bonus_box.SetXY( Point2i(x, y) );
+    MSG_DEBUG("bonus", "Test en %d, %d", x, y);
+
+    // Vérifie que la caisse est dans le vide
+    ok = !bonus_box.IsGhost() && bonus_box.IsInVacuum( Point2i(0, 0) ) && bonus_box.IsInVacuum( Point2i(0, 1) );
+    if (!ok) 
+    {
+      MSG_DEBUG("bonus", "Placement dans un mur");
+      continue;
+    }
+
+    // Vérifie que la caisse ne tombe pas dans le vide
+    bonus_box.DirectFall();
+    ok &= !bonus_box.IsGhost() & !bonus_box.IsInWater();
+
+    if (!ok)
+    {
+      MSG_DEBUG("bonus", "Placement dans le vide");
+      continue;
+    }
+
+    // Vérifie que le caisse ne touche aucun ver au début
+    FOR_ALL_LIVING_CHARACTERS(equipe, ver)
+    {
+      if( bonus_box.ObjTouche(*ver) )
+      {
+	MSG_DEBUG("bonus", "La caisse touche le ver %s.", (*ver).m_name.c_str());
+	ok = false;
+      }
+    }
+    if (ok)
+      bonus_box.SetXY( Point2i(x, y) );
+  } while (!ok);
+
+  MSG_DEBUG("bonus", "Placée après %d essai(s)", bcl);
+
+  time = randomObj.GetLong(MIN_TIME_BETWEEN_CREATION, 
+			   MAX_TIME_BETWEEN_CREATION-MIN_TIME_BETWEEN_CREATION);
+  time *= 1000;
+  time += Time::GetInstance()->Read();
+  
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
-void Caisse::Refresh()
+void BonusBox::NewBonusBox()
 {
-  if (!affiche) return;
 
-  // Si un ver touche la caisse, on la réinitialise
-  POUR_TOUS_VERS_VIVANTS(equipe, ver)
-  {
-    if (ObjTouche(*this, *ver))
-    {
-      // Offre des dynamites
-      AppliqueBonus (**equipe, *ver);
-
-      // Creation d'un nouvelle caisse
-      Reset();
-      return;
-    }
+  if (!enable || (Time::GetInstance()->Read() < time)) {
+    //game_loop.SetState(gamePLAYING);
+    return;
   }
 
-  // Refresh de l'animation
-#ifdef CL
-   if (!parachute) anim.update();
-#else
-   if (!parachute) anim->Update();
-#endif
-   
-#ifdef CL
-   m_ready = anim.is_finished();
-#else
-   m_ready = anim->IsFinished();
-#endif
+  BonusBox * box = new BonusBox();
+  if (!PlaceBonusBox(*box))
+    delete box;
+  else 
+    lst_objects.AddObject(box);
+ 
+  return;
 }
-
-//-----------------------------------------------------------------------------
-
-void Caisse::SignalGhostState (bool)
-{
-  if (!affiche) return;
-#ifdef MSG_DBG_CAISSE
-  COUT_DBG << "Une caisse sort de l'écran !" << std::endl;
-#endif
-  Reset();
-}
-
-//-----------------------------------------------------------------------------
-
-// Active les caisses ?
-void Caisse::Active (bool actif)
-{
-  desactive = !actif;
-  
-  if (desactive) affiche = false;
-}
-
-//-----------------------------------------------------------------------------

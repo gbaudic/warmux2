@@ -21,18 +21,14 @@
 
 #ifndef GAME_MENU_H
 #define GAME_MENU_H
-//-----------------------------------------------------------------------------
-#include "../include/base.h"
+
 #include "menu.h"
-//-----------------------------------------------------------------------------
+#include "../include/base.h"
+#include "../graphic/font.h"
 
 class GameMenu : public Menu
 {
- public:
-   GameMenu(); 
-   ~GameMenu();
-
- private:
+   Font * normal_font;
    bool terrain_init;
 
    /* Team controllers */
@@ -52,12 +48,15 @@ class GameMenu : public Menu
    void MoveTeams(ListBox * from, ListBox * to, bool sort);
 
    void SaveOptions();
-   void OnClic ( int mouse_x, int mouse_y, int button);
-   void Draw(int mouse_x, int mouse_y);
-
+   void OnClic(const Point2i &mousePosition, int button);
+   void Draw(const Point2i &mousePosition);
 
    void __sig_ok();
    void __sig_cancel();
+
+public:
+   GameMenu(); 
+   ~GameMenu();
 };
 
 #endif

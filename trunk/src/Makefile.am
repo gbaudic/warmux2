@@ -2,13 +2,12 @@ SUBDIRS = .
 
 bin_PROGRAMS = wormux
 
-pkgdatadir=$(datadir)/@DATADIR@
-localedir=$(datadir)/@LOCALEDIR@
+pkgdatadir=@DATADIR@
+localedir=@LOCALEDIR@
 
 wormux_SOURCES = \
 	include/base.h include/enum.h \
 	include/constant.cpp include/constant.h \
-	include/global.cpp include/global.h \
 	include/action.cpp include/action.h \
 	include/action_handler.cpp include/action_handler.h \
 	include/app.h main.cpp \
@@ -17,10 +16,17 @@ wormux_SOURCES = \
 	game/game.cpp game/game.h \
 	game/game_loop.cpp game/game_loop.h \
 	graphic/colors.h \
+	graphic/color.cpp graphic/color.h \
+	graphic/effects.cpp graphic/effects.h \
+	graphic/font.cpp graphic/font.h \
 	graphic/fps.cpp graphic/fps.h \
+	graphic/surface.cpp graphic/surface.h \
+	graphic/spriteframe.cpp graphic/spriteframe.h \
+	graphic/spritecache.cpp graphic/spritecache.h \
+	graphic/spriteanimation.cpp graphic/spriteanimation.h \
+	graphic/sprite.cpp graphic/sprite.h \
 	graphic/video.cpp graphic/video.h \
 	graphic/text.cpp graphic/text.h \
-	graphic/effects.cpp graphic/effects.h \
 	gui/button.cpp gui/button.h \
 	gui/button_text.cpp gui/button_text.h \
 	gui/check_box.cpp gui/check_box.h \
@@ -34,16 +40,15 @@ wormux_SOURCES = \
 	tool/xml_document.cpp tool/xml_document.h \
 	tool/i18n.cpp tool/i18n.h \
 	tool/error.cpp tool/error.h \
+	tool/euler_vector.cpp tool/euler_vector.h \
 	tool/file_tools.cpp tool/file_tools.h \
 	tool/math_tools.cpp tool/math_tools.h \
-	tool/Rectangle.h tool/Point.h \
+	tool/rectangle.h tool/point.h \
 	tool/resource_manager.cpp tool/resource_manager.h \
 	tool/stats.cpp tool/stats.h \
 	tool/random.cpp tool/random.h \
 	tool/debug.cpp tool/debug.h \
 	sound/jukebox.cpp sound/jukebox.h \
-	graphic/font.cpp graphic/font.h \
-	graphic/sprite.cpp graphic/sprite.h \
 	interface/weapon_menu.cpp interface/weapon_menu.h \
 	menu/main_menu.cpp menu/main_menu.h \
 	menu/menu.cpp menu/menu.h \
@@ -63,14 +68,16 @@ wormux_SOURCES = \
 	object/bonus_box.cpp object/bonus_box.h \
 	object/objects_list.cpp object/objects_list.h \
 	object/particle.cpp object/particle.h \
+	map/camera.cpp map/camera.h \
+	map/ground.cpp map/ground.h \
 	map/map.cpp map/map.h \
 	map/maps_list.cpp map/maps_list.h \
 	map/sky.cpp map/sky.h \
 	map/tile.cpp map/tile.h \
+	map/tileitem.cpp map/tileitem.h \
 	map/water.cpp map/water.h \
 	map/wind.cpp map/wind.h \
-	map/camera.cpp map/camera.h \
-	map/ground.cpp map/ground.h \
+	network/network.cpp network/network.h \
 	team/macro.h \
 	team/character.cpp team/character.h \
 	team/move.cpp team/move.h \
@@ -83,30 +90,36 @@ wormux_SOURCES = \
 	weapon/weapon_cfg.cpp weapon/weapon_cfg.h \
 	weapon/weapons_list.cpp weapon/weapons_list.h \
 	weapon/weapon_tools.cpp weapon/weapon_tools.h \
+	weapon/launcher.cpp weapon/launcher.h \
 	weapon/crosshair.cpp weapon/crosshair.h \
 	weapon/air_attack.cpp weapon/air_attack.h \
+	weapon/airhammer.cpp weapon/airhammer.h \
 	weapon/auto_bazooka.cpp weapon/auto_bazooka.h \
 	weapon/baseball.cpp weapon/baseball.h \
 	weapon/bazooka.cpp weapon/bazooka.h \
+	weapon/bounce_ball.cpp weapon/bounce_ball.h \
 	weapon/cluster_bomb.cpp weapon/cluster_bomb.h \
 	weapon/dynamite.cpp weapon/dynamite.h \
 	weapon/gnu.cpp weapon/gnu.h \
 	weapon/grenade.cpp weapon/grenade.h \
 	weapon/gun.cpp weapon/gun.h \
-	weapon/mine.cpp weapon/mine.h \
-	weapon/skip_turn.cpp weapon/skip_turn.h \
-	weapon/suicide.cpp weapon/suicide.h \
-	weapon/teleportation.cpp weapon/teleportation.h \
 	weapon/holly_grenade.cpp weapon/holly_grenade.h \
-	weapon/airhammer.cpp weapon/airhammer.h \
-	weapon/uzi.cpp weapon/uzi.h \
 	weapon/jetpack.cpp weapon/jetpack.h\
 	weapon/lowgrav.cpp weapon/lowgrav.h \
+	weapon/mine.cpp weapon/mine.h \
 	weapon/ninja_rope.cpp weapon/ninja_rope.h \
 	weapon/parachute.cpp weapon/parachute.h \
-	weapon/supertux.cpp weapon/supertux.h
-
-#AM_CXXFLAGS = -pg @SDL_CFLAGS@ @LIBXMLPP_CFLAGS@ @PARAGUI_CFLAGS@ -DINSTALL_DATADIR=\"$(pkgdatadir)\" -DINSTALL_LOCALEDIR=\"$(localedir)\"
-#LIBS = $(SDL_LIBS) $(LIBXMLPP_LIBS) $(PARAGUI_LIBS)
+	weapon/skip_turn.cpp weapon/skip_turn.h \
+	weapon/suicide.cpp weapon/suicide.h \
+	weapon/supertux.cpp weapon/supertux.h \
+	weapon/teleportation.cpp weapon/teleportation.h \
+	weapon/uzi.cpp weapon/uzi.h
 
 AM_CXXFLAGS = -DINSTALL_DATADIR=\"$(pkgdatadir)\" -DINSTALL_LOCALEDIR=\"$(localedir)\"
+
+if WIN32
+wormux_SOURCES += wormux.rc
+
+.rc.o:
+	windres -o $@ -i $<
+endif

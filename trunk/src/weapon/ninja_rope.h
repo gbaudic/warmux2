@@ -22,10 +22,8 @@
 #ifndef NINJA_ROPE_H
 #define NINJA_ROPE_H
 //-----------------------------------------------------------------------------
-#include "../include/base.h"
 #include "weapon.h"
-//-----------------------------------------------------------------------------
-namespace Wormux {
+#include "../include/base.h"
 //-----------------------------------------------------------------------------
 
 const int node_max=200;
@@ -64,7 +62,6 @@ public:
   NinjaRope();
   void Active();
   void Refresh();
-  void p_Init();
   void p_Deselect();
   void Draw();
   void HandleKeyEvent(int key, int event_type) ;
@@ -88,7 +85,5 @@ protected:
   void InitSkinSprite();
 };
 
-extern NinjaRope ninjarope;
 //-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

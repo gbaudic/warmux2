@@ -21,13 +21,15 @@
 
 #ifndef OPTIONS_MENU_H
 #define OPTIONS_MENU_H
-//-----------------------------------------------------------------------------
-#include "../include/base.h"
+
 #include "menu.h"
-//-----------------------------------------------------------------------------
+#include "../include/base.h"
+#include "../graphic/font.h"
 
 class OptionMenu : public Menu
 {
+  Font * normal_font;
+
 public:
    OptionMenu(); 
    ~OptionMenu();
@@ -57,8 +59,8 @@ private:
    VBox *game_options;
 
    void SaveOptions();
-   void OnClic ( int mouse_x, int mouse_y, int button);
-   void Draw(int mouse_x, int mouse_y);
+   void OnClic(const Point2i &mousePosition, int button);
+   void Draw(const Point2i &mousePosition);
 
    void __sig_ok();
    void __sig_cancel();

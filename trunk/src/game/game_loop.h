@@ -21,35 +21,32 @@
 
 #ifndef GAME_LOOP_H
 #define GAME_LOOP_H
-//-----------------------------------------------------------------------------
+
+#include "../graphic/fps.h"
 #include "../include/base.h"
 #include "../team/character.h"
-//-----------------------------------------------------------------------------
-
-// Init the game
-void InitGame ();
-
-//-----------------------------------------------------------------------------
-
-typedef enum
-{
-  gamePLAYING,
-  gameHAS_PLAYED,
-  gameEND_TURN,
-} game_state;
-
-//-----------------------------------------------------------------------------
 
 class GameLoop
 {
 private:
-  game_state state;
+  int state;
   uint pause_seconde;
   uint duration;
 
 public:
-  GameLoop();
+  static const int PLAYING = 0;
+  static const int HAS_PLAYED = 1;
+  static const int END_TURN = 2;
 
+  FramePerSecond fps;
+  
+  static GameLoop * singleton;
+
+public:
+  static GameLoop * GetInstance();
+
+  void Init();
+  
   bool character_already_chosen;
   bool interaction_enabled;
 
@@ -63,8 +60,8 @@ public:
   void Refresh();
 
   // Read/Set State
-  game_state ReadState() const { return state; }
-  void SetState(game_state new_state, bool begin_game=false);
+  int ReadState() const { return state; }
+  void SetState(int new_state, bool begin_game=false);
 
   // Signal death of a player
   void SignalCharacterDeath (Character *character);
@@ -73,13 +70,17 @@ public:
   void SignalCharacterDamageFalling (Character *character);
 
 private:
+  GameLoop();
+
+  void GameLoop::InitGameData_NetServer();
+  void GameLoop::InitGameData_NetClient();
+  void GameLoop::InitData_Local();
+  void GameLoop::InitData();
+    
   void RefreshClock();
   void CallDraw();
 
   PhysicalObj* GetMovingObject();
   bool IsAnythingMoving();
 };
-
-extern GameLoop game_loop;
-//-----------------------------------------------------------------------------
 #endif

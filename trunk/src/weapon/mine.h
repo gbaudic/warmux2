@@ -22,87 +22,66 @@
  *****************************************************************************/
 #ifndef MINE_H
 #define MINE_H
-//-----------------------------------------------------------------------------
+
 #include <SDL.h>
+#include "launcher.h"
+#include "../graphic/surface.h"
 #include "../graphic/sprite.h"
 #include "../include/base.h"
 #include "../object/physical_obj.h"
 #include "../team/character.h"
-#include "weapon.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+class Mine;
+class MineConfig;
 
-     
-class ObjMine : public PhysicalObj
+class ObjMine : public WeaponProjectile
 {
 private:
   // channel used for sound
   int channel;
 
-  // La mine est affichée ?
-  bool affiche;
-
   // Activation des mines ?
   bool animation;//,repos;
-  SDL_Surface *impact;
-  Sprite *detection, *explosion;
   uint attente;
-  uint armer;
-  uint depart;
-
-  bool non_defectueuse;
-
-  Character *ver_declancheur;
+  uint escape_time;
 
 public:
-  ObjMine();
-  void Init();
-  void Reset();
+  ObjMine(MineConfig &cfg);
+  //  void Reset();
   void Explosion ();
-  void Draw();
-  void ActiveDetection();
-  void DesactiveDetection();
+  //void Draw();
+  void EnableDetection();
+  void DisableDetection();
   void Refresh();
   void Detection();
-  virtual void SignalFallEnding();
-  virtual void SignalGhostState (bool etait_mort);
+  void SignalCollision();
 };
-
-//-----------------------------------------------------------------------------
 
 class MineConfig : public ExplosiveWeaponConfig
 { 
-public: 
+ private:
+  static MineConfig * singleton;
+ public: 
+  uint escape_time;
   double detection_range;
-  uint temps_fuite;
-public:
+
+ private:
   MineConfig();
+public:
+  static MineConfig * GetInstance();
   virtual void LoadXml(xmlpp::Element *elem);
 };
 
-//-----------------------------------------------------------------------------
-
-class Mine : public Weapon
+class Mine : public WeaponLauncher
 {
 private:
-  std::vector<Mine> liste;
-  bool already_put;
-  uint fuite;
-
   bool p_Shoot();
   void Add (int x, int y);
+  void Refresh();
 
 public:
   Mine();
-  void Refresh();
-
   MineConfig& cfg();
 };
 
-
-extern Mine mine;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

@@ -19,39 +19,33 @@
  * Refresh d'un ver de terre.
  *****************************************************************************/
 
-#include <SDL.h>
-
 #include "character.h"
-//-----------------------------------------------------------------------------
 #include <SDL.h>
 #include <sstream>
 #include <iostream>
-#include "move.h"
 #include "macro.h"
+#include "move.h"
 #include "../game/game.h"
 #include "../game/game_mode.h"
 #include "../game/game_loop.h"
 #include "../game/time.h"
 #include "../game/config.h"
 #include "../graphic/text.h"
+#include "../graphic/font.h"
 #include "../include/action_handler.h"
 #include "../include/app.h"
 #include "../include/constant.h"
-#include "../include/global.h"
+#include "../interface/cursor.h"
 #include "../map/camera.h"
 #include "../map/map.h"
 #include "../map/water.h"
 #include "../sound/jukebox.h"
+#include "../tool/debug.h"
 #include "../tool/random.h"
 #include "../tool/math_tools.h"
 #include "../weapon/suicide.h"
 #include "../weapon/crosshair.h"
 #include "../weapon/weapon_tools.h"
-#include "../interface/cursor.h"
-
-using namespace std;
-using namespace Wormux;
-//-----------------------------------------------------------------------------
 
 const uint HAUT_FONT_MIX = 13;
 
@@ -60,15 +54,10 @@ const uint ESPACE = 3; // pixels
 const uint do_nothing_timeout = 5000;
 
 #ifdef DEBUG
-
 //#define ANIME_VITE
-
 //#define DEBUG_CHG_ETAT
-
 //#define DEBUG_PLACEMENT
-
 //#define NO_POSITION_CHECK
-
 //#define DEBUG_SKIN
 
 #define COUT_DBG0 std::cerr << "[Character " << m_name << "]"
@@ -89,15 +78,14 @@ const uint do_nothing_timeout = 5000;
 const uint LARG_ENERGIE = 40;
 const uint HAUT_ENERGIE = 6;
 
-//-----------------------------------------------------------------------------
-
-Character::Character () : PhysicalObj("Soldat inconnu", 0.0)
+Character::Character () :
+  PhysicalObj("Soldat inconnu", 0.0)
 {
   pause_bouge_dg = 0;
   previous_strength = 0;
   m_team = NULL;
   energy = 100;
-  losted_energy = 0;
+  lost_energy = 0;
   desactive = false;
   skin = NULL;
   walk_skin = NULL;
@@ -113,17 +101,22 @@ Character::Character () : PhysicalObj("Soldat inconnu", 0.0)
   do_nothing_time = 0;
   m_allow_negative_y = true;
 
+  // Damage count
+  damage_other_team = 0;
+  damage_own_team = 0;
+  max_damage = 0;
+  current_total_damage = 0;
+
+  // Survivals
+  survivals = 0;
+
   name_text = NULL;
 }
-
-//-----------------------------------------------------------------------------
 
 // Signale la mort d'un ver
 void Character::SignalDeath()
 {
-#ifdef DEBUG_CHG_ETAT
-  COUT_DBG << "Meurt." << endl;
-#endif
+  MSG_DEBUG("character", "Dying");
 
   // No more energy ...
   energy = 0;
@@ -132,31 +125,20 @@ void Character::SignalDeath()
 
   SetSkin("dead");
 
-  //--- Do the skin explosion :-) ---
-  SDL_Surface *img_trou = suicide.hole_image;
+  ExplosiveWeaponConfig cfg;
 
-   
-  // The hole is at the center
-  Point2i trou(GetCenter());
-   
-  // But the explosion is on the foots :)
-  Point2i explosion(GetCenterX(), GetY()+ GetHeight());
-   
-  AppliqueExplosion (explosion, trou, img_trou, suicide.cfg(), NULL);
+  ApplyExplosion ( GetCenter(), cfg, NULL);
 
   // Change test rectangle
-  int x = GetCenterX(), y=GetCenterY();
-  SetSize (image->GetWidth(), image->GetHeight());
-  SetXY (x - GetWidth()/2, y - GetHeight()/2);
+  SetSize( image->GetSize() );
+  SetXY( GetCenter() - GetSize()/2 );
 
   assert (m_alive == DEAD);
   assert (IsDead());
   
   // Signal the death
-  game_loop.SignalCharacterDeath (this);
+  GameLoop::GetInstance()->SignalCharacterDeath (this);
 }
-
-//-----------------------------------------------------------------------------
 
 void Character::SignalDrowning()
 {
@@ -165,26 +147,23 @@ void Character::SignalDrowning()
   SetSkin("drowned");
 
   jukebox.Play (GetTeam().GetSoundProfile(),"sink");
-  game_loop.SignalCharacterDeath (this);
+  GameLoop::GetInstance()->SignalCharacterDeath (this);
 }
-
-//-----------------------------------------------------------------------------
 
 // Si un ver devient un fantome, il meurt ! Signale sa mort
 void Character::SignalGhostState (bool was_dead)
 {
-  // Désactive le ver
+  // Deactivate character
   desactive = true;
+  
+  // Report to damage performer this character lost all of its energy
+  ActiveCharacter().MadeDamage(energy, *this);
 
-#ifdef DEBUG_CHG_ETAT
-  COUT_DBG << "Fantome." << endl;
-#endif
+  MSG_DEBUG("character", "ghost");
 
   // Signal the death
-  if (!was_dead) game_loop.SignalCharacterDeath (this);
+  if (!was_dead) GameLoop::GetInstance()->SignalCharacterDeath (this);
 }
-
-//-----------------------------------------------------------------------------
 
 void Character::SetDirection (int nv_direction)
 { 
@@ -194,16 +173,14 @@ void Character::SetDirection (int nv_direction)
      anim.image->Scale (nv_direction, 1);
 }
 
-//-----------------------------------------------------------------------------
-
-void Character::DrawEnergyBar(int dy) const
+void Character::DrawEnergyBar(int dy)
 {
-  if(IsDead()) return;
-  energy_bar.DrawXY ( GetCenterX()-energy_bar.GetWidth()/2-camera.GetX(), 
-		      GetY()+dy-camera.GetY());
-}
+  if( IsDead() )
+	return;
 
-//-----------------------------------------------------------------------------
+  energy_bar.DrawXY( Point2i( GetCenterX() - energy_bar.GetWidth() / 2, GetY() + dy)  
+		  - camera.GetPosition() );
+}
 
 void Character::DrawName (int dy) const
 {
@@ -212,61 +189,56 @@ void Character::DrawName (int dy) const
   const int x =  GetCenterX();
   const int y = GetY()+dy;
 
-  if (config.display_name_character)
+  if (Config::GetInstance()->GetDisplayNameCharacter())
   {
     name_text->DrawCenterTopOnMap(x,y);
   }
 }
-
-//-----------------------------------------------------------------------------
 
 void Character::SetEnergyDelta (int delta)
 {
   // If already dead, do nothing
   if (IsDead()) return;
 
+  // Report damage to damage performer
+  ActiveCharacter().MadeDamage(-delta, *this);
+
   uint sauve_energie = energy;
-  uchar R,V,B;
+  Color color;
 
   // Change energy
-  energy = BorneLong((int)energy +delta, 0, game_mode.character.max_energy);
+  energy = BorneLong((int)energy +delta, 0, GameMode::GetInstance()->character.max_energy);
   energy_bar.Actu (energy);
     
   // Energy bar color
-  if (70 < energy) {
-    V = 255;
-    R = 0;
-  } else if (50 < energy) {
-    V = 255;
-    R = 255;
-  } else if (20 < energy) {
-    V = 128;
-    R = 255;
-  } else {
-    V = 0;
-    R = 255;
-  }
-  B = 0;
+  if (70 < energy)
+	  color.SetColor(0, 255, 0, 255);
+  else if (50 < energy)
+	  color.SetColor(255, 255, 0, 255);
+  else if (20 < energy) 
+	  color.SetColor(255, 128, 0, 255);
+  else 
+	  color.SetColor(255, 0, 0, 255);
 
-  energy_bar.SetValueColor( R,V,B);
+  energy_bar.SetValueColor( color );
 
    
   // Compute energy lost
   if (delta < 0)
   {
 
-    losted_energy += (int)energy - (int)sauve_energie;
+    lost_energy += (int)energy - (int)sauve_energie;
 
-    if ( losted_energy < 33 )
+    if ( lost_energy < 33 )
       jukebox.Play (GetTeam().GetSoundProfile(), "injured_light");
-    else if ( losted_energy < 66 )
+    else if ( lost_energy < 66 )
       jukebox.Play (GetTeam().GetSoundProfile(), "injured_medium");
     else 
       jukebox.Play (GetTeam().GetSoundProfile(), "injured_high");
     
   }
   else 
-    losted_energy = 0;
+    lost_energy = 0;
 
   // "Friendly fire !!"
   if ( (&ActiveCharacter() != this) && (&ActiveTeam() == m_team) )
@@ -276,34 +248,31 @@ void Character::SetEnergyDelta (int delta)
   if (energy == 0) Die();
 }
 
-//-----------------------------------------------------------------------------
 void Character::StartBreathing()
 {
   SetSkin("breathe");
   if(current_skin == "breathe")
   {
-    image->SetSpeedFactor((float)RandomLong(100,150)/100.0);
-    image->SetLoopMode();
+    image->animation.SetSpeedFactor((float)randomObj.GetLong(100,150)/100.0);
+    image->animation.SetLoopMode(true);
     image->Start();
   }
 }
 
-//-----------------------------------------------------------------------------
 void Character::StartWalking()
 {
-  do_nothing_time = Wormux::global_time.Read();
+  do_nothing_time = Time::GetInstance()->Read();
 
   if(full_walk && current_skin=="breathe")
   {
     SetSkin("walking");
     image->Start();
-    image->SetLoopMode();
-    image->SetSpeedFactor(1.0);
+    image->animation.SetLoopMode(true);
+    image->animation.SetSpeedFactor(1.0);
     image->SetCurrentFrame(0);
   }
 }
 
-//-----------------------------------------------------------------------------
 void Character::StopWalking()
 {
   if(image!=NULL && current_skin=="walking" && full_walk)
@@ -313,7 +282,6 @@ void Character::StopWalking()
   }
 }
 
-//-----------------------------------------------------------------------------
 void Character::Draw()
 {
   if (hidden) return;
@@ -321,16 +289,16 @@ void Character::Draw()
   // Gone in another world ?
   if (!IsActive()) return;
 
-  bool dessine_perte = (losted_energy != 0);
+  bool dessine_perte = (lost_energy != 0);
   if ((&ActiveCharacter() == this
-    && game_loop.ReadState() != gameEND_TURN)
+    && GameLoop::GetInstance()->ReadState() != GameLoop::END_TURN)
       //&& (game_loop.ReadState() != jeuANIM_FIN_TOUR)
     || IsDead()
      )
     dessine_perte = false;
 
   // Draw skin
-  if(full_walk && !image->IsFinished() && game_loop.ReadState() == gameEND_TURN)
+  if(full_walk && !image->IsFinished() && GameLoop::GetInstance()->ReadState() == GameLoop::END_TURN)
     StopWalking();
 
   if(!skin_is_walking || full_walk) //walking skins image update only when a keyboard key is pressed
@@ -346,9 +314,8 @@ void Character::Draw()
   if(!SetSkin("weapon-" + m_team->GetWeapon().GetID()))
     SetSkin("walking");
 
-  int x = GetX();
-  int y = GetY();
-  image->Draw(x,y);
+  Point2i pos = GetPosition();
+  image->Draw(pos);
    
   // Draw animation
   if(anim.draw
@@ -358,14 +325,15 @@ void Character::Draw()
     int dx = 0;
     if(GetDirection()==-1)
       dx = image->GetWidth() - anim.image->GetWidth();
-    anim.image->Draw(x+dx,y);
+    anim.image->Draw(pos + Point2i(dx, 0));
   }
 
    // Draw energy bar
   int dy = -ESPACE;
   bool est_ver_actif = (this == &ActiveCharacter());
-  bool display_energy = config.display_energy_character;
-  display_energy &= !est_ver_actif || (game_loop.ReadState() != gamePLAYING);
+  Config * config = Config::GetInstance();
+  bool display_energy = config->GetDisplayEnergyCharacter();
+  display_energy &= !est_ver_actif || (GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING);
   display_energy |= dessine_perte;
   display_energy &= !IsDead();
   if (display_energy)
@@ -376,7 +344,7 @@ void Character::Draw()
   }
 
   // Draw name
-  if (config.display_name_character && !est_ver_actif) 
+  if (config->GetDisplayNameCharacter() && !est_ver_actif) 
   { 
     dy -= HAUT_FONT_MIX;
     DrawName (dy);
@@ -386,22 +354,20 @@ void Character::Draw()
   // Draw lost energy
   if (dessine_perte)
   {
-    ostringstream ss;
-    ss << losted_energy;
+    std::ostringstream ss;
+    ss << lost_energy;
     dy -= HAUT_FONT_MIX;
-    global().small_font().WriteCenterTop (GetX() +GetWidth()/2-camera.GetX(), GetY()+dy-camera.GetY(), ss.str(), white_color);    
+    (*Font::GetInstance(Font::FONT_SMALL)).WriteCenterTop (
+			GetPosition() - camera.GetPosition() + Point2i( GetWidth()/2, dy),
+		   	ss.str(), white_color);    
   }
 
 }
 
-//-----------------------------------------------------------------------------
-
-void Character::Saute ()
+void Character::Jump ()
 {
-#ifdef DEBUG_CHG_ETAT
-  COUT_DBG << "Saute." << endl;
-#endif
-  do_nothing_time = Wormux::global_time.Read();
+  MSG_DEBUG("character", "Jump");
+  do_nothing_time = Time::GetInstance()->Read();
 
   if (!CanJump()) return;
 
@@ -413,19 +379,15 @@ void Character::Saute ()
     SetSkin("jump");
 
   // Initialise la force
-  double angle = Deg2Rad(game_mode.character.jump_angle);
+  double angle = Deg2Rad(GameMode::GetInstance()->character.jump_angle);
   if (GetDirection() == -1) angle = InverseAngle(angle);
-  SetSpeed (game_mode.character.jump_strength, angle);
+  SetSpeed (GameMode::GetInstance()->character.jump_strength, angle);
 }
 
-//-----------------------------------------------------------------------------
-
-void Character::SuperSaut ()
+void Character::HighJump ()
 {
-#ifdef DEBUG_CHG_ETAT
-  COUT_DBG << "SuperSaut." << endl;
-#endif
-  do_nothing_time = Wormux::global_time.Read();
+  MSG_DEBUG("character", "HighJump");
+  do_nothing_time = Time::GetInstance()->Read();
 
   if (!CanJump()) return;
 
@@ -437,20 +399,16 @@ void Character::SuperSaut ()
     SetSkin("jump");
 
   // Initialise la force
-  double angle = Deg2Rad(game_mode.character.super_jump_angle);
+  double angle = Deg2Rad(GameMode::GetInstance()->character.super_jump_angle);
   if (GetDirection() == -1) angle = InverseAngle(angle);
-  SetSpeed (game_mode.character.super_jump_strength, angle);
+  SetSpeed (GameMode::GetInstance()->character.super_jump_strength, angle);
 }
-
-//-----------------------------------------------------------------------------
 
 void Character::DoShoot()
 {
   ActiveTeam().AccessWeapon().StopLoading();
   ActiveTeam().GetWeapon().NewActionShoot();
 }
-
-//-----------------------------------------------------------------------------
 
 void Character::HandleShoot(int event_type)
 {
@@ -459,7 +417,7 @@ void Character::HandleShoot(int event_type)
       if (ActiveTeam().GetWeapon().max_strength == 0)
 	DoShoot();
       else
-	if ( (game_loop.ReadState() == gamePLAYING)
+	if ( (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING)
 	     && ActiveTeam().GetWeapon().IsReady() )
 	  ActiveTeam().AccessWeapon().InitLoading();
       break ;
@@ -489,12 +447,10 @@ void Character::HandleShoot(int event_type)
   }
 }
 
-//-----------------------------------------------------------------------------
-
 void Character::HandleKeyEvent(int action, int event_type)
 {
   // The character cannot move anymove if the turn is over...
-  if (game_loop.ReadState() == gameEND_TURN)
+  if (GameLoop::GetInstance()->ReadState() == GameLoop::END_TURN)
     return ;
 
   if (ActiveCharacter().IsDead())
@@ -503,10 +459,12 @@ void Character::HandleKeyEvent(int action, int event_type)
   if (action == ACTION_SHOOT)
     {
       HandleShoot(event_type);
-      do_nothing_time = Wormux::global_time.Read();
-      curseur_ver.Cache();
+      do_nothing_time = Time::GetInstance()->Read();
+      CurseurVer::GetInstance()->Cache();
       return;
     }
+
+  ActionHandler * action_handler = ActionHandler::GetInstance();
 
   if (!ActiveCharacter().IsReady())
     return;
@@ -519,10 +477,10 @@ void Character::HandleKeyEvent(int action, int event_type)
           switch (action)
           {
             case ACTION_JUMP:
-              action_handler.NewAction (Action(ACTION_JUMP));
+              action_handler->NewAction (Action(ACTION_JUMP));
 	            return ;
-            case ACTION_SUPER_JUMP:
-              action_handler.NewAction (Action(ACTION_SUPER_JUMP));
+            case ACTION_HIGH_JUMP:
+              action_handler->NewAction (Action(ACTION_HIGH_JUMP));
               return ;
             case ACTION_MOVE_LEFT:
             case ACTION_MOVE_RIGHT:
@@ -556,18 +514,18 @@ void Character::HandleKeyEvent(int action, int event_type)
             case ACTION_UP:
     	        if (ActiveTeam().crosshair.enable)
               {
-                do_nothing_time = Wormux::global_time.Read();
-                curseur_ver.Cache();
-	              action_handler.NewAction (Action(ACTION_UP));
+                do_nothing_time = Time::GetInstance()->Read();
+                CurseurVer::GetInstance()->Cache();
+	              action_handler->NewAction (Action(ACTION_UP));
               }
 	      break ;
 
             case ACTION_DOWN:
 	            if (ActiveTeam().crosshair.enable)
               {
-                do_nothing_time = Wormux::global_time.Read();
-                curseur_ver.Cache();
-     	          action_handler.NewAction (Action(ACTION_DOWN));
+                do_nothing_time = Time::GetInstance()->Read();
+                CurseurVer::GetInstance()->Cache();
+     	          action_handler->NewAction (Action(ACTION_DOWN));
               }
 	      break ;
             default:
@@ -580,8 +538,8 @@ void Character::HandleKeyEvent(int action, int event_type)
             case ACTION_MOVE_RIGHT:
                if(current_skin=="walking" && full_walk)
                {
-                 image->SetSpeedFactor(2.0);
-                 image->SetLoopMode(0);
+                 image->animation.SetSpeedFactor(2.0);
+                 image->animation.SetLoopMode(0);
                }
                is_walking = false;
                break;
@@ -591,25 +549,24 @@ void Character::HandleKeyEvent(int action, int event_type)
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void Character::Refresh()
 {
   if (desactive) return;
 
   UpdatePosition ();
+  Time * global_time = Time::GetInstance();
 
-  if( &ActiveCharacter() == this && game_loop.ReadState() == gamePLAYING)
+  if( &ActiveCharacter() == this && GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING)
   {
-    if(do_nothing_time + do_nothing_timeout < Wormux::global_time.Read())
-      curseur_ver.SuitVerActif();
+    if(do_nothing_time + do_nothing_timeout < global_time->Read())
+      CurseurVer::GetInstance()->SuitVerActif();
   }
 
   // Refresh de l'animation
   if (GetSkin().anim.utilise)
   {
     // C'est le début d'une animation ?
-    if (!anim.draw && (anim.time < global_time.Read())) 
+    if (!anim.draw && (anim.time < global_time->Read())) 
     {
       anim.image->SetCurrentFrame(0);
       anim.image->Start();
@@ -618,29 +575,26 @@ void Character::Refresh()
 
     // Animation active
     if (anim.draw && (!GetSkin().anim.not_while_playing || &ActiveCharacter()!=this))
-    {
+    {      
       anim.image->Update();
 
       if ( anim.image->IsFinished() )
       {
         anim.draw = false;
-        anim.time  = RandomLong (ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
-        anim.time += global_time.Read();
+        anim.time  = randomObj.GetLong (ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
+        anim.time += global_time->Read();
       }
     }
   }
 }
 
-//-----------------------------------------------------------------------------
-
 // Prepare a new turn
-void Character::PrepareTour ()
+void Character::PrepareTurn ()
 {
-  losted_energy = 0;
-  pause_bouge_dg = global_time.Read();
+  HandleMostDamage();
+  lost_energy = 0;
+  pause_bouge_dg = Time::GetInstance()->Read();
 }
-
-//-----------------------------------------------------------------------------
 
 const Team& Character::GetTeam() const
 {
@@ -648,46 +602,36 @@ const Team& Character::GetTeam() const
   return *m_team;
 }
 
-//-----------------------------------------------------------------------------
-
 Team& Character::TeamAccess()
 {
   assert (m_team != NULL);
   return *m_team;
 }
 
-//-----------------------------------------------------------------------------
-
 bool Character::MouvementDG_Autorise() const
 {
   if (!IsReady() || IsFalling()) return false;
-  return pause_bouge_dg < global_time.Read();
+  return pause_bouge_dg < Time::GetInstance()->Read();
 }
-
-//-----------------------------------------------------------------------------
 
 bool Character::CanJump() const
 {
 	return MouvementDG_Autorise();
 }
 
-//-----------------------------------------------------------------------------
-
 void Character::InitMouvementDG(uint pause)
 {
-  do_nothing_time = Wormux::global_time.Read();
-  curseur_ver.Cache();
+  do_nothing_time = Time::GetInstance()->Read();
+  CurseurVer::GetInstance()->Cache();
   m_rebounding = false;
-  pause_bouge_dg = global_time.Read()+pause;
+  pause_bouge_dg = Time::GetInstance()->Read()+pause;
 
   StartWalking();
 }
 
-//-----------------------------------------------------------------------------
-
 bool Character::CanStillMoveDG(uint pause)
 {
-  if(pause_bouge_dg+pause<global_time.Read())
+  if(pause_bouge_dg+pause<Time::GetInstance()->Read())
   {
     pause_bouge_dg += pause;
     return true;
@@ -695,29 +639,28 @@ bool Character::CanStillMoveDG(uint pause)
   return false;
 }
 
-//-----------------------------------------------------------------------------
-
 // Signal the end of a fall
 void Character::SignalFallEnding()
 {
   // Do not manage dead worms.
   if (IsDead()) return;
 
-  pause_bouge_dg = global_time.Read();
+  pause_bouge_dg = Time::GetInstance()->Read();
 
   double norme, degat;
-  DoubleVector speed_vector ;
+  Point2d speed_vector;
+  GameMode * game_mode = GameMode::GetInstance();
 
   StopWalking();
   GetSpeedXY (speed_vector);
-  norme = Norm (speed_vector);
-  if (norme > game_mode.safe_fall && speed_vector.y>0.0)
+  norme = speed_vector.Norm();
+  if (norme > game_mode->safe_fall && speed_vector.y>0.0)
   {
-    norme -= game_mode.safe_fall;
-    degat = norme * game_mode.damage_per_fall_unit;
+    norme -= game_mode->safe_fall;
+    degat = norme * game_mode->damage_per_fall_unit;
     SetEnergyDelta (-(int)degat);
     SetSkin("hard_fall_ending");
-    game_loop.SignalCharacterDamageFalling(this);
+    GameLoop::GetInstance()->SignalCharacterDamageFalling(this);
   }
   if((current_skin=="jump" || current_skin=="fall"))
   {
@@ -726,8 +669,6 @@ void Character::SignalFallEnding()
   }
 }
 
-//-----------------------------------------------------------------------------
-
 int Character::GetDirection() const 
 { 
   float x,y;
@@ -735,20 +676,14 @@ int Character::GetDirection() const
   return (x<0)?-1:1;
 }
 
-//-----------------------------------------------------------------------------
-
 bool Character::IsActive() const 
 { return !desactive; }
-
-//-----------------------------------------------------------------------------
 
 // End of turn or change of character
 void Character::StopPlaying()
 {
   SetSkin("walking");
 }
-
-//-----------------------------------------------------------------------------
 
 // Begining of turn or changed to this character
 void Character::StartPlaying()
@@ -758,8 +693,6 @@ void Character::StartPlaying()
   SetSkin("weapon-" + m_team->GetWeapon().GetID());
 }
 
-//-----------------------------------------------------------------------------
-
 // Accès à l'avatar
 const Skin& Character::GetSkin() const
 {
@@ -767,17 +700,14 @@ const Skin& Character::GetSkin() const
   return *skin;
 }
 
-//-----------------------------------------------------------------------------
-
 Skin& Character::AccessSkin()
 {
   assert (skin != NULL);
   return *skin;
 }
 
-//-----------------------------------------------------------------------------
 // Choose which skin to display (ie. dead skin, swiming skin...)
-bool Character::SetSkin(std::string skin_name)
+bool Character::SetSkin(const std::string& skin_name)
 {
   //Return true if the this character have this skin. (if it's set in the xml file)
 
@@ -803,7 +733,7 @@ bool Character::SetSkin(std::string skin_name)
                  AccessSkin().many_skins[skin_name].test_top, 
                  AccessSkin().many_skins[skin_name].test_bottom);
 
-    SetSize (image->GetWidth(), image->GetHeight());
+    SetSize(image->GetSize());
     image->SetCurrentFrame(0);
     image->Start();
     PutOutOfGround();     
@@ -834,7 +764,7 @@ bool Character::SetSkin(std::string skin_name)
                  walk_skin->test_bottom);
     m_frame_repetition = walk_skin->repetition_frame;
 
-    SetSize (image->GetWidth(), image->GetHeight());
+    SetSize(image->GetSize());
     PutOutOfGround();     
     StopWalking();
 
@@ -846,8 +776,8 @@ bool Character::SetSkin(std::string skin_name)
     if(skin_name=="walking" || skin_name=="breathe")
     {
         anim.draw = false;
-        anim.time  = RandomLong (ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
-        anim.time += global_time.Read();
+        anim.time  = randomObj.GetLong (ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
+        anim.time += Time::GetInstance()->Read();
     }
 
     current_skin = skin_name;
@@ -868,8 +798,6 @@ bool Character::SetSkin(std::string skin_name)
   }
 }
 
-//-----------------------------------------------------------------------------
-
 void Character::FrameImageSuivante()
 {
   if(full_walk) return;
@@ -886,17 +814,12 @@ void Character::FrameImageSuivante()
   }
 }
 
-//-----------------------------------------------------------------------------
-
-void Character::Init() {}
-
-//-----------------------------------------------------------------------------
-
-void Character::InitTeam (Team *ptr_equipe, const string &name, 
+void Character::InitTeam (Team *ptr_equipe, const std::string &name, 
 			  Skin* pskin)
 {
-  SetMass (game_mode.character.mass);
-  SetAirResistFactor (game_mode.character.air_resist_factor);
+  GameMode * game_mode = GameMode::GetInstance();
+  SetMass (game_mode->character.mass);
+  SetAirResistFactor (game_mode->character.air_resist_factor);
   m_team = ptr_equipe;
   m_name = name;
   skin = pskin;
@@ -910,15 +833,12 @@ void Character::InitTeam (Team *ptr_equipe, const string &name,
   }
 
   // Energie
-  energy_bar.InitVal (energy, 0, game_mode.character.max_energy);
+  energy_bar.InitVal (energy, 0, game_mode->character.max_energy);
   energy_bar.InitPos (0,0, LARG_ENERGIE, HAUT_ENERGIE);
 
-  energy_bar.SetBorderColor(0,0,0);
-  energy_bar.SetBackgroundColor(100,100,100);
-
+  energy_bar.SetBorderColor( black_color );
+  energy_bar.SetBackgroundColor( gray_color );
 }
-
-//-----------------------------------------------------------------------------
 
 void Character::Reset() 
 {
@@ -934,15 +854,15 @@ void Character::Reset()
   if (anim.draw)
   { 
     anim.image->Finish();
-    anim.time  = RandomLong (ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
-    anim.time += global_time.Read();    
+    anim.time  = randomObj.GetLong (ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
+    anim.time += Time::GetInstance()->Read();    
   }
 
   // Initialise l'image
-  SetDirection( RandomBool()?1:-1 );
+  SetDirection( randomObj.GetBool()?1:-1 );
 
   if(!full_walk)
-    image->SetCurrentFrame ( RandomLong(0, image->GetFrameCount()-1) );
+    image->SetCurrentFrame ( randomObj.GetLong(0, image->GetFrameCount()-1) );
   else
     StartBreathing();
 
@@ -950,16 +870,16 @@ void Character::Reset()
 
 
   // Prépare l'image du nom
-  if (config.display_name_character && name_text == NULL)
+  if (Config::GetInstance()->GetDisplayNameCharacter() && name_text == NULL)
   {
     name_text = new Text(m_name);
   }
 
   // Energie
-  energy = game_mode.character.init_energy-1;
-  energy_bar.InitVal (energy, 0, game_mode.character.init_energy);
+  energy = GameMode::GetInstance()->character.init_energy-1;
+  energy_bar.InitVal (energy, 0, GameMode::GetInstance()->character.init_energy);
   SetEnergyDelta (1);
-  losted_energy = 0;
+  lost_energy = 0;
 
   // Initialise la position
   uint bcl=0;
@@ -967,33 +887,29 @@ void Character::Reset()
   do
   {
     // Vérifie qu'on ne tourne pas en rond
-    FORCE_ASSERT (++bcl < NBR_BCL_MAX_EST_VIDE);
+    FORCE_ASSERT (++bcl < Constants::NBR_BCL_MAX_EST_VIDE);
 
     // Objet physique dans l'état prêt
     pos_ok = true;
     desactive = false;
     Ready();
 
-    // Prend des coordonnées au hasard
-    uint x = RandomLong(0, world.GetWidth() -GetWidth());
-    uint y = RandomLong(0, world.GetHeight() -GetHeight());
-
-    SetXY (x, y);
+    SetXY( randomObj.GetPoint(world.GetSize() - GetSize() + 1) );
 
 #ifndef NO_POSITION_CHECK
-    pos_ok &= !IsGhost() && IsInVacuum(0,0) && (GetY() < static_cast<int>(world.GetHeight() - (WATER_INITIAL_HEIGHT + 30)));
+    pos_ok &= !IsGhost() && IsInVacuum( Point2i(0,0) ) && (GetY() < static_cast<int>(world.GetHeight() - (WATER_INITIAL_HEIGHT + 30)));
     if (!pos_ok) continue;
 
     // Chute directe pour le sol
     DirectFall ();
     pos_ok &= !IsGhost() && (GetY() < static_cast<int>(world.GetHeight() - (WATER_INITIAL_HEIGHT + 30)));
 #ifdef DEBUG_PLACEMENT
-    if (!pos_ok) COUT_PLACEMENT << "Fantome en tombant." << endl;
+    if (!pos_ok) COUT_PLACEMENT << "Fantome en tombant." << std::endl;
 #endif
     if (!pos_ok) continue;
 
     // Vérifie que le ver ne fois pas trop près de ses voisins
-    POUR_TOUS_VERS_VIVANTS(it_equipe,ver) if (&(*ver) != this)
+    FOR_ALL_LIVING_CHARACTERS(it_equipe,ver) if (&(*ver) != this)
     {
        Point2i p1 = ver->GetCenter();
        Point2i p2 = GetCenter();
@@ -1006,9 +922,9 @@ void Character::Reset()
     }
 
     // La position est bonne ?
-    pos_ok &= !IsGhost() & IsInVacuum(0,0);
+    pos_ok &= !IsGhost() & !IsInWater() & IsInVacuum( Point2i(0,0) );
 #ifdef DEBUG_PLACEMENT
-    if (!pos_ok) COUT_PLACEMENT << "Placement final manqué." << endl;
+    if (!pos_ok) COUT_PLACEMENT << "Placement final manqué." << std::endl;
 #endif
 
 #endif // of #ifndef NO_POSITION_CHECK
@@ -1017,44 +933,40 @@ void Character::Reset()
   Ready();
 }
 
-//-----------------------------------------------------------------------------
-
 uint Character::GetEnergy() const 
 {
   assert (!IsDead());
   return energy; 
 }
 
-//-----------------------------------------------------------------------------
-
 // Hand position
-void Character::GetHandPosition (int &x, int &y) 
-{
+Point2i Character::GetHandPosition() {
    int frame = image->GetCurrentFrame();
+   Point2i result;
    
-  assert(walk_skin!=NULL);
+   assert(walk_skin!=NULL);
 
-  if(current_skin=="breathe")
-  {
-    //Hand position is first frame of the hand position of the walking skin
-    skin_translate_t hand = walk_skin->hand_position.at(0);
-    y = GetY() +hand.dy;
-    if (GetDirection() == 1)
-      x = GetX() +hand.dx;
-    else
-      x = GetX() +GetWidth() -hand.dx;
-    return;
+   if(current_skin=="breathe")
+   {
+		//Hand position is first frame of the hand position of the walking skin
+		skin_translate_t hand = walk_skin->hand_position.at(0);
+		result.y = GetY() + hand.dy;
+		if (GetDirection() == 1)
+			result.x = GetX() + hand.dx;
+		else
+      		result.x = GetX() + GetWidth() - hand.dx;
+		return result;
   }
 
   skin_translate_t hand = walk_skin->hand_position.at(frame);
-  y = GetY() +hand.dy;
+  result.y = GetY() + hand.dy;
   if (GetDirection() == 1)
-    x = GetX() +hand.dx;
+    result.x = GetX() + hand.dx;
   else
-    x = GetX() +GetWidth() -hand.dx;
-}
+    result.x = GetX() + GetWidth() - hand.dx;
 
-//-----------------------------------------------------------------------------
+  return result;
+}
 
 // Hand position
 void Character::GetHandPositionf (double &x, double &y) 
@@ -1072,14 +984,38 @@ void Character::GetHandPositionf (double &x, double &y)
     x = (double)GetX() +GetWidth() -hand.dx;
 }
 
-//-----------------------------------------------------------------------------
-void Character::EndTurn()
+void Character::HandleMostDamage()
 {
-  m_rebounding = true;
-  is_walking = false;
+  if (current_total_damage > max_damage)
+  {
+    max_damage = current_total_damage;
+  }
+#ifdef DEBUG
+  std::cerr << m_name << " most damage: " << max_damage << std::endl;
+#endif
+  current_total_damage = 0;
 }
 
-//-----------------------------------------------------------------------------
 void Character::Hide() { hidden = true; }
 void Character::Show() { hidden = false; }
-//-----------------------------------------------------------------------------
+
+void Character::MadeDamage(const int Dmg, const Character &other)
+{
+  if (m_team->IsSameAs(other.GetTeam()))
+  {
+#ifdef DEBUG
+    std::cerr << m_name << " damaged own team with " << Dmg << std::endl;
+#endif
+    if (Character::IsSameAs(other))
+      damage_own_team += Dmg;
+  }
+  else
+  {
+#ifdef DEBUG
+    std::cerr << m_name << " damaged other team with " << Dmg << std::endl;
+#endif
+    damage_other_team += Dmg;
+  }
+  
+  current_total_damage += Dmg;
+}

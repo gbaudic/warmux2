@@ -21,13 +21,9 @@
 
 #ifndef GROUND_H
 #define GROUND_H
-//-----------------------------------------------------------------------------
-#include "tile.h"
-#include <list>
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+#include <list>
+#include "tile.h"
 
 class Ground : public Tile 
 {
@@ -35,8 +31,7 @@ private:
   bool ouvert;
   bool PointContigu(int x,int y, int & p_x,int & p_y,
                     int pas_bon_x,int pas_bon_y);
-  int lastx;
-  int lasty;
+  Point2i lastPos;
 
 public:
   Ground();
@@ -46,15 +41,15 @@ public:
   void Free() { FreeMem(); }
 
   // Le point (x,y) est dans le vide ?
-  bool EstDansVide (int x, int y);
+  bool IsEmpty(const Point2i &pos);
 
   // C'est un terrain ouvert ?
   bool EstOuvert() const { return ouvert; }
   
   //Renvoie l'angle de la tangeante au terrain
   double Tangeante(int x,int y);
+
+  void RedrawParticleList(std::list<Rectanglei> &list);
 };
 
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

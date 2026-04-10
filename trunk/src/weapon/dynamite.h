@@ -23,76 +23,40 @@
 
 #ifndef DYNAMITE_H
 #define DYNAMITE_H
-//-----------------------------------------------------------------------------
+
+#include "launcher.h"
 #include "../graphic/sprite.h"
 #include "../include/base.h"
 #include "../team/character.h"
-#include "weapon.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
 class Dynamite;
 
 // La représentation d'une dynamite
 class BatonDynamite : public WeaponProjectile
 {
-private:
-
-  Sprite *explosion;
-  bool explosion_active;
+  int channel;
 
 public:
-  BatonDynamite(Dynamite &dynamite);
-
-  void Init();
+  BatonDynamite(ExplosiveWeaponConfig& cfg);
   void Reset();
   void Draw();
   void Refresh();
+  void Explosion();
 
 protected:
   void SignalCollision();
-  void SignalGhostState (bool was_dead);
-  Dynamite &dynamite;
+  void ShootSound();
 };
 
-//-----------------------------------------------------------------------------
-
-class DynamiteConfig : public ExplosiveWeaponConfig 
-{ 
-public: 
-  uint duree; 
-public:
-  DynamiteConfig();
-  virtual void LoadXml(xmlpp::Element *elem);
-};
-
-//-----------------------------------------------------------------------------
 
 // L'arme dynamite
-class Dynamite : public Weapon
+class Dynamite : public WeaponLauncher
 {
 private:
-  // channel used for sound
-  int channel;
-
-  // Image du trou de l'explosion
-  SDL_Surface *impact;
-   
-  // Objet réprésentant la dynamite (= l'objet qui tombe et explose)
-  BatonDynamite baton;
-
-  void FinExplosion ();
-  void p_Init();
   bool p_Shoot();
 
 public:
   Dynamite();
   void p_Select();
-  void Refresh();
-  DynamiteConfig &cfg();
 };
-
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

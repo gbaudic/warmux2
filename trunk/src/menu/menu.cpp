@@ -20,58 +20,42 @@
  *****************************************************************************/
 
 #include "menu.h"
-//-----------------------------------------------------------------------------
-
 #include "../graphic/sprite.h"
 #include "../graphic/video.h"
 #include "../include/app.h"
 #include "../tool/resource_manager.h"
 #include "../sound/jukebox.h"
 
-//-----------------------------------------------------------------------------
-
-Menu::Menu(char * bg)
-{
+Menu::Menu(char * bg){
   close_menu = false ;
-   
-  uint x = (video.GetWidth()/2);
-  uint y = video.GetHeight()-50;
+  AppWormux * app = AppWormux::GetInstance();
+
+  uint x = app->video.window.GetWidth() / 2;
+  uint y = app->video.window.GetHeight() - 50;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   background = new Sprite( resource_manager.LoadImage( res, bg));
+  background->cache.EnableLastFrameCache();
 
-  //-----------------------------------------------------------------------------
-  // Widget creation
-  //-----------------------------------------------------------------------------
+  actions_buttons = new HBox( Rectanglei(x, y, 1, 40), false);
 
-  /* actions buttons */
-  actions_buttons = new HBox(x, y, 40, false);
-
-  b_ok = new Button(0, 0, res, "menu/valider"); 
+  b_ok = new Button( Point2i(0, 0), res, "menu/valider"); 
   actions_buttons->AddWidget(b_ok);
 
-  b_cancel = new Button(0, 0, res, "menu/annuler");
+  b_cancel = new Button( Point2i(0, 0), res, "menu/annuler");
   actions_buttons->AddWidget(b_cancel);
 }
 
-//-----------------------------------------------------------------------------
-
-Menu::~Menu()
-{
+Menu::~Menu(){
   delete background;
   delete actions_buttons;
 }
 
-//-----------------------------------------------------------------------------
-
-void Menu::sig_ok()
-{
+void Menu::sig_ok(){
   jukebox.Play("share", "menu/ok");
   __sig_ok();
   close_menu = true;
 }
-
-//-----------------------------------------------------------------------------
 
 void Menu::sig_cancel()
 {
@@ -80,31 +64,25 @@ void Menu::sig_cancel()
   close_menu = true;
 }
 
-//-----------------------------------------------------------------------------
-
-bool Menu::BasicOnClic(int mouse_x, int mouse_y)
+bool Menu::BasicOnClic(const Point2i &mousePosition)
 {
-  if (b_ok->MouseIsOver (mouse_x, mouse_y)) {
+  if( b_ok->Contains(mousePosition) )
     sig_ok();
-  } else if (b_cancel->MouseIsOver (mouse_x, mouse_y)) {
+  else if( b_cancel->Contains(mousePosition) )
     sig_cancel();
-  } else {
+  else
     return false;
-  }
+  
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
-void Menu::BasicDraw(int mouse_x, int mouse_y)
+void Menu::BasicDraw(const Point2i &mousePosition)
 {
-  background->ScaleSize(app.sdlwindow->w, app.sdlwindow->h);
-  background->Blit( app.sdlwindow, 0, 0);
+  background->ScaleSize(AppWormux::GetInstance()->video.window.GetSize());
+  background->Blit(AppWormux::GetInstance()->video.window, 0, 0);
   
-  actions_buttons->Draw(mouse_x,mouse_y);
+  actions_buttons->Draw(mousePosition);
 }
-
-//-----------------------------------------------------------------------------
 
 void Menu::Run ()
 { 
@@ -118,21 +96,19 @@ void Menu::Run ()
   
   do
   {
-    // to limit CPU  
-    uint start = SDL_GetTicks();
+   // to limit CPU  
+   uint start = SDL_GetTicks();
 
    // Poll and treat events
    SDL_Event event;
      
-   while( SDL_PollEvent( &event) ) 
-     {      
-       if ( event.type == SDL_QUIT) 
-	 {  
+   while( SDL_PollEvent( &event) ){
+	   Point2i mousePosition(event.button.x, event.button.y);
+	   
+       if( event.type == SDL_QUIT )
 	   sig_cancel();
-	 }
-       else if ( event.type == SDL_KEYDOWN )
-	 {	       
-	   switch ( event.key.keysym.sym)
+       else if( event.type == SDL_KEYDOWN )
+	   switch( event.key.keysym.sym)
 	     { 
 	     case SDLK_ESCAPE: 
 	       sig_cancel();
@@ -145,21 +121,18 @@ void Menu::Run ()
 	     default:
 	       break;
 	     }  
-	 }
-       else if ( event.type == SDL_MOUSEBUTTONDOWN )
-	 {
-	   if (! BasicOnClic(event.button.x, event.button.y) )
-	     {
-	       OnClic( event.button.x, event.button.y, event.button.button); //uint8 SDL_BUTTON_LEFT SDL_BUTTON_MIDDLE SDL_BUTTON_RIGHT SDL_BUTTON_WHEELUP SDL_BUTTON_WHEELDOWN
-	     }
-	 }
+       else if( event.type == SDL_MOUSEBUTTONDOWN )
+	   if( !BasicOnClic(mousePosition) )
+	       OnClic(mousePosition, event.button.button);
      }
 
-   SDL_GetMouseState( &x, &y);
+   SDL_GetMouseState( &x, &y );
+   Point2i mousePosition(x, y);
 
-   BasicDraw(x, y);
-   Draw(x, y);
-   SDL_Flip( app.sdlwindow);
+   BasicDraw(mousePosition);
+   Draw(mousePosition);
+
+   AppWormux::GetInstance()->video.Flip();
 
    // to limit CPU
    delay = SDL_GetTicks()-start;   
@@ -173,9 +146,6 @@ void Menu::Run ()
 
 }
 
-//-----------------------------------------------------------------------------
-
-void Menu::SetActionButtonsXY(int x, int y)
-{
-  actions_buttons->SetSizePosition(x, y, actions_buttons->GetW(), actions_buttons->GetH());
+void Menu::SetActionButtonsXY(int x, int y){
+  actions_buttons->SetSizePosition( Rectanglei(x, y, actions_buttons->GetSizeX(), actions_buttons->GetSizeY()) );
 }

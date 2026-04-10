@@ -21,10 +21,20 @@
 
 #ifndef PARACHUTE_H
 #define PARACHUTE_H
-//-----------------------------------------------------------------------------
+
 #include "weapon.h"
-//-----------------------------------------------------------------------------
-namespace Wormux {
+
+class ParachuteConfig : public WeaponConfig
+{
+public:
+  double wind_factor ;
+  double air_resist_factor ;
+  double open_speed_limit ;
+public:
+  ParachuteConfig();
+  void LoadXml(xmlpp::Element *elem);
+};
+
 //-----------------------------------------------------------------------------
 
 class Parachute : public Weapon
@@ -32,25 +42,18 @@ class Parachute : public Weapon
 private:
   bool open ;
   bool closing ;
-  double air_resist_factor ;
-  double open_speed_limit ;
   Sprite* image;
 
 public:
   Parachute();
-  void p_Init();
   void p_Select();
   void p_Deselect();
   void Refresh();
   void Draw() ;
   bool p_Shoot();
   void SignalTurnEnd();
-  
-  void Activate();
-  void Desactivate();
+
+  ParachuteConfig& cfg();
 };
 
- extern Parachute parachute;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

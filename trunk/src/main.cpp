@@ -28,7 +28,6 @@
 #include <vector>
 #include <iostream>
 #include <SDL.h>
-#include <SDL_image.h>
 #include "game/config.h"
 #include "game/time.h"
 #include "graphic/font.h"
@@ -37,24 +36,28 @@
 #include "menu/infos_menu.h"
 #include "menu/main_menu.h"
 #include "menu/options_menu.h"
+#include "network/network.h"
 #include "include/action_handler.h"
 #include "include/constant.h"
-#include "include/global.h"
 #include "sound/jukebox.h"
 #include "tool/debug.h"
 #include "tool/i18n.h"
 #include "tool/random.h"
 #include "tool/stats.h"
 
-using namespace Wormux;
-AppWormux app;
+AppWormux * AppWormux::singleton = NULL;
 
-AppWormux::AppWormux()
-{
+AppWormux * AppWormux::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new AppWormux();
+  }
+  return singleton;
 }
 
-int AppWormux::main (int argc, char **argv)
-{
+AppWormux::AppWormux(){
+}
+
+int AppWormux::main (int argc, char **argv){
   bool quit = false;
 
   try {
@@ -90,15 +93,13 @@ int AppWormux::main (int argc, char **argv)
 
     End();
   }
-  catch (const std::exception &e)
-  {
+  catch (const std::exception &e){
     std::cerr << std::endl
 	      << _("C++ exception caught:") << std::endl
 	      << e.what() << std::endl
 	      << std::endl;
   }
-  catch (...)
-  {
+  catch (...){
     std::cerr << std::endl
 	      << _("Unexcepted exception caught...") << std::endl
 	      << std::endl;
@@ -107,31 +108,28 @@ int AppWormux::main (int argc, char **argv)
   return 0;
 }
 
-void AppWormux::Init(int argc, char **argv)
-{
-  InitConstants();
+void AppWormux::Init(int argc, char **argv){
+  Config * config = Config::GetInstance();
+  config->Init();
+
   InitI18N();
   DisplayWelcomeMessage();
   InitDebugModes(argc, argv);
 
-  InitRandom();
-  action_handler.Init();
-  config.Charge();
+  ActionHandler::GetInstance()->Init();
+  config->Load();
 
   InitNetwork(argc, argv);
-  InitScreen();
-  InitWindow();
+  video.InitWindow();
   InitFonts();
 
   DisplayLoadingPicture();
-  config.Applique();
+  config->Apply();
 
   jukebox.Init();
 }
 
-void AppWormux::InitNetwork(int argc, char **argv)
-{
-#ifdef TODO_NETWORK 
+void AppWormux::InitNetwork(int argc, char **argv){
   if ((argc == 3) && (strcmp(argv[1],"server")==0)) {
 	// wormux server <port>
 	network.server_start (argv[2]);
@@ -139,106 +137,84 @@ void AppWormux::InitNetwork(int argc, char **argv)
 	// wormux <server_ip> <server_port>
 	network.client_connect(argv[1], argv[2]);
   }
-#endif
 }
 
-void AppWormux::InitScreen()
-{
-  if ( SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO) < 0 )
-    Error( Format( _("Unable to initialize SDL library: %s"), SDL_GetError() ) );
+void AppWormux::DisplayLoadingPicture(){
+  Config * config = Config::GetInstance();
+
+  std::string txt_version = _("Version") + std::string(" ") + Constants::VERSION;
+  std::string filename = config->GetDataDir() 
+    + PATH_SEPARATOR + "menu"
+    + PATH_SEPARATOR + "img"
+    + PATH_SEPARATOR + "loading.png";
+
+  Surface surfaceLoading = Surface( filename.c_str() );
+  Sprite loading_image = Sprite( surfaceLoading );
+
+  loading_image.cache.EnableLastFrameCache();
+  loading_image.ScaleSize( video.window.GetSize() );
+  loading_image.Blit( video.window, 0, 0 );
+
+  Time::GetInstance()->Reset();
+
+  Text text1(_("Wormux launching..."), white_color, Font::GetInstance(Font::FONT_HUGE), true); 
+  Text text2(txt_version, white_color, Font::GetInstance(Font::FONT_HUGE), true); 
+  
+  Point2i windowCenter = video.window.GetSize() / 2;
+  
+  text1.DrawCenter( windowCenter );
+  text2.DrawCenter( windowCenter + Point2i(0, (*Font::GetInstance(Font::FONT_HUGE)).GetHeight() + 20 ));
+
+  video.window.Flip();
 }
 
-void AppWormux::InitWindow()
-{
-  std::string txt_version = std::string("Wormux ") + VERSION;
-  std::string icon = config.data_dir + "wormux-32.xpm";
-
-  // Open a new window
-  app.sdlwindow = NULL;
-  video.SetConfig(config.tmp.video.width,
-		  config.tmp.video.height,
-		  config.tmp.video.fullscreen);
-
-  // Set window caption
-  SDL_WM_SetCaption(txt_version.c_str(), NULL);
-  SDL_WM_SetIcon(IMG_Load(icon.c_str()), NULL);
-}
-
-void AppWormux::DisplayLoadingPicture()
-{
-  std::string txt_version = _("Version") + std::string(" ") + VERSION;
-
-  // TODO->use ressource handler
-  SDL_Surface* loading_image=IMG_Load( (config.data_dir+"menu/img/loading.png").c_str());
-
-  Wormux::global_time.Reset();
-
-  SDL_BlitSurface(loading_image,NULL,app.sdlwindow,NULL);
-
-  Text text1(_("Wormux launching..."), white_color, &global().huge_font(), true); 
-  Text text2(txt_version, white_color, &global().huge_font(), true); 
-  int x = video.GetWidth()/2;
-  int y = video.GetHeight()/2 - 200;
-  text1.DrawCenter (x, y);
-  y += global().huge_font().GetHeight() + 20;
-  text2.DrawCenter (x, y);
-
-  SDL_UpdateRect(app.sdlwindow, 0, 0, 0, 0);
-  SDL_Flip(app.sdlwindow);
-  SDL_FreeSurface(loading_image);
-}
-
-void AppWormux::InitFonts()
-{
-  if (TTF_Init()==-1)
+void AppWormux::InitFonts(){
+  if( TTF_Init() == -1 )
     Error( Format( _("Initialisation of TTF library failed: %s"), TTF_GetError() ) );
-  if (!Font::InitAllFonts())
-    Error( _("Unable to initialise the fonts.") );
-  createGlobal();
 }
 
-void AppWormux::End()
-{
+void AppWormux::End(){
   std::cout << std::endl
 	    << "[ " << _("Quit Wormux") << " ]" << std::endl;
 
-  config.Sauve();
-  destroyGlobal();
+  Config::GetInstance()->Save();
   jukebox.End();
+  delete Config::GetInstance();
+  delete Time::GetInstance();
+  delete Constants::GetInstance();
   TTF_Quit();
-  SDL_Quit();
 
 #ifdef ENABLE_STATS
   SaveStatToXML("stats.xml");
 #endif  
   std::cout << "o "
-            << _("Please tell us your opinion of Wormux via email:") << " " << EMAIL
+            << _("Please tell us your opinion of Wormux via email:") << " " << Constants::EMAIL
             << std::endl;
 }
 
-void AppWormux::DisplayWelcomeMessage()
-{
-  std::cout << "=== " << _("Wormux version ") << VERSION << std::endl;
+void AppWormux::DisplayWelcomeMessage(){
+  std::cout << "=== " << _("Wormux version ") << Constants::VERSION << std::endl;
   std::cout << "=== " << _("Authors:") << ' ';
-  for (std::vector<std::string>::iterator it=AUTHORS.begin(),
-	 fin=AUTHORS.end();
+  for( std::vector<std::string>::iterator it=Constants::AUTHORS.begin(),
+       fin=Constants::AUTHORS.end();
        it != fin;
        ++it)
   {
-    if (it != AUTHORS.begin()) std::cout << ", ";
+    if( it != Constants::AUTHORS.begin() )
+      std::cout << ", ";
     std::cout << *it;
   }
   std::cout << std::endl
-	    << "=== " << _("Website: ") << WEB_SITE << std::endl
+	    << "=== " << _("Website: ") << Constants::WEB_SITE << std::endl
 	    << std::endl;
 
   // Affiche l'absence de garantie sur le jeu
-  std::cout << "Wormux version " << VERSION
+  std::cout << "Wormux version " << Constants::VERSION
 	    << ", Copyright (C) 2001-2004 Lawrence Azzoug"
 	    << std::endl
 	    << "Wormux comes with ABSOLUTELY NO WARRANTY." << std::endl
-        << "This is free software, and you are welcome to redistribute it" << std::endl
-        << "under certain conditions." << std::endl
+            << "This is free software, and you are welcome to redistribute it" << std::endl
+            << "under certain conditions." << std::endl
 	    << std::endl
 	    << "Read COPYING file for details." << std::endl
 	    << std::endl;
@@ -253,6 +229,7 @@ void AppWormux::DisplayWelcomeMessage()
 
 int main (int argc, char **argv)
 {
-  app.main(argc,argv);
-  return EXIT_SUCCESS;
+  AppWormux::GetInstance()->main(argc,argv);
+  delete AppWormux::GetInstance();
+  exit (EXIT_SUCCESS);
 }

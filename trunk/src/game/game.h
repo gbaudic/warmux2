@@ -16,15 +16,15 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Classe principale qui gêre le jeu : initialisation, dessin, gestion
+ * Classe principale qui gère le jeu : initialisation, dessin, gestion
  * des différents composants, et boucle de jeu.
  *****************************************************************************/
 
 #ifndef GAME_H
 #define GAME_H
 
-#include "../include/base.h"
 #include "../gui/question.h"
+#include "../include/base.h"
 
 class Game
 {
@@ -34,9 +34,12 @@ private:
   Question question;
 
   int NbrRemainingTeams();
+
+  Game();
+  static Game * singleton;
   
 public:
-  Game();
+  static Game * GetInstance();
 
   void Start();
   
@@ -53,6 +56,4 @@ public:
   bool GetEndOfGameStatus();
   void SetEndOfGameStatus(bool status);
 };
-
-extern Game game;
 #endif

@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.7beta3], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.7], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -49,9 +49,8 @@ AX_CFLAGS_WARN_ALL([CXXFLAGS])
 
 AC_ARG_ENABLE([debug],
 	      [  --enable-debug          Enable debug in Wormux],
-	      [if test "x${enableval}" = "xyes" ; then
-                   CXXFLAGS="$CXXFLAGS -DDEBUG -ggdb3"
-	       fi])
+          debug=$enableval,
+          debug="")
 
 AC_ARG_ENABLE([profile],
 	      [  --enable-profile        Enable profiling],
@@ -73,16 +72,16 @@ AC_ARG_ENABLE([static],
 #       fi
 #fi
 
-DATADIR="games/wormux"
+DATADIR="/usr/share/wormux"
 AC_ARG_WITH(datadir-name,
-    [  --with-datadir-name=DIR       specify where datas are installed],
+    [  --with-datadir-name=DIR       specify where datas are installed (default: /usr/share/wormux)],
     [DATADIR="$withval"])
 AC_SUBST([DATADIR])
 	
 
-LOCALEDIR="locale"
+LOCALEDIR="/usr/share/locale"
 AC_ARG_WITH(localedir-name,
-    [  --with-localedir-name=DIR       specify where locales are installed],
+    [  --with-localedir-name=DIR       specify where locales are installed (default: /usr/share/locale)],
     [LOCALEDIR="$withval"])
 AC_SUBST([LOCALEDIR])
 		
@@ -97,8 +96,45 @@ dnl ========================================================================
 
 SDL_VERSION=1.2.6
 
+dnl === Set compiler flags =================================================
 
+if test "x$GCC" = "xyes"; then
+    dnl get gcc version 
+    AC_MSG_CHECKING([gcc version])
+            gccver=$($CC -dumpversion)
+            gccvermajor=$(echo $gccver | cut -d . -f1)
+            gccverminor=$(echo $gccver | cut -d . -f2)
+            gccvernum=$(expr $gccvermajor "*" 100 + $gccverminor)
+    AC_MSG_RESULT($gccver)
 
+    dnl Enable all warnings
+    GCC_FLAGS="-Wall"
+   
+    dnl Enable *more* warnings
+    if test "$gccvernum" -ge "400"; then
+                dnl gcc 4.0 or later
+        GCC_FLAGS="$GCC_FLAGS -Wextra"
+    else
+        GCC_FLAGS="$GCC_FLAGS -W"
+    fi
+    
+    dnl Skip 'unused parameter' warning
+    GCC_FLAGS="$GCC_FLAGS -Wno-unused-parameter"
+
+    if test "${debug}" = "yes"; then
+        GCC_FLAGS="$GCC_FLAGS -O0 -g -DDEBUG"
+    else    
+        GCC_FLAGS="$GCC_FLAGS -O2"
+    fi
+    
+    CFLAGS="$CFLAGS $GCC_FLAGS"
+    CXXFLAGS="$CXXFLAGS $GCC_FLAGS"
+else
+    if test "${debug}" = "yes"; then
+        CFLAGS="$CFLAGS -DDEBUG"
+        CXXFLAGS="$CXXFLAGS -DDEBUG"
+    fi
+fi
 
 dnl === Check for SDL ======================================================
 
@@ -109,7 +145,6 @@ CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"
 CFLAGS="$CFLAGS $SDL_CFLAGS"
 CPPFLAGS="$CPPFLAGS $SDL_CFLAGS"
 LIBS="$LIBS $SDL_LIBS"
-
 
 dnl === Check for SDL_image ================================================
 
@@ -194,6 +229,17 @@ CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS"
 LIBS="$LIBS $LIBXMLPP_LIBS"
 
 dnl ========================================================================
+dnl == Set flags for various environments                                  =
+dnl ========================================================================
+case "${host}" in
+  i[[3456789]]86-*-mingw32*) WIN32="yes" ;;
+  *cygwin*) WIN32="yes" ;;
+  *) WIN32="no" ;;
+esac
+AM_CONDITIONAL([WIN32], test "$WIN32" = "yes")
+
+
+dnl ========================================================================
 dnl == Check for header files                                              =
 dnl ========================================================================
 
@@ -211,6 +257,7 @@ DATA_FILES=`cd data ; find . -name CVS -prune -o -name ".svn*" -prune -o -name "
 DATA_FILES=`echo $DATA_FILES`
 
 AC_SUBST([DATA_FILES])
+AC_SUBST([BUILD_ENV])
 
 AM_PO_SUBDIRS
 
@@ -229,8 +276,8 @@ AC_MSG_RESULT([
 
 Configuration complete
 
-* Game data will be installed into PREFIX/$DATADIR
-* Game locale will be installed into PREFIX/$LOCALEDIR
+* Game data will be installed into $DATADIR
+* Game locale will be installed into $LOCALEDIR
 
 Execute make to compile then execute make install to install...
 

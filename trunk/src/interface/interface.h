@@ -21,15 +21,14 @@
 
 #ifndef INTERFACE_H
 #define INTERFACE_H
-//-----------------------------------------------------------------------------
+#include <vector>
+#include "weapon_menu.h"
+#include "../graphic/surface.h"
 #include "../graphic/sprite.h"
+#include "../gui/progress_bar.h"
 #include "../include/base.h"
 #include "../team/character.h"
 #include "../team/team.h"
-#include "../gui/progress_bar.h"
-#include "weapon_menu.h"
-#include <vector>
-//-----------------------------------------------------------------------------
 
 #ifdef WIN32
 #undef interface
@@ -42,7 +41,7 @@ public:
   Character *character_under_cursor;
   Weapon* weapon_under_cursor;
   WeaponsMenu weapons_menu;
-  SDL_Surface *weapon_box_button;
+  Surface weapon_box_button;
 
  private:
    // Timers
@@ -68,31 +67,34 @@ public:
    void DisplayWeaponInfo ();
    BarreProg barre_energie;
 
-   SDL_Surface *game_menu;
-   SDL_Surface *bg_time;
-   int bottom_bar_ox;
-   int bottom_bar_oy;
+   Surface game_menu;
+   Surface bg_time;
+   Point2i bottom_bar_pos;
 
-public:
-  Interface();
-  ~Interface();
-  void Init();
-  void Reset();
-  void Draw();
+   static Interface * singleton;
 
-  bool IsDisplayed () const { return display; };
-  void EnableDisplay (bool _display);
+ private:
+   Interface();
+   ~Interface();   
+   
+ public:
+   static Interface * GetInstance();
 
-  uint GetWidth() const;
-  uint GetHeight() const;
-
-  void UpdateTimer(uint utimer);
-  void EnableDisplayTimer (bool _display) {display_timer = _display;};
+   void Init();
+   void Reset();
+   void Draw();
+   
+   bool IsDisplayed () const { return display; };
+   void EnableDisplay (bool _display);
+   
+   int GetWidth() const;
+   int GetHeight() const;
+   Point2i GetSize() const;
+   
+   void UpdateTimer(uint utimer);
+   void EnableDisplayTimer (bool _display) {display_timer = _display;};
 };
 
-extern Interface interface;
+void AbsoluteDraw(Surface& s, Point2i pos);
 
-void AbsoluteDraw(SDL_Surface* s, int x, int y);
-
-//-----------------------------------------------------------------------------
 #endif

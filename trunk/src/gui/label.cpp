@@ -20,36 +20,23 @@
  *****************************************************************************/
 
 #include "label.h"
-//-----------------------------------------------------------------------------
 #include "../include/app.h"
 
-using namespace Wormux;
-//-----------------------------------------------------------------------------
-
-
-Label::Label (const std::string &label, uint x, uint y, uint w, Font& _font) :
-  Widget(x, y, w, _font.GetHeight())
-{
+Label::Label (const std::string &label, const Rectanglei &rect, Font& _font){
+  position = rect.GetPosition();
+  size = rect.GetSize();
+  size.y = _font.GetHeight();
   txt_label = new Text(label, white_color, &_font);
 }
 
-//-----------------------------------------------------------------------------
-
-Label::~Label()
-{
+Label::~Label(){
   delete txt_label;
 }
 
-//-----------------------------------------------------------------------------
-
-void Label::Draw (uint mouse_x, uint mouse_y)
-{
-  txt_label->DrawTopLeft(x, y);
+void Label::Draw(const Point2i &mousePosition){
+  txt_label->DrawTopLeft(position);
 }
 
-//-----------------------------------------------------------------------------
-void Label::SetSizePosition(uint _x, uint _y, uint _w, uint _h)
-{
-  StdSetSizePosition(_x, _y, _w, _h);
+void Label::SetSizePosition(const Rectanglei &rect){
+  StdSetSizePosition(rect);
 }
-//-----------------------------------------------------------------------------

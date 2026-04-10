@@ -20,23 +20,18 @@
  *****************************************************************************/
 
 #include "mouse.h"
-//-----------------------------------------------------------------------------
-#include "../team/macro.h"
+
+#include "cursor.h"
+#include "interface.h"
 #include "../game/game_mode.h"
 #include "../game/game_loop.h"
 #include "../game/time.h"
-#include "../map/camera.h"
 #include "../graphic/video.h"
-#include "../include/constant.h" // FOND_X, FOND_Y
-#include "interface.h"
-#include "cursor.h"
+#include "../include/app.h"
+#include "../map/camera.h"
+#include "../team/macro.h"
+#include "../tool/point.h"
 #include "../weapon/weapon.h"
-#include "../tool/Point.h"
-
-using namespace Wormux;
-//-----------------------------------------------------------------------------
-Mouse mouse;
-//-----------------------------------------------------------------------------
 
 // Vitesse du definalement à la souris
 const uint SCROLL_MOUSE = 20;
@@ -44,90 +39,73 @@ const uint SCROLL_MOUSE = 20;
 // Largeur de la zone de sensibilite au camera a la souris
 const uint SENSIT_SCROLL_MOUSE = 40; // pixels
 
-// Active le mode tricheur ?
-#ifdef DEBUG
-#  define MODE_TRICHEUR
-#endif
+Mouse * Mouse::singleton = NULL;
 
-//-----------------------------------------------------------------------------
+Mouse * Mouse::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new Mouse();
+  }
+  return singleton;
+}
 
-Mouse::Mouse()
-{
+Mouse::Mouse(){
   scroll_actif = false;
 }
 
+void Mouse::Reset(){
+}
 
-//-----------------------------------------------------------------------------
-
-void Mouse::Reset()
-{}
-
-//-----------------------------------------------------------------------------
-
-bool Mouse::ActionClicD()
-{ 
-  if ( ActiveTeam().GetWeapon().CanChangeWeapon() )
-  {
-    interface.weapons_menu.SwitchDisplay();
-  }
+bool Mouse::ActionClicD(){ 
+  if( ActiveTeam().GetWeapon().CanChangeWeapon() )
+    Interface::GetInstance()->weapons_menu.SwitchDisplay();
+  
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
 bool Mouse::ActionClicG()
 {
-  const Point2i pos_monde = GetPosMonde();   
+  const Point2i pos_monde = GetWorldPosition();   
 	
   // Action dans le menu des armes ?
-  if (interface.weapons_menu.ActionClic (GetX(),GetY())) 
-  {
+  if( Interface::GetInstance()->weapons_menu.ActionClic( GetPosition() ) )
     return true;
-  } 
 
   // On peut changer de ver ?
-  if (game_mode.AllowCharacterSelection())
-  {
+  if( GameMode::GetInstance()->AllowCharacterSelection() ){
     // Sélection d'un ver se son équipe ?
     bool ver_choisi=false;
     Team::iterator it=ActiveTeam().begin(),
 	                 fin=ActiveTeam().end();
     uint index=0;
-    for (; it != fin; ++it, ++index)
-    {
-      if (&(*it) != &ActiveCharacter()
+    for( ; it != fin; ++it, ++index ){
+      if( &(*it) != &ActiveCharacter()
         && !it -> IsDead() 
-        && it->GetRect().Contains( pos_monde ))
-      {
+        && it->GetRect().Contains( pos_monde ) ){
         ver_choisi = true;
         break;
       }
-  }
-
-  if (ver_choisi)
-  {
-    ActiveTeam().SelectCharacterIndex (index);
-    return true;
-  }
-
-  if (ActiveCharacter().GetRect().Contains( pos_monde ))
-  {
-    curseur_ver.SuitVerActif();
-    return true;
-  }
     }
-  
-  // Action dans le menu des armes ?
-  if (interface.weapons_menu.ActionClic (GetX(),GetY())) 
-    {
+
+    if( ver_choisi ){
+      ActiveTeam().SelectCharacterIndex (index);
       return true;
     }
+
+    if( ActiveCharacter().GetRect().Contains( pos_monde ) ){
+      CurseurVer::GetInstance()->SuitVerActif();
+      return true;
+    }
+  }
+  
+  // Action dans le menu des armes ?
+  if( Interface::GetInstance()->weapons_menu.ActionClic(GetPosition()) ) 
+    return true;
   
   // Choosing target for a weapon, many posibilities :
   // - Do nothing
   // - Choose a target but don't fire
   // - Choose a target and fire it !
-  if (game_loop.ReadState() == gamePLAYING) {
+  if (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING) {
     ActiveTeam().AccessWeapon().ChooseTarget();
     return true ;
   }
@@ -135,31 +113,26 @@ bool Mouse::ActionClicG()
   return false;
 }
 
-//-----------------------------------------------------------------------------
+void Mouse::ChoixVerPointe(){
+  if (GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING)
+    return;
 
-void Mouse::ChoixVerPointe()
-{
-  if (game_loop.ReadState() != gamePLAYING) return;
-
-  const Point2i pos_monde = GetPosMonde();
+  const Point2i pos_monde = GetWorldPosition();
    
   // Quel ver est pointé par la souris ? (en dehors du ver actif)
-  interface.character_under_cursor = NULL;
-  POUR_TOUS_VERS_VIVANTS(equipe,ver)
-    {
-      if ((&(*ver) != &ActiveCharacter())
-	  && ver->GetRect().Contains(pos_monde) )
-	{
-	  interface.character_under_cursor = &(*ver);
-	}
+  Interface::GetInstance()->character_under_cursor = NULL;
+  FOR_ALL_LIVING_CHARACTERS(equipe,ver){
+    if ((&(*ver) != &ActiveCharacter())
+       && ver->GetRect().Contains(pos_monde) ){
+      Interface::GetInstance()->character_under_cursor = &(*ver);
     }
+  }
   
   // Aucun ver n'est pointé ... et le ver actif alors ?
-  if ((interface.character_under_cursor == NULL)
-      && ActiveCharacter().GetRect().Contains( pos_monde))  
-    {
-      interface.character_under_cursor = &ActiveCharacter();
-    }
+  if ((Interface::GetInstance()->character_under_cursor == NULL)
+      && ActiveCharacter().GetRect().Contains( pos_monde)){
+      Interface::GetInstance()->character_under_cursor = &ActiveCharacter();
+  }
   
   // Dessine le curseur autour du ver pointé s'il y en a un
 //  if (interface.character_under_cursor != NULL) {
@@ -169,127 +142,77 @@ void Mouse::ChoixVerPointe()
 //  }
 }
 
-//-----------------------------------------------------------------------------
- 
-void Mouse::ScrollCamera() const
-{
-  int x = GetX();
-  int y = GetY();
-  //Move camera with mouse when cursor is on border of the screen
-  int dx = x-SENSIT_SCROLL_MOUSE;
-  if(dx<0) {
-    camera.SetXY(dx/2,0);
-    camera.autorecadre = false;
-  }
-  dx=video.GetWidth()-x-SENSIT_SCROLL_MOUSE;
-  if(dx<0) {
-    camera.SetXY(-dx/2,0);
-    camera.autorecadre = false;
-  }
-  
-  int dy = y-SENSIT_SCROLL_MOUSE;
-  if(dy<0) {
-    camera.SetXY(0,dy/2);
-    camera.autorecadre = false;
-  }
-  dy = video.GetHeight()-y-SENSIT_SCROLL_MOUSE;
-  if(dy<0) {
-    camera.SetXY(0,-dy/2);
-    camera.autorecadre = false;
-  }
+void Mouse::ScrollCamera() const{
+	Point2i mousePos = GetPosition();
+	Point2i sensitZone(SENSIT_SCROLL_MOUSE, SENSIT_SCROLL_MOUSE);
+	Point2i winSize = AppWormux::GetInstance()->video.window.GetSize();
+	Point2i tstVector;
+	
+	tstVector = mousePos.inf(sensitZone);
+	if( !tstVector.IsNull() ){
+		camera.SetXY( tstVector * (mousePos - sensitZone)/2 );
+		camera.autorecadre = false;
+	}
+
+	tstVector = winSize.inf(mousePos + sensitZone);
+	if( !tstVector.IsNull() ){
+		camera.SetXY( tstVector * (mousePos + sensitZone - winSize)/2 );
+		camera.autorecadre = false;
+	}
 }
 
-void Mouse::TestCamera()
-{
-   int _x, _y;       
-   SDL_GetMouseState( &_x, &_y);
+void Mouse::TestCamera(){
+  Point2i mousePos = GetPosition();
+  
+  //Move camera with mouse holding Ctrl key down
+  const bool demande_scroll = SDL_GetModState() & KMOD_CTRL;
    
-   //Move camera with mouse holding Ctrl key down
-   const bool demande_scroll = SDL_GetModState() & KMOD_CTRL;
-   
-   if (demande_scroll)
-  {
-    if (scroll_actif) {
-      int dx = sauve_x - _x;
-      int dy = sauve_y - _y;
-      camera.SetXY(dx,dy);
+  if( demande_scroll ){
+    if( scroll_actif ){
+	  Point2i offset = savedPos - mousePos;
+      camera.SetXY(offset);
       camera.autorecadre = false;
-    } else {
+    }else{
       scroll_actif = true;
     }
-    sauve_x = _x;
-    sauve_y = _y;
-     return;
-  } else {
+	savedPos = mousePos;
+    return;
+  }else{
     scroll_actif = false;
   }
 
-  if(!interface.weapons_menu.IsDisplayed()) ScrollCamera();
+  if(!Interface::GetInstance()->weapons_menu.IsDisplayed())
+    ScrollCamera();
 }
 
-//-----------------------------------------------------------------------------
-
-void Mouse::Refresh()
-{
-  if (!scroll_actif) ChoixVerPointe();
+void Mouse::Refresh(){
+  if (!scroll_actif)
+    ChoixVerPointe();
 }
 
-//-----------------------------------------------------------------------------
+Point2i Mouse::GetPosition() const{
+	int x, y;
 
-int Mouse::GetX() const 
-{
-   int x;
-   
-   SDL_GetMouseState( &x, NULL);
-   return x; 
+	SDL_GetMouseState( &x, &y);
+	return Point2i(x, y);
 }
 
-int Mouse::GetY() const 
-{ 
-   int y;
-   
-   SDL_GetMouseState( NULL, &y);
-   return y; 
+Point2i Mouse::GetWorldPosition() const{ 
+   return GetPosition() + camera.GetPosition();
 }
 
-int Mouse::GetXmonde() const 
-{ 
-   return GetX() -FOND_X +camera.GetX(); 
-}
-
-int Mouse::GetYmonde() const 
-{ 
-   return GetY() -FOND_Y +camera.GetY(); 
-}
-
-
-Point2i Mouse::GetPosMonde() const
-{ 
-   return Point2i (GetXmonde(), GetYmonde());
-}
-
-
-
-//-----------------------------------------------------------------------------
-
-void Mouse::TraiteClic (const SDL_Event *event)
-{
-   if ( event->type == SDL_MOUSEBUTTONDOWN )
-     {
+void Mouse::TraiteClic (const SDL_Event *event){
+  if( event->type == SDL_MOUSEBUTTONDOWN ){
+    if( event->button.button == SDL_BUTTON_RIGHT ){
+      ActionClicD();
+      return;
+    }
 	
-	if ( event->button.button == SDL_BUTTON_RIGHT)
-	  {
-	     ActionClicD();
-	     return;
-	  }
-	
-	// Clic gauche de la souris ?
-	if ( event->button.button == SDL_BUTTON_LEFT)
-	  {
-	     ActionClicG();
-	     return;
-	  }
-     }
+    // Clic gauche de la souris ?
+    if( event->button.button == SDL_BUTTON_LEFT ){
+      ActionClicG();
+      return;
+    }
+  }
 }
 
-//-----------------------------------------------------------------------------

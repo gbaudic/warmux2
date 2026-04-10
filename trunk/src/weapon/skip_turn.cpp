@@ -19,24 +19,20 @@
  * Skip his turn
  *****************************************************************************/
 
-#include "../weapon/skip_turn.h"
+#include "skip_turn.h"
 //-----------------------------------------------------------------------------
-#include "../tool/i18n.h"
-#include "../team/teams_list.h"
 #include "../game/game_loop.h"
 #include "../interface/game_msg.h"
+#include "../team/teams_list.h"
+#include "../tool/i18n.h"
 //-----------------------------------------------------------------------------
-namespace Wormux 
-{
-
-  SkipTurn skipturn;
 
 // Espace entre l'espace en l'image
 const uint ESPACE = 5;
 
 //-----------------------------------------------------------------------------
 
-SkipTurn::SkipTurn() : Weapon(WEAPON_SKIP_TURN, "skip_turn")
+SkipTurn::SkipTurn() : Weapon(WEAPON_SKIP_TURN, "skip_turn", new WeaponConfig())
 {
   m_name = _("Skip turn");
 }
@@ -47,14 +43,10 @@ bool SkipTurn::p_Shoot()
 { 
   
   // Show message
-  game_messages.Add (Format(_("%s team has skipped its turn."), 
+  GameMessages::GetInstance()->Add (Format(_("%s team has skipped its turn."), 
 			      ActiveTeam().GetName().c_str()));
 
-#ifdef CL
-  jukebox.PlayProfile(ActiveTeam().GetSoundProfile(), "skip_turn");
-#else
   jukebox.Play(ActiveTeam().GetSoundProfile(), "skip_turn");
-#endif
 
   // End turn
   m_is_active = false;
@@ -70,4 +62,3 @@ void SkipTurn::Refresh()
 }
 
 //-----------------------------------------------------------------------------
-} // namespace Wormux

@@ -21,19 +21,15 @@
 
 #ifndef WIND_H
 #define WIND_H
-//-----------------------------------------------------------------------------
+
 #include <SDL.h>
+#include <list>
+#include "../game/config.h"
 #include "../graphic/sprite.h"
+#include "../gui/progress_bar.h"
 #include "../include/base.h"
 #include "../object/physical_obj.h"
 #include "../tool/xml_document.h"
-#include "../game/config.h"
-#include "../gui/progress_bar.h"
-#include <vector>
-
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
 
 class WindParticle : public PhysicalObj
 {
@@ -42,44 +38,33 @@ public:
      
 public:
   WindParticle();
-  void Reset();
-  void Init();
   void Resize(double size);
   void Draw();
   void Refresh();
 };
 
-//-----------------------------------------------------------------------------
-
 class Wind
 {
-public:
-  WindParticle *wind_particle_array;
-
-private:
   BarreProg barre;
-  long m_val,m_nv_val;
+  long m_val, m_nv_val;
   uint m_last_move;
-
   uint m_last_part_mvt;
 
 public:
+  std::list<WindParticle> particles;
+  typedef std::list<WindParticle>::iterator iterator;
+
+public:
   Wind();
-  ~Wind();
   double GetStrength() const;
   void ChooseRandomVal();
   void SetVal (long val);
-  void Init();
   void Refresh();
   void Reset();
   void Draw();
   void DrawParticles();
 };
 
-
 extern Wind wind;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
-//-----------------------------------------------------------------------------
 #endif
 

@@ -21,14 +21,14 @@
 
 #ifndef SUPERTUX_H
 #define SUPERTUX_H
-//-----------------------------------------------------------------------------
-#include "../include/base.h"
+
+#include "launcher.h"
+#include "../graphic/surface.h"
 #include "../gui/progress_bar.h"
+#include "../include/base.h"
 #include "../object/physical_obj.h"
-#include "weapon.h"
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+
+class TuxLauncher;
 
 class SuperTuxWeaponConfig : public ExplosiveWeaponConfig
 {
@@ -38,8 +38,6 @@ public:
   virtual void LoadXml(xmlpp::Element *elem);
 };
 
-//-----------------------------------------------------------------------------
-
 class SuperTux : public WeaponProjectile
 {
  private:
@@ -47,47 +45,30 @@ class SuperTux : public WeaponProjectile
 
 public:
   double angle;
+  uint speed;
   uint time_now;
   uint time_next_action;
   uint last_move;
 
-  SuperTux();
-  void Init();
+  SuperTux(SuperTuxWeaponConfig& cfg);
   void Refresh();
-  void Draw();
 
   void turn_left();
   void turn_right();
-  void Tire ();
-
+  void Shoot(double strength);
 protected:
   void SignalCollision();
 };
 
-//-----------------------------------------------------------------------------
-
-class TuxLauncher : public Weapon
+class TuxLauncher : public WeaponLauncher
 {
- private:
-  void p_Init();
-  bool p_Shoot();
-
-public:
-  SDL_Surface* impact;
-  SuperTux supertux;
 
 public:
   TuxLauncher();
-  void Refresh();
   void HandleKeyEvent(int action, int event_type);
-   
-  SuperTuxWeaponConfig& cfg();
 
-protected:
-  void Explosion();
+ private:  
+  SuperTuxWeaponConfig& cfg();
 };
 
-extern TuxLauncher tux;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

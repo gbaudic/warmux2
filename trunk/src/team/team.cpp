@@ -20,9 +20,9 @@
  *****************************************************************************/
 
 #include "team.h"
-//-----------------------------------------------------------------------------
 #include "../game/game.h"
 #include "../game/game_mode.h"
+#include "../game/game_loop.h"
 #include "../interface/cursor.h"
 #include "../include/constant.h"
 #include "../game/config.h"
@@ -30,19 +30,12 @@
 #include "../weapon/weapons_list.h"
 #include "../tool/i18n.h"
 #include "../tool/file_tools.h"
-#ifndef CL
 #include "../tool/resource_manager.h"
 #include "../graphic/sprite.h"
-#endif
 #include <sstream>
 #include <iostream>
-using namespace Wormux;
-using namespace std;
-//-----------------------------------------------------------------------------
 
 const char* NOM_DEFAUT_EQUIPE = "Team X";
-
-//-----------------------------------------------------------------------------
 
 Team::Team()
 {
@@ -52,7 +45,26 @@ Team::Team()
   ver_actif = -1;
 }
 
-//-----------------------------------------------------------------------------
+// ******* TODO: KILL THIS FUNCTIONS !!! ********
+
+Character& Team::operator[] (uint index)
+{
+  assert (index < vers.size());
+  iterator it=vers.begin();
+  for (uint i=0; i<index; ++i) ++it;
+  return *it;
+}
+
+const Character& Team::operator[] (uint index) const
+{
+  assert (index < vers.size());
+  const_iterator it=vers.begin();
+  for (uint i=0; i<index; ++i) ++it;
+  return *it;
+}
+
+// ******* end of TODO: KILL THIS FUNCTIONS !!! ********
+
 
 bool Team::Init (const std::string &teams_dir, const std::string &id)
 {
@@ -65,7 +77,7 @@ bool Team::Init (const std::string &teams_dir, const std::string &id)
 
     // Charge le XML
     nomfich = teams_dir+id+PATH_SEPARATOR+ "team.xml";
-    if (!FichierExiste(nomfich)) return false;
+    if (!IsFileExist(nomfich)) return false;
     if (!doc.Charge (nomfich)) return false;
 
     Profile *res = resource_manager.LoadXMLProfile( nomfich, true);
@@ -75,15 +87,13 @@ bool Team::Init (const std::string &teams_dir, const std::string &id)
   }
   catch (const xmlpp::exception &e)
   {
-    std::cout << std::endl
-              << Format(_("Error loading team %s:"),	id.c_str())
+    std::cerr << std::endl
+              << Format(_("Error loading team %s:"), id.c_str())
               << std::endl << e.what() << std::endl;
     return false;
   }
   return true;
 }
-
-//-----------------------------------------------------------------------------
 
 void Team::InitEnergy (uint max)
 {
@@ -93,92 +103,20 @@ void Team::InitEnergy (uint max)
   energie.FixeValeur(LitEnergie());
 }
 
-//-----------------------------------------------------------------------------
-
 uint Team::LitEnergie ()
 {
   uint total_energie = 0;
   for (int index=0; index < vers_fin; ++index) {
-    if( !vers[index].IsDead() )
-      total_energie += vers[index].GetEnergy();
+    if( !(*this)[index].IsDead() )
+      total_energie += (*this)[index].GetEnergy();
   }
   return total_energie;
 }
-//-----------------------------------------------------------------------------
 
 void Team::ActualiseBarreEnergie ()
 {
   energie.NouvelleValeur(LitEnergie());
 }
-
-//-----------------------------------------------------------------------------
-#ifdef CL
-bool Team::ChargeDonnee (xmlpp::Element *xml, 
-			   CL_ResourceManager *res)
-{
-  xml = LitDocXml::AccesBalise (xml, "equipe");
-  // Valeurs par défaut
-  camera_est_sauve = false;
-  active_weapon = weapons_list.GetWeapon(WEAPON_DYNAMITE);
-
-  m_name = "Team unamed";
-  m_sound_profile="default";
-  crosshair.Init();
-
-  // Lit le nom
-  if (!LitDocXml::LitString(xml, "nom", m_name)) return false;
-
-  // Ecusson
-  CL_Surface ecusson_tmp("flag", res);
-  ecusson = ecusson_tmp;
-
-  // Recupère le nom du profile sonore
-  LitDocXml::LitString(xml, "sound_profile", m_sound_profile);
-
-  // Créer les vers
-  xmlpp::Node::NodeList nodes = xml -> get_children("ver");
-  xmlpp::Node::NodeList::iterator 
-    it=nodes.begin(),
-    fin=nodes.end();
-
-  vers.clear();
-  bool fin_bcl;
-  do
-  {
-    xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
-    Skin *skin;
-    std::string character_name="Soldat Inconnu";
-    std::string skin_name="ver_jaune";
-    LitDocXml::LitAttrString(elem, "nom", character_name);
-    LitDocXml::LitAttrString(elem, "avatar", skin_name);
-
-    if (skins_list.find(skin_name) != skins_list.end()) {
-      skin = &skins_list[skin_name];
-    } else {
-      cout << Format(_("Error: can't find the skin \"%s\" for the team \"%s\"."),
-		     skin_name.c_str(),
-		     m_name.c_str()) << endl;
-      return false;
-    }
-
-    // Initialise les variables du ver, puis l'ajoute à la liste
-    Character new_character;
-    vers.push_back(new_character);
-    vers.back().InitTeam (this, character_name, skin);
-
-    // C'est la fin ?
-    ++it;
-    fin_bcl = (it == fin);
-    fin_bcl |= (game_mode.max_characters <= vers.size());
-  } while (!fin_bcl);
-
-  ver_actif = 0;
-  vers_fin = vers.size();
-  vers_fin_it = vers.end();
-  return (1 <= vers.size());
-}
-
-#else // CL defined
 
 bool Team::ChargeDonnee( xmlpp::Element *xml, Profile *res_profile)
 {
@@ -220,9 +158,11 @@ bool Team::ChargeDonnee( xmlpp::Element *xml, Profile *res_profile)
     if (skins_list.find(skin_name) != skins_list.end()) {
       skin = &skins_list[skin_name];
     } else {
-      cout << Format(_("Error: can't find the skin \"%s\" for the team \"%s\"."),
-		     skin_name.c_str(),
-		     m_name.c_str()) << endl;
+      std::cerr 
+        << Format(_("Error: can't find the skin \"%s\" for the team \"%s\"."),
+            skin_name.c_str(),
+            m_name.c_str()) 
+        << std::endl;
       return false;
     }
 
@@ -234,7 +174,7 @@ bool Team::ChargeDonnee( xmlpp::Element *xml, Profile *res_profile)
     // C'est la fin ?
     ++it;
     fin_bcl = (it == fin);
-    fin_bcl |= (game_mode.max_characters <= vers.size());
+    fin_bcl |= (GameMode::GetInstance()->max_characters <= vers.size());
   } while (!fin_bcl);
 
   ver_actif = 0;
@@ -242,12 +182,6 @@ bool Team::ChargeDonnee( xmlpp::Element *xml, Profile *res_profile)
   vers_fin_it = vers.end();
   return (1 <= vers.size());
 }
-
-
-#endif // CL not defined
-
-
-//-----------------------------------------------------------------------------
 
 int Team::NextCharacterIndex()
 {
@@ -258,11 +192,9 @@ int Team::NextCharacterIndex()
   { 
     ++copy;
     if (copy == vers_fin) copy = 0;
-  } while (vers[copy].IsDead());
+  } while ((*this)[copy].IsDead());
   return copy;
 }
-
-//-----------------------------------------------------------------------------
 
 void Team::internal_NextCharacter()
 {
@@ -275,7 +207,6 @@ void Team::internal_NextCharacter()
   } while (ActiveCharacter().IsDead());
 }
 
-//-----------------------------------------------------------------------------
 /*   not used anymore
 void Team::NextCharacter()
 {
@@ -286,23 +217,20 @@ void Team::NextCharacter()
   curseur_ver.SuitVerActif();
 }
 */
-//-----------------------------------------------------------------------------
 
 int Team::NbAliveCharacter() const
 {
   uint nbr = 0;
   for (int index=0; index < vers_fin; ++index)
-    if (!vers[index].IsDead()) ++nbr;
+    if (!(*this)[index].IsDead()) ++nbr;
   return nbr;
 }
-
-//-----------------------------------------------------------------------------
 
 void Team::SelectCharacterIndex (uint index)
 {
   // Ver mort ?
   assert (index < vers.size());
-  if (vers.at(index).IsDead()) {
+  if ((*this)[index].IsDead()) {
     int i = (++index)%vers.size();
     SelectCharacterIndex(i);
     return;
@@ -310,17 +238,15 @@ void Team::SelectCharacterIndex (uint index)
 
   // Change de ver
   if(ver_actif != -1)
-    vers.at(ver_actif).StopPlaying();
+    (*this)[ver_actif].StopPlaying();
   ver_actif = index;
-  vers.at(ver_actif).StartPlaying();
+  (*this)[ver_actif].StartPlaying();
   camera.ChangeObjSuivi (&ActiveCharacter(), true, true);
-  curseur_ver.SuitVerActif();
+  CurseurVer::GetInstance()->SuitVerActif();
 }
 
-//-----------------------------------------------------------------------------
-
 // Prepare le tour d'une equipe
-void Team::PrepareTour()
+void Team::PrepareTurn()
 {
   // Choisi un ver vivant si possible
   if (ActiveCharacter().IsDead())
@@ -333,44 +259,26 @@ void Team::PrepareTour()
   camera.ChangeObjSuivi (&ActiveCharacter(), 
 			 !camera_est_sauve, !camera_est_sauve, 
 			 true);
-  curseur_ver.SuitVerActif();
+  CurseurVer::GetInstance()->SuitVerActif();
 
-  // Active notre arme
-  AccessWeapon().Select();
+  // Active last weapon use if EnoughAmmo
+  if (AccessWeapon().EnoughAmmo())
+    AccessWeapon().Select();
+  else { // try to find another weapon !!
+    active_weapon = weapons_list.GetWeapon(WEAPON_BAZOOKA);
+    AccessWeapon().Select();
+  }
 }
-
-//-----------------------------------------------------------------------------
-
-// Fin d'un tour : nettoyage avant de partir :-)
-void Team::FinTour()
-{
-  // Désactive notre arme
-  ActiveCharacter().EndTurn();
-  AccessWeapon().Deselect();
-  camera_est_sauve = true;
-#ifdef CL
-  sauve_camera = CL_Point(camera.GetX(), camera.GetY());
-#else
-  sauve_camera = Point2i(camera.GetX(), camera.GetY());
-#endif
-}
-
-//-----------------------------------------------------------------------------
 
 int Team::ActiveCharacterIndex() const
 { 
   return ver_actif;
 }
 
-//-----------------------------------------------------------------------------
-
 Character& Team::ActiveCharacter()
 { 
-  assert ((uint)ver_actif < vers.size());
-  return vers.at(ver_actif);
+  return (*this)[ver_actif];
 }
-
-//-----------------------------------------------------------------------------
 
 // Change d'arme
 void Team::SetWeapon (Weapon_type type)
@@ -379,8 +287,6 @@ void Team::SetWeapon (Weapon_type type)
   active_weapon = weapons_list.GetWeapon(type);
   AccessWeapon().Select();
 }
-
-//-----------------------------------------------------------------------------
 
 int Team::ReadNbAmmos() const
 {
@@ -393,8 +299,6 @@ int Team::ReadNbAmmos() const
   return 0 ;
 }
 
-//-----------------------------------------------------------------------------
-
 int Team::ReadNbUnits() const
 {
   std::map<std::string, int>::const_iterator it 
@@ -403,8 +307,6 @@ int Team::ReadNbUnits() const
   if (it !=  m_nb_units.end())  return ( it->second ) ;  
   return 0 ;
 }
-
-//-----------------------------------------------------------------------------
 
 int Team::ReadNbAmmos(const std::string &weapon_name) const
 {
@@ -418,8 +320,6 @@ int Team::ReadNbAmmos(const std::string &weapon_name) const
   
 }
 
-//-----------------------------------------------------------------------------
-
 int Team::ReadNbUnits(const std::string &weapon_name) const
 {
   std::map<std::string, int>::const_iterator it = 
@@ -430,15 +330,11 @@ int Team::ReadNbUnits(const std::string &weapon_name) const
   
 }
 
-//-----------------------------------------------------------------------------
-
 int& Team::AccessNbAmmos()
 {
   // if value not initialized, it initialize to 0 and then return 0
   return m_nb_ammos[ active_weapon->GetName() ] ;
 }
-
-//-----------------------------------------------------------------------------
 
 int& Team::AccessNbUnits()
 {
@@ -446,19 +342,13 @@ int& Team::AccessNbUnits()
   return m_nb_units[ active_weapon->GetName() ] ;
 }
 
-//-----------------------------------------------------------------------------
-
 void Team::ResetNbUnits()
 {
   m_nb_units[ active_weapon->GetName() ] = active_weapon->ReadInitialNbUnit();
 }
 
-//-----------------------------------------------------------------------------
-
 Team::iterator Team::begin() { return vers.begin(); }
 Team::iterator Team::end() { return vers_fin_it; }
-
-//-----------------------------------------------------------------------------
 
 void Team::Reset()
 {
@@ -487,30 +377,27 @@ void Team::Reset()
     vers_fin_it = it;
     ++vers_fin_it;
     it -> Reset();
-    if (n == game_mode.max_characters) break;
+    if (n == GameMode::GetInstance()->max_characters) break;
   }
   vers_fin = n;
   crosshair.Reset();
 }
-
-//-----------------------------------------------------------------------------
 
 void Team::Draw()
 {
   energie.Draw ();
 }
 
-//-----------------------------------------------------------------------------
-
 void Team::Refresh()
 {
   energie.Refresh();
 }
 
-//-----------------------------------------------------------------------------
-
 Weapon& Team::AccessWeapon() const { return *active_weapon; }
 const Weapon& Team::GetWeapon() const { return *active_weapon; }
 Weapon_type Team::GetWeaponType() const { return GetWeapon().GetType(); }
 
-//-----------------------------------------------------------------------------
+bool Team::IsSameAs(const Team& other)
+{
+  return (strcmp(m_id.c_str(), other.GetId().c_str()) == 0);
+}

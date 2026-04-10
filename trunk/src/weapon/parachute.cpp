@@ -19,73 +19,44 @@
  * Parachute !
  *****************************************************************************/
 
-#include "../weapon/parachute.h"
-//-----------------------------------------------------------------------------
-#include "../tool/i18n.h"
-#include "../team/teams_list.h"
-#include "../sound/jukebox.h"
+#include "parachute.h"
+#include "weapon_tools.h"
 #include "../game/game.h"
-#include "../game/game_loop.h"
 #include "../game/game_mode.h"
+#include "../game/game_loop.h"
 #include "../interface/game_msg.h"
 #include "../object/physical_obj.h"
-#include "../weapon/weapon_tools.h"
+#include "../sound/jukebox.h"
+#include "../team/teams_list.h"
+#include "../tool/i18n.h"
 
-
-//-----------------------------------------------------------------------------
-namespace Wormux 
-{
-Parachute parachute;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-
-Parachute::Parachute() : Weapon(WEAPON_PARACHUTE, "parachute")
+Parachute::Parachute() : Weapon(WEAPON_PARACHUTE, "parachute", new ParachuteConfig(), NEVER_VISIBLE)
 {
   m_name = _("Parachute");
   m_initial_nb_ammo = 2 ;
-  air_resist_factor = 140.0 ;
-  open_speed_limit = 5.0 ;
-  extra_params = new WeaponConfig();
-  use_unit_on_first_shoot = false;  
+  use_unit_on_first_shoot = false;    
+  
+  image = resource_manager.LoadSprite(weapons_res_profile,"parachute_sprite");
 }
-
-//-----------------------------------------------------------------------------
 
 void Parachute::p_Select()
 {
   m_is_active = true ;
   open = false ;
   closing = false ;
-  image->Start();
-  image->SetShowOnFinish(Sprite::show_last_frame);
+  image->animation.SetShowOnFinish(SpriteAnimation::show_last_frame);
 }
-
-//-----------------------------------------------------------------------------
 
 void Parachute::p_Deselect()
 {
-  ActiveCharacter().SetAirResistFactor(game_mode.character.air_resist_factor);
+  ActiveCharacter().SetAirResistFactor(GameMode::GetInstance()->character.air_resist_factor);
   ActiveCharacter().SetWindFactor(0);
   m_is_active = false;
 }
 
-//-----------------------------------------------------------------------------
-
-void Parachute::p_Init()
-{
-  m_name = _("parachute");
-
-  image = resource_manager.LoadSprite(weapons_res_profile,"parachute_sprite");
-  //TODO : image.set_play_loop(false);
-}
-
-
-//-----------------------------------------------------------------------------
-
 bool Parachute::p_Shoot()
 {
-  game_messages.Add(_("Parachute is activated automatically."));
+  GameMessages::GetInstance()->Add(_("Parachute is activated automatically."));
   return false;
 }
 
@@ -94,29 +65,30 @@ void Parachute::Draw()
   if (open)
     {
       image->Update();
-      image->Draw(ActiveCharacter().GetX() - ActiveCharacter().GetWidth()/2,
-		 ActiveCharacter().GetY() - image->GetHeight());
+      image->Draw(ActiveCharacter().GetPosition() - 
+			  Point2i(ActiveCharacter().GetWidth()/2,image->GetHeight()) );
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void Parachute::Refresh()
 {
-  DoubleVector speed ;
+  Point2d speed;
 
   ActiveCharacter().GetSpeedXY(speed);
 
   if (ActiveCharacter().FootsInVacuum())
     {
-      if (!open && (speed.y > open_speed_limit))
+      if (!open && (speed.y > cfg().open_speed_limit))
 	{
 	  if (EnoughAmmo())
 	    {
 	      UseAmmo();
-	      ActiveCharacter().SetAirResistFactor(air_resist_factor);
-	      ActiveCharacter().SetWindFactor(2);
+	      ActiveCharacter().SetAirResistFactor(cfg().air_resist_factor);
+	      ActiveCharacter().SetWindFactor(cfg().wind_factor);
 	      open = true ;
+	      image->animation.SetPlayBackward(false);
+	      image->Start();
+
 	    }
 	}
     }
@@ -129,8 +101,8 @@ void Parachute::Refresh()
 	  if (!closing)
 	    {
 	      /* We have just hit the ground. Start closing animation */
-	      image->SetPlayBackward(true);
-	      image->SetShowOnFinish(Sprite::show_blank);
+	      image->animation.SetPlayBackward(true);
+	      image->animation.SetShowOnFinish(SpriteAnimation::show_blank);
 	      image->Start();
 	      closing = true ;
 	    }
@@ -149,12 +121,24 @@ void Parachute::Refresh()
     }
 }
 
-//-----------------------------------------------------------------------------
-
 void Parachute::SignalTurnEnd()
 {
   p_Deselect();
 }
 
-//-----------------------------------------------------------------------------
-} // namespace Wormux
+ParachuteConfig& Parachute::cfg() {
+  return static_cast<ParachuteConfig&>(*extra_params);
+}
+
+ParachuteConfig::ParachuteConfig(){ 
+  wind_factor = 10.0;
+  air_resist_factor = 140.0 ;
+  open_speed_limit = 2.0 ;
+}
+
+void ParachuteConfig::LoadXml(xmlpp::Element *elem){
+  WeaponConfig::LoadXml(elem);
+  LitDocXml::LitDouble (elem, "wind_factor", wind_factor);
+  LitDocXml::LitDouble (elem, "air_resist_factor", air_resist_factor);
+  LitDocXml::LitDouble (elem, "open_speed_limit", open_speed_limit);
+}

@@ -21,12 +21,8 @@
 
 #ifndef JETPACK_H
 #define JETPACK_H
-//-----------------------------------------------------------------------------
-#include "weapon.h"
 
-//-----------------------------------------------------------------------------
-namespace Wormux {
-//-----------------------------------------------------------------------------
+#include "weapon.h"
 
 class JetPack : public Weapon
 {
@@ -42,7 +38,6 @@ private:
 public:
   JetPack();
   void Reset();
-  void p_Init();
   void Refresh();
   void p_Select();
   void p_Deselect();
@@ -62,7 +57,4 @@ protected:
 
 };
 
-extern JetPack jetpack;
-//-----------------------------------------------------------------------------
-} // namespace Wormux
 #endif

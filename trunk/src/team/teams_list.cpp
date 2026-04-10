@@ -51,7 +51,7 @@ void TeamsList::NextTeam (bool debut_jeu)
   if (debut_jeu) return;
 #ifdef CL
   if (network.is_client()) return;
-  ActiveTeam().FinTour();
+  ActiveTeam().FinTurn();
 #endif
    
   // Passe à l'équipe suivante
@@ -61,7 +61,7 @@ void TeamsList::NextTeam (bool debut_jeu)
       ++it;
       if (it == playing_list.end()) it = playing_list.begin();
     } while ((**it).NbAliveCharacter() == 0);
-  action_handler.NewAction(ActionString(ACTION_CHANGE_TEAM, (**it).GetId()));
+  ActionHandler::GetInstance()->NewAction(ActionString(ACTION_CHANGE_TEAM, (**it).GetId()));
 }
 
 //-----------------------------------------------------------------------------
@@ -113,7 +113,7 @@ void TeamsList::LoadList()
   std::cout << "o " << _("Load teams:");
   
   // Load Wormux teams
-  std::string dirname = Wormux::config.data_dir+"team"+PATH_SEPARATOR;
+  std::string dirname = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "team" + PATH_SEPARATOR;
 #if !defined(WIN32) || defined(__MINGW32__)
   struct dirent *file;
   DIR *dir = opendir(dirname.c_str());
@@ -143,7 +143,8 @@ void TeamsList::LoadList()
 
   // Load personal teams
 #if !defined(WIN32) || defined(__MINGW32__)
-  dirname = Wormux::config.GetWormuxPersonalDir()+"team/";
+  dirname = Config::GetInstance()->GetPersonalDir() + PATH_SEPARATOR 
+    + "team" + PATH_SEPARATOR;
   dir = opendir(dirname.c_str());
   if (dir != NULL) {
     while ((file = readdir(dir)) != NULL) LoadOneTeam (dirname, file->d_name);

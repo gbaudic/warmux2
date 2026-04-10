@@ -21,32 +21,30 @@
 
 #ifndef CHECK_BOX_H
 #define CHECK_BOX_H
-//-----------------------------------------------------------------------------
+
 #include "../include/base.h"
 #include "../graphic/text.h"
 #include "../gui/widget.h"
 #include "../graphic/sprite.h"
 #include <string>
-//-----------------------------------------------------------------------------
 
 class CheckBox : public Widget
 {
  private:
-  Text * txt_label;
+  Text *txt_label;
   bool m_value;
   Sprite *m_image;
    
  public:
-  CheckBox(const std::string &label, uint x, uint y, uint w, bool value=true) ;  
+  CheckBox(const std::string &label, const Rectanglei &rect, bool value = true);
   ~CheckBox();
-  void Draw (uint mouse_x, uint mouse_y) ;
-  bool Clic (uint mouse_x, uint mouse_y, uint button) ;
-  void SetSizePosition(uint _x, uint _y, uint _w, uint _h);
+  void Draw(const Point2i &mousePosition) ;
+  bool Clic(const Point2i &mousePosition, uint button) ;
+  void SetSizePosition(const Rectanglei &rect);
 
   bool GetValue() const;
   void SetValue(bool value);
 };
 
-//-----------------------------------------------------------------------------
 #endif
 

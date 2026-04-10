@@ -15,62 +15,53 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- ******************************************************************************
- * Clipping : découpe une grosse image en petit morceaux indépendants pour
- * permettre un chargement des donnéees plus rapide. On peut ensuite creuser
- * des trous dans cette image (en touchant à la couche alpha).
  *****************************************************************************/
 
 #ifndef _TILE_H
 #define _TILE_H
 
 #include <vector>
-#include "../tool/Rectangle.h"
+#include "tileitem.h"
+#include "../graphic/surface.h"
+#include "../tool/rectangle.h"
 
-struct SDL_Surface;
 class TileItem;
 
-class Tile
-{
+class Tile : public Rectanglei{
 public:
   Tile ();
   ~Tile ();
 
   // Dig a hole
-  void Dig (int ox, int oy, SDL_Surface *provider);
-   
-  // Load an image
-  void LoadImage (SDL_Surface *ground_surface);
+  void Dig(const Point2i &position, const Surface& provider);
+  // Dig a circle hole
+  void Dig(const Point2i &center, const uint radius);
 
-  // Get size
-  unsigned int GetWidth () const { return width; }
-  unsigned int GetHeight () const { return height; }
+  // Load an image
+  void LoadImage (Surface& ground_surface);
 
   // Get alpha value of a pixel
-  unsigned char GetAlpha (const int x, const int y) const;
+  unsigned char GetAlpha(const Point2i &pos) const;
 
   // Draw it (on the entire visible part) 
-  void DrawTile () const;
-   
+  void DrawTile() const;
+
   // Draw a part that is inside the given clipping rectangle
   // Clipping rectangle is in World corrdinate not screen coordinates
   // usefull to redraw only a part that is under a sprite that has moved,... 
-  void DrawTile_Clipped (Rectanglei clip_rectangle) const;
-   
-protected:
-   
-  void InitTile (unsigned int width, unsigned int height);
+  void DrawTile_Clipped(Rectanglei clip_rectangle) const;
 
-  void FreeMem ();
+protected:
+  void InitTile(const Point2i &pSize);
+
+  void FreeMem();
+  Point2i Clamp(const Point2i &v) const;
 
   // Dimension du terrain
-  unsigned int width;
-  unsigned int height;
-
-  unsigned int nbr_cell_width, nbr_cell_height;
+  Point2i nbCells;
   unsigned int nbr_cell;
 
-  // Canvas donnant accès aux cellules
+  // Canvas donnant accï¿½ aux cellules
   std::vector<TileItem *> item;
 };
 

@@ -19,21 +19,20 @@
  * Monde ou plateau de jeu.
  *****************************************************************************/
 
-#ifndef MONDE_H
-#define MONDE_H
-//-----------------------------------------------------------------------------
-#include "../include/base.h"
-#include "../graphic/text.h"
-#include "../object/physical_obj.h"
+#ifndef MAP_H
+#define MAP_H
+
+#include "ground.h"
 #include "sky.h"
 #include "water.h"
-#include "ground.h"
-//-----------------------------------------------------------------------------
+#include "../graphic/surface.h"
+#include "../graphic/text.h"
+#include "../include/base.h"
+#include "../object/physical_obj.h"
 
 extern const uint MAX_WIND_OBJECTS;
 
-class Map
-{
+class Map{
  private:
   Text * author_info1;
   Text * author_info2;
@@ -42,8 +41,8 @@ public:
   Map();
   ~Map();
    
-  Wormux::Ground ground;
-  Wormux::Sky sky;
+  Ground ground;
+  Sky sky;
   double dst_min_entre_vers;
   Water water;
 
@@ -53,7 +52,6 @@ public:
   std::list<Rectanglei> *to_redraw_particles_now;
 
 public:
-  //void Init();
   void Reset();
   void Refresh();
   void FreeMem();
@@ -90,17 +88,19 @@ public:
   // C'est un terrain ouvert ?
   bool EstOuvert() const { return ground.EstOuvert(); }
 
-  // Creuse un pixel
-  void Creuse(uint x, uint y, SDL_Surface *alpha_sur);
+  // Dig the map using a picture
+  void Dig(const Point2i position, const Surface& alpha_sur);
+  // Dig a circle hole in the map
+  void Dig(const Point2i center, const uint radius);
    
   // Lit la taille du monde
-  uint GetWidth() const { return ground.GetWidth(); }
-  uint GetHeight() const { return ground.GetHeight(); }
+  int GetWidth() const { return ground.GetSizeX(); }
+  int GetHeight() const { return ground.GetSizeY(); }
+  Point2i GetSize() const{ return ground.GetSize(); }
  private:
   void SwitchDrawingCache();
   void SwitchDrawingCacheParticles();
 };
 
 extern Map world;
-//-----------------------------------------------------------------------------
 #endif

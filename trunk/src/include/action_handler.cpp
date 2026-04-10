@@ -20,90 +20,80 @@
  *****************************************************************************/
 
 #include "action_handler.h"
-//-----------------------------------------------------------------------------
+#include "../game/game_mode.h"
+#include "../game/game_loop.h"
+#include "../include/constant.h"
+#include "../map/map.h"
+#include "../map/maps_list.h"
+#include "../map/wind.h"
+#include "../team/macro.h"
+#include "../team/move.h"
 #include "../tool/i18n.h"
-//-----------------------------------------------------------------------------
-
-#ifdef DEBUG
-
-// Love debug message ?
-//#define DBG_ACT
-
-#define COUT_DBG std::cout << "[Action Handler] "
-#endif
-
-//-----------------------------------------------------------------------------
+#include "../weapon/weapon.h"
+#include "../weapon/weapons_list.h"
 #ifdef CL
 # include "../network/network.h"
 #endif
 
-#include "../include/constant.h"
-#include "../game/game_mode.h"
-#include "../game/game_loop.h"
-#include "../map/map.h"
-#include "../map/wind.h"
-#include "../map/maps_list.h"
-#include "../team/macro.h"
-#include "../team/move.h"
-#include "../weapon/weapon.h"
-#include "../weapon/weapons_list.h"
-//-----------------------------------------------------------------------------
-ActionHandler action_handler;
-//-----------------------------------------------------------------------------
+#ifdef DEBUG
+// Love debug message ?
+//#define DBG_ACT
+#define COUT_DBG std::cout << "[Action Handler] "
+#endif
 
 // Delta appliqué à l'angle du viseur
 #define DELTA_CROSSHAIR 2
+
+ActionHandler * ActionHandler::singleton = NULL;
+
+ActionHandler * ActionHandler::GetInstance() {
+  if (singleton == NULL) {
+    singleton = new ActionHandler();
+  }
+  return singleton;
+}
+
+ActionHandler::ActionHandler() {
+}
 
 void Action_Walk (const Action *a)
 {
 	 MoveCharacter (ActiveCharacter());
 }
 
-//-----------------------------------------------------------------------------
 void Action_MoveRight (const Action *a)
 {
 	assert(false);
 	MoveCharacterRight (ActiveCharacter());
 }
 
-//-----------------------------------------------------------------------------
 void Action_MoveLeft (const Action *a)
 {
 	assert(false);
 	MoveCharacterLeft (ActiveCharacter());
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_Jump (const Action *a)
 {
-      game_loop.character_already_chosen = true;
-      ActiveCharacter().Saute(); 
+      GameLoop::GetInstance()->character_already_chosen = true;
+      ActiveCharacter().Jump(); 
 }
 
-//-----------------------------------------------------------------------------
-
-void Action_SuperJump (const Action *a)
+void Action_HighJump (const Action *a)
 {
-      game_loop.character_already_chosen = true;
-      ActiveCharacter().SuperSaut();
+      GameLoop::GetInstance()->character_already_chosen = true;
+      ActiveCharacter().HighJump();
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_Up (const Action *a)
 {
 	ActiveTeam().crosshair.ChangeAngle (-DELTA_CROSSHAIR);
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_Down (const Action *a)
 {
 	ActiveTeam().crosshair.ChangeAngle (DELTA_CROSSHAIR);
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_ChangeWeapon (const Action *a)
 {
@@ -111,15 +101,11 @@ void Action_ChangeWeapon (const Action *a)
 	ActiveTeam().SetWeapon((Weapon_type)ai.GetValue());
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_ChangeCharacter (const Action *a)
 {
 	const ActionInt& ai = dynamic_cast<const ActionInt&> (*a);
 	ActiveTeam().SelectCharacterIndex (ai.GetValue());
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_Shoot (const Action *action)
 {
@@ -127,15 +113,11 @@ void Action_Shoot (const Action *action)
 	ActiveTeam().AccessWeapon().Shoot(a.GetValue1(), a.GetValue2());
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_Wind (const Action *a)
 {
 	const ActionInt& ai = dynamic_cast<const ActionInt&> (*a);
-	Wormux::wind.SetVal (ai.GetValue());
+	wind.SetVal (ai.GetValue());
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_MoveCharacter (const Action *a)
 {
@@ -155,15 +137,12 @@ void Action_MoveCharacter (const Action *a)
 	ActiveCharacter().SetXY (ap.GetValue1(), ap.GetValue2());
 #endif // CL defined
 }
-//-----------------------------------------------------------------------------
 
 void Action_SetCharacterDirection (const Action *a)
 {
 	const ActionInt& ai = dynamic_cast<const ActionInt&> (*a);
 	ActiveCharacter().SetDirection (ai.GetValue());
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_SetMap (const Action *a)
 {
@@ -179,8 +158,6 @@ void Action_SetMap (const Action *a)
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_ClearTeams (const Action *a)
 {
 #ifdef DBG_ACT
@@ -191,8 +168,6 @@ void Action_ClearTeams (const Action *a)
 	teams_list.Clear();
 #endif
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_StartGame (const Action *a)
 {
@@ -205,19 +180,15 @@ void Action_StartGame (const Action *a)
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_SetGameMode (const Action *a)
 {
 	const ActionString& action = dynamic_cast<const ActionString&> (*a);
 #ifdef DBG_ACT
 	COUT_DBG << "SetGameMode : " << action.GetValue() << std::endl;
 #endif
-	Wormux::game_mode.Load (action.GetValue());
+	GameMode::GetInstance()->Load (action.GetValue());
 }
 
-
-//-----------------------------------------------------------------------------
 
 void Action_NewTeam (const Action *a)
 {
@@ -234,8 +205,6 @@ void Action_NewTeam (const Action *a)
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_ChangeTeam (const Action *a)
 {
 	const ActionString& action = dynamic_cast<const ActionString&> (*a);
@@ -244,23 +213,19 @@ void Action_ChangeTeam (const Action *a)
 #endif
 	//if (!network.is_client()) return;
 	teams_list.SetActive (action.GetValue());
- 	ActiveTeam().PrepareTour();
+ 	ActiveTeam().PrepareTurn();
 	assert (!ActiveCharacter().IsDead());
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_AskVersion (const Action *a)
 {
 #ifdef CL
         if (!network.is_client()) return;
 	if (network.state != Network::NETWORK_WAIT_SERVER) return;
-	action_handler.NewAction(ActionString(ACTION_SEND_VERSION, VERSION));
+	NewAction(ActionString(ACTION_SEND_VERSION, VERSION));
 	network.state = Network::NETWORK_WAIT_MAP;
 #endif
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_SendVersion (const Action *a)
 {
@@ -276,14 +241,10 @@ void Action_SendVersion (const Action *a)
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
 void Action_SendTeam (const Action *a)
 {
 	// @@@ TODO @@@
 }
-
-//-----------------------------------------------------------------------------
 
 void Action_AskTeam (const Action *a)
 {
@@ -292,8 +253,6 @@ void Action_AskTeam (const Action *a)
 //	action_handler.NewAction(ActionString(ACTION_SEND_TEAM, ???));
 #endif
 }
-
-//-----------------------------------------------------------------------------
 
 void ActionHandler::ExecActions()
 {
@@ -305,8 +264,6 @@ void ActionHandler::ExecActions()
 		delete action;
 	}
 }
-
-//-----------------------------------------------------------------------------
 
 void ActionHandler::NewAction(const Action &a, bool repeat_to_network)
 {
@@ -320,16 +277,12 @@ void ActionHandler::NewAction(const Action &a, bool repeat_to_network)
 #endif
 }
 
-//-----------------------------------------------------------------------------
-
 void ActionHandler::Register (Action_t action, 
 		                      const std::string &name,callback_t fct)
 {
 	handler[action] = fct;
 	action_name[action] = name;
 }
-
-//-----------------------------------------------------------------------------
 
 void ActionHandler::Exec(const Action *a)
 {
@@ -342,16 +295,12 @@ void ActionHandler::Exec(const Action *a)
 	(*it->second) (a);
 }
 
-//-----------------------------------------------------------------------------
-
 std::string ActionHandler::GetActionName (Action_t action)
 {
 	name_it it=action_name.find(action);
 	assert(it != action_name.end());
 	return it->second;
 }
-
-//-----------------------------------------------------------------------------
 
 void ActionHandler::Init()
 {
@@ -361,7 +310,7 @@ void ActionHandler::Init()
 	Register (ACTION_UP, "up", &Action_Up);
 	Register (ACTION_DOWN, "down", &Action_Down);
 	Register (ACTION_JUMP, "jump", &Action_Jump);
-	Register (ACTION_SUPER_JUMP, "super_jump", &Action_SuperJump);
+	Register (ACTION_HIGH_JUMP, "super_jump", &Action_HighJump);
 	Register (ACTION_SHOOT, "shoot", &Action_Shoot);
 	Register (ACTION_CHANGE_WEAPON, "change_weapon", &Action_ChangeWeapon);
 	Register (ACTION_WIND, "wind", &Action_Wind);
@@ -379,6 +328,4 @@ void ActionHandler::Init()
 	Register (ACTION_SEND_VERSION, "send_version", &Action_SendVersion);
 	Register (ACTION_SEND_TEAM, "send_team", &Action_SendTeam);
 }
-
-//-----------------------------------------------------------------------------
 

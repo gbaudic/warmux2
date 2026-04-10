@@ -20,45 +20,26 @@
  *****************************************************************************/
 
 #include "widget.h"
+#include "../tool/point.h"
 
-//-----------------------------------------------------------------------------
-
-Widget::Widget(uint _x, uint _y, uint _w, uint _h) :
-  x(_x), y(_y), w(_w), h(_h)
-{
-}
-
-//-----------------------------------------------------------------------------
-
-Widget::~Widget()
-{
-}
-
-//-----------------------------------------------------------------------------
-
-bool Widget::MouseIsOver (uint mouse_x, uint mouse_y)
-{
-  return ((x <= mouse_x) && (mouse_x <= x+w)
-	  && (y <= mouse_y) && (mouse_y <= y+h));
+Widget::Widget(){
 
 }
 
-//-----------------------------------------------------------------------------
+Widget::Widget(const Rectanglei &rect){
+	position = rect.GetPosition();
+	size = rect.GetSize();
+}
 
-bool Widget::Clic (uint mouse_x, uint mouse_y, uint button)
-{
+Widget::~Widget(){
+}
+
+bool Widget::Clic(const Point2i &mousePosition, uint button){
   return false;
 }
 
-
-//-----------------------------------------------------------------------------
-
-void Widget::StdSetSizePosition(uint _x, uint _y, uint _w, uint _h)
-{
-  x = _x;
-  y = _y;
-  w = _w;
-  h = _h;
+void Widget::StdSetSizePosition(const Rectanglei &rect){
+	position = rect.GetPosition();
+	size = rect.GetSize();
 }
 
-//-----------------------------------------------------------------------------

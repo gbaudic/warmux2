@@ -21,57 +21,35 @@
 
 #ifndef GNU_H
 #define GNU_H
-//-----------------------------------------------------------------------------
-#include <SDL.h>
-#include "../graphic/sprite.h"
-#include "../include/base.h"
-#include "../gui/progress_bar.h"
-#include "../object/physical_obj.h"
-#include "weapon.h"
-#include "grenade.h"
 
-//-----------------------------------------------------------------------------
-using namespace Wormux;
+#include <SDL.h>
+#include "grenade.h"
+#include "weapon.h"
+#include "../graphic/sprite.h"
+#include "../gui/progress_bar.h"
+#include "../include/base.h"
+#include "../object/physical_obj.h"
+
+class GnuLauncher;
+
 // The GNU
-class Gnu : public PhysicalObj
+class Gnu : public WeaponProjectile
 {
-  uint launched_time;
-  Sprite *image;
+ private:
   int m_sens;
   double save_x,save_y;
+  double angle;
 public:
-  bool is_active;
-
-  Gnu();
-  void Init();
-  void Draw();
-  void Reset();
-  void Tire(double force);
+  Gnu(ExplosiveWeaponConfig& cfg);
+  void Shoot(double strength);
   void Refresh();
-  void SignalFallEnding();
   void SignalCollision();
-  void SignalGhostState();
 };
 
-//-----------------------------------------------------------------------------
-
-class GnuLauncher : public Weapon
+class GnuLauncher : public WeaponLauncher
 {
 public:
-  SDL_Surface *impact;
-  Gnu gnu;
-
-public:
   GnuLauncher();
-  bool p_Shoot ();
-  void Refresh();
-  void p_Init();
-  GrenadeConfig& cfg();
-
-  void Explosion();
-
 };
 
-extern GnuLauncher gnu_launcher;
-//-----------------------------------------------------------------------------
 #endif

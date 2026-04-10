@@ -20,17 +20,15 @@
  *****************************************************************************/
 
 #include "maps_list.h"
-//-----------------------------------------------------------------------------
-#include "../game/config.h"
-#include "map.h"
-#include "../tool/i18n.h"
-#include "../tool/file_tools.h"
 #include <iostream>
+#include "map.h"
+#include "../game/config.h"
+#include "../tool/file_tools.h"
+#include "../tool/i18n.h"
 #if !defined(WIN32) || defined(__MINGW32__)
 #include <dirent.h>
 #include <sys/stat.h>
 #endif
-//-----------------------------------------------------------------------------
 
 #ifdef DEBUG
 //#  define VERBOSE_MAP_LOADING
@@ -38,7 +36,6 @@
 #endif
 
 ListeTerrain lst_terrain;
-//-----------------------------------------------------------------------------
 
 InfoTerrain::InfoTerrain ()
 { 
@@ -46,12 +43,9 @@ InfoTerrain::InfoTerrain ()
   nb_mine = 0;
   wind.nb_sprite = 0;
   wind.need_flip = false;
+  wind.particle_air_resist_factor = 1.0;
   infinite_bg = false;
-  img_terrain = NULL;
-  img_ciel = NULL;
 }
-
-//-----------------------------------------------------------------------------
 
 bool InfoTerrain::Init (const std::string &map_name, 
 			            const std::string &directory)
@@ -68,7 +62,8 @@ bool InfoTerrain::Init (const std::string &map_name,
     nomfich = m_directory+"config.xml";
 
     // Load resources
-    if (!FichierExiste(nomfich)) return false;
+    if (!IsFileExist(nomfich))
+      return false;
     res_profile = resource_manager.LoadXMLProfile( nomfich, true), 
     // Load preview
     preview = resource_manager.LoadImage( res_profile, "preview");
@@ -92,8 +87,6 @@ bool InfoTerrain::Init (const std::string &map_name,
 
   return true;
 }
-
-//-----------------------------------------------------------------------------
 
 bool InfoTerrain::TraiteXml (xmlpp::Element *xml)
 {
@@ -151,6 +144,7 @@ bool InfoTerrain::TraiteXml (xmlpp::Element *xml)
       wind.particle_mass = 0.1;
     }
     LitDocXml::LitDouble (xmlwind, "wind_factor", wind.particle_wind_factor);
+    LitDocXml::LitDouble (xmlwind, "air_resist_factor", wind.particle_air_resist_factor);
     LitDocXml::LitBool (xmlwind, "need_flip", wind.need_flip);
 
     if (wind.nb_sprite > MAX_WIND_OBJECTS)
@@ -163,11 +157,9 @@ bool InfoTerrain::TraiteXml (xmlpp::Element *xml)
   return true;
 }
 
-//-----------------------------------------------------------------------------
-
-void InfoTerrain::LoadData()
-{
-  if (m_donnees_chargees) return;
+void InfoTerrain::LoadData(){
+  if (m_donnees_chargees)
+    return;
   m_donnees_chargees = true;
 
 #ifdef VERBOSE_MAP_LOADING
@@ -178,55 +170,32 @@ void InfoTerrain::LoadData()
   img_ciel = resource_manager.LoadImage(res_profile,"sky");   
 }
 
-void InfoTerrain::FreeData()
-{
-  if (!m_donnees_chargees) return;
-  assert(img_ciel!=NULL && img_terrain!=NULL);
+void InfoTerrain::FreeData(){
+  img_ciel.Free();
+  img_terrain.Free();
   m_donnees_chargees = false;
-
-#ifdef VERBOSE_MAP_LOADING
-  DBG_COUT << "Map data deleted." << std::endl;
-#endif
-
-  SDL_FreeSurface(img_terrain);
-  SDL_FreeSurface(img_ciel);
-  img_terrain=NULL;
-  img_ciel=NULL;
 }
 
-//-----------------------------------------------------------------------------
-
-SDL_Surface *InfoTerrain::LitImgTerrain() 
-{ 
+Surface InfoTerrain::LitImgTerrain(){ 
   LoadData(); 
   return img_terrain;
 }
 
-SDL_Surface *InfoTerrain::LitImgCiel() 
-{ 
+Surface InfoTerrain::LitImgCiel(){ 
   LoadData(); 
   return img_ciel;
 }
 
-bool InfoTerrain::DonneesChargees() const 
-{ 
+bool InfoTerrain::DonneesChargees() const{ 
    return m_donnees_chargees; 
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
-ListeTerrain::ListeTerrain()
-{
+ListeTerrain::ListeTerrain(){
   m_init = false;
   terrain_actif = -1;
 }
 
-//-----------------------------------------------------------------------------
-
-void ListeTerrain::LoadOneMap (const std::string &dir, const std::string &file)
-{
+void ListeTerrain::LoadOneMap (const std::string &dir, const std::string &file){
   std::string fullname = dir+file;
 
 #if !defined(WIN32) || defined(__MINGW32__)
@@ -237,15 +206,13 @@ void ListeTerrain::LoadOneMap (const std::string &dir, const std::string &file)
 #endif
 	
   InfoTerrain nv_terrain;  
-  bool ok = nv_terrain.Init (file, fullname+'/');
+  bool ok = nv_terrain.Init (file, fullname + PATH_SEPARATOR);
   if (!ok) return;
 
   std::cout << (liste.empty()?" ":", ") << file;
   std::cout.flush();
   liste.push_back(nv_terrain);
 }
-
-//-----------------------------------------------------------------------------
 
 void ListeTerrain::Init()
 {
@@ -256,7 +223,8 @@ void ListeTerrain::Init()
 
   std::cout << "o " << _("Load maps:");
 
-  std::string dirname = Wormux::config.data_dir+"map"+PATH_SEPARATOR;
+  Config * config = Config::GetInstance();
+  std::string dirname = config->GetDataDir() + PATH_SEPARATOR + "map" + PATH_SEPARATOR;
 #if !defined(WIN32) || defined(__MINGW32__)
   DIR *dir = opendir(dirname.c_str());
   struct dirent *file;
@@ -287,10 +255,9 @@ void ListeTerrain::Init()
   FindClose(file_search);
 #endif
 
-  
 #if !defined(WIN32) || defined(__MINGW32__)
   // Load personal maps
-  dirname = Wormux::config.GetWormuxPersonalDir()+"map/";
+  dirname = config->GetPersonalDir() + PATH_SEPARATOR + "map";
   dir = opendir(dirname.c_str());
   if (dir != NULL) {
     while ((file = readdir(dir)) != NULL) 
@@ -303,12 +270,9 @@ void ListeTerrain::Init()
   // On a au moins une carte ?
   if (liste.size() < 1)
     Error(_("You need at least one valid map !"));
-  
 
   std::sort(lst_terrain.liste.begin(), lst_terrain.liste.end(), compareMaps);
 }
-
-//-----------------------------------------------------------------------------
 
 int ListeTerrain::FindMapById (const std::string &id)
 {
@@ -317,30 +281,25 @@ int ListeTerrain::FindMapById (const std::string &id)
     fin_terrain=liste.end();
   uint i=0;
   for (; i < liste.size(); ++i)
-  {
-    if (liste[i].name == id) return i;
-  }
+    if (liste[i].name == id)
+      return i;
   return -1;
 }
 
-//-----------------------------------------------------------------------------
-
-void ListeTerrain::ChangeTerrainNom (const std::string &nom)
-{
+void ListeTerrain::ChangeTerrainNom (const std::string &nom){
   int index = FindMapById (nom);
-  if (index == -1) {
+
+  if (index == -1){
     index = 0;
     std::cout << Format(_("! Map %s not found :-("), nom.c_str()) << std::endl;
   }
   ChangeTerrain (index);
 }
 
-//-----------------------------------------------------------------------------
-
-void ListeTerrain::ChangeTerrain (uint index)
-{
+void ListeTerrain::ChangeTerrain (uint index){
   assert (index < liste.size());
-  if (terrain_actif == (int)index) return;
+  if (terrain_actif == (int)index)
+    return;
 
   terrain_actif = index;
   //monde.terrain.terrain_charge = false;
@@ -349,26 +308,16 @@ void ListeTerrain::ChangeTerrain (uint index)
   //monde.ciel.Init();
 }
 
-//-----------------------------------------------------------------------------
-
-InfoTerrain& ListeTerrain::TerrainActif()
-{
+InfoTerrain& ListeTerrain::TerrainActif(){
   assert (0 <= terrain_actif);
   return liste.at(terrain_actif);
 }
 
-//-----------------------------------------------------------------------------
-
-InfoTerrain& TerrainActif()
-{
+InfoTerrain& TerrainActif(){
   return lst_terrain.TerrainActif();
 }
 
-//-----------------------------------------------------------------------------
-
-bool compareMaps(const InfoTerrain& a, const InfoTerrain& b) 
-{  
+bool compareMaps(const InfoTerrain& a, const InfoTerrain& b){  
   return a.name < b.name;
 }
 
-//-----------------------------------------------------------------------------

@@ -22,229 +22,100 @@
  *****************************************************************************/
 
 #include "dynamite.h"
-//-----------------------------------------------------------------------------
-#include "../game/game_mode.h"
+#include "weapon_tools.h"
+#include "../game/config.h"
+#include "../include/app.h"
+#include "../object/objects_list.h"
 #include "../team/teams_list.h"
 #include "../tool/i18n.h"
-#include "../game/config.h"
-#include "../game/game_loop.h"
-#include "../weapon/weapon_tools.h"
-#include "../object/objects_list.h"
-#ifdef CL
-#else
 #include "../tool/resource_manager.h"
-#include "../include/app.h"
-#endif
 
 #ifdef __MINGW32__
 #undef LoadImage
 #endif
-//-----------------------------------------------------------------------------
-namespace Wormux {
 
-#ifdef DEBUG
-  //  #define DEBUG_CADRE_TEST
-#endif
-
-//-----------------------------------------------------------------------------
-
-BatonDynamite::BatonDynamite(Dynamite &p_dynamite) 
-  : WeaponProjectile("baton de dynamite"), dynamite(p_dynamite)
-{}
-
-//-----------------------------------------------------------------------------
-
-void BatonDynamite::Init()
+BatonDynamite::BatonDynamite(ExplosiveWeaponConfig& cfg) :
+  WeaponProjectile("dynamite_bullet", cfg)
 {
-  SetMass (dynamite.cfg().mass);
+  channel = -1;
 
-  image = resource_manager.LoadSprite(weapons_res_profile,"dynamite_anim");
-  
-  double delay = dynamite.cfg().duree/image->GetFrameCount()/1000.0 ;
-  for (uint i=0 ; i < image->GetFrameCount(); i++)
-    ; // TODO // image.set_frame_delay(i, delay) ;
-  
-  image->Start();
-  
-  SetSize (image->GetWidth(), image->GetHeight());
+  image->animation.SetLoopMode(false);
+  SetSize(image->GetSize());
 
   SetTestRect (0, 0, 2, 3);
-
-  explosion = resource_manager.LoadSprite(weapons_res_profile, "explosion");
-  delay = 60/explosion->GetFrameCount()/1000.0 ;
-  for (uint i=0 ; i < explosion->GetFrameCount(); i++)
-    ; // TODO explosion.set_frame_delay(i, delay) ;
-
-  explosion->Start();
-  
 }
-
-//-----------------------------------------------------------------------------
 
 void BatonDynamite::Reset()
 {
   Ready();
   is_active = false;
-  explosion_active = false;
 
-  image->Start();
-  image->SetCurrentFrame(0);
+  unsigned int delay = (1000 * cfg.timeout)/image->GetFrameCount();
+  image->SetFrameSpeed(delay);
+
   image->Scale(ActiveCharacter().GetDirection(), 1);
-  explosion->Start();
-  explosion->SetCurrentFrame(0);
+  image->SetCurrentFrame(0);
+  image->Start(); 
 }
-
-//-----------------------------------------------------------------------------
 
 void BatonDynamite::Refresh()
 {
-
   if (!is_active) return;
-  bool fin;
   assert (!IsGhost());
-  if (!explosion_active) {
-    image->Update(); 
-    fin = image->GetCurrentFrame() == image->GetFrameCount()-1;
-    if (fin) explosion_active = true;
-  } else {
-    explosion->Update();
-    fin = explosion->GetCurrentFrame() == explosion->GetFrameCount()-1;
-    if (fin) is_active = false;
-  }
-
+  image->Update(); 
+  is_active = !image->IsFinished();
 }
-
-//-----------------------------------------------------------------------------
-
 
 void BatonDynamite::Draw()
 {
   if (!is_active) return;
   assert (!IsGhost());
-
-  int x = GetX();
-  int y = GetY();
-  if (!explosion_active)
-    image->Draw(x,y);
-  else {
-    x -= explosion->GetWidth()/2;
-    y -= explosion->GetHeight()/2;
-    explosion->Draw(x,y);
-  }
+  image->Draw(GetPosition());
 }
-   
+
+void BatonDynamite::ShootSound()
+{
+  channel = jukebox.Play("share","weapon/dynamite_fuze", -1);
+}
+
+void BatonDynamite::Explosion()
+{
+  jukebox.Stop(channel);
+  channel = -1;
+  WeaponProjectile::Explosion();
+}
+
+void BatonDynamite::SignalCollision() 
+{
+  if (IsGhost()) is_active = false;
+}
+
 //-----------------------------------------------------------------------------
 
-void BatonDynamite::SignalCollision() {}
-
-void BatonDynamite::SignalGhostState (bool) { is_active = false; }
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
-Dynamite::Dynamite() 
-  : Weapon(WEAPON_DYNAMITE, "dynamite"), baton(*this)
+Dynamite::Dynamite() :
+  WeaponLauncher(WEAPON_DYNAMITE, "dynamite", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Dynamite");
-  extra_params = new DynamiteConfig();
-  channel = -1;
-
-   m_visibility = VISIBLE_ONLY_WHEN_INACTIVE;
+  
+  projectile = new BatonDynamite(cfg());
 }
-
-//-----------------------------------------------------------------------------
-
-void Dynamite::p_Init()
-{
-  baton.Init();
-  impact = resource_manager.LoadImage(weapons_res_profile,"dynamite_impact");
-}
-
-//-----------------------------------------------------------------------------
 
 void Dynamite::p_Select()
 {
-  baton.Reset();
+  dynamic_cast<BatonDynamite *>(projectile)->Reset();
 }
-
-//-----------------------------------------------------------------------------
 
 // Pose une dynamite
 bool Dynamite::p_Shoot ()
 {
-  DoubleVector speed_vector ;
+  Point2d speed_vector;
 
-  // Ajoute la représentation
-  int x,y;
-  PosXY (x,y);
-  baton.Reset ();
-  baton.PrepareTir();
-  baton.SetXY (x, y);
-  lst_objets.AjouteObjet (&baton, true);
+  dynamic_cast<BatonDynamite *>(projectile)->Reset();
+  projectile->Shoot(0);
 
   // Ajoute la vitesse actuelle du ver
   ActiveCharacter().GetSpeedXY (speed_vector);
-  baton.SetSpeedXY (speed_vector);
-
-  // Active l'animation
-  channel = jukebox.Play("share","weapon/dynamite_fuze");
+  projectile->SetSpeedXY (speed_vector);
 
   return true;
 }
-
-//-----------------------------------------------------------------------------
-
-void Dynamite::Refresh()
-{
-  if (m_is_active) {
-    // Fin de l'explwosion ?
-    if (!baton.is_active) FinExplosion ();
-  } else {
-    // Change le sens de l'image si nécessaire
-    m_image->Scale(ActiveCharacter().GetDirection(), 1);
-  }
-}
-
-//-----------------------------------------------------------------------------
-
-void Dynamite::FinExplosion ()
-{
-  m_is_active = false;
-
-  lst_objets.RetireObjet (&baton);
-
-  jukebox.Stop(channel);
-  channel = -1;
-   
-  // Si la dynamite est sortie de l'écran, on ne fait rien
-  if (baton.IsGhost()) return;
-
-  // Applique les degats aux vers
-  Point2i centre = baton.GetCenter();
-  centre.y = baton.GetY()+baton.GetHeight();
-  AppliqueExplosion (centre, centre, impact, cfg(), NULL, "weapon/dynamite_exp");
-}
-
-//-----------------------------------------------------------------------------
-
-DynamiteConfig& Dynamite::cfg() 
-{ return static_cast<DynamiteConfig&>(*extra_params); }
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
-DynamiteConfig::DynamiteConfig()
-{
-  duree = 2000;
-}
-
-void DynamiteConfig::LoadXml(xmlpp::Element *elem)
-{
-  ExplosiveWeaponConfig::LoadXml(elem);
-  LitDocXml::LitUint (elem, "duree", duree);
-}
-
-//-----------------------------------------------------------------------------
-} // namespace Wormux

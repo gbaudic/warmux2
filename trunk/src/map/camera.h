@@ -23,25 +23,17 @@
 
 #ifndef SCROLLING_H
 #define SCROLLING_H
-//-----------------------------------------------------------------------------
+
 #include "../include/base.h"
 #include "../object/physical_obj.h"
-#include "../team/character.h"
-//-----------------------------------------------------------------------------
+#include "../tool/point.h"
+#include "../tool/rectangle.h"
 
-class Camera
-{
+class Camera : public Rectanglei{
 public:
-  uint pause;
   bool autorecadre;
 
 private:
-  struct s_pos
-  {
-    int x;
-    int y;
-  } pos;
-  bool selec_rectangle;
   PhysicalObj* obj_suivi;
   bool lance;
 
@@ -49,8 +41,9 @@ public:
   Camera();
 
   // Scrolle le fond en X ou Y
-  void SetXY (int dx, int dy);
-  void SetXYabs (int x, int y);
+  void SetXY(Point2i pos);
+  void SetXYabs(int x, int y);
+  void SetXYabs(const Point2i &pos);
 
   // Recadrage automatique sur l'objet suivi
   void ChangeObjSuivi (PhysicalObj *obj, 
@@ -58,25 +51,20 @@ public:
 		       bool force_recentrage=false);
   void StopFollowingObj (PhysicalObj* obj);
 
-  // Est-ce que l'objet obj est visible dans le monde ?
-  bool EstVisible (const PhysicalObj &obj);
-
-  // Decalage du fond
-  int GetX() const;
-  int GetY() const;
-  uint GetWidth() const;
-  uint GetHeight() const;
+  bool IsVisible(const PhysicalObj &obj);
 
   void Refresh();
 
   bool HasFixedX() const;
   bool HasFixedY() const;
+  Point2i FreeDegrees() const;
+  Point2i NonFreeDegrees() const;
 
-  void Centre (const PhysicalObj &obj);
-  void CentreObjSuivi ();
-  void AutoRecadre ();
+  void CenterOn(const PhysicalObj &obj);
+  void CenterOnFollowedObject();
+  void AutoRecadre();
 };
 
 extern Camera camera;
-//-----------------------------------------------------------------------------
+
 #endif
