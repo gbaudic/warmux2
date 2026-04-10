@@ -72,7 +72,9 @@ private:
 
   bool using_tmp_socket_set;
 
-  int packet_size;
+  char *m_packet;
+  int m_packet_size;
+  int m_received;
 
   bool AddToSocketSet(WSocketSet* _socket_set);
   void RemoveFromSocketSet();
@@ -128,7 +130,7 @@ public:
 
   // ReceivePacket may return true with *data = NULL and len = 0
   // That means that client is still valid BUT there are not enough data CURRENTLY
-  bool ReceivePacket(char** data, size_t& len);
+  bool ReceivePacket(char** data, size_t* len);
 };
 
 //-----------------------------------------------------------------------------
