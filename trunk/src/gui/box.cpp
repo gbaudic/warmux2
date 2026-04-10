@@ -25,13 +25,19 @@
 #include "../include/app.h"
 
 Box::Box(const Rectanglei &rect, bool _visible) : Widget( rect ){
-  last_widget = NULL;
   visible = _visible;
   margin = 5;
   border.SetValues(5, 5);
 }
 
 Box::~Box(){
+  std::list<Widget *>::iterator it;
+  for (it = widgets.begin();
+      it != widgets.end();
+      it++){
+    delete *it;
+    *it = NULL;
+  }
   widgets.clear();
 }
 
@@ -56,7 +62,6 @@ bool Box::Clic (const Point2i &mousePosition, uint button){
   for (it = widgets.begin(); 
        it != widgets.end(); 
        ++it){
-    assert(it != NULL);
     if( (*it)->Clic(mousePosition, button) )
       return true;
   }
@@ -81,8 +86,8 @@ void VBox::AddWidget(Widget * a_widget){
 
   uint _y;
 
-  if( last_widget != NULL )
-    _y = last_widget->GetPositionY() + last_widget->GetSizeY();
+  if(!widgets.empty())
+    _y = widgets.back()->GetPositionY() + widgets.back()->GetSizeY();
   else
     _y = position.y + border.y - margin;
 
@@ -90,8 +95,6 @@ void VBox::AddWidget(Widget * a_widget){
 			    _y + margin, 
 			    size.x - 2 * border.x,
 			    a_widget->GetSizeY() ));
-
-  last_widget = a_widget;
 
   widgets.push_back(a_widget);
 
@@ -105,8 +108,6 @@ void VBox::SetSizePosition(const Rectanglei &rect){
   for( it = widgets.begin(); 
        it != widgets.end(); 
        ++it ){
-
-    assert(it != NULL);
 
     if( it == widgets.begin() )
       _y += border.y - margin;
@@ -129,8 +130,8 @@ void HBox::AddWidget(Widget * a_widget){
 
   uint _x;
 
-  if (last_widget != NULL)
-    _x = last_widget->GetPositionX() + last_widget->GetSizeX();
+  if (!widgets.empty())
+    _x = widgets.back()->GetPositionX() + widgets.back()->GetSizeX();
   else 
     _x = position.x + border.x - margin;
 
@@ -138,8 +139,6 @@ void HBox::AddWidget(Widget * a_widget){
 			    position.y + border.y, 
 			    a_widget->GetSizeX(), 
 			    size.y - 2 * border.y) );
-
-  last_widget = a_widget;
 
   widgets.push_back(a_widget);
 
@@ -154,7 +153,6 @@ void HBox::SetSizePosition(const Rectanglei &rect){
   for( it = widgets.begin(); 
        it != widgets.end(); 
        ++it ){
-    assert(it != NULL);   
 
     if( it == widgets.begin() )
       _x += border.x - margin;

@@ -33,34 +33,35 @@
 
 ParticleEngine global_particle_engine;
 
-Particle::Particle() :
-  PhysicalObj("Particle", 0.0)
-{ 
+Particle::Particle(const std::string &name) :
+  PhysicalObj(name)
+{
   m_type = objUNBREAKABLE;
-  m_wind_factor = 0.8;
-  m_air_resist_factor = 0.2;
-  m_rebounding = 0;
-
   m_initial_time_to_live = 20;
   m_left_time_to_live = 0;
   m_last_refresh = Time::GetInstance()->Read();
 }
 
+Particle::~Particle()
+{
+  delete image;
+}
+
 void Particle::Draw()
 {
-  if (m_left_time_to_live > 0) 
+  if (m_left_time_to_live > 0)
     image->Draw(GetPosition());
 }
 
 void Particle::Refresh()
 {
-  uint time = Time::GetInstance()->Read() - m_last_refresh; 
+  uint time = Time::GetInstance()->Read() - m_last_refresh;
 
   UpdatePosition();
 
   image->Update();
 
-  if (time >= m_time_between_scale) {  
+  if (time >= m_time_between_scale) {
 
     //assert(m_left_time_to_live > 0);
     if (m_left_time_to_live <= 0) return ;
@@ -74,7 +75,7 @@ void Particle::Refresh()
     if((float)lived_time<m_initial_time_to_live/2.0)
     {
       float coeff = sin((M_PI/2.0)*((float)lived_time/((float)m_initial_time_to_live/2.0)));
-      image->Scale(coeff,coeff);  
+      image->Scale(coeff,coeff);
       SetSize(image->GetSize());
       image->SetAlpha(1.0);
     }
@@ -94,49 +95,35 @@ bool Particle::StillUseful()
 }
 
 Smoke::Smoke() :
-  Particle()
+  Particle("smoke_particle")
 {
-  m_name="Smoke";
-  SetMass(0.5);
-  SetGravityFactor(-1.0);
-
   m_initial_time_to_live = 10;
-  m_left_time_to_live = m_initial_time_to_live; 
+  m_left_time_to_live = m_initial_time_to_live;
   m_time_between_scale = 100;
 }
 
 void Smoke::Init()
 {
-  Profile *res = resource_manager.LoadXMLProfile( "weapons.xml", false);
-  image = resource_manager.LoadSprite(res,"smoke"); 
-  resource_manager.UnLoadXMLProfile( res);
-   
   m_initial_time_to_live = 10;
-  m_left_time_to_live = m_initial_time_to_live; 
-
+  m_left_time_to_live = m_initial_time_to_live;
+  image = ParticleEngine::GetSprite(SMOKE_spr);
   image->Scale(0.0,0.0);
   SetSize( Point2i(1, 1) );
 }
 
 ExplosionSmoke::ExplosionSmoke(const uint size_init) :
-  Particle()
+  Particle("explosion_smoke_particle")
 {
-  m_name="ExplosionSmoke";
-  SetMass(0.5);
-
   m_initial_size = size_init;
   m_initial_time_to_live = 30;
-  m_left_time_to_live = m_initial_time_to_live; 
+  m_left_time_to_live = m_initial_time_to_live;
   m_time_between_scale = 25;
+  dx = 0;
 }
 
 void ExplosionSmoke::Init()
 {
-  Profile *res = resource_manager.LoadXMLProfile( "weapons.xml", false);
-  image = resource_manager.LoadSprite(res,"smoke_explosion"); 
-//  image->cache.EnableLastFrameCache();
-  resource_manager.UnLoadXMLProfile( res);
-   
+  image = ParticleEngine::GetSprite(EXPLOSION_SMOKE_spr);
   m_initial_time_to_live = 30;
   m_left_time_to_live = m_initial_time_to_live;
   mvt_freq = randomObj.GetDouble(-2.0, 2.0);
@@ -149,13 +136,13 @@ void ExplosionSmoke::Init()
 
 void ExplosionSmoke::Refresh()
 {
-  uint time = Time::GetInstance()->Read() - m_last_refresh; 
+  uint time = Time::GetInstance()->Read() - m_last_refresh;
 
   UpdatePosition();
 
   image->Update();
 
-  if (time >= m_time_between_scale) {  
+  if (time >= m_time_between_scale) {
     //assert(m_left_time_to_live > 0);
     if (m_left_time_to_live <= 0) return ;
 
@@ -173,45 +160,67 @@ void ExplosionSmoke::Refresh()
 
 void ExplosionSmoke::Draw()
 {
-  if (m_left_time_to_live > 0) 
+  if (m_left_time_to_live > 0)
     image->Draw(GetPosition()+Point2i(dx,0));
 }
 
 StarParticle::StarParticle() :
-  Particle()
+  Particle("star_particle")
 {
-  m_name="StarParticle";
-  SetMass(0.5);
-  SetGravityFactor(0.0);
-  m_wind_factor = 0.2;
   m_initial_time_to_live = 30;
-  m_left_time_to_live = m_initial_time_to_live; 
+  m_left_time_to_live = m_initial_time_to_live;
   m_time_between_scale = 50;
 }
 
 void StarParticle::Init()
 {
-  Profile *res = resource_manager.LoadXMLProfile( "weapons.xml", false);
-  image = resource_manager.LoadSprite(res,"star_particle"); 
-  resource_manager.UnLoadXMLProfile( res);
-
+  image = ParticleEngine::GetSprite(STAR_spr);
   image->Scale(0.0, 0.0);
   SetSize( Point2i(1, 1) );
+}
+
+MagicStarParticle::MagicStarParticle() :
+  Particle("magic_star_particle")
+{
+  m_initial_time_to_live = 30;
+  m_left_time_to_live = m_initial_time_to_live;
+  m_time_between_scale = 25;
+}
+
+void MagicStarParticle::Init()
+{
+  uint color=randomObj.GetLong(0,2);
+  switch(color)
+  {
+    case 0 : image = ParticleEngine::GetSprite(MAGIC_STAR_R_spr); break;
+    case 1 : image = ParticleEngine::GetSprite(MAGIC_STAR_Y_spr); break;
+    case 2 : image = ParticleEngine::GetSprite(MAGIC_STAR_B_spr); break;
+    default: assert(false);
+  }
+  image->Scale(0.0, 0.0);
+  SetSize( Point2i(1, 1) );
+}
+
+void MagicStarParticle::Refresh()
+{
+  uint time = Time::GetInstance()->Read() - m_last_refresh;
+  if (time >= m_time_between_scale) {
+    if (m_left_time_to_live <= 0) return ;
+    float lived_time = m_initial_time_to_live - m_left_time_to_live;
+    float coeff = sin((M_PI/2.0)*((float)lived_time/((float)m_initial_time_to_live)));
+    image->SetRotation_deg(coeff * 360.0);
+  }
+  Particle::Refresh();
 }
 
 ExplosiveWeaponConfig fire_cfg;
 
 FireParticle::FireParticle() :
-  Particle()
+  Particle("fire_particle")
 {
-  m_name="FireParticle";
-  SetMass(0.5);
   m_type = objCLASSIC;
-  m_rebounding = false;
-  m_wind_factor = 0.2;
-
   m_initial_time_to_live = 15;
-  m_left_time_to_live = m_initial_time_to_live; 
+  m_left_time_to_live = m_initial_time_to_live;
   m_time_between_scale = 50;
   fire_cfg.damage = 1;
   fire_cfg.explosion_range = 5;
@@ -219,10 +228,7 @@ FireParticle::FireParticle() :
 
 void FireParticle::Init()
 {
-  Profile *res = resource_manager.LoadXMLProfile( "weapons.xml", false);
-  image = resource_manager.LoadSprite(res,"fire_particle");
-  resource_manager.UnLoadXMLProfile( res);
-
+  image = ParticleEngine::GetSprite(FIRE_spr);
   image->Scale(0.0,0.0);
   SetSize( Point2i(1, 1) );
 }
@@ -231,7 +237,7 @@ void FireParticle::SignalFallEnding()
 {
   Point2i pos = GetCenter();
   ApplyExplosion (pos, fire_cfg, NULL, "", false, ParticleEngine::NoESmoke);
-  
+
   m_left_time_to_live = 0;
 }
 
@@ -248,7 +254,7 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
 				 double angle, double norme)
 {
   // time spent since last refresh (in milliseconds)
-  uint time = Time::GetInstance()->Read() - m_last_refresh; 
+  uint time = Time::GetInstance()->Read() - m_last_refresh;
   uint tmp = Time::GetInstance()->Read();
 
   uint delta = uint(m_time_between_add * double(randomObj.GetLong(3,40))/10);
@@ -259,12 +265,42 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
 }
 
 //-----------------------------------------------------------------------------
-// Static methods 
-  
-std::list<drawed_particle_t> ParticleEngine::lst_particles;
+// Static methods
+
+std::list<Particle*> ParticleEngine::lst_particles;
+Sprite* ParticleEngine::particle_sprite[particle_spr_nbr];
+
+void ParticleEngine::Init()
+{
+  // Pre-load the sprite of each particle
+  Profile *res = resource_manager.LoadXMLProfile( "weapons.xml", false);
+  particle_sprite[SMOKE_spr] = resource_manager.LoadSprite(res,"smoke");
+  particle_sprite[EXPLOSION_SMOKE_spr] = resource_manager.LoadSprite(res,"smoke_explosion");
+  particle_sprite[FIRE_spr]  = resource_manager.LoadSprite(res,"fire_particle");
+  particle_sprite[STAR_spr]  = resource_manager.LoadSprite(res,"star_particle");
+  particle_sprite[MAGIC_STAR_R_spr] = resource_manager.LoadSprite(res,"pink_star_particle");
+  particle_sprite[MAGIC_STAR_R_spr]->EnableRotationCache(32);
+  particle_sprite[MAGIC_STAR_Y_spr] = resource_manager.LoadSprite(res,"yellow_star_particle");
+  particle_sprite[MAGIC_STAR_Y_spr]->EnableRotationCache(32);
+  particle_sprite[MAGIC_STAR_B_spr] = resource_manager.LoadSprite(res,"blue_star_particle");
+  particle_sprite[MAGIC_STAR_B_spr]->EnableRotationCache(32);
+  resource_manager.UnLoadXMLProfile( res);
+}
+
+void ParticleEngine::FreeMem()
+{
+  for(int i=0; i<particle_spr_nbr ; i++)
+    delete global_particle_engine.particle_sprite[i];
+}
+
+Sprite* ParticleEngine::GetSprite(particle_spr type)
+{
+  assert(type < particle_spr_nbr);
+  return new Sprite(*(global_particle_engine.particle_sprite[type]));
+}
 
 void ParticleEngine::AddNow(const Point2i &position,
-			    uint nb_particles, particle_t type, 
+			    uint nb_particles, particle_t type,
 			    bool upper,
 			    double angle, double norme)
 {
@@ -273,35 +309,35 @@ void ParticleEngine::AddNow(const Point2i &position,
 
   for (uint i=0 ; i < nb_particles ; i++) {
     switch (type) {
-    case particle_SMOKE : particle = new Smoke();
-      break;
-    case particle_FIRE : particle = new FireParticle();
-      break;
-    case particle_STAR : particle = new StarParticle();
-      break;
-    default : particle = NULL;
-      break;
+      case particle_SMOKE : particle = new Smoke();
+                            break;
+      case particle_FIRE : particle = new FireParticle();
+                           break;
+      case particle_STAR : particle = new StarParticle();
+                           break;
+      case particle_MAGIC_STAR : particle = new MagicStarParticle();
+                                 break;
+      default : particle = NULL;
+                assert(0);
+                break;
     }
-  
+
     if (particle != NULL) {
       if( norme == -1 )
 		  tmp_norme = double(randomObj.GetLong(0, 5000))/1000;
-      else 
+      else
 		  tmp_norme = norme;
 
       if( angle == -1 )
 		  tmp_angle = - double(randomObj.GetLong(0, 3000))/1000;
-      else 
+      else
 		  tmp_angle = angle;
-      
-      drawed_particle_t p;
-      p.particle = particle;
-      p.upper_objects = upper;
-	
+
       particle->Init();
+      particle->SetOnTop(upper);
       particle->SetXY(position);
       particle->SetSpeed(tmp_norme, tmp_angle);
-      lst_particles.push_back(p);
+      lst_particles.push_back(particle);
     }
   }
 }
@@ -309,12 +345,11 @@ void ParticleEngine::AddNow(const Point2i &position,
 void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
 {
   //Add many little smoke particles
-
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
   const uint little_partic_nbr = 10;
   const float little_cos[] = { 1.000000, 0.809017, 0.309017, -0.309017, -0.809017, -1.000000, -0.809017, -0.309017, 0.309017, 0.809017 };
-  const float little_sin[] = { 0.000000, 0.587785, 0.951057, 0.951056, 0.587785, -0.000000, -0.587785, -0.951056, -0.951056, -0.587785 }; 
+  const float little_sin[] = { 0.000000, 0.587785, 0.951057, 0.951056, 0.587785, -0.000000, -0.587785, -0.951056, -0.951056, -0.587785 };
 
   Particle *particle = NULL;
   float norme;
@@ -325,19 +360,18 @@ void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
 //      angle = (float) i * M_PI * 2.0 / (float) little_partic_nbr;
       size = uint(radius / 1.5);
       norme = 2.5 * radius / 3.0;
+
       particle = new ExplosionSmoke(size);
-      drawed_particle_t p;
-      p.particle = particle;
-      p.upper_objects = true;
+      particle->Init();
+      particle->SetOnTop(true);
 
       Point2i pos = position; //Set position to center of explosion
       pos = pos - size / 2;       //Set the center of the smoke to the center..
       pos = pos + Point2i(int(norme * little_cos[i]),int(norme * little_sin[i])); //Put inside the circle of the explosion
 
-      particle->Init();
       particle->SetXY(pos);
-      lst_particles.push_back(p);
-  }    
+      lst_particles.push_back(particle);
+  }
 }
 
 void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius)
@@ -358,17 +392,15 @@ void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius
       size = radius;
       norme = radius / 3.0;
       particle = new ExplosionSmoke(size);
-      drawed_particle_t p;
-      p.particle = particle;
-      p.upper_objects = true;
+      particle->Init();
+      particle->SetOnTop(true);
 
       Point2i pos = position; //Set position to center of explosion
       pos = pos - size / 2;       //Set the center of the smoke to the center..
       pos = pos + Point2i(int(norme * big_cos[i]),int(norme * big_sin[i])); //Put inside the circle of the explosion
 
-      particle->Init();
       particle->SetXY(pos);
-      lst_particles.push_back(p);
+      lst_particles.push_back(particle);
   }
 }
 
@@ -381,11 +413,11 @@ void ParticleEngine::AddExplosionSmoke(const Point2i &position, const uint &radi
 
 void ParticleEngine::Draw(bool upper)
 {
-  std::list<drawed_particle_t>::iterator it;
+  std::list<Particle *>::iterator Particle_it;
   // draw the particles
-  for (it=lst_particles.begin(); it!=lst_particles.end(); ++it){
-    if ( (*it).upper_objects == upper ) {
-      (*it).particle->Draw();
+  for (Particle_it=lst_particles.begin(); Particle_it!=lst_particles.end(); ++Particle_it){
+    if ( (*Particle_it)->IsOnTop() == upper) {
+      (*Particle_it)->Draw();
     }
   }
 
@@ -393,37 +425,30 @@ void ParticleEngine::Draw(bool upper)
 
 void ParticleEngine::Refresh()
 {
-  // remove old particles 
-  std::list<drawed_particle_t>::iterator it=lst_particles.begin(), end=lst_particles.end(), current;
+  // remove old particles
+  std::list<Particle*>::iterator it=lst_particles.begin(), end=lst_particles.end();
   while (it != end) {
-    current = it;
-    ++it;
-
-    if (! (*current).particle->StillUseful()) {
-      delete (*current).particle;
-      lst_particles.erase(current);
-      if (it==end) break;
-    }   
+    if (! (*it)->StillUseful()) {
+      delete *it;
+      it = lst_particles.erase(it);
+    }
+    else
+      it++;
   }
 
   // update the particles
   for(it=lst_particles.begin(); it!=lst_particles.end(); ++it) {
-    (*it).particle->Refresh();
+    (*it)->Refresh();
   }
 }
 
 void ParticleEngine::Stop()
 {
-  // remove all the particles 
-  std::list<drawed_particle_t>::iterator it=lst_particles.begin(), end=lst_particles.end(), current;
+  // remove all the particles
+  std::list<Particle*>::iterator it=lst_particles.begin(), end=lst_particles.end();
   while (it != end) {
-    current = it;
-    ++it;
-    
-    delete (*current).particle;
-    lst_particles.erase(current);
-    if (it==end)
-      break;
+    delete *it;
+    it = lst_particles.erase(it);
   }
 }
 

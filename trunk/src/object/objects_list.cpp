@@ -44,8 +44,11 @@ void ObjectsList::Init()
   {
     ObjMine *obj = new ObjMine(*MineConfig::GetInstance());
 
-    obj -> SetXY ( randomObj.GetPoint( Rectanglei(0, 0, world.GetWidth(), 1) ) );
-    AddObject (obj);
+    if (obj->PutRandomly(false, MineConfig::GetInstance()->detection_range * 40 *1.5 ))
+      // 40 is current PIXEL_PER_METER and detection range is in meter
+      AddObject (obj);
+    else
+      delete obj;
   }
 }
 
@@ -56,16 +59,29 @@ void ObjectsList::AddObject (PhysicalObj* obj)
   lst.push_back (object_t(obj,false));
 }
 
+ObjectsList::~ObjectsList()
+{
+
+  std::list<object_t>::iterator object;
+  for (object = lst.begin();
+       object != lst.end();
+       ++object) {
+    if((*object).ptr)
+      delete (*object).ptr;
+  }
+}
+
 //-----------------------------------------------------------------------------
 
 void ObjectsList::RemoveObject (PhysicalObj* obj)
 {
   FOR_EACH_OBJECT(it)
   {
-    if ( it->ptr == obj) 
+    if ( it->ptr == obj)
     {
       it->to_remove = true;
-      camera.StopFollowingObj(obj);
+      // please, do not call camera.StopFollowingObj(obj) here,
+      // because we want to see the end of an explosion when removing projectiles
       return;
     }
   }

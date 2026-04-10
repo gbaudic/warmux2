@@ -37,8 +37,7 @@ SuperTux::SuperTux(SuperTuxWeaponConfig& cfg) :
   WeaponProjectile ("supertux", cfg), 
   particle_engine(40)
 {
-  m_gravity_factor = 0.0;    
-  SetWindFactor(0.0);
+  explode_colliding_character = true;
 }
 
 void SuperTux::Shoot(double strength)
@@ -46,7 +45,10 @@ void SuperTux::Shoot(double strength)
   Ready();
   is_active = true;
 
-  // Set the initial position.  
+  // Set physics constants.
+  ResetConstants();
+
+  // Set the initial position.
   SetXY( ActiveCharacter().GetHandPosition() );
 
   // Fixe la force de départ

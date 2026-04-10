@@ -28,38 +28,53 @@
 #include <list>
 //-----------------------------------------------------------------------------
 
+/*
+ * Class Message
+ * derivated from Text
+ * Stores a Text and a date (typically the date of creation of the message)
+ */
+class Message : public Text
+{
+  public:
+    Message(const std::string &new_txt,
+            const Color &new_color, Font* new_font,
+            uint _time) :
+      Text(new_txt, new_color, new_font),
+      time(_time) {};
+    inline uint get_time()
+    { return time; }
+  private:
+    uint time;
+};
+/*
+ * class GameMessages
+ * stores and displays messages on the screen
+ *
+ * use
+ * void Add(const std::string &message)
+ * to add a message
+ */
 class GameMessages
 {
-public:
-  typedef struct message_t
-  {
-    Text * text;
-    uint time;
-    message_t (Text * t, Text * t2, uint _time) { text = t; time = _time; }
-  } message_t;
-  std::list<message_t> liste;
-  typedef std::list<message_t>::iterator iterator;
-
- private:
-  static GameMessages * singleton;
-
  public:
   static GameMessages * GetInstance();
 
-  // Remise a zéro
+  // remove all messages
   void Reset();
-  
-  // Affiche tous les messages
+
+  // display all messages in list
   void Draw();
 
-  // Actualisation : Supprime les anciens messages
+  // Remove too old messages
   void Refresh();
 
-  // Ajoute un message
-  // [titre] message
+  // Add a message
   void Add(const std::string &message);
 
  private:
+  std::list<Message *> liste;
+  typedef std::list<Message *>::iterator iterator;
+  static GameMessages * singleton;
   GameMessages();
 };
 

@@ -21,14 +21,13 @@
 
 #include "network.h"
 //-----------------------------------------------------------------------------
+#include <SDL_net.h>
+#include <SDL_thread.h>
 #include "../include/action_handler.h"
+#include "../tool/debug.h"
+#include "../tool/i18n.h"
 //-----------------------------------------------------------------------------
-
-#ifdef DEBUG
-#define COUT_DBG std::cout<<"[Network] "
-#define DBG_MSG
-#include <iostream>
-#endif
+const uint packet_max_size = 100;
 
 //-----------------------------------------------------------------------------
 Network network;
@@ -36,252 +35,275 @@ Network network;
 
 Network::Network()
 {
-	m_is_connected = false;
-	m_is_server = false;
-	m_is_client = false;
-	state = NETWORK_NOT_CONNECTED;
-#ifdef CL
-	session = NULL;
-#endif
+  thread = NULL;
+  m_is_connected = false;
+  m_is_server = false;
+  m_is_client = false;
+  state = NETWORK_NOT_CONNECTED;
+}
+
+//-----------------------------------------------------------------------------
+int net_thread_func(void* no_param)
+{
+  network.ReceiveActions();
+  return 1;
 }
 
 //-----------------------------------------------------------------------------
 
 void Network::Init()
 {
-#ifdef CL
-	if (session != NULL) return;
-	session = new CL_NetSession("Wormux");
-#endif
+  assert(thread == NULL);
+  if (SDLNet_Init()) {
+      Error(_("Fail to initialize network library!"));
+  }
+  thread = SDL_CreateThread( &net_thread_func, NULL);
 }
 
 //-----------------------------------------------------------------------------
 
 Network::~Network() 
 {
-#ifdef CL
-	delete session;
-#endif
+  SDLNet_Quit();
 }
-
-//-----------------------------------------------------------------------------
-
-#ifdef CL
-CL_NetSession& Network::GetSession()
-{
-	assert (session != NULL);
-	return *session;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 
 void Network::disconnect() 
 {
-	if( m_is_server ) {
-#ifdef CL
-		GetSession().get_all().disconnect();
-		GetSession().stop_listen();
-#endif
-	} else {
-#ifdef CL
-		server.disconnect();
-#endif
-	}
-	m_is_connected = false;
-	m_is_server = false;
-	m_is_client = false;
+  if(m_is_server)
+    SDLNet_TCP_Close(client);
+
+  SDLNet_TCP_Close(socket);
+
+  m_is_connected = false;
+  m_is_server = false;
+  m_is_client = false;
 }
 
 //-----------------------------------------------------------------------------
 
 void Network::client_connect(const std::string &host, const std::string& port) 
 {
-	Init();
-#ifdef DBG_MSG
-	COUT_DBG << "Client connect to " << host << ":" << port << std::endl;
-#endif
-	m_is_client = true;
-	m_is_server = false;
-	state = NETWORK_WAIT_SERVER;
-#ifdef CL
-	server = GetSession().connect(CL_IPAddress(host, port));
- 	slots.connect(GetSession().sig_computer_disconnected(), this, &Network::client_on_disconnect);
-	slots.connect(GetSession().sig_netpacket_receive("lobby"), this, &Network::client_on_receive_lobby);
-	slots.connect(GetSession().sig_netpacket_receive("game"), this, &Network::client_on_receive_action);
-#endif
+  MSG_DEBUG("network", "Client connect to %s:%s", host.c_str(), port.c_str());
+
+  m_is_client = true;
+  m_is_server = false;
+  state = NETWORK_WAIT_SERVER;
+
+  int prt=0;
+  IPaddress ip;
+  sscanf(port.c_str(),"%i",&prt);
+
+  if(SDLNet_ResolveHost(&ip,host.c_str(),prt)==-1)
+  {
+    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
+    exit(1);
+  }
+
+  socket = SDLNet_TCP_Open(&ip);
+
+  if(!socket)
+  {
+    printf("SDLNet_TCP_Open: %s\n", SDLNet_GetError());
+    exit(2);
+  }
+
 	m_is_connected = true;
+
+  printf("\nConnected\n");
 }
 
-//-----------------------------------------------------------------------------
-
-#ifdef CL
-void Network::client_on_disconnect(CL_NetComputer &computer) 
-{
-#ifdef DBG_MSG
-	COUT_DBG << "client_on_disconnect" << std::endl;
-#endif
-	m_is_connected = false;
-	state = NETWORK_NOT_CONNECTED;
-}
-
-//-----------------------------------------------------------------------------
-
-void Network::client_on_receive_lobby(CL_NetPacket &packet, 
-		                              CL_NetComputer &computer)
-{
-}
-
-//-----------------------------------------------------------------------------
-
-void Network::client_on_receive_action(CL_NetPacket &packet, 
- 		                              CL_NetComputer &computer) 
-{
-	Action *a = make_action(packet);
-	ActionHandler::GetInstance()->NewAction(*a, false);
-	delete a;
-}
-#endif //CL
 //-----------------------------------------------------------------------------
 
 void Network::server_start(const std::string &port) 
 {
-	Init();
-#ifdef DBG_MSG
-	COUT_DBG << "Start server on port " << port << "." << std::endl;
-#endif
-	m_is_connected = true;
-	m_is_server = true;
-	m_is_client = false;
-	state = NETWORK_WAIT_CLIENTS;
-#ifdef CL
-	slots.connect(GetSession().sig_computer_connected(), this, &Network::server_on_connect);
- 	slots.connect(GetSession().sig_computer_disconnected(), this, &Network::server_on_disconnect);
- 	slots.connect(GetSession().sig_netpacket_receive("lobby"), this, &Network::server_on_receive_lobby);
- 	slots.connect(GetSession().sig_netpacket_receive("game"), this, &Network::server_on_receive_action);
- 	GetSession().start_listen(port);
-#endif
+  // The server starts listening for clients
+  MSG_DEBUG("network", "Start server on port %s", port.c_str());
+
+  m_is_server = true;
+  m_is_client = false;
+  state = NETWORK_WAIT_CLIENTS;
+
+  // Convert port number (std::string port) into SDL port number format:
+  IPaddress ip;
+  int prt;
+  sscanf(port.c_str(),"%i",&prt);
+
+  if(SDLNet_ResolveHost(&ip,NULL,prt)==-1)
+  {
+    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
+    exit(1);
+  }
+
+  // Open the port to listen to
+  socket = SDLNet_TCP_Open(&ip);
+
+  if(!socket)
+  {
+    printf("SDLNet_TCP_Open: %s\n", SDLNet_GetError());
+    exit(2);
+  }
+
+  // Wait for an incoming connection
+  do
+  {
+    client = SDLNet_TCP_Accept(socket);
+    printf("Waiting for client ... \n");
+    SDL_Delay(1000);
+  } while(!client);
+
+  SDLNet_TCP_Close(socket);
+  m_is_connected = true;
+  printf("\nConnected\n");
+  state = NETWORK_SERVER_INIT_GAME;
 }
 
-//-----------------------------------------------------------------------------
-#ifdef CL
-
-void Network::server_on_connect(CL_NetComputer &computer) 
-{
-#ifdef DBG_MSG
-  COUT_DBG << "Server_on_connect" << std::endl;
-#endif
-}
-
-//-----------------------------------------------------------------------------
-void Network::server_on_disconnect(CL_NetComputer &computer) 
-{	
-#ifdef DBG_MSG
-  COUT_DBG << "Server_on_disconnect" << std::endl;
-#endif
-	state = NETWORK_NOT_CONNECTED;
-}
-
-//-----------------------------------------------------------------------------
-
-void Network::server_on_receive_lobby(CL_NetPacket &packet, CL_NetComputer &computer) 
-{
-}
-
-//-----------------------------------------------------------------------------
-
-void Network::server_on_receive_action(CL_NetPacket &packet, CL_NetComputer &computer)
-{
-#ifdef DBG_MSG
-	COUT_DBG << "Server received packet." << std::endl;
-#endif
-	// Add the Action to the stack
-	Action *a = make_action(packet);
-	ActionHandler::GetInstance()->NewAction(*a, false);
-	delete a;
-
-	// Resend to other computers the packet
-	CL_NetGroup grp = GetSession().get_all();
-	grp.remove( computer );
-	grp.send("game", packet);
-}
-#endif //CL
 //-----------------------------------------------------------------------------
 
 // Send Messages
-void Network::send_action(const Action &action) 
+void Network::SendAction(const Action &action) 
 {
-	if (!m_is_connected) return;
+  if (!m_is_connected) return;
 
-	if (m_is_server) {
-#ifdef CL
-	// Send to Clients
-		CL_NetPacket p = make_packet(action);
-		GetSession().get_all().send("game", p);
-#endif
-	} else {
-#ifdef CL
-	// Send to Server
-		CL_NetPacket msg = make_packet(action);
-		server.send("game",msg);
-#endif
-	}
+  char size = packet_max_size;
+  Uint32 packet[packet_max_size];
+  memset(packet,0,packet_max_size);
+  action.Write(packet);
+
+  assert(*((char*)packet) != 0 );
+
+  if(m_is_client)
+  {
+    SDLNet_TCP_Send(socket, &size, 1);
+    SDLNet_TCP_Send(socket, packet, packet_max_size);
+  }
+  else
+  {
+    SDLNet_TCP_Send(client, &size, 1);
+    SDLNet_TCP_Send(client, packet, 100);
+  }
+  std::cout << "sending " << action << std::endl;
 }
 
 //-----------------------------------------------------------------------------
-#ifdef CL
-CL_NetPacket Network::make_packet(const Action &action) 
+// Send Messages
+void Network::ReceiveActions() 
 {
-	CL_NetPacket packet;
-	action.Write (packet.output);
-	return packet;
+	while (!m_is_connected) SDL_Delay(1000);
+
+  Uint32 packet[packet_max_size];
+  memset(packet,0, packet_max_size);
+
+  int received, i;
+  char packet_size = 0;
+
+  if(m_is_client)
+  {
+    do
+    {
+      packet_size = 0;
+      i = 0;
+      // Read the size of the packet
+      while(SDLNet_TCP_Recv(socket, &packet_size, 1) <= 0) SDL_Delay(10); //Loop while nothing is received
+
+      // Fill the packet while it didn't reached its size
+      memset(packet,0, packet_max_size);
+      while(packet_size != i)
+      {
+        received = SDLNet_TCP_Recv(socket, packet+i, packet_size - i);
+        if(received > 0)
+        {
+          i+=received;
+        }
+      }
+
+      Action* a = make_action((Uint32*)packet);
+      std::cout << "received " << *a << " (" << (int)packet_size << " octets)" << std::endl;
+      ActionHandler::GetInstance()->NewAction(*a, false);
+      delete a;
+    } while(m_is_connected);
+  }
+  else
+  {
+    do
+    {
+      packet_size = 0;
+      i = 0;
+      // Read the size of the packet
+      while(SDLNet_TCP_Recv(client, &packet_size, 1) <= 0) SDL_Delay(10); //Loop while nothing is received
+
+      // Fill the packet while it didn't reached its size
+      memset(packet,0, packet_max_size);
+      while(packet_size != i)
+      {
+        received = SDLNet_TCP_Recv(client, packet+i, packet_size - i);
+        if(received > 0)
+        {
+          i+=received;
+        }
+      }
+
+      Action* a = make_action((Uint32*)packet);
+      std::cout << "received " << *a << " (" << (int)packet_size << " octets)" << std::endl;
+      ActionHandler::GetInstance()->NewAction(*a, false);
+      delete a;
+    } while(m_is_connected);
+  }
 }
 
 //-----------------------------------------------------------------------------
 
-Action* Network::make_action(CL_NetPacket &packet) 
+Action* Network::make_action(Uint32* packet)
 {
-	CL_InputSource_NetPacket &input = packet.input;
-	Action_t type = (Action_t)input.read_int32 ();
-	
-	switch(type)
-	{
-	case ACTION_MOVE_CHARACTER:
-	case ACTION_SHOOT:
-		return new ActionInt2(type, input);
-		
-	case ACTION_CHANGE_CHARACTER:
-	case ACTION_CHANGE_WEAPON:
-	case ACTION_WIND:
-	case ACTION_SET_CHARACTER_DIRECTION:
-		return new ActionInt(type, input);
-		
-	case ACTION_SET_GAME_MODE:
-	case ACTION_SET_MAP:
-	case ACTION_CHANGE_TEAM:
-	case ACTION_NEW_TEAM:
-	case ACTION_SEND_VERSION:
-	case ACTION_SEND_TEAM:
-		return new ActionString(type, input);
+  Action_t type = (Action_t)(packet[0]);
+  Uint32* input = &packet[1];
 
-	case ACTION_WALK:
-	case ACTION_MOVE_LEFT:
-	case ACTION_MOVE_RIGHT:
-	case ACTION_JUMP:
-	case ACTION_SUPER_JUMP:
-	case ACTION_UP:
-	case ACTION_DOWN:
-	case ACTION_CLEAR_TEAMS:
-	case ACTION_START_GAME:
-	case ACTION_ASK_VERSION:
-		return new Action(type);
+  switch(type)
+  {
+  case ACTION_SHOOT:
+    return new ActionDoubleInt(type, input);
 
-	default: 
-		assert(false);
-		return new Action(type);
-	}
+  case ACTION_SEND_RANDOM:
+    return new ActionDouble(type, input);
+
+  case ACTION_MOVE_CHARACTER:
+    return new ActionInt2(type, input);
+
+  case ACTION_CHANGE_CHARACTER:
+  case ACTION_CHANGE_WEAPON:
+  case ACTION_WIND:
+  case ACTION_SET_CHARACTER_DIRECTION:
+  case ACTION_SET_FRAME:
+    return new ActionInt(type, input);
+
+  case ACTION_SET_GAME_MODE:
+  case ACTION_SET_MAP:
+  case ACTION_CHANGE_TEAM:
+  case ACTION_NEW_TEAM:
+  case ACTION_SEND_VERSION:
+  case ACTION_SEND_TEAM:
+  case ACTION_SET_SKIN:
+    return new ActionString(type, input);
+
+  case ACTION_MOVE_LEFT:
+  case ACTION_MOVE_RIGHT:
+  case ACTION_JUMP:
+  case ACTION_HIGH_JUMP:
+  case ACTION_UP:
+  case ACTION_DOWN:
+  case ACTION_CLEAR_TEAMS:
+  case ACTION_START_GAME:
+  case ACTION_ASK_VERSION:
+    return new Action(type);
+
+  case ACTION_WALK:
+  default:
+    assert(false);
+    return new Action(type);
+  }
 }
-#endif //CL
+
 //-----------------------------------------------------------------------------
 
 bool Network::is_connected() { return m_is_connected; }
@@ -290,4 +312,3 @@ bool Network::is_server() { return m_is_server; }
 bool Network::is_client() { return m_is_client; }
 
 //-----------------------------------------------------------------------------
-

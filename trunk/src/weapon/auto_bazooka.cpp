@@ -47,13 +47,12 @@ RoquetteTeteCherche::RoquetteTeteCherche(ExplosiveWeaponConfig& cfg) :
   WeaponProjectile("rocket", cfg)
 {
   m_attire = false;
-  SetGravityFactor(0.0);
+  explode_colliding_character = true;
 }
 
 void RoquetteTeteCherche::Shoot (double strength) 
 {
   WeaponProjectile::Shoot(strength);
-
   angle_local=ActiveTeam().crosshair.GetAngleRad();
 }
 
@@ -141,6 +140,8 @@ void AutomaticBazooka::Refresh()
 void AutomaticBazooka::p_Select()
 {
   cible.choisie = false;
+  
+  Mouse::GetInstance()->SetPointer(POINTER_AIM);
 }
 
 void AutomaticBazooka::p_Deselect()
@@ -152,6 +153,8 @@ void AutomaticBazooka::p_Deselect()
 				   cible.image.GetWidth(),
 				   cible.image.GetHeight()));
   }
+
+  Mouse::GetInstance()->SetPointer(POINTER_SELECT);
 }
 
 void AutomaticBazooka::ChooseTarget()

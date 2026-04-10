@@ -175,9 +175,6 @@ OptionMenu::OptionMenu() :
 
 OptionMenu::~OptionMenu()
 {
-  delete graphic_options;
-  delete sound_options;
-  delete game_options;
 }
 
 void OptionMenu::OnClic(const Point2i &mousePosition, int button)

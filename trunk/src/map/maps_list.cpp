@@ -20,19 +20,15 @@
  *****************************************************************************/
 
 #include "maps_list.h"
-#include <iostream>
 #include "map.h"
 #include "../game/config.h"
+#include "../tool/debug.h"
 #include "../tool/file_tools.h"
 #include "../tool/i18n.h"
+#include <iostream>
 #if !defined(WIN32) || defined(__MINGW32__)
 #include <dirent.h>
 #include <sys/stat.h>
-#endif
-
-#ifdef DEBUG
-//#  define VERBOSE_MAP_LOADING
-#  define DBG_COUT std::cout << "[Map " << name << "] "
 #endif
 
 ListeTerrain lst_terrain;
@@ -43,7 +39,6 @@ InfoTerrain::InfoTerrain ()
   nb_mine = 0;
   wind.nb_sprite = 0;
   wind.need_flip = false;
-  wind.particle_air_resist_factor = 1.0;
   infinite_bg = false;
 }
 
@@ -81,9 +76,7 @@ bool InfoTerrain::Init (const std::string &map_name,
     return false;
   }
  
-#ifdef VERBOSE_MAP_LOADING
-  DBG_COUT << "Map loaded." << std::endl;
-#endif
+  MSG_DEBUG("map.load", "Map loaded: %s", map_name.c_str());
 
   return true;
 }
@@ -125,7 +118,7 @@ bool InfoTerrain::TraiteXml (xmlpp::Element *xml)
   LitDocXml::LitBool (xml, "water", use_water);
   LitDocXml::LitUint (xml, "nb_mine", nb_mine);
   LitDocXml::LitBool (xml, "is_open", is_opened);
-  LitDocXml::LitBool (xml, "infinite_background", infinite_bg);
+//  LitDocXml::LitBool (xml, "infinite_background", infinite_bg);
 
   if(!is_opened && infinite_bg)
   {
@@ -137,14 +130,6 @@ bool InfoTerrain::TraiteXml (xmlpp::Element *xml)
   if (xmlwind != NULL)
   {
     LitDocXml::LitUint (xmlwind, "nbr_sprite", wind.nb_sprite);
-    LitDocXml::LitDouble (xmlwind, "mass", wind.particle_mass);
-    if(wind.particle_mass<0.1)
-    {
-      printf("\n%s\n",_("Warning! Winds particles mass is too low! Set by default to 0.3"));
-      wind.particle_mass = 0.1;
-    }
-    LitDocXml::LitDouble (xmlwind, "wind_factor", wind.particle_wind_factor);
-    LitDocXml::LitDouble (xmlwind, "air_resist_factor", wind.particle_air_resist_factor);
     LitDocXml::LitBool (xmlwind, "need_flip", wind.need_flip);
 
     if (wind.nb_sprite > MAX_WIND_OBJECTS)
@@ -161,13 +146,11 @@ void InfoTerrain::LoadData(){
   if (m_donnees_chargees)
     return;
   m_donnees_chargees = true;
-
-#ifdef VERBOSE_MAP_LOADING
-  DBG_COUT << "Map data loaded." << std::endl;
-#endif
+ 
+  MSG_DEBUG("map.load", "Map data loaded: %s", name.c_str());
 
   img_terrain = resource_manager.LoadImage(res_profile, "map");
-  img_ciel = resource_manager.LoadImage(res_profile,"sky");   
+  img_ciel = resource_manager.LoadImage(res_profile,"sky");
 }
 
 void InfoTerrain::FreeData(){
@@ -302,10 +285,6 @@ void ListeTerrain::ChangeTerrain (uint index){
     return;
 
   terrain_actif = index;
-  //monde.terrain.terrain_charge = false;
-  //monde.terrain.Init();
-  //monde.ciel.charge = false;
-  //monde.ciel.Init();
 }
 
 InfoTerrain& ListeTerrain::TerrainActif(){

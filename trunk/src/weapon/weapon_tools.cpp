@@ -64,7 +64,7 @@ void ApplyExplosion (const Point2i &pos,
     double distance, angle;
     distance = MeterDistance (pos, ver -> GetCenter());
 
-    MSG_DEBUG("explosion", "\n*Character %s : distance= %e", ver->m_name.c_str(), distance);
+    MSG_DEBUG("explosion", "\n*Character %s : distance= %e", ver->GetName().c_str(), distance);
 
     // If the worm is in the explosion range, apply damage on it !
     if (distance <= range)
@@ -98,7 +98,7 @@ void ApplyExplosion (const Point2i &pos,
 //      camera.ChangeObjSuivi ((PhysicalObj*)&ver, true, true);
       cam_follow_character = true;
       ver -> AddSpeed (force, angle);
-      ver -> UpdatePosition();
+//      ver -> UpdatePosition();
     } else {
 
       MSG_DEBUG("explosion", " -> too far");
@@ -131,7 +131,7 @@ void ApplyExplosion (const Point2i &pos,
       if(!cam_follow_character)
         camera.ChangeObjSuivi (obj->ptr, true, true);
       obj -> ptr -> AddSpeed (distance, angle);
-      obj -> ptr -> UpdatePosition();
+//      obj -> ptr -> UpdatePosition();
     }
   }
 

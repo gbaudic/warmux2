@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.7], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.7.2], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -72,18 +72,28 @@ AC_ARG_ENABLE([static],
 #       fi
 #fi
 
-DATADIR="/usr/share/wormux"
+if test "x${prefix}" = "xNONE"; then
+  prefix="${ac_default_prefix}"
+fi
+
+DATADIR="${prefix}/share/wormux"
 AC_ARG_WITH(datadir-name,
-    [  --with-datadir-name=DIR       specify where datas are installed (default: /usr/share/wormux)],
+    [  --with-datadir-name=DIR       specify where datas are installed (default: ${prefix}/share/wormux)],
     [DATADIR="$withval"])
 AC_SUBST([DATADIR])
 	
 
-LOCALEDIR="/usr/share/locale"
+LOCALEDIR="${prefix}/share/locale"
 AC_ARG_WITH(localedir-name,
-    [  --with-localedir-name=DIR       specify where locales are installed (default: /usr/share/locale)],
+    [  --with-localedir-name=DIR       specify where locales are installed (default: ${prefix}/share/locale)],
     [LOCALEDIR="$withval"])
 AC_SUBST([LOCALEDIR])
+		
+FONTFILE="\${DATADIR}/font/DejaVuSans.ttf"
+AC_ARG_WITH(font-path,
+    [  --with-font-path=FILE       specify the font file (default: ${datadir}/font/DejaVuSans.ttf)],
+    [FONTFILE="$withval"])
+AC_SUBST([FONTFILE])
 		
 AM_CONDITIONAL([STATIC], [test x$static = xyes])
 AM_CONDITIONAL([GCC], [test x$GXX = xyes])
@@ -165,6 +175,12 @@ dnl === Check for SDL_ttf ==================================================
 AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],, 
         AC_MSG_ERROR([SDL_ttf library is required]))
 LIBS="$LIBS -lSDL_ttf"
+
+dnl === Check for SDL_net ==================================================
+
+AC_CHECK_LIB([SDL_net], [SDLNet_Init],, 
+        AC_MSG_ERROR([SDL_net library is required]))
+LIBS="$LIBS -lSDL_net"
 
 dnl === Check for SDL_gfx ==================================================
 
@@ -264,6 +280,7 @@ AM_PO_SUBDIRS
 AC_CONFIG_FILES([Makefile
 		 data/Makefile
 		 src/Makefile
+		 doc/Makefile
 		 ])
 
 AC_CONFIG_FILES([po/Makefile], [AM_POSTPROCESS_PO_MAKEFILE])
@@ -278,6 +295,7 @@ Configuration complete
 
 * Game data will be installed into $DATADIR
 * Game locale will be installed into $LOCALEDIR
+* Font file will be $FONTFILE
 
 Execute make to compile then execute make install to install...
 

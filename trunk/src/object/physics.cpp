@@ -39,7 +39,7 @@ const double AIR_RESISTANCE_FACTOR = 14 ;
 const double PHYS_DELTA_T = 0.01 ;         // Physical simulation time step
 const double PENDULUM_REBOUND_FACTOR = 0.8 ;
 
-Physics::Physics (double mass)
+Physics::Physics ()
 {
   m_extern_force.Clear();
   m_pos_x.Clear();
@@ -50,27 +50,23 @@ Physics::Physics (double mass)
   m_rope_angle.Clear();
   m_rope_length.Clear();
   
-  m_rebounding = false;
-  m_rebound_factor = 0.01;
-  
   m_rope_elasticity = 10.0 ;
   m_elasticity_damping = 0.20 ;
   m_balancing_damping = 0.40 ;
 
-  m_air_resist_factor = 1.0;
-  m_wind_factor = 1.0;
-
   m_motion_type = NoMotion ;
-
-  m_gravity_factor = 1.0;
   m_elasticity_off = true;
 
-  SetMass(mass);
   m_last_move = Time::GetInstance()->Read() ;
 }
 
-Physics::~Physics ()
-{}
+void Physics::ResetConstants()
+{
+  // Load the constants (mass, air_resistance...) into the object
+  *((ObjectConfig*)this) = m_cfg;
+}
+
+Physics::~Physics () {}
 
 //---------------------------------------------------------------------------//
 //--                         Class Parameters SET/GET                      --//
@@ -108,15 +104,10 @@ void Physics::SetPhysSize (double width, double height)
   m_phys_height = height ;
 }
 
-// Set / Get positions
+// Set positions
 void Physics::SetMass(double mass)
 {
   m_mass = mass ;
-}
-
-double Physics::GetMass() const
-{
-  return m_mass ;
 }
 
 // Set the wind factor
@@ -125,7 +116,7 @@ void Physics::SetWindFactor (double factor)
   m_wind_factor = factor;
 }
 
-// Set the wind factor
+// Set the air resist factor
 void Physics::SetAirResistFactor (double factor)
 { 
   m_air_resist_factor = factor;

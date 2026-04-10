@@ -48,7 +48,6 @@ Menu::Menu(char * bg){
 
 Menu::~Menu(){
   delete background;
-  delete actions_buttons;
 }
 
 void Menu::sig_ok(){

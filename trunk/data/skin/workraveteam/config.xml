@@ -15,6 +15,11 @@
   <hand frame="*" x="6" y="28" /> 
 </sprite>
 
+<sprite name="black">
+  <image file="black.png" />
+  <collision_rect dx="0" top="0" bottom="0" />
+</sprite>
+
 <sprite name="helmet">
   <image file="helmet.png">
     <grid pos="0,0" size="26,46" array="4,1" />
@@ -28,8 +33,7 @@
   <image file="jetpack-fly-move.png">
     <grid size="27,46" array="2,1" />
   </image>
-  <frame speed="100" />
-  <animation pingpong="yes"/>
+  <animation speed="100" loop_mode="pingpong"/>
   <collision_rect dx="10" top="1" bottom="0" />
 </sprite>
 
@@ -51,8 +55,7 @@
   <image file="jetpack-fly-move.png">
     <grid size="27,46" array="2,1" />
   </image>
-  <frame speed="50" />
-  <animation pingpong="yes"/>
+  <animation speed="50" loop_mode="pingpong"/>
   <collision_rect dx="10" top="1" bottom="0" />
 </sprite>
 
@@ -60,8 +63,7 @@
   <image file="jetpack-fly-move.png">
     <grid size="27,46" array="2,1" />
   </image>
-  <frame speed="50" />
-  <animation pingpong="yes"/>
+  <animation speed="50" loop_mode="pingpong"/>
   <collision_rect dx="10" top="1" bottom="0" />
 </sprite>
 
@@ -70,7 +72,7 @@
   <image file="animation.png">
     <grid pos="0,0" size="26,44" array="3,1" />
   </image>
-  <frame speed="2000" />
+  <animation speed="2000" />
   <collision_rect dx="10" top="1" bottom="0" />
 </sprite>
 

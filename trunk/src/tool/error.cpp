@@ -29,6 +29,19 @@
 #include <unistd.h>
 #endif
 
+void WakeUpDebugger()
+{
+
+#ifdef LOVE_HAYPO_HACKS
+  // Generate SIGTRAP
+  asm ("int $0x03");
+#endif
+    
+#if !defined WIN32
+  kill (getpid(), SIGABRT);
+#endif
+}
+
 void MissedAssertion (const char *filename, unsigned long line,
 		       const char *message)
 {
@@ -36,10 +49,10 @@ void MissedAssertion (const char *filename, unsigned long line,
   std::cerr << filename << ':' << line 
 	    << ": Missed assertion \"" << message << "\"."
 	    << std::endl;
-#if defined DEBUG && !defined WIN32
-  kill (getpid(), SIGABRT);
-#endif
+#if defined DEBUG
+  WakeUpDebugger();
   abort();
+#endif
 }
 
 CError::CError (const char *filename, unsigned long line, 

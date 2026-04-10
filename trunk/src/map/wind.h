@@ -37,7 +37,7 @@ public:
   Sprite *sprite;
      
 public:
-  WindParticle();
+  WindParticle(std::string& xml_file);
   void Resize(double size);
   void Draw();
   void Refresh();
@@ -63,6 +63,7 @@ public:
   void Reset();
   void Draw();
   void DrawParticles();
+  void RandomizeParticlesPos(); // Put particles randomly on the screen
 };
 
 extern Wind wind;

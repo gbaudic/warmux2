@@ -30,15 +30,16 @@
 #include "../include/app.h"
 #include "../include/constant.h" // NBR_BCL_MAX_EST_VIDE
 #include "../interface/game_msg.h"
+#include "../map/camera.h"
 #include "../map/map.h"
+#include "../network/randomsync.h"
 #include "../object/objects_list.h"
 #include "../team/macro.h"
 #include "../tool/debug.h"
 #include "../tool/i18n.h"
-#include "../tool/random.h"
 #include "../tool/resource_manager.h"
 
-#define FAST
+//#define FAST
 
 #ifdef FAST
   const uint MIN_TIME_BETWEEN_CREATION = 1; // seconds
@@ -61,12 +62,10 @@ const uint BONUS_AIR_ATTACK=1;
 const uint BONUS_AUTO_BAZOOKA=5;
 
 BonusBox::BonusBox()
-  : PhysicalObj("BonusBox", 0.0){
+  : PhysicalObj("bonus_box"){
   SetTestRect (29, 29, 63, 6);
   m_allow_negative_y = true;
   enable = false;
-  m_wind_factor = 0.3;
-  m_air_resist_factor = 20;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   anim = resource_manager.LoadSprite( res, "objet/caisse");
@@ -76,7 +75,6 @@ BonusBox::BonusBox()
   
   parachute = true;  
 
-  SetMass (30);
   SetSpeed (SPEED, M_PI_2);
 }
 
@@ -109,17 +107,12 @@ void BonusBox::Refresh()
   if (!m_ready && !parachute) anim->Update();
   
   m_ready = anim->IsFinished();
-
-//   if (m_ready){
-// 	  //MSG_DEBUG("bonus", "game_loop.SetState (gamePLAYING)");
-// 	  //game_loop.SetState (gamePLAYING);
-//   }
 }
 
 // Signale la fin d'une chute
 void BonusBox::SignalFallEnding()
 {
-  m_air_resist_factor = 1.0;
+  SetAirResistFactor(1.0);
 
   MSG_DEBUG("bonus", "Fin de la chute: parachute=%d", parachute);
   if (!parachute) return;
@@ -135,7 +128,7 @@ void BonusBox::SignalFallEnding()
 
 void BonusBox::ApplyBonus (Team &equipe, Character &ver){
   std::ostringstream txt;
-  uint bonus = randomObj.GetLong (1, nb_bonus);
+  uint bonus = randomSync.GetLong (1, nb_bonus);
   switch (bonus){
   case bonusTELEPORTATION: 
     txt << Format(ngettext(
@@ -151,7 +144,7 @@ void BonusBox::ApplyBonus (Team &equipe, Character &ver){
                 "%s has won %u point of energy!",
                 "%s has won %u points of energy!",
                 BONUS_ENERGY),
-            ver.m_name.c_str(), BONUS_ENERGY);
+            ver.GetName().c_str(), BONUS_ENERGY);
     ver.SetEnergyDelta (BONUS_ENERGY);
     break;
 
@@ -160,7 +153,7 @@ void BonusBox::ApplyBonus (Team &equipe, Character &ver){
                 "%s has lost %u point of energy.",
                 "%s has lost %u points of energy.",
                 BONUS_TRAP),
-            ver.m_name.c_str(), BONUS_TRAP);
+            ver.GetName().c_str(), BONUS_TRAP);
     ver.SetEnergyDelta (-BONUS_TRAP);
     break;
 
@@ -211,60 +204,9 @@ void BonusBox::Enable (bool _enable)
 
 bool BonusBox::PlaceBonusBox (BonusBox& bonus_box)
 {
-  uint bcl=0;
-  bool ok;
-  MSG_DEBUG("bonus", "Cherche une place...");
-  
-  do
-  {
-    ok = true;
-    bonus_box.Ready();
-    if (bcl >= NB_MAX_TRY) 
-    {
-      MSG_DEBUG("bonux", "Impossible de trouver une position initiale.");
-      return false;
-    }
+  if (!bonus_box.PutRandomly(true, 0)) return false;
 
-    // Placement au hasard en X
-    int x = randomObj.GetLong(0, world.GetWidth() - bonus_box.GetWidth());
-    int y = -bonus_box.GetHeight()+1;
-    bonus_box.SetXY( Point2i(x, y) );
-    MSG_DEBUG("bonus", "Test en %d, %d", x, y);
-
-    // Vérifie que la caisse est dans le vide
-    ok = !bonus_box.IsGhost() && bonus_box.IsInVacuum( Point2i(0, 0) ) && bonus_box.IsInVacuum( Point2i(0, 1) );
-    if (!ok) 
-    {
-      MSG_DEBUG("bonus", "Placement dans un mur");
-      continue;
-    }
-
-    // Vérifie que la caisse ne tombe pas dans le vide
-    bonus_box.DirectFall();
-    ok &= !bonus_box.IsGhost() & !bonus_box.IsInWater();
-
-    if (!ok)
-    {
-      MSG_DEBUG("bonus", "Placement dans le vide");
-      continue;
-    }
-
-    // Vérifie que le caisse ne touche aucun ver au début
-    FOR_ALL_LIVING_CHARACTERS(equipe, ver)
-    {
-      if( bonus_box.ObjTouche(*ver) )
-      {
-	MSG_DEBUG("bonus", "La caisse touche le ver %s.", (*ver).m_name.c_str());
-	ok = false;
-      }
-    }
-    if (ok)
-      bonus_box.SetXY( Point2i(x, y) );
-  } while (!ok);
-
-  MSG_DEBUG("bonus", "Placée après %d essai(s)", bcl);
-
-  time = randomObj.GetLong(MIN_TIME_BETWEEN_CREATION, 
+  time = randomSync.GetLong(MIN_TIME_BETWEEN_CREATION, 
 			   MAX_TIME_BETWEEN_CREATION-MIN_TIME_BETWEEN_CREATION);
   time *= 1000;
   time += Time::GetInstance()->Read();
@@ -272,19 +214,23 @@ bool BonusBox::PlaceBonusBox (BonusBox& bonus_box)
   return true;
 }
 
-void BonusBox::NewBonusBox()
+bool BonusBox::NewBonusBox()
 {
 
   if (!enable || (Time::GetInstance()->Read() < time)) {
-    //game_loop.SetState(gamePLAYING);
-    return;
+    return false;
   }
 
   BonusBox * box = new BonusBox();
-  if (!PlaceBonusBox(*box))
+  if (!PlaceBonusBox(*box)) {
+    MSG_DEBUG("bonus", "Missed to put the bonus box");
     delete box;
-  else 
+  } else {
     lst_objects.AddObject(box);
+    camera.ChangeObjSuivi(box, true, true);
+    GameMessages::GetInstance()->Add (_("Is it a gift ?"));
+    return true;
+  }
  
-  return;
+  return false;
 }

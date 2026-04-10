@@ -39,11 +39,8 @@
 WeaponBullet::WeaponBullet(const std::string &name, ExplosiveWeaponConfig& cfg) :
   WeaponProjectile(name, cfg)
 { 
-  m_gravity_factor = 0.1; 
-  SetWindFactor(0.8);
-  SetAirResistFactor(1.0);
-
   cfg.explosion_range = 1;
+  explode_colliding_character = true;
 }
 
 void WeaponBullet::SignalCollision()
@@ -53,6 +50,14 @@ void WeaponBullet::SignalCollision()
     GameMessages::GetInstance()->Add (_("Your shot has missed!"));
   }
   is_active = false; 
+}
+
+void WeaponBullet::Refresh()
+{
+  WeaponProjectile::Refresh();
+
+  double angle = GetSpeedAngle() *180/M_PI;
+  image->SetRotation_deg( angle);
 }
 
 void WeaponBullet::Explosion()
@@ -65,6 +70,9 @@ void WeaponBullet::Explosion()
     ApplyExplosion (pos, cfg, NULL, "", false, ParticleEngine::LittleESmoke);
   } else {
     dernier_ver_touche -> SetEnergyDelta (-cfg.damage);
+    
+    dernier_ver_touche -> AddSpeed (2, GetSpeedAngle());
+    dernier_ver_touche -> UpdatePosition();
   }
 }
 
@@ -73,7 +81,7 @@ void WeaponBullet::Explosion()
 
 WeaponProjectile::WeaponProjectile (const std::string &name, 
 				    ExplosiveWeaponConfig& p_cfg)
-  : PhysicalObj (name, 0.0),
+  : PhysicalObj (name),
     cfg(p_cfg)
 {
   dernier_ver_touche = NULL;
@@ -82,32 +90,20 @@ WeaponProjectile::WeaponProjectile (const std::string &name,
   m_allow_negative_y = true;
   touche_ver_objet = true;
   explode_colliding_character = false;
-  m_wind_factor = 1.0;
 
   image = resource_manager.LoadSprite( weapons_res_profile, name);
   image->EnableRotationCache(32);
   SetSize(image->GetSize());
 
-  // Please do not set the physical factors from cfg here since the xml 
-  // config file is still not loading
-
-  // WARNING: If you remove it, weapon which do not use method Shoot() 
-  // are completely crazy...!!!
-  // TODO: find a clean solution !!! -> BUG #5631
-  SetMass (cfg.mass);
-  SetWindFactor(cfg.wind_factor);
-  SetAirResistFactor(cfg.air_resist_factor);
-  m_rebound_factor = cfg.rebound_factor;
-
   // Set rectangle test
   int dx = image->GetWidth()/2-1;
   int dy = image->GetHeight()/2-1;
-  SetTestRect (dx, dx, dy, dy);   
+  SetTestRect (dx, dx, dy, dy);
 }
 
 WeaponProjectile::~WeaponProjectile()
 {
-  //delete image; -> it causes a segfault :-/
+//  delete image; /*-> it causes a segfault :-/ */
 }
 
 void WeaponProjectile::Shoot(double strength)
@@ -118,10 +114,7 @@ void WeaponProjectile::Shoot(double strength)
   is_active = true;
 
   // Set the physical factors
-  SetMass (cfg.mass);
-  SetWindFactor(cfg.wind_factor);
-  SetAirResistFactor(cfg.air_resist_factor);
-  m_rebound_factor = cfg.rebound_factor;
+  ResetConstants();
 
   // Set the initial position.
   SetXY( ActiveCharacter().GetHandPosition() );
@@ -153,13 +146,17 @@ bool WeaponProjectile::TestImpact()
     MSG_DEBUG("weapon_collision", "Impact because was ready.\n");
     return true;
   }
-  return CollisionTest (0,0);
+//  return CollisionTest (0,0); ---> CollisionTest called from PhysicalObj::NotifyMove(...)
+  return false;
 }
 
-bool WeaponProjectile::CollisionTest(int dx, int dy)
+bool WeaponProjectile::CollisionTest(const Point2i &position)
 {
   dernier_ver_touche = NULL;
   dernier_obj_touche = NULL;
+
+  int dx = position.x - GetX();
+  int dy = position.y - GetY();
 
   if (!IsInVacuum ( Point2i(dx, dy)) ) return true;
 
@@ -169,19 +166,20 @@ bool WeaponProjectile::CollisionTest(int dx, int dy)
    test.SetPositionX( test.GetPositionX() + dx);
    test.SetPositionY( test.GetPositionY() + dy);
    
-  FOR_ALL_LIVING_CHARACTERS(equipe,ver)
-  if (&(*ver) != &ActiveCharacter())
+  if (explode_colliding_character)
   {
-    if (ver->GetTestRect().Intersect( test ))
-       {
-      dernier_ver_touche = &(*ver);
-      MSG_DEBUG("weapon_collision", "Character %s has been damaged", ver -> m_name.c_str());
+    FOR_ALL_LIVING_CHARACTERS(equipe,ver)
+    if (&(*ver) != &ActiveCharacter())
+    {
+      if (ver->GetTestRect().Intersect( test ))
+      {
+        dernier_ver_touche = &(*ver);
+        MSG_DEBUG("weapon_collision", "Character %s has been damaged", ver -> GetName().c_str());
 
-      if (explode_colliding_character) {
-	MSG_DEBUG("weapon_collision", "Projectile explode before timeout because of a collision", ver -> m_name.c_str());
-	is_active = false;
+        MSG_DEBUG("weapon_collision", "Projectile explode before timeout because of a collision", ver -> GetName().c_str());
+        is_active = false;
+        return true;
       }
-      return true;
     }
   }
 
@@ -191,7 +189,7 @@ bool WeaponProjectile::CollisionTest(int dx, int dy)
     if ( objet->ptr->GetTestRect().Intersect( test ) )
       {
       dernier_obj_touche = objet -> ptr;
-      MSG_DEBUG("weapon_collision", "Object %s has been touched", objet -> ptr -> m_name.c_str());
+      MSG_DEBUG("weapon_collision", "Object %s has been touched", objet -> ptr -> GetName().c_str());
       return true;
     }
   }

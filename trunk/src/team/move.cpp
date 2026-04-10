@@ -27,6 +27,7 @@
 #include "../include/action_handler.h"
 #include "../map/map.h"
 #include "../map/camera.h"
+#include "../network/network.h"
 #include "../sound/jukebox.h"
 #include "../tool/debug.h"
 
@@ -88,7 +89,7 @@ void MoveCharacter(Character &character){
   else
     fantome = character.IsOutsideWorld ( Point2i(1, 0) );
   if (fantome){
-    MSG_DEBUG("ghost", "%s will be a ghost.", character.m_name.c_str());
+    MSG_DEBUG("ghost", "%s will be a ghost.", character.GetName().c_str());
     character.Ghost();
     return;
   }
@@ -103,7 +104,7 @@ void MoveCharacter(Character &character){
     // Deplace enfin le character
 
     character.SetXY( Point2i(character.GetX() +character.GetDirection(),
-		character.GetY() +hauteur) );
+                             character.GetY() +hauteur) );
 
     // Gravite (s'il n'y a pas eu de collision
     character.UpdatePosition();
@@ -122,11 +123,22 @@ void MoveCharacterLeft(Character &character){
   if (!character.MouvementDG_Autorise()) return;
 
   bool bouge = (character.GetDirection() == -1);
-  if (bouge) 
-    ActionHandler::GetInstance()->NewAction(Action(ACTION_WALK));
+  if (bouge)
+  {
+//    ActionHandler::GetInstance()->NewAction(Action(ACTION_WALK));
+    MoveCharacter(character);
+  }
   else{
     ActionHandler::GetInstance()->NewAction(ActionInt(ACTION_SET_CHARACTER_DIRECTION,-1));
     character.InitMouvementDG (PAUSE_CHG_SENS);
+  }
+
+  //Refresh skin position across network
+  if( !network.is_local() && ActiveTeam().is_local)
+  {
+    network.SendAction(ActionInt2(ACTION_MOVE_CHARACTER,character.GetX(),character.GetY()));
+    network.SendAction(ActionString(ACTION_SET_SKIN,character.current_skin));
+    network.SendAction(ActionInt(ACTION_SET_FRAME,character.image->GetCurrentFrame()));
   }
 }
 
@@ -136,12 +148,24 @@ void MoveCharacterRight (Character &character){
   if (!character.MouvementDG_Autorise()) return;
 
   bool bouge = (character.GetDirection() == 1);
-  if (bouge) 
-    ActionHandler::GetInstance()->NewAction(Action(ACTION_WALK));
+  if (bouge)
+  {
+//    ActionHandler::GetInstance()->NewAction(Action(ACTION_WALK));
+    MoveCharacter(character);
+  }
   else
   {
     ActionHandler::GetInstance()->NewAction(ActionInt(ACTION_SET_CHARACTER_DIRECTION,1));
     character.InitMouvementDG (PAUSE_CHG_SENS);
+  }
+
+
+  //Refresh skin position across network
+  if( !network.is_local() && ActiveTeam().is_local)
+  {
+    network.SendAction(ActionInt2(ACTION_MOVE_CHARACTER,character.GetX(),character.GetY()));
+    network.SendAction(ActionString(ACTION_SET_SKIN,character.current_skin));
+    network.SendAction(ActionInt(ACTION_SET_FRAME,character.image->GetCurrentFrame()));
   }
 }
 

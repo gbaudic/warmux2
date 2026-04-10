@@ -70,6 +70,8 @@ typedef enum
 	ACTION_WIND,
 	ACTION_CHANGE_CHARACTER,
 	ACTION_CHANGE_TEAM,
+	ACTION_SET_SKIN,
+	ACTION_SET_FRAME,
 
 	// Game initialisation
 	ACTION_SET_GAME_MODE,
@@ -83,6 +85,7 @@ typedef enum
 	ACTION_ASK_TEAM,
 	ACTION_SEND_VERSION,
 	ACTION_SEND_TEAM,
+	ACTION_SEND_RANDOM,
 	
 	// Actions "hors-jeu", en local seulement.
 	ACTION_QUIT,

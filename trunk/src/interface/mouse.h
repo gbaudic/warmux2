@@ -23,21 +23,36 @@
 #define MOUSE_H
 
 #include <SDL.h>
+#include "../graphic/surface.h"
+#include "../include/app.h"
 #include "../include/base.h"
 #include "../tool/point.h"
+
+typedef enum {
+  POINTER_STANDARD,
+  POINTER_SELECT,
+  POINTER_MOVE,
+  POINTER_AIM
+} pointer_t;
 
 class Mouse
 {
 private:
   bool scroll_actif;
+  pointer_t current_pointer;
+
   Point2i savedPos;
 
   static Mouse * singleton;
 
- private:
+  Surface pointer_select, pointer_move, pointer_aim;
+
   Mouse();
+  bool ScrollPointer();
+  bool DrawMovePointer();
   
 public:
+  
   static Mouse * GetInstance();
 
   void TraiteClic (const SDL_Event *event); 
@@ -57,7 +72,11 @@ public:
   bool ClicG() const;
   bool ClicD() const;
   bool ClicM() const;
-  void ScrollCamera() const;
+  void ScrollCamera();
+
+  // Choose the pointer
+  void SetPointer(pointer_t pointer);
+  void Draw();
 };
 
 #endif

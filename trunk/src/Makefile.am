@@ -4,6 +4,7 @@ bin_PROGRAMS = wormux
 
 pkgdatadir=@DATADIR@
 localedir=@LOCALEDIR@
+fontfile=@FONTFILE@
 
 wormux_SOURCES = \
 	include/base.h include/enum.h \
@@ -41,6 +42,7 @@ wormux_SOURCES = \
 	tool/i18n.cpp tool/i18n.h \
 	tool/error.cpp tool/error.h \
 	tool/euler_vector.cpp tool/euler_vector.h \
+	tool/vector2.h \
 	tool/file_tools.cpp tool/file_tools.h \
 	tool/math_tools.cpp tool/math_tools.h \
 	tool/rectangle.h tool/point.h \
@@ -66,6 +68,7 @@ wormux_SOURCES = \
 	object/physical_obj.cpp object/physical_obj.h \
 	object/physics.cpp object/physics.h \
 	object/bonus_box.cpp object/bonus_box.h \
+	object/object_cfg.cpp object/object_cfg.h \
 	object/objects_list.cpp object/objects_list.h \
 	object/particle.cpp object/particle.h \
 	map/camera.cpp map/camera.h \
@@ -78,6 +81,7 @@ wormux_SOURCES = \
 	map/water.cpp map/water.h \
 	map/wind.cpp map/wind.h \
 	network/network.cpp network/network.h \
+	network/randomsync.cpp network/randomsync.h \
 	team/macro.h \
 	team/character.cpp team/character.h \
 	team/move.cpp team/move.h \
@@ -115,7 +119,7 @@ wormux_SOURCES = \
 	weapon/teleportation.cpp weapon/teleportation.h \
 	weapon/uzi.cpp weapon/uzi.h
 
-AM_CXXFLAGS = -DINSTALL_DATADIR=\"$(pkgdatadir)\" -DINSTALL_LOCALEDIR=\"$(localedir)\"
+AM_CXXFLAGS = -DINSTALL_DATADIR=\"$(pkgdatadir)\" -DINSTALL_LOCALEDIR=\"$(localedir)\" -DFONT_FILE=\"$(fontfile)\"
 
 if WIN32
 wormux_SOURCES += wormux.rc

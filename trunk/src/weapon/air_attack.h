@@ -47,41 +47,39 @@ protected:
   void SignalCollision();
 };
 
-class Avion : public PhysicalObj
+class Plane : public PhysicalObj
 {
-public:  
-  std::list<Obus*> obus;
-  typedef std::list<Obus*>::iterator iterator;
-  bool obus_laches;
-  bool obus_actifs;
+private:
+  uint nb_dropped_bombs;
+  Obus * last_dropped_bomb;
 
   int obus_dx, obus_dy;
   Sprite *image;
-private:
+
   int cible_x;
   AirAttackConfig &cfg;
 
+  bool OnTopOfTarget() const;
+  int GetDirection() const;
+  void DropBomb();
+
 public:
-  Avion(AirAttackConfig& cfg);
+  Plane(AirAttackConfig& cfg);
   void Shoot(double speed);
   void Draw();
   void Refresh();
-  bool PeutLacherObus() const;
-  int LitCibleX() const;
-  int GetDirection() const;
-  void Avion::SignalGhostState (bool was_dead);
+
+  void SignalGhostState (bool was_dead);
 };
 
 class AirAttack : public Weapon
 {
 private:
   bool p_Shoot();
+  Plane plane;
 
 public:
-  Avion avion;
-
   AirAttack();
-  void FinTir();
   void Refresh();
   virtual void ChooseTarget ();
 

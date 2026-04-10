@@ -58,11 +58,10 @@ double MeterDistance (const Point2i &p1, const Point2i &p2);
 class PhysicalObj : public Physics
 {
 public:
-  // Object name (useful for debug ;-))
-  std::string m_name;
   type_objet_t m_type;
 
 private:
+  std::string m_name;
   // Object size and position.
   uint m_width, m_height;
   int m_posx, m_posy;
@@ -83,7 +82,7 @@ protected:
   bool m_allow_negative_y;
 
 public:
-  PhysicalObj (const std::string &name, double mass=0.0);
+  PhysicalObj (const std::string &name, const std::string &xml_config="");
   virtual ~PhysicalObj ();
 
   //-------- Set position and size -------
@@ -109,7 +108,7 @@ public:
   int GetTestHeight() const;
 
   //----------- Access to datas (read only) ----------
-
+  virtual const std::string &GetName() const { return m_name; }
   int GetCenterX() const;
   int GetCenterY() const;
   const Point2i GetCenter() const;
@@ -165,11 +164,7 @@ public:
   // Est-ce que le point p touche l'objet ?
   bool ObjTouche(const Point2i &p) const;
 
-
-protected:
-
-  // The object fall directly to the ground (or become a ghost)
-  void DirectFall();
+  bool PutRandomly(bool on_top_of_world, double min_dst_with_characters);
 
 private:
   //Renvoie la position du point de contact entre
@@ -177,9 +172,12 @@ private:
   bool ContactPoint (int &x, int &y);
 
   // Collision test for point (x,y)
-  bool CollisionTest(const Point2i &position);
+  virtual bool CollisionTest(const Point2i &position);
 
   void SignalRebound();
+  
+  // The object fall directly to the ground (or become a ghost)
+  void DirectFall();
 };
 
 #endif

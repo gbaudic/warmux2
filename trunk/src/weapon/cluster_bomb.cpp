@@ -32,11 +32,12 @@
 #include "../team/teams_list.h"
 #include "../tool/math_tools.h"
 #include "../tool/i18n.h"
-#include "../tool/random.h"
+#include "../network/randomsync.h"
 
 Cluster::Cluster(ClusterBombConfig& cfg) :
   WeaponProjectile ("cluster", cfg)
 {
+  explode_colliding_character = true;
 }
 
 void Cluster::Shoot (int x, int y)
@@ -44,6 +45,7 @@ void Cluster::Shoot (int x, int y)
   Ready();
   camera.ChangeObjSuivi(this, true, false);
   is_active = true;
+  ResetConstants();
   SetXY( Point2i(x, y) );
 }
 
@@ -77,7 +79,6 @@ ClusterBomb::ClusterBomb(ClusterBombConfig& cfg) :
 {
   m_rebound_sound = "weapon/grenade_bounce";
   touche_ver_objet = false;
-  m_rebounding = true;
 
   tableau_cluster.clear();
   const uint nb = cfg.nb_fragments;
@@ -122,7 +123,7 @@ void ClusterBomb::Explosion()
     {
       Cluster &cluster = *it;
       
-      double angle = randomObj.GetDouble(2.0 * M_PI);
+      double angle = randomSync.GetDouble(2.0 * M_PI);
       x = GetX()+(int)(cos(angle) * (double)cfg.blast_range*5);
       y = GetY()+(int)(sin(angle) * (double)cfg.blast_range*5);
 

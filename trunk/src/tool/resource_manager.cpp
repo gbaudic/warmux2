@@ -30,6 +30,7 @@
 #include <iostream>
 #include "error.h"
 #include "xml_document.h"
+#include "string_tools.h"
 #include "../game/config.h"
 #include "../graphic/sprite.h"
 
@@ -221,34 +222,26 @@ Sprite *ResourceManager::LoadSprite( const Profile *profile, const std::string r
 
   assert(sprite!=NULL);
 
-  xmlpp::Element *elem = profile->doc->AccesBalise ( elem_sprite, "frame");
+  xmlpp::Element *elem = profile->doc->AccesBalise ( elem_sprite, "animation");
   if ( elem != NULL )
   {
-	  std::string fs_str;
-    int fs=0;
-    if ( profile->doc->LitAttrString( elem, "speed", fs_str) )
-	    fs = atoi( fs_str.c_str());
-    sprite->SetFrameSpeed(fs);
-  }
+    std::string str;
+    // Set the frame speed
+    if ( profile->doc->LitAttrString( elem, "speed", str) )
+      sprite->SetFrameSpeed( atoi(str.c_str()) );
 
-  elem = profile->doc->AccesBalise ( elem_sprite, "animation");
-  if ( elem != NULL )
-  {
-	  std::string pp_str;
-    if ( profile->doc->LitAttrString( elem, "pingpong", pp_str) )
-    if (pp_str == "yes")
-      sprite->animation.SetPingPongMode(true);
+    if ( profile->doc->LitAttrString( elem, "loop_mode", str) )
+    {
+      bool loop_value;
+      if(str2bool(str,loop_value))
+        sprite->animation.SetLoopMode(loop_value);
+      else
+      if(str=="pingpong")
+        sprite->animation.SetPingPongMode(true);
+      else
+        std::cerr << "Unrecognized xml option loop_mode=\"" << str << "\" in resource " << resource_name;
+    }
   }
-
-  elem = profile->doc->AccesBalise ( elem_sprite, "animation");
-  if ( elem != NULL )
-  {
-	  std::string pp_str;
-    if ( profile->doc->LitAttrString( elem, "loop_mode", pp_str) )
-    if (pp_str == "no")
-      sprite->animation.SetLoopMode(false);
-  }
-
   return sprite;
 }
 

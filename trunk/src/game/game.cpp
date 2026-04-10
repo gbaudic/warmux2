@@ -29,15 +29,18 @@
 #include "game_mode.h"
 #include "../graphic/video.h"
 #include "../graphic/fps.h"
+#include "../include/app.h"
 #include "../interface/cursor.h"
 #include "../interface/keyboard.h"
 #include "../interface/game_msg.h"
+#include "../interface/mouse.h"
 #include "../map/camera.h"
 #include "../map/map.h"
 #include "../sound/jukebox.h"
 #include "../team/macro.h"
 #include "../tool/debug.h"
 #include "../tool/i18n.h"
+#include "../tool/resource_manager.h"
 #include "../weapon/weapons_list.h"
 
 Game * Game::singleton = NULL;
@@ -194,7 +197,7 @@ void Game::MessageEndOfGame()
   }
   std::cout << txt << std::endl;
 
-  question.Init (txt, true, 0);
+  question.Set (txt, true, 0);
   AskQuestion();
 }
 
@@ -205,11 +208,11 @@ int Game::AskQuestion (bool draw)
 
   if (draw) 
     GameLoop::GetInstance()->Draw ();
-  
-  question.PoseQuestion ();
+
+  int answer = question.AskQuestion ();
 
   global_time->Continue(); 
-  return question.reponse;
+  return answer;
 }
 
 void Game::Start()
@@ -235,7 +238,7 @@ void Game::Start()
       if (!IsGameFinished()) 
       {
         const char *msg = _("Do you really want to quit? (Y/N)");
-        question.Init (msg, true, 0);
+        question.Set (msg, true, 0);
 	
         {
           /* Tiny fix by Zygmunt Krynicki <zyga@zyga.dyndns.org> */
@@ -248,7 +251,8 @@ void Game::Start()
             abort();
           if (!isalpha(key_x)) /* sanity check */
             abort();
-	   question.choix.push_back ( Question::choix_t(SDLK_a + (int)key_x - 'a', 1) );
+
+	  question.choices.push_back ( Question::choix_t(SDLK_a + (int)key_x - 'a', 1) );
 	}
 	
         jukebox.Pause();
@@ -271,12 +275,13 @@ void Game::Start()
 
   world.FreeMem();
   jukebox.StopAll();
-   
+  Mouse::GetInstance()->SetPointer(POINTER_STANDARD);
+
   if (err)
   {
     std::string txt = Format(_("Error:\n%s"), err_msg.c_str());
     std::cout << std::endl << txt << std::endl;
-    question.Init (txt, true, 0);
+    question.Set (txt, true, 0);
     AskQuestion (false);
   }
 }
@@ -284,8 +289,20 @@ void Game::Start()
 void Game::Pause()
 {
   jukebox.Pause();
-  question.Init (_("Pause"), true, 0);
-  AskQuestion();
+
+  //Pause screen
+  Profile* xml_profile = resource_manager.LoadXMLProfile("graphism.xml",false);
+  Sprite* pause_screen = new Sprite(resource_manager.LoadImage(xml_profile, "interface/pause_screen"));
+  resource_manager.UnLoadXMLProfile( xml_profile );
+  pause_screen->cache.EnableLastFrameCache();
+  AppWormux* app = AppWormux::GetInstance();
+  pause_screen->ScaleSize(app->video.window.GetSize());
+  pause_screen->Blit( app->video.window, 0, 0);
+  app->video.Flip();
+  delete pause_screen;
+
+  question.Set (_("Press a key to continue."), true, 0);
+  AskQuestion(false);
   jukebox.Resume();
 }
 

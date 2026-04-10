@@ -53,19 +53,10 @@ const uint HAUT_FONT_MIX = 13;
 const uint ESPACE = 3; // pixels
 const uint do_nothing_timeout = 5000;
 
-#ifdef DEBUG
-//#define ANIME_VITE
-//#define DEBUG_CHG_ETAT
-//#define DEBUG_PLACEMENT
-//#define NO_POSITION_CHECK
-//#define DEBUG_SKIN
-
-#define COUT_DBG0 std::cerr << "[Character " << m_name << "]"
-#define COUT_DBG COUT_DBG0 " "
-#define COUT_PLACEMENT COUT_DBG0 "[Init bcl=" << bcl << "] "
-#endif
-
 // Pause for the animation
+#ifdef DEBUG
+#define ANIME_VITE
+#endif
 #ifdef ANIME_VITE
   const uint ANIM_PAUSE_MIN = 100;
   const uint ANIM_PAUSE_MAX = 150;
@@ -74,12 +65,16 @@ const uint do_nothing_timeout = 5000;
   const uint ANIM_PAUSE_MAX = 60*1000;
 #endif
 
+#ifdef DEBUG
+//#define DEBUG_STATS
+#endif
+
 // Barre d'énergie
 const uint LARG_ENERGIE = 40;
 const uint HAUT_ENERGIE = 6;
 
 Character::Character () :
-  PhysicalObj("Soldat inconnu", 0.0)
+  PhysicalObj("character")
 {
   pause_bouge_dg = 0;
   previous_strength = 0;
@@ -89,9 +84,6 @@ Character::Character () :
   desactive = false;
   skin = NULL;
   walk_skin = NULL;
-  m_wind_factor = 0.0;
-  m_rebound_factor = 0.25;
-  m_rebounding = true;
   skin_is_walking = true;
   is_walking = false;
   current_skin = "";
@@ -143,7 +135,7 @@ void Character::SignalDeath()
 void Character::SignalDrowning()
 {
   energy = 0;
-  //m_type = objINSENSIBLE;
+  m_type = objUNBREAKABLE;
   SetSkin("drowned");
 
   jukebox.Play (GetTeam().GetSoundProfile(),"sink");
@@ -373,7 +365,7 @@ void Character::Jump ()
 
   jukebox.Play (ActiveTeam().GetSoundProfile(), "jump");
    
-  m_rebounding = false;
+  SetRebounding(false);
 
   if(current_skin=="walking" || current_skin=="breathe")
     SetSkin("jump");
@@ -391,7 +383,7 @@ void Character::HighJump ()
 
   if (!CanJump()) return;
 
-  m_rebounding = false;
+  SetRebounding(false);
 
   jukebox.Play (ActiveTeam().GetSoundProfile(), "superjump");
    
@@ -623,7 +615,7 @@ void Character::InitMouvementDG(uint pause)
 {
   do_nothing_time = Time::GetInstance()->Read();
   CurseurVer::GetInstance()->Cache();
-  m_rebounding = false;
+  SetRebounding(false);
   pause_bouge_dg = Time::GetInstance()->Read()+pause;
 
   StartWalking();
@@ -818,10 +810,8 @@ void Character::InitTeam (Team *ptr_equipe, const std::string &name,
 			  Skin* pskin)
 {
   GameMode * game_mode = GameMode::GetInstance();
-  SetMass (game_mode->character.mass);
-  SetAirResistFactor (game_mode->character.air_resist_factor);
   m_team = ptr_equipe;
-  m_name = name;
+  character_name = name;
   skin = pskin;
 
   // Animation ?
@@ -845,6 +835,7 @@ void Character::Reset()
   // Reset de l'état du ver
   desactive = false;
 
+  ResetConstants();
   Ready();
 
   //  Reset de l'image et les dimensions
@@ -872,7 +863,7 @@ void Character::Reset()
   // Prépare l'image du nom
   if (Config::GetInstance()->GetDisplayNameCharacter() && name_text == NULL)
   {
-    name_text = new Text(m_name);
+    name_text = new Text(character_name);
   }
 
   // Energie
@@ -881,54 +872,8 @@ void Character::Reset()
   SetEnergyDelta (1);
   lost_energy = 0;
 
-  // Initialise la position
-  uint bcl=0;
-  bool pos_ok;
-  do
-  {
-    // Vérifie qu'on ne tourne pas en rond
-    FORCE_ASSERT (++bcl < Constants::NBR_BCL_MAX_EST_VIDE);
+  PutRandomly(false, world.dst_min_entre_vers);
 
-    // Objet physique dans l'état prêt
-    pos_ok = true;
-    desactive = false;
-    Ready();
-
-    SetXY( randomObj.GetPoint(world.GetSize() - GetSize() + 1) );
-
-#ifndef NO_POSITION_CHECK
-    pos_ok &= !IsGhost() && IsInVacuum( Point2i(0,0) ) && (GetY() < static_cast<int>(world.GetHeight() - (WATER_INITIAL_HEIGHT + 30)));
-    if (!pos_ok) continue;
-
-    // Chute directe pour le sol
-    DirectFall ();
-    pos_ok &= !IsGhost() && (GetY() < static_cast<int>(world.GetHeight() - (WATER_INITIAL_HEIGHT + 30)));
-#ifdef DEBUG_PLACEMENT
-    if (!pos_ok) COUT_PLACEMENT << "Fantome en tombant." << std::endl;
-#endif
-    if (!pos_ok) continue;
-
-    // Vérifie que le ver ne fois pas trop près de ses voisins
-    FOR_ALL_LIVING_CHARACTERS(it_equipe,ver) if (&(*ver) != this)
-    {
-       Point2i p1 = ver->GetCenter();
-       Point2i p2 = GetCenter();
-       double dst = p1.Distance( p2 );
-
-      if (dst < world.dst_min_entre_vers) {
-	pos_ok = false;
-      }
-       
-    }
-
-    // La position est bonne ?
-    pos_ok &= !IsGhost() & !IsInWater() & IsInVacuum( Point2i(0,0) );
-#ifdef DEBUG_PLACEMENT
-    if (!pos_ok) COUT_PLACEMENT << "Placement final manqué." << std::endl;
-#endif
-
-#endif // of #ifndef NO_POSITION_CHECK
-  } while (!pos_ok);
   assert (!IsDead());
   Ready();
 }
@@ -990,7 +935,7 @@ void Character::HandleMostDamage()
   {
     max_damage = current_total_damage;
   }
-#ifdef DEBUG
+#ifdef DEBUG_STATS
   std::cerr << m_name << " most damage: " << max_damage << std::endl;
 #endif
   current_total_damage = 0;
@@ -1003,7 +948,7 @@ void Character::MadeDamage(const int Dmg, const Character &other)
 {
   if (m_team->IsSameAs(other.GetTeam()))
   {
-#ifdef DEBUG
+#ifdef DEBUG_STATS
     std::cerr << m_name << " damaged own team with " << Dmg << std::endl;
 #endif
     if (Character::IsSameAs(other))
@@ -1011,7 +956,7 @@ void Character::MadeDamage(const int Dmg, const Character &other)
   }
   else
   {
-#ifdef DEBUG
+#ifdef DEBUG_STATS
     std::cerr << m_name << " damaged other team with " << Dmg << std::endl;
 #endif
     damage_other_team += Dmg;
