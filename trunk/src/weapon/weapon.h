@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,26 +16,23 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Classes virtuelles permettant de d�inir une arme et un projectile. Les
- * armes ont un nom, une image, un �at actif/inactif et une ic�e (affich�
- * dans l'interface). Les projectiles sont des objets physiques qui ont un
- * comportement sp�ial lorsqu'ils entrent en collision ou qu'ils sortent du
- * terrain.
+ * Virtual class to handle weapon in wormux.
+ * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
  *****************************************************************************/
 
 #ifndef WEAPON_H
 #define WEAPON_H
 #include <string>
 #include "weapon_cfg.h"
-#include "../graphic/surface.h"
-#include "../graphic/sprite.h"
-#include "../gui/progress_bar.h"
-#include "../include/base.h"
-#include "../include/enum.h"
-#include "../particles/particle.h"
-#include "../object/physical_obj.h"
-#include "../sound/jukebox.h"
-//#include "../character/character.h"
+#include "graphic/surface.h"
+#include "graphic/sprite.h"
+#include "gui/progress_bar.h"
+#include "include/base.h"
+#include "particles/particle.h"
+#include "object/physical_obj.h"
+#include "sound/jukebox.h"
+#include "tool/debug.h"
+
 class Character;
 
 // Infinite ammos constant
@@ -47,7 +44,7 @@ extern const uint BUTTON_ICO_HEIGHT;
 extern const uint WEAPON_ICO_WIDTH;
 extern const uint WEAPON_ICO_HEIGHT;
 
-class WeaponStrengthBar : public BarreProg
+class WeaponStrengthBar : public ProgressBar
 {
  public:
   bool visible ;
@@ -57,10 +54,42 @@ class WeaponStrengthBar : public BarreProg
 
 class Weapon
 {
+public:
+  typedef enum
+  {
+    WEAPON_BAZOOKA,        WEAPON_AUTOMATIC_BAZOOKA, WEAPON_RIOT_BOMB, WEAPON_GRENADE,
+    WEAPON_DISCO_GRENADE,  WEAPON_CLUSTER_BOMB,      WEAPON_GUN,       WEAPON_SHOTGUN,
+    WEAPON_SUBMACHINE_GUN, WEAPON_BASEBALL,
+
+    WEAPON_DYNAMITE,      WEAPON_MINE,
+
+    WEAPON_SUPERTUX,      WEAPON_AIR_ATTACK,  WEAPON_ANVIL, WEAPON_GNU,
+    WEAPON_POLECAT,       WEAPON_BOUNCE_BALL,
+
+    WEAPON_TELEPORTATION, WEAPON_GRAPPLE,  WEAPON_LOWGRAV,   WEAPON_SUICIDE,
+    WEAPON_SKIP_TURN,     WEAPON_JETPACK,     WEAPON_PARACHUTE, WEAPON_AIR_HAMMER,
+    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_BLOWTORCH, WEAPON_SYRINGE
+  } Weapon_type;
+#define WEAPON_FIRST WEAPON_BAZOOKA
+#define WEAPON_LAST  WEAPON_SYRINGE
+  typedef enum {
+    INVALID = 0,
+    HEAVY,
+    RIFLE,
+    THROW,
+    SPECIAL,
+    DUEL,
+    MOVE,
+    TOOL
+  } category_t;
+
 protected:
-  Weapon_type m_type;
+  Weapon::Weapon_type m_type;
+  Weapon::category_t  m_category;
+
   std::string m_id;
   std::string m_name;
+  std::string m_help;
   bool m_is_active;
   Sprite *m_image;
   Sprite *m_weapon_fire;
@@ -87,7 +116,7 @@ protected:
   // time of the last fire
   uint m_last_fire_time;
 
-  // change weapon after ? (for the ninja cord = true)
+  // change weapon after ? (for the grapple = true)
   bool m_can_change_weapon;
 
   // Extra parameters
@@ -100,7 +129,7 @@ protected:
     VISIBLE_ONLY_WHEN_INACTIVE
   } weapon_visibility_t;
 
- // Visibility
+  // Visibility
   weapon_visibility_t m_visibility;
   weapon_visibility_t m_unit_visibility;
 
@@ -114,21 +143,14 @@ protected:
   int channel_load;
 
 public:
-  // Icone de l'arme dans l'interface
-  Surface icone;
+  // weapon's icon
+  Sprite * icon;
 
   // if max_strength != 0, display the strength bar
   double max_strength;
 
-  // True if the weapon uses keys when activated.
-  bool override_keys ;
-
-  //Force weapons to use keys when true
-  bool force_override_keys ;
-
-  // Angle in degrees between -90 to 90
-  int min_angle, max_angle;
   bool use_flipping;
+  const category_t& Category() const { return m_category; };
 
 protected:
   virtual void p_Select();
@@ -154,10 +176,10 @@ public:
   // Draw the weapon
   virtual void Draw();
   virtual void DrawWeaponFire();
-  void DrawWeaponBox();
 
-  void DrawUnit(int unit);
+  void DrawAmmoUnits() const;
 
+  Sprite & GetIcon() const;
   // Manage the numbers of ammunitions
   bool EnoughAmmo() const;
   void UseAmmo();
@@ -172,19 +194,20 @@ public:
   // Calculate weapon position
   virtual void PosXY (int &x, int &y) const;
 
-  // Create a new action "shoot" in action handler
-  void NewActionShoot() const;
+  // Create a new action "shoot/stop_use" in action handler
+  void NewActionWeaponShoot() const;
+  void NewActionWeaponStopUse() const;
 
   // Prepare the shoot : set the angle and strenght of the weapon
   // Begin the shooting animation of the character
-  void PrepareShoot(double strength, int angle);
+  void PrepareShoot(double strength, double angle);
 
   // Shot with the weapon
   // Return true if we have been able to trigger the weapon
   bool Shoot();
 
-  // L'arme est encore active (animation par ex.) ?
-  bool IsActive() const;
+  // The weapon is still in use (animation for instance) ?
+  bool IsInUse() const;
 
   // the weapon is ready to use ? (is there bullets left ?)
   virtual bool IsReady() const ;
@@ -206,12 +229,63 @@ public:
   // Choose a target.
   virtual void ChooseTarget (Point2i mouse_pos);
 
-  //Misc actions.
-  virtual void ActionUp ();//called by mousse.cpp when mousewhellup
-  virtual void ActionDown ();//called by mousse.cpp when mousewhelldown
+  // Notify a move. It is usefull only for weapon which have strong
+  // interactions with the physical engine such as grapple
+  virtual void NotifyMove(bool collision){};
 
   // Handle a keyboard event.
-  virtual void HandleKeyEvent(int key, int event_type) ;
+
+  // Key Shoot management
+  virtual void HandleKeyPressed_Shoot();
+  virtual void HandleKeyRefreshed_Shoot();
+  virtual void HandleKeyReleased_Shoot();
+
+  // To override standard moves of character
+  virtual void HandleKeyPressed_MoveRight();
+  virtual void HandleKeyRefreshed_MoveRight();
+  virtual void HandleKeyReleased_MoveRight();
+
+  virtual void HandleKeyPressed_MoveLeft();
+  virtual void HandleKeyRefreshed_MoveLeft();
+  virtual void HandleKeyReleased_MoveLeft();
+
+  virtual void HandleKeyPressed_Up();
+  virtual void HandleKeyRefreshed_Up();
+  virtual void HandleKeyReleased_Up();
+
+  virtual void HandleKeyPressed_Down();
+  virtual void HandleKeyRefreshed_Down();
+  virtual void HandleKeyReleased_Down();
+
+  virtual void HandleKeyPressed_Jump();
+  virtual void HandleKeyRefreshed_Jump();
+  virtual void HandleKeyReleased_Jump();
+
+  virtual void HandleKeyPressed_HighJump();
+  virtual void HandleKeyRefreshed_HighJump();
+  virtual void HandleKeyReleased_HighJump();
+
+  virtual void HandleKeyPressed_BackJump();
+  virtual void HandleKeyRefreshed_BackJump();
+  virtual void HandleKeyReleased_BackJump();
+
+  // Other keys
+  virtual void HandleKeyReleased_Num1(){};
+  virtual void HandleKeyReleased_Num2(){};
+  virtual void HandleKeyReleased_Num3(){};
+  virtual void HandleKeyReleased_Num4(){};
+  virtual void HandleKeyReleased_Num5(){};
+  virtual void HandleKeyReleased_Num6(){};
+  virtual void HandleKeyReleased_Num7(){};
+  virtual void HandleKeyReleased_Num8(){};
+  virtual void HandleKeyReleased_Num9(){};
+  virtual void HandleKeyReleased_Less(){};
+  virtual void HandleKeyReleased_More(){};
+
+  // Handle a mouse event
+  virtual void HandleMouseLeftClicReleased(){};
+  virtual void HandleMouseWheelUp(){};
+  virtual void HandleMouseWheelDown(){};
 
   // Get informed that the turn is over.
   virtual void SignalTurnEnd();
@@ -226,16 +300,37 @@ public:
   // return the strength of the weapon
   const double ReadStrength() const;
 
-  // Acc� aux donn�s
+  // Data access
   const std::string& GetName() const;
   const std::string& GetID() const;
+  const std::string& GetHelp() const;
   Weapon_type GetType() const;
+
+  // For localization purposes, each weapon needs to have its own
+  // "%s team has won %d <weapon>" function
+  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count);
 
   // Allows or not the character selection with mouse click (tab is allowed)
   // This is used in weapons like the automated bazooka, where it's required
   // a target. Default is true.
   bool mouse_character_selection;
+
+  inline void SetMinAngle(double min) {min_angle = min;}
+  inline const double &GetMinAngle() const {return min_angle;}
+  inline void SetMaxAngle(double max) {max_angle = max;}
+  inline const double &GetMaxAngle() const {return max_angle;}
+private:
+  // Angle in radian between -PI to PI
+  double min_angle, max_angle;
+
+  /* If you need this, implement it (correctly)*/
+  Weapon(const Weapon&);
+  const Weapon& operator=(const Weapon&);
+  /*********************************************/
 };
+
+#define DECLARE_GETWEAPONSTRING() \
+std::string GetWeaponWinString(const char *TeamName, uint items_count )
 
 //-----------------------------------------------------------------------------
 #endif

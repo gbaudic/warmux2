@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,29 +22,30 @@
 #ifndef RANDOMSYNC_H
 #define RANDOMSYNC_H
 #include <list>
-#include "../tool/rectangle.h"
-#include "../tool/point.h"
+#include "tool/rectangle.h"
+#include "tool/point.h"
 
 class RandomSync{
-   //Pregenerated table of random number (mainly usefull for network)
-   std::list<double> rnd_table;
-
-   double GetRand();
-   void GenerateTable();
+  //Pregenerated table of random number (mainly usefull for network)
+  std::list<double> rnd_table;
+  
+  double GetRand();
+  void GenerateTable();
 public:
-	RandomSync();
-	void Init();
+  RandomSync();
+  void Init();
+  
+  bool GetBool();
+  double GetDouble();
+  double GetDouble(double max);
+  double GetDouble(double min, double max);
+  long GetLong(long min, long max);
+  Point2i GetPoint(const Rectanglei &rect);
+  Point2i GetPoint(const Point2i &pt);
 
-	bool GetBool();
-	double GetDouble();
-	double GetDouble(double max);
-	double GetDouble(double min, double max);
-	long GetLong(long min, long max);
-	Point2i GetPoint(const Rectanglei &rect);
-	Point2i GetPoint(const Point2i &pt);
-
-    //Fill the pregenerated tables
-   void AddToTable(double nbr);
+  //Fill the pregenerated tables
+  void AddToTable(double nbr);
+  void ClearTable();
 };
 
 extern RandomSync randomSync;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,63 +22,50 @@
 #ifndef OBJECTS_LIST_H
 #define OBJECTS_LIST_H
 //-----------------------------------------------------------------------------
-#include "../include/base.h"
-#include "../object/physical_obj.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
 #include <list>
 //-----------------------------------------------------------------------------
 
 // Loop for all objects
 #define FOR_ALL_OBJECTS(object) \
-  for (ObjectsList::iterator object=lst_objects.Begin(), \
-       end=lst_objects.End(); \
+  for (ObjectsList::iterator object=lst_objects.begin(), \
+       end=lst_objects.end(); \
        object != end; \
-       ++object) \
-	if(!object->to_remove)
+       ++object)
 
 //-----------------------------------------------------------------------------
 
 // Loop for all objects that aren't out of the screen
 #define FOR_EACH_OBJECT(object) \
   FOR_ALL_OBJECTS(object) \
-  if (!object->ptr->IsGhost())
+  if (!(*object)->IsGhost())
 
 //-----------------------------------------------------------------------------
 
-class ObjectsList
+class ObjectsList : public std::list<PhysicalObj*>
 {
-public:
-  typedef struct object_t {
-    PhysicalObj* ptr;
-    bool to_remove;
-    object_t(PhysicalObj* o, bool e) { ptr = o; to_remove = e; }
-  } object_t;
+  public:
+    inline void RemoveObject(PhysicalObj * obj) { remove(obj);};
+    typedef std::list<PhysicalObj*>::iterator iterator;
 
-  typedef std::list<object_t>::iterator iterator;
+  public:
+    ~ObjectsList();
+    inline void AddObject(PhysicalObj * obj) { push_back(obj);};
 
-private:
-  std::list<object_t> lst;
-
-public:
-  ~ObjectsList();
-
-  void AddObject (PhysicalObj* obj);
-  void RemoveObject (PhysicalObj* obj);
   // Call the Refresh method of all the objects
-  void Refresh();
+    void Refresh();
   // Call the Draw method of all the objects
-  void Draw();
+    void Draw();
 
-  bool AllReady();
-
-  iterator Begin() { return lst.begin(); }
-  iterator End() { return lst.end(); }
+    bool AllReady();
 
   // Place mines randomly on the map
-  void PlaceMines();
+    void PlaceMines();
   // Place barrels randomly on the map
-  void PlaceBarrels();
+    void PlaceBarrels();
 
-  void FreeMem();
+    void FreeMem();
 };
 
 extern ObjectsList lst_objects;

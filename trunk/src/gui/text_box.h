@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,12 +27,19 @@
 
 class TextBox : public Label
 {
+protected:
+  std::string::size_type cursor_pos;
 public:
-  TextBox(const std::string &label, const Rectanglei &rect, Font& _font);
+  TextBox(const std::string &label, 
+	  const Rectanglei &rect, 
+	  Font::font_size_t fsize,
+	  Font::font_style_t fstyle);
   ~TextBox();
 
   void SendKey(SDL_keysym key);
-  void Draw(const Point2i &mousePosition, Surface& surf);
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  void SetText(std::string const &new_txt);
+  void SetCursor(std::string::size_type pos);
 };
 
 #endif

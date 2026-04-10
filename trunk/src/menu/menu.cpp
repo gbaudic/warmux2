@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@
  *****************************************************************************/
 
 #include "menu.h"
-#include "../graphic/sprite.h"
-#include "../graphic/video.h"
-#include "../include/app.h"
-#include "../tool/resource_manager.h"
-#include "../sound/jukebox.h"
+#include "graphic/sprite.h"
+#include "graphic/video.h"
+#include "include/app.h"
+#include "tool/resource_manager.h"
+#include "sound/jukebox.h"
 
-Menu::Menu(char * bg, t_action _actions) :
+Menu::Menu(std::string bg, t_action _actions) :
   actions(_actions)
 {
   close_menu = false ;
@@ -69,33 +69,51 @@ Menu::~Menu()
   delete background;
 }
 
-void Menu::sig_ok()
+void Menu::mouse_ok()
 {
-  jukebox.Play("share", "menu/ok");
-  __sig_ok();
-  close_menu = true;
+  if (signal_ok()) {
+    jukebox.Play("share", "menu/ok");
+    close_menu = true;
+  }
 }
 
-void Menu::sig_cancel()
+void Menu::mouse_cancel()
 {
-  jukebox.Play("share", "menu/cancel");
-  __sig_cancel();
-  close_menu = true;
+  if (signal_cancel()) {
+    jukebox.Play("share", "menu/cancel");
+    close_menu = true;
+  }
 }
 
-bool Menu::BasicOnClic(const Point2i &mousePosition)
+bool Menu::BasicOnClickUp(const Point2i &mousePosition)
 {
   if( b_ok != NULL &&  b_ok->Contains(mousePosition) )
-    sig_ok();
+    mouse_ok();
   else if( b_cancel != NULL && b_cancel->Contains(mousePosition) )
-    sig_cancel();
+    mouse_cancel();
   else
     return false;
   
   return true;
 }
 
-void Menu::DrawBackground(const Point2i &mousePosition)
+void Menu::key_ok()
+{
+  if (signal_ok()) {
+    jukebox.Play("share", "menu/ok");
+    close_menu = true;
+  }
+}
+
+void Menu::key_cancel()
+{
+  if (signal_cancel()) {
+    jukebox.Play("share", "menu/cancel");
+    close_menu = true;
+  }
+}
+
+void Menu::DrawBackground()
 {
   background->ScaleSize(AppWormux::GetInstance()->video.window.GetSize());
   background->Blit(AppWormux::GetInstance()->video.window, 0, 0);
@@ -106,6 +124,12 @@ void Menu::Redraw(const Rectanglei& rect, Surface& surf)
   background->Blit(surf, rect, rect.GetPosition());
 }
 
+void Menu::RedrawMenu()
+{
+  DrawBackground();
+  widgets.ForceRedraw();
+}
+
 void Menu::Run ()
 { 
   int x=0, y=0;
@@ -113,41 +137,41 @@ void Menu::Run ()
   close_menu = false;
 
   // Display the background
-  DrawBackground(Point2i(0,0));
+  DrawBackground();
 
   do
   {
     // Poll and treat events
     SDL_Event event;
      
-    while( SDL_PollEvent( &event) )
+    while (SDL_PollEvent(&event))
     {
       Point2i mousePosition(event.button.x, event.button.y);
 	   
-      if( event.type == SDL_QUIT )
-        sig_cancel();
-      else if( event.type == SDL_KEYDOWN )
-        switch( event.key.keysym.sym)
-        {
-        case SDLK_ESCAPE: 
-          if(b_cancel != NULL)
-            sig_cancel();
-          else
-            key_cancel();
-          break;
-        case SDLK_RETURN: 
-          if(b_ok != NULL)
-            sig_ok();
-          else
-            key_ok();
-          break;
-        default:
-          widgets.SendKey(event.key.keysym);
-          break;
-        }
-      else if( event.type == SDL_MOUSEBUTTONUP)
-      if( !BasicOnClic(mousePosition) )
-        OnClic(mousePosition, event.button.button);
+      if (event.type == SDL_QUIT) {
+        key_cancel();
+      } else if (event.type == SDL_KEYDOWN) {
+        switch (event.key.keysym.sym)
+	  {
+	  case SDLK_ESCAPE:
+	    key_cancel();
+	    break;
+	  case SDLK_RETURN:
+	    key_ok();
+	    break;
+	  case SDLK_F10:
+	    AppWormux::GetInstance()->video.ToggleFullscreen();
+	    break;
+	  default:
+	    widgets.SendKey(event.key.keysym);
+	    break;
+	  }
+      } else if (event.type == SDL_MOUSEBUTTONUP) {
+	if (!BasicOnClickUp(mousePosition))
+	  OnClickUp(mousePosition, event.button.button);
+      } else if (event.type == SDL_MOUSEBUTTONDOWN) {
+	OnClick(mousePosition, event.button.button);
+      }
     }
 
     // Avoid to calculate redraw menu when comming back for closing.
@@ -169,7 +193,7 @@ void Menu::Display(const Point2i& mousePosition)
   uint delay = 0;
   uint start = SDL_GetTicks();
 
-  widgets.Draw(mousePosition, AppWormux::GetInstance()->video.window);
+  widgets.Update(mousePosition, AppWormux::GetInstance()->video.window);
   Draw(mousePosition);
   AppWormux::GetInstance()->video.Flip();
 

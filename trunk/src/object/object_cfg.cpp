@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@
 #include <cstring>
 #include <iostream>
 #include "object_cfg.h"
-#include "../game/config.h"
-#include "../include/base.h"
-#include "../tool/xml_document.h"
+#include "game/config.h"
+#include "game/game_mode.h"
+#include "include/base.h"
+#include "tool/debug.h"
+#include "tool/xml_document.h"
 //-----------------------------------------------------------------------------
 
 ObjectConfig::ObjectConfig()
@@ -44,22 +46,33 @@ ObjectConfig::~ObjectConfig()
 
 void ObjectConfig::LoadXml(const std::string& obj_name, const std::string &config_file)
 {
-  std::string file;
-  if(config_file=="")
-    file = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "game_mode" + PATH_SEPARATOR + "objects.xml";
-  else
-    file = config_file;
+  xmlpp::Element* elem = NULL;
+  XmlReader doc;
 
-  // Charge la configuration XML
-  LitDocXml doc;
-  assert(doc.Charge (file));
-  xmlpp::Element* elem = LitDocXml::AccesBalise(doc.racine(), obj_name);
+  if (config_file == "") {
+
+    MSG_DEBUG("game_mode", "Load %s configuration from %s\n", 
+	      obj_name.c_str(), 
+	      GameMode::GetInstance()->GetName().c_str());
+
+    XmlReader& ddoc = GameMode::GetInstance()->GetXmlObjects();
+    elem = XmlReader::GetMarker(ddoc.GetRoot(), obj_name);
+
+  } else {
+    
+    MSG_DEBUG("game_mode", "** Load %s configuration from file %s\n", 
+	      obj_name.c_str(), config_file.c_str());
+
+    // Load Xml configuration
+    assert(doc.Load(config_file));
+    elem = XmlReader::GetMarker(doc.GetRoot(), obj_name);
+  }
 
   assert(elem != NULL);
-  LitDocXml::LitDouble (elem, "mass", m_mass);
-  LitDocXml::LitDouble (elem, "wind_factor", m_wind_factor);
-  LitDocXml::LitDouble (elem, "air_resist_factor", m_air_resist_factor);
-  LitDocXml::LitDouble (elem, "gravity_factor", m_gravity_factor);
-  LitDocXml::LitDouble (elem, "rebound_factor", m_rebound_factor);
-  LitDocXml::LitBool (elem, "rebounding", m_rebounding);
+  XmlReader::ReadDouble(elem, "mass", m_mass);
+  XmlReader::ReadDouble(elem, "wind_factor", m_wind_factor);
+  XmlReader::ReadDouble(elem, "air_resist_factor", m_air_resist_factor);
+  XmlReader::ReadDouble(elem, "gravity_factor", m_gravity_factor);
+  XmlReader::ReadDouble(elem, "rebound_factor", m_rebound_factor);
+  XmlReader::ReadBool(elem, "rebounding", m_rebounding);
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include <string>
 #include <list>
 #include "surface.h"
-#include "../include/base.h"
+#include "include/base.h"
 
 class Video{
  private:
@@ -50,14 +50,13 @@ public:
   Video();
   ~Video();
 
-  bool IsFullScreen(void) const;
+  bool IsFullScreen() const;
 
   std::list<Point2i>& GetAvailableConfigs();
-  bool SetConfig(int width, int height, bool fullscreen);
-
-  void InitWindow(void);
+  bool SetConfig(const int width, const int height, const bool fullscreen);
+  void ToggleFullscreen();
 
   void Flip(void);
-}; 
+};
 
 #endif

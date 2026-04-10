@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,17 +22,17 @@
 #include "polecat.h"
 #include <sstream>
 #include "explosion.h"
-#include "../game/config.h"
-#include "../game/time.h"
-#include "../graphic/video.h"
-#include "../interface/game_msg.h"
-#include "../map/camera.h"
-#include "../object/objects_list.h"
-#include "../sound/jukebox.h"
-#include "../team/teams_list.h"
-#include "../tool/math_tools.h"
-#include "../tool/i18n.h"
-#include "../network/randomsync.h"
+#include "game/config.h"
+#include "game/time.h"
+#include "graphic/video.h"
+#include "interface/game_msg.h"
+#include "map/camera.h"
+#include "object/objects_list.h"
+#include "sound/jukebox.h"
+#include "team/teams_list.h"
+#include "tool/math_tools.h"
+#include "tool/i18n.h"
+#include "network/randomsync.h"
 
 const uint TIME_BETWEEN_FART = 500;
 
@@ -59,7 +59,7 @@ void Polecat::Shoot (double strength)
   save_x=GetX();
   save_y=GetY();
 
-  double angle = ActiveTeam().crosshair.GetAngleRad();
+  double angle = ActiveCharacter().GetFiringAngle();
 
   if(angle<M_PI/2 && angle>-M_PI/2)
     m_sens = 1;
@@ -98,22 +98,21 @@ void Polecat::Refresh()
   //sometimes, angle==infinite (according to gdb) ??
   GetSpeed(norme, angle);
 
-  while(angle < -M_PI) angle += M_PI;
-  while(angle > M_PI) angle -= M_PI;
+  while(angle < -M_PI)
+    angle += M_PI;
+  while(angle > M_PI)
+    angle -= M_PI;
 
-  angle *= 180.0 / M_PI;
   angle /= 2.0;
   if(m_sens == -1)
   {
     if(angle > 0)
-      angle -= 90.0;
+      angle -= M_PI_2;
     else
-      angle += 90.0;
+      angle += M_PI_2;
   }
 
-  if(angle > 720) angle = 0;
-
-  image->SetRotation_deg(angle);
+  image->SetRotation_rad(angle);
   image->Scale((double)m_sens,1.0);
   image->Update();
   // Set the test area ?
@@ -125,15 +124,25 @@ void Polecat::Refresh()
 
 void Polecat::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add ("The Polecat left the battlefield before exploding");
+  GameMessages::GetInstance()->Add (_("The Polecat left the battlefield before exploding"));
   WeaponProjectile::SignalOutOfMap();
 }
+
+std::string Polecat::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u polecat!",
+            "%s team has won %u polecats!",
+            items_count), TeamName, items_count);
+}
+
 //-----------------------------------------------------------------------------
 
 PolecatLauncher::PolecatLauncher() :
   WeaponLauncher(WEAPON_POLECAT, "polecatlauncher", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Polecat Launcher");
+  m_category = SPECIAL;
   ReloadLauncher();
 }
 

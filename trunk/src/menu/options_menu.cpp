@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,34 +21,32 @@
 
 #include "options_menu.h"
 
-#include "../include/app.h"
-#include "../game/game_mode.h"
-#include "../game/config.h"
-#include "../graphic/video.h"
-#include "../graphic/font.h"
-#include "../map/maps_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../tool/string_tools.h"
+#include "include/app.h"
+#include "game/game_mode.h"
+#include "game/config.h"
+#include "graphic/video.h"
+#include "graphic/font.h"
+#include "map/maps_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "tool/string_tools.h"
 #include <sstream>
 
 const uint SOUND_X = 30;
 const uint SOUND_Y = 30;
-const uint SOUND_W = 500;
+const uint SOUND_W = 530;
 const uint SOUND_H = 170;
 
 const uint GRAPHIC_X = 30;
-const uint GRAPHIC_Y = SOUND_X + SOUND_H + 30;
-const uint GRAPHIC_W = 500;
+const uint GRAPHIC_Y = SOUND_Y + SOUND_H + 30;
+const uint GRAPHIC_W = 530;
 const uint GRAPHIC_H = 240;
 
 OptionMenu::OptionMenu() :
   Menu("menu/bg_option")
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  Rectanglei stdRect (0, 0, 130, 30);
-
-  normal_font = Font::GetInstance(Font::FONT_NORMAL);
+  Rectanglei stdRect (0, 0, 140, 30);
 
   /* Grapic options */
   Box * graphic_options = new HBox( Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H));
@@ -88,7 +86,7 @@ OptionMenu::OptionMenu() :
 
   widgets.AddWidget(graphic_options);
 
-  /* Sound options */  
+  /* Sound options */
   Box * sound_options = new HBox( Rectanglei(SOUND_X, SOUND_Y, SOUND_W, SOUND_H));
   sound_options->AddWidget(new PictureWidget(Rectanglei(0,0,40,138), "menu/audio_label"));
 
@@ -114,20 +112,27 @@ OptionMenu::OptionMenu() :
 
   graphic_options->SetXY(center_x - graphic_options->GetSizeX()/2, graphic_options->GetPositionY());
   sound_options->SetXY(center_x - sound_options->GetSizeX()/2, sound_options->GetPositionY());
-  
+
   // Values initialization
 
   // Get available video resolution
   std::list<Point2i>& video_res = app->video.GetAvailableConfigs();
+  std::list<Point2i>::iterator mode;
 
-  std::list<Point2i>::iterator it = video_res.begin(), end = video_res.end();
-  for (; it != end ; ++it) {
-    std::ostringstream ss;
-    ss << (*it).x << "x" << (*it).y ;
-    if ((*it).x == app->video.window.GetWidth() && (*it).y == app->video.window.GetHeight())
-      lbox_video_mode->AddItem(true, ss.str(), ss.str());
-    else
-      lbox_video_mode->AddItem(false, ss.str(), ss.str());
+  for(mode=video_res.begin(); mode!=video_res.end(); ++mode) {
+      std::ostringstream ss;
+      bool is_current;
+      std::string text;
+      ss << mode->GetX() << "x" << mode->GetY() ;
+      text = ss.str();
+      if (app->video.window.GetWidth() == mode->GetX() && app->video.window.GetHeight() == mode->GetY())
+      {
+          ss << " " << _("(current)");
+          is_current = true;
+      } else {
+          is_current = false;
+      }
+      lbox_video_mode->AddItem(is_current, ss.str(), text);
   }
 
   // Generate sound mode list
@@ -155,9 +160,14 @@ OptionMenu::~OptionMenu()
 {
 }
 
-void OptionMenu::OnClic(const Point2i &mousePosition, int button)
+void OptionMenu::OnClickUp(const Point2i &mousePosition, int button)
 {
-  widgets.Clic(mousePosition, button);
+  widgets.ClickUp(mousePosition, button);
+}
+
+void OptionMenu::OnClick(const Point2i &mousePosition, int button)
+{
+
 }
 
 void OptionMenu::SaveOptions()
@@ -167,6 +177,11 @@ void OptionMenu::SaveOptions()
   config->SetDisplayWindParticles(opt_display_wind_particles->GetValue());
   config->SetDisplayEnergyCharacter(opt_display_energy->GetValue());
   config->SetDisplayNameCharacter(opt_display_name->GetValue());
+
+  // Sound settings
+  config->SetSoundEffects(opt_sound_effects->GetValue());
+  config->SetSoundMusic(opt_music->GetValue());
+  config->SetSoundFrequency(lbox_sound_freq->ReadIntValue());
 
   AppWormux * app = AppWormux::GetInstance();
   app->video.SetMaxFps(opt_max_fps->GetValue());
@@ -194,14 +209,15 @@ void OptionMenu::SaveOptions()
   config->Save();
 }
 
-void OptionMenu::__sig_ok()
+bool OptionMenu::signal_ok()
 {
   SaveOptions();
+  return true;
 }
 
-void OptionMenu::__sig_cancel()
+bool OptionMenu::signal_cancel()
 {
-  // Nothing to do
+  return true;
 }
 
 void OptionMenu::Draw(const Point2i &mousePosition)

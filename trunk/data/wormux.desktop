@@ -2,8 +2,8 @@
 Version=1.0
 Encoding=UTF-8
 Type=Application
-Icon=wormux_128x128.xpm
-Exec=/usr/games/wormux
+Icon=wormux_128x128.png
+Exec=wormux
 Terminal=false
 StartupNotify=false
 
@@ -14,6 +14,7 @@ Comment[de]=Ein 2D Spiel mit lustigen Figuren und Waffen
 Comment[es]=Un juego en 2D donde extraños personajes se destripan con alegría
 Comment[fr_FR]=Un jeu en 2D où de drôles de personnages s'étripent joyeusement
 Comment[it]=Un gioco in 2D dove dei simpatici personaggi si sparano allegramente
+Comment[pl_PL]=Gra 2D, w ktorej smieszne postacie uzywaja smiesznych typow broni
 Comment[ro_RO]=Un joc în 2D în care personaje amuzante lansează arme amuzante
 
 Categories=Application;Game;ArcadeGame

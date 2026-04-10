@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@
 #define PHYSICAL_OBJECT_H
 
 #include "physics.h"
-#include "../tool/point.h"
-#include "../tool/rectangle.h"
+#include "tool/point.h"
+#include "tool/rectangle.h"
 
 // Alive state
 typedef enum
@@ -46,17 +46,21 @@ double MeterDistance (const Point2i &p1, const Point2i &p2);
 
 class PhysicalObj : public Physics
 {
+  /* If you need this, implement it (correctly)*/
+  const PhysicalObj& operator=(const PhysicalObj&);
+  /*********************************************/
+
 private:
   // collision management
   bool m_goes_through_wall;
   bool m_collides_with_characters;
   bool m_collides_with_objects;
-
-  Point2i m_rebound_position;  
+  Point2i m_rebound_position;
 protected:
   PhysicalObj* m_overlapping_object;
+  bool m_ignore_movements;
 
-  void CheckOverlapping();
+  virtual void CheckOverlapping();
 
 protected:
   std::string m_name;
@@ -70,12 +74,16 @@ protected:
   std::string m_rebound_sound;
 
   alive_t m_alive;
-  int life_points; // Only used by petrol barrel and bonus box (character use their own damage system for now..)
+  int life_points; // Only used by petrol barrel and boxes (character use their own damage system for now..)
 
   bool m_allow_negative_y;
 
 public:
   PhysicalObj (const std::string &name, const std::string &xml_config="");
+  /* Note : The copy constructor is not implemented (and this is not a bug)
+   * because we can copy directly the pointer m_overlapping_object whereas this
+   * object does not own it.
+   * FIXME what happen if the object is deleted meanwhile ???*/
   virtual ~PhysicalObj ();
 
   //-------- Set position and size -------
@@ -96,7 +104,7 @@ public:
 
   // Set/Get test rectangles
   void SetTestRect (uint left, uint right, uint top, uint bottom);
-  const Rectanglei GetTestRect() const;   
+  const Rectanglei GetTestRect() const;
   int GetTestWidth() const;
   int GetTestHeight() const;
 
@@ -128,7 +136,7 @@ public:
   bool IsInVacuumXY(const Point2i &position, bool check_objects = true) const;
   bool IsInVacuum(const Point2i &offset, bool check_objects = true) const; // Relative to current position
   PhysicalObj* CollidedObjectXY(const Point2i & position) const;
-  PhysicalObj* CollidedObject(const Point2i & offset) const; // Relative to current position
+  PhysicalObj* CollidedObject(const Point2i & offset = Point2i(0,0)) const; // Relative to current position
   bool FootsInVacuumXY(const Point2i & position) const;
   bool FootsInVacuum() const;
 
@@ -138,7 +146,7 @@ public:
 
   // The object is outside of the world
   bool IsOutsideWorldXY(Point2i position) const;
-  bool IsOutsideWorld(const Point2i &offset) const;
+  bool IsOutsideWorld(const Point2i &offset = Point2i(0,0)) const; // Relative to current position
 
   // Refresh datas
   virtual void Refresh() = 0;
@@ -147,24 +155,23 @@ public:
   virtual void Draw() = 0;
 
   // Damage handling
-  void AddDamage(uint damage_points);
+  virtual void AddDamage(uint damage_points);
 
   //-------- state ----
   void Init();
   void Ghost();
   void Drown();
   void GoOutOfWater(); // usefull for supertux.
-  void RemoveFromPhysicalEngine();
 
   virtual bool IsImmobile() const;
   bool IsDead() const;
   bool IsGhost() const;
   bool IsDrowned() const;
 
-  // Est-ce que deux objets se touchent ? (utilise les rectangles de test)
+  // Are the two object in contact ? (uses test rectangles)
   bool ObjTouche(const PhysicalObj &b) const;
 
-  // Est-ce que le point p touche l'objet ?
+  // Do the point p touch the object ?
   bool ObjTouche(const Point2i &p) const;
 
   bool PutRandomly(bool on_top_of_world, double min_dst_with_characters);
@@ -177,8 +184,7 @@ protected:
   virtual void SignalOutOfMap();
 
 private:
-  //Renvoie la position du point de contact entre
-  //l'obj et le terrain
+  //Retrun the position of the point of contact of the obj on the ground
   bool ContactPoint (int &x, int &y);
 
   void NotifyMove(Point2d oldPos, Point2d newPos);

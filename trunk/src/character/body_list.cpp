@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,9 +22,9 @@
 //-----------------------------------------------------------------------------
 #include <string>
 #include <iostream>
-#include "../game/config.h" // DATADIR
-#include "../tool/i18n.h"
-#include "../tool/xml_document.h"
+#include "game/config.h" // DATADIR
+#include "tool/i18n.h"
+#include "tool/xml_document.h"
 
 const std::string CONFIG_FN = "config.xml";
 //-----------------------------------------------------------------------------
@@ -62,15 +62,15 @@ void BodyList::Load (const std::string &name)
 {
   std::string fn = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "body" + PATH_SEPARATOR + name + PATH_SEPARATOR + CONFIG_FN;
 
-  LitDocXml doc;
-  if (!doc.Charge (fn)) {
+  XmlReader doc;
+  if (!doc.Load(fn)) {
      std::cerr << "Unable to find file " << fn << std::endl;
      return;
   }
 
   Profile *res = resource_manager.LoadXMLProfile( fn, true);
 
-  Body* body = new Body(doc.racine(), res);
+  Body* body = new Body(doc.GetRoot(), res);
   list[name] = body;
 
   resource_manager.UnLoadXMLProfile( res);
@@ -86,5 +86,5 @@ Body* BodyList::GetBody(const std::string &name)
     std::cerr << "Unable to load body \"" << name << "\"" << std::endl;
     return NULL;
   }
-  return new Body(list[name]);
+  return new Body(*list[name]);
 }

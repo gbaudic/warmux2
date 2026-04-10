@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #ifndef SPIN_BUTTON_H
 #define SPIN_BUTTON_H
 
-#include "../include/base.h"
-#include "../graphic/text.h"
+#include "include/base.h"
+#include "graphic/text.h"
 #include "widget.h"
 #include "button.h"
 #include <string>
@@ -31,21 +31,30 @@
 class SpinButton : public Widget
 {
  private:
+  /* If you need this, implement it (correctly)*/
+  SpinButton(const SpinButton&);
+  SpinButton operator=(const SpinButton&);
+  /*********************************************/
+
+  bool shadowed;
+
   Text *txt_label, *txt_value;
 
   int m_value;
   int m_min_value, m_max_value, m_step;
   Button *m_plus, *m_minus;
-  
+
  public:
   SpinButton(const std::string &label, const Rectanglei &rect,
-	     int value=0, int step=1, int min_value=-1, int max_value=-1);
+	     int value=0, int step=1, int min_value=-1, int max_value=-1,
+	     const Color& color = white_color, bool shadowed = true);
   virtual ~SpinButton();
 
   void SetSizePosition(const Rectanglei &rect);
 
-  void Draw(const Point2i &mousePosition, Surface& surf);
-  Widget* Clic(const Point2i &mousePosition, uint button);
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  Widget* Click(const Point2i &mousePosition, uint button);
+  Widget* ClickUp(const Point2i &mousePosition, uint button);
   int GetValue() const;
   void SetValue(int value);
 };

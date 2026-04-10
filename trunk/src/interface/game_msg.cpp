@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 
 #include "game_msg.h"
 #include <iostream>
-#include "../game/time.h"
-#include "../graphic/video.h"
-#include "../graphic/font.h"
-#include "../include/app.h"
+#include "game/time.h"
+#include "graphic/video.h"
+#include "graphic/font.h"
+#include "include/app.h"
 #include "game_msg.h"
 
 // Hauteur de la police de caractere "mini"
@@ -92,7 +92,7 @@ void GameMessages::Add(const std::string &message){
   // Debug message
   std::cout << "o MSG: " << message << std::endl;
   // Add message at the end of the list
-  Message * newMessage = new Message(message, white_color, Font::GetInstance(Font::FONT_SMALL), Time::GetInstance()->Read());
+  Message * newMessage = new Message(message, white_color, Font::FONT_SMALL, Font::FONT_NORMAL, Time::GetInstance()->Read());
   liste.push_back (newMessage);
 
   /* if there are too many messages, remove some of them */

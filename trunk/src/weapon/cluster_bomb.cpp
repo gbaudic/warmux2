@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,15 +24,15 @@
 #include <sstream>
 #include <math.h>
 #include "explosion.h"
-#include "../game/time.h"
-#include "../graphic/video.h"
-#include "../interface/game_msg.h"
-#include "../map/camera.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/math_tools.h"
-#include "../tool/i18n.h"
-#include "../network/randomsync.h"
+#include "game/time.h"
+#include "graphic/video.h"
+#include "interface/game_msg.h"
+#include "map/camera.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/math_tools.h"
+#include "tool/i18n.h"
+#include "network/randomsync.h"
 
 Cluster::Cluster(ClusterBombConfig& cfg,
                  WeaponLauncher * p_launcher) :
@@ -43,20 +43,18 @@ Cluster::Cluster(ClusterBombConfig& cfg,
 
 void Cluster::Shoot (int x, int y)
 {
-  camera.ChangeObjSuivi(this, true, false);
+  camera.FollowObject(this, true, false);
   ResetConstants();
   SetXY( Point2i(x, y) );
 }
 
 void Cluster::Refresh()
 {
-  double angle = GetSpeedAngle() * 180/M_PI ;
-  image->SetRotation_deg( angle );
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
 void Cluster::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 }
 
@@ -73,23 +71,12 @@ ClusterBomb::ClusterBomb(ClusterBombConfig& cfg,
 {
   m_rebound_sound = "weapon/grenade_bounce";
   explode_with_collision = false;
-
-  tableau_cluster.clear();
-  const uint nb = cfg.nb_fragments;
-
-  for (uint i=0; i<nb; ++i)
-  {
-    Cluster cluster(cfg, launcher);
-    tableau_cluster.push_back( cluster );
-  }
 }
 
 void ClusterBomb::Refresh()
 {
   WeaponProjectile::Refresh();
-  
-  double angle = GetSpeedAngle() * 180/M_PI ;
-  image->SetRotation_deg( angle);
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
 void ClusterBomb::SignalOutOfMap()
@@ -98,35 +85,36 @@ void ClusterBomb::SignalOutOfMap()
   WeaponProjectile::SignalOutOfMap();
 }
 
-void ClusterBomb::Explosion()
+void ClusterBomb::DoExplosion()
 {
-  if (IsGhost())
-  {
-    WeaponProjectile::Explosion();
-    return;
-  }
-
-  iterator it=tableau_cluster.begin(), end=tableau_cluster.end();
-  for (; it != end; ++it)
-  {
-    Cluster &cluster = *it;
-
+  const uint nb = static_cast<ClusterBombConfig &>(cfg).nb_fragments;
+  Cluster * cluster;
+  for (uint i=0; i<nb; ++i) {
     double angle = randomSync.GetDouble(2.0 * M_PI);
     int x = GetX()+(int)(cos(angle) * (double)cfg.blast_range * 0.9);
     int y = GetY()+(int)(sin(angle) * (double)cfg.blast_range * 0.9);
-
-    cluster.Shoot(x,y);
-    lst_objects.AddObject((PhysicalObj*)&cluster);
+    cluster = new Cluster(static_cast<ClusterBombConfig &>(cfg), launcher);
+    cluster->Shoot(x,y);
+    lst_objects.AddObject(cluster);
   }
-  WeaponProjectile::Explosion();
+  WeaponProjectile::DoExplosion();
 }
 
+std::string ClusterBomb::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u custer bomb!",
+            "%s team has won %u custer bombs!",
+            items_count), TeamName, items_count);
+}
 //-----------------------------------------------------------------------------
 
-ClusterLauncher::ClusterLauncher() : 
+ClusterLauncher::ClusterLauncher() :
   WeaponLauncher(WEAPON_CLUSTER_BOMB, "cluster_bomb", new ClusterBombConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
-{  
+{
   m_name = _("Cluster Bomb");
+  m_help = _("Timeout : Wheel mouse or Page Up/Down\nAngle : Up/Down\nFire : keep space key pressed until the desired strength\nan ammo per turn");
+  m_category = THROW;
   ignore_collision_signal = true;
   ReloadLauncher();
 }
@@ -137,8 +125,10 @@ WeaponProjectile * ClusterLauncher::GetProjectileInstance()
       (new ClusterBomb(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
 
-ClusterBombConfig& ClusterLauncher::cfg() 
-{ return static_cast<ClusterBombConfig&>(*extra_params); }
+ClusterBombConfig& ClusterLauncher::cfg()
+{
+  return static_cast<ClusterBombConfig&>(*extra_params);
+}
 
 //-----------------------------------------------------------------------------
 
@@ -151,5 +141,5 @@ ClusterBombConfig::ClusterBombConfig() :
 void ClusterBombConfig::LoadXml(xmlpp::Element *elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
-  LitDocXml::LitUint (elem, "nb_fragments", nb_fragments);
+  XmlReader::ReadUint(elem, "nb_fragments", nb_fragments);
 }

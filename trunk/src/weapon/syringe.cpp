@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,15 +20,16 @@
  *****************************************************************************/
 
 #include "syringe.h"
-#include "../game/game_loop.h"
-#include "../team/macro.h"
-#include "../tool/point.h"
-#include "../tool/i18n.h"
+#include "game/game_loop.h"
+#include "team/macro.h"
+#include "tool/point.h"
+#include "tool/i18n.h"
 #include "explosion.h"
 
 Syringe::Syringe() : Weapon(WEAPON_SYRINGE, "syringe", new SyringeConfig())
 {
   m_name = _("Syringe");
+  m_category = DUEL;
 }
 
 void Syringe::Draw() {
@@ -36,7 +37,7 @@ void Syringe::Draw() {
 }
 
 bool Syringe::p_Shoot (){
-  double angle = ActiveTeam().crosshair.GetAngleRad();
+  double angle = ActiveCharacter().GetFiringAngle();
   double radius = 0.0;
   bool end = false;
 
@@ -62,9 +63,9 @@ bool Syringe::p_Shoot (){
       // Did we touch somebody ?
       if( character->ObjTouche(pos_to_check) )
       {
-	// Apply damage (*ver).SetEnergyDelta (-cfg().damage);
-	character->SetDiseaseDamage(cfg().damage, cfg().turns);
-	end = true;
+        // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
+        character->SetDiseaseDamage(cfg().damage, cfg().turns);
+        end = true;
       }
     }
   } while (!end);
@@ -75,6 +76,14 @@ bool Syringe::p_Shoot (){
 void Syringe::Refresh(){
   if (m_is_active)
     m_is_active = false;
+}
+
+std::string Syringe::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u syringe!",
+            "%s team has won %u syringes!",
+            items_count), TeamName, items_count);
 }
 
 SyringeConfig& Syringe::cfg() {
@@ -89,7 +98,7 @@ SyringeConfig::SyringeConfig(){
 
 void SyringeConfig::LoadXml(xmlpp::Element *elem){
   WeaponConfig::LoadXml(elem);
-  LitDocXml::LitUint (elem, "range", range);
-  LitDocXml::LitUint (elem, "turns", turns);
-  LitDocXml::LitUint (elem, "damage", damage);
+  XmlReader::ReadUint(elem, "range", range);
+  XmlReader::ReadUint(elem, "turns", turns);
+  XmlReader::ReadUint(elem, "damage", damage);
 }

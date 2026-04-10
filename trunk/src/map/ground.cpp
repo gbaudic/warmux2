@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,15 +27,15 @@
 #include "camera.h"
 #include "map.h"
 #include "maps_list.h"
-#include "../graphic/surface.h"
-#include "../graphic/video.h"
-#include "../include/app.h"
-#include "../include/constant.h"
-#include "../tool/i18n.h"
-#include "../tool/resource_manager.h"
+#include "graphic/surface.h"
+#include "graphic/video.h"
+#include "include/app.h"
+#include "include/constant.h"
+#include "tool/i18n.h"
+#include "tool/resource_manager.h"
 
 Ground::Ground()
-{ //FIXME (a effacer)
+{ //FIXME (to erase)
 }
 
 void Ground::Init(){
@@ -46,12 +46,12 @@ void Ground::Init(){
   Surface m_image = ActiveMap().ReadImgGround();
   LoadImage ( m_image );
 
-  // V�ifie la taille du terrain
+  // Check the size of the map
   assert(Constants::MAP_MIN_SIZE <= GetSize());
   assert(GetSizeX()*GetSizeY() <= Constants::MAP_MAX_SIZE);
 
-  // V�ifie si c'est un terrain ouvert ou ferm�
-  ouvert = ActiveMap().IsOpened();
+  // Check if the map is "opened"
+  open = ActiveMap().IsOpened();
 
   std::cout << _("done") << std::endl;
 }
@@ -61,81 +61,84 @@ void Ground::Reset(){
   lastPos.SetValues(INT_MAX, INT_MAX);
 }
 
-// Lit la valeur alpha du pixel (x,y)
-bool Ground::IsEmpty(const Point2i &pos){
-	assert( !world.EstHorsMondeXY(pos.x, pos.y) );
+// Read the alpha channel of the pixel
+bool Ground::IsEmpty(const Point2i &pos) const{
+	assert( !world.IsOutsideWorldXY(pos.x, pos.y) );
 
-	// Lit le monde
 	return GetAlpha( pos ) != 255; // IsTransparent
 }
 
-//Renvoie l'angle entre la tangeante au terrain en (x,y) et l'horizontale.
-//l'angle est toujours > 0.
-//Renvoie -1.0 s'il n'y a pas de tangeante (si le pixel(x,y) ne touche
-//aucun autre morceau de terrain)
-double Ground::Tangeante(int x,int y){
-  //Approxiamtion:on renvoie la corde de la courbe form�
-  //par le terrain...
+/*
+ * Returns the angle between the tangent at point (x,y) of the ground and
+ * horizontal
+ * the angle is always > 0.
+ * returns -1.0 if no tangent was found (pixel (x,y) does not touch any
+ * other piece of ground
+ */
+double Ground::Tangent(int x,int y){
+  //Approximation : returns the chord instead of the tangent to the ground
 
-  //On cherche deux points du terrain autour de (x,y), �la limite entre le terrain
-  //et le vide:
-  //(p1 = 1er point �gauche
-  // p2 = 1er point �droite
-  // p3 = 2em point �gauche
-  // p4 = 2em point �droite)
-  Point2i p1,p2,p3,p4;
+  /* We try to find 2 points on the ground on each side of (x,y)
+   * the points should be at the limit between land and vaccum
+   * (p1 =  point on the left
+   * p2 =  point on the right
+   */
+  Point2i p1,p2;
   if(!PointContigu(x,y, p1.x,p1.y, -1,-1))
-    return -1.0;
+    return NAN;
 
   if(!PointContigu(x,y, p2.x,p2.y, p1.x,p1.y))
   {
     p2.x = x;
     p2.y = y;
   }
-
-  if(!PointContigu(p1.x,p1.y, p3.x,p3.y, x,y))
-  {
-    p3.x = p1.x;
-    p3.y = p1.y;
-  }
-  if(!PointContigu(p2.x,p2.y, p4.x,p4.y, x,y))
-  {
-    p4.x = p2.x;
-    p4.y = p2.y;
-  }
-
-  if(p3.x == p4.x)
+/*
+  if(p1.x == p2.x)
     return M_PI / 2.0;
-  if(p3.y == p4.y)
+  if(p1.y == p2.y)
     return M_PI;
+*/
+  //assert (p1.x != p2.x);
 
-  assert (p3.x != p4.x);
-
-  double tangeante = atan((double)(p4.y-p3.y)/(double)(p4.x-p3.x));
+  /* double tangeante = atan((double)(p2.y-p1.y)/(double)(p2.x-p1.x));
 
   while(tangeante <= 0.0)
     tangeante += M_PI;
-  while(tangeante > M_PI)
+  while(tangeante > 2 * M_PI)
     tangeante -= M_PI;
 
-  return tangeante;
+  return tangeante; */
+
+  //calculated with a good old TI-83... using table[a][b] = atan( (a-2) / (b-2) )
+  const float table[5][5] = {
+    {.78539,		.46364,		M_PI,		-.46364+M_PI,	-.78539+M_PI},
+    {1.1071,		.78539,		M_PI,		-.78539+M_PI,	-1.1071+M_PI},
+    {M_PI/2.0,		M_PI/2.0,	M_PI/2.0,	M_PI/2.0,	M_PI / 2.0},
+    {-1.1071+M_PI,	 -.78539+M_PI,  M_PI,		78539,		1.1071},
+    {-.78539+M_PI,	-.46364+M_PI,	M_PI,		.46364,		.78539}};
+
+  assert(p2.x-p1.x >= -2 && p2.x-p1.x <= 2);
+  assert(p2.y-p1.y >= -2 && p2.y-p1.y <= 2);
+
+  return table[(p2.y-p1.y)+2][(p2.x-p1.x)+2];
 }
 
 bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
-                           int pas_bon_x,int pas_bon_y)
+                           int bad_x,int bad_y)
 {
-  //Cherche un pixel autour du pixel(x,y) qui est �la limite entre
-  //le terrin et le vide.
-  //renvoie true (+ p_x et p_y) si on a trouv�qqch, sinon false
-  if(world.EstHorsMonde(Point2i(x-1,y))
-  || world.EstHorsMonde(Point2i(x+1,y))
-  || world.EstHorsMonde(Point2i(x,y-1))
-  || world.EstHorsMonde(Point2i(x,y+1)) )
+  //Look for a pixel around (x,y) that is at the edge of the ground
+  //and vaccum
+  //return true (and set p_x and p_y) if this point have been found
+  if(world.IsOutsideWorld(Point2i(x-1,y))
+  || world.IsOutsideWorld(Point2i(x+1,y))
+  || world.IsOutsideWorld(Point2i(x,y-1))
+  || world.IsOutsideWorld(Point2i(x,y+1)) )
     return false;
 
-  //regarde en haut �gauche
-  if(x-1 != pas_bon_x
-  || y-1 != pas_bon_y)
+  // check adjacents pixels one by one:
+  //upper right pixel
+  if(x-1 != bad_x
+  || y-1 != bad_y)
   if( !IsEmpty(Point2i(x-1,y-1) )
   &&( IsEmpty(Point2i(x-1,y))
   || IsEmpty(Point2i(x,y-1))))
@@ -144,9 +147,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y-1;
     return true;
   }
-  //regarde en haut
-  if(x != pas_bon_x
-  || y-1 != pas_bon_y)
+  //upper pixel
+  if(x != bad_x
+  || y-1 != bad_y)
   if(!IsEmpty(Point2i(x,y-1))
   &&(IsEmpty(Point2i(x-1,y-1))
   || IsEmpty(Point2i(x+1,y-1))))
@@ -155,9 +158,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y-1;
     return true;
   }
-  //regarde en haut �droite
-  if(x+1 != pas_bon_x
-  || y-1 != pas_bon_y)
+  //upper right pixel
+  if(x+1 != bad_x
+  || y-1 != bad_y)
   if(!IsEmpty(Point2i(x+1,y-1))
   &&(IsEmpty(Point2i(x,y-1))
   || IsEmpty(Point2i(x+1,y))))
@@ -166,9 +169,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y-1;
     return true;
   }
-  //regarde �droite
-  if(x+1 != pas_bon_x
-  || y != pas_bon_y)
+  //pixel at the right
+  if(x+1 != bad_x
+  || y != bad_y)
   if(!IsEmpty(Point2i(x+1,y))
   &&(IsEmpty(Point2i(x+1,y-1))
   || IsEmpty(Point2i(x,y+1))))
@@ -177,9 +180,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y;
     return true;
   }
-  //regarde en bas �droite
-  if(x+1 != pas_bon_x
-  || y+1 != pas_bon_y)
+  //bottom right pixel
+  if(x+1 != bad_x
+  || y+1 != bad_y)
   if(!IsEmpty(Point2i(x+1,y+1))
   &&(IsEmpty(Point2i(x+1,y))
   || IsEmpty(Point2i(x,y+1))))
@@ -188,9 +191,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y+1;
     return true;
   }
-  //regarde en bas
-  if(x != pas_bon_x
-  || y+1 != pas_bon_y)
+  //bottom pixel
+  if(x != bad_x
+  || y+1 != bad_y)
   if(!IsEmpty(Point2i(x,y+1))
   &&(IsEmpty(Point2i(x-1,y+1))
   || IsEmpty(Point2i(x+1,y+1))))
@@ -199,9 +202,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y+1;
     return true;
   }
-  //regarde en bas �gauche
-  if(x-1 != pas_bon_x
-  || y+1 != pas_bon_y)
+  //bottom left pixel
+  if(x-1 != bad_x
+  || y+1 != bad_y)
   if(!IsEmpty(Point2i(x-1,y+1))
   &&(IsEmpty(Point2i(x-1,y))
   || IsEmpty(Point2i(x,y+1))))
@@ -210,9 +213,9 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y+1;
     return true;
   }
-  //regarde �gauche
-  if(x-1 == pas_bon_x
-  && y == pas_bon_y)
+  //pixel at left
+  if(x-1 == bad_x
+  && y == bad_y)
   if(!IsEmpty(Point2i(x-1,y))
   &&(IsEmpty(Point2i(x-1,y-1))
   || IsEmpty(Point2i(x-1,y+1))))

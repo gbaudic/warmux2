@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #ifndef GAME_MESSAGES_H
 #define GAME_MESSAGES_H
 //-----------------------------------------------------------------------------
-#include "../include/base.h"
-#include "../graphic/text.h"
+#include "include/base.h"
+#include "graphic/text.h"
 #include <string>
 #include <list>
 //-----------------------------------------------------------------------------
@@ -35,16 +35,19 @@
  */
 class Message : public Text
 {
-  public:
-    Message(const std::string &new_txt,
-            const Color &new_color, Font* new_font,
-            uint _time) :
-      Text(new_txt, new_color, new_font),
-      time(_time) {};
-    inline uint get_time()
-    { return time; }
-  private:
-    uint time;
+private:
+  uint time;
+
+public:
+  Message(const std::string &new_txt,
+	  const Color &new_color, 
+	  Font::font_size_t font_size,
+	  Font::font_style_t font_style,
+	  uint _time) :
+    Text(new_txt, new_color, font_size, font_style),
+    time(_time) {};
+
+  inline uint get_time() { return time; }
 };
 /*
  * class GameMessages

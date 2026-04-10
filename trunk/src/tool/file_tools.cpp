@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  * Refresh des fichiers.
  *****************************************************************************/
 
-#include "../tool/file_tools.h"
+#include "tool/file_tools.h"
 #include <fstream>
 #ifdef _WIN32
    // To get SHGetSpecialFolderPath

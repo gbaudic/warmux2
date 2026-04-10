@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,26 +16,31 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Classe principale qui gère le jeu : initialisation, dessin, gestion
- * des différents composants, et boucle de jeu.
+ * Main Class manage the game : initialization, drawing, components management
+ * and game loop.
  *****************************************************************************/
 
 #ifndef GAME_H
 #define GAME_H
 
-#include "../include/base.h"
-#include "../gui/question.h"
+#include "include/base.h"
+#include "gui/question.h"
+#include "weapon/weapons_list.h"
 
 class Game
 {
 private:
   bool isGameLaunched;
-  bool endOfGameStatus;
 
-  int NbrRemainingTeams();
+  // Set the user requested an end of the game
+  bool want_end_of_game;
 
   Game();
   static Game * singleton;
+
+  int AskQuestion (Question &question, bool draw=true);
+  void DisplayPause();
+  bool DisplayQuit();
 
 public:
   static Game * GetInstance();
@@ -43,17 +48,16 @@ public:
   void Start();
   void UnloadDatas();
 
-  bool IsGameFinished();
+  int NbrRemainingTeams() const;
+  
+  bool IsGameFinished() const;
+  bool IsGamePaused() const;
   bool IsGameLaunched() const;
 
-  void MessageLoading();
-  void MessageEndOfGame();
+  void MessageLoading() const;
+  void MessageEndOfGame() const;
 
-  int AskQuestion (Question &question, bool draw=true);
-
-  void Pause();
-
-  bool GetEndOfGameStatus();
-  void SetEndOfGameStatus(bool status);
+  void TogglePause();
+  void UserWantEndOfGame() { want_end_of_game = true; };
 };
 #endif

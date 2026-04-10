@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,19 +16,14 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon bazooka : projette une roquette avec un angle et une force donn�.
+ * Weapon gnu : a gnu jump in (more or less) random directions and explodes
  *****************************************************************************/
 
 #ifndef GNU_H
 #define GNU_H
 
 #include <SDL.h>
-#include "grenade.h"
-#include "weapon.h"
-#include "../graphic/sprite.h"
-#include "../gui/progress_bar.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
+#include "weapon/launcher.h"
 
 class GnuLauncher;
 
@@ -38,7 +33,6 @@ class Gnu : public WeaponProjectile
  private:
   int m_sens;
   int save_x, save_y;
-  double angle;
  protected:
   void SignalOutOfMap();
 public:
@@ -46,6 +40,7 @@ public:
       WeaponLauncher * p_launcher);
   void Shoot(double strength);
   void Refresh();
+  DECLARE_GETWEAPONSTRING();
 };
 
 class GnuLauncher : public WeaponLauncher

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,32 +21,28 @@
 
 #include "lowgrav.h"
 #include "explosion.h"
-#include "../game/game.h"
-#include "../game/game_loop.h"
-#include "../object/physical_obj.h"
-#include "../sound/jukebox.h"
-#include "../interface/game_msg.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../include/action_handler.h"
-
-// Espace entre l'espace en l'image
-const uint ESPACE = 5;
+#include "game/game.h"
+#include "game/game_loop.h"
+#include "object/physical_obj.h"
+#include "sound/jukebox.h"
+#include "interface/game_msg.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "include/action_handler.h"
 
 const double LOW_GRAVITY_FACTOR = 0.4;
 
-LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav", 
+LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav",
 			    new WeaponConfig(), NEVER_VISIBLE)
 {
   m_name = _("LowGrav");
+  m_category = MOVE;
 
-  override_keys = true ;
-  use_unit_on_first_shoot = false;  
+  use_unit_on_first_shoot = false;
 }
 
 void LowGrav::Refresh()
 {
-  ActiveCharacter().UpdatePosition();
 }
 
 void LowGrav::p_Deselect()
@@ -67,19 +63,12 @@ void LowGrav::Draw()
 {
 }
 
-void LowGrav::HandleKeyEvent(int action, int event_type)
+void LowGrav::HandleKeyPressed_Shoot()
 {
-  switch (action)
-    {
-      case ACTION_SHOOT:
-        if (event_type == KEY_PRESSED)
-          ActionHandler::GetInstance()->NewAction(new Action(ACTION_WEAPON_STOP_USE));
-	break ;
-
-      default:
-	ActiveCharacter().HandleKeyEvent(action, event_type);
-	break ;
-    }
+  if (!m_is_active)
+    NewActionWeaponShoot();
+  else
+    NewActionWeaponStopUse();
 }
 
 void LowGrav::SignalTurnEnd()
@@ -91,3 +80,12 @@ void LowGrav::ActionStopUse()
 {
   UseAmmoUnit();
 }
+
+std::string LowGrav::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u lowgrav!",
+            "%s team has won %u lowgravs!",
+            items_count), TeamName, items_count);
+}
+

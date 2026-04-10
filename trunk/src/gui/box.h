@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include "widget_list.h"
 #include <list>
-#include "../tool/point.h"
+#include "tool/point.h"
 
 class Box : public WidgetList
 {
@@ -41,10 +41,11 @@ class Box : public WidgetList
 	      const Point2i &lastMousePosition,
 	      Surface& surf);
   void Draw(const Point2i &mousePosition,
-	    Surface& surf);
+	    Surface& surf) const;
   void Redraw(const Rectanglei& rect,
 	      Surface& surf);
-  Widget* Clic(const Point2i &mousePosition, uint button);
+  Widget* Click(const Point2i &mousePosition, uint button);
+  Widget* ClickUp(const Point2i &mousePosition, uint button);
 
   void SetMargin(uint _margin);
   void SetBorder(const Point2i &newBorder);

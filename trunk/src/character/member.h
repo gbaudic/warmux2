@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@
 #include <vector>
 #include "body.h"
 #include "movement.h"
-#include "../graphic/sprite.h"
-#include "../tool/resource_manager.h"
-#include "../tool/point.h"
-#include "../tool/xml_document.h"
+#include "graphic/sprite.h"
+#include "tool/resource_manager.h"
+#include "tool/point.h"
+#include "tool/xml_document.h"
 
 typedef std::vector<Point2f> v_attached;
 
@@ -35,7 +35,12 @@ class c_junction; //defined in body.h
 
 class Member
 {
+  /* If you need this, implement it (correctly) */
+  Member operator=(const Member&);
+  /**********************************************/
+
   Member* parent;
+  double angle_rad;
 protected:
   Point2f anchor;
 
@@ -48,19 +53,19 @@ public:
   Point2f pos;
   Point2f scale;
   float alpha;
-  int angle;
   std::string type;
   bool go_through_ground;
 
   virtual ~Member();
   Member(xmlpp::Element *xml, Profile* res);
-  Member(Member* m);
+  Member(const Member& m);
   virtual void Draw(const Point2i & _pos, int flip_x, int direction);
   void RotateSprite();
   void ResetMovement();
   void ApplySqueleton(Member* parent_member);
   void ApplyMovement(member_mvt& mvt, std::vector<class c_junction>& squel_lst);
   const Point2i GetPos();
+  inline void SetAngle(const double &angle) { angle_rad = angle; };
 };
 
 class WeaponMember : public Member

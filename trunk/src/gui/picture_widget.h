@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,13 +22,19 @@
 #ifndef PICTURE_WIDGET_H
 #define PICTURE_WIDGET_H
 
-#include "../graphic/sprite.h"
+#include "graphic/sprite.h"
 #include "widget.h"
 #include <string>
 
 class PictureWidget : public Widget
 {
  private:
+  /* If you need this, implement it (correctly)*/
+  PictureWidget(const PictureWidget&);
+  PictureWidget operator=(const PictureWidget&);
+  /*********************************************/
+
+  bool disabled;
   Sprite * spr;
 
  public:
@@ -37,8 +43,11 @@ class PictureWidget : public Widget
   ~PictureWidget();
   void SetSurface(const Surface& s, bool enable_scaling=false);
   void SetNoSurface();
-  void Draw(const Point2i &mousePosition, Surface& surf);
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
   void SetSizePosition(const Rectanglei &rect);
+
+  // Apply a transparency color mask
+  void Disable();
 };
 
 #endif

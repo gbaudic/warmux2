@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@
  *****************************************************************************/
 
 #include <sstream>
-#include "../map/map.h"
-#include "../game/time.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../interface/game_msg.h"
-#include "../network/randomsync.h"
+#include "map/map.h"
+#include "game/time.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "interface/game_msg.h"
+#include "network/randomsync.h"
 #include "explosion.h"
 #include "shotgun.h"
 
@@ -60,8 +60,8 @@ bool ShotgunBuckshot::IsOverlapping(const PhysicalObj* obj) const
 Shotgun::Shotgun() : WeaponLauncher(WEAPON_SHOTGUN, "shotgun", new ExplosiveWeaponConfig())
 {
   m_name = _("Shotgun");
+  m_category = RIFLE;
 
-  override_keys = true ;
   announce_missed_shots = false;
   m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
@@ -89,7 +89,7 @@ void Shotgun::IncMissedShots()
 }
 
 bool Shotgun::p_Shoot ()
-{  
+{
   missed_shots = 0;
   announce_missed_shots = false;
   if (m_is_active)
@@ -103,5 +103,13 @@ bool Shotgun::p_Shoot ()
   m_last_fire_time = Time::GetInstance()->Read();
   m_is_active = true;
   return true;
+}
+
+std::string Shotgun::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u shotgun!",
+            "%s team has won %u shotguns!",
+            items_count), TeamName, items_count);
 }
 

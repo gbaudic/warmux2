@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,13 +25,15 @@
 #include <list>
 #include "tile.h"
 
-class Ground : public Tile 
+class Ground : public Tile
 {
 private:
-  bool ouvert;
+  bool open;
   bool PointContigu(int x,int y, int & p_x,int & p_y,
                     int pas_bon_x,int pas_bon_y);
   Point2i lastPos;
+
+  static float table[5][5];
 
 public:
   Ground();
@@ -40,14 +42,14 @@ public:
   void Reset();
   void Free() { FreeMem(); }
 
-  // Le point (x,y) est dans le vide ?
-  bool IsEmpty(const Point2i &pos);
+  // Is point (x,y) in vacuum ?
+  bool IsEmpty(const Point2i &pos) const;
 
-  // C'est un terrain ouvert ?
-  bool EstOuvert() const { return ouvert; }
-  
-  //Renvoie l'angle de la tangeante au terrain
-  double Tangeante(int x,int y);
+  // Is the playground "open" ?
+  bool IsOpen() const { return open; }
+
+  //returns the angle formed by the ground tangent au terrain
+  double Tangent(int x,int y);
 
   void RedrawParticleList(std::list<Rectanglei> &list);
 };

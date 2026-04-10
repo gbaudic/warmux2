@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@
 #define BOUNCE_BALL_H
 
 #include <SDL.h>
-#include "../include/base.h"
-#include "../graphic/surface.h"
-#include "../gui/progress_bar.h"
-#include "../object/physical_obj.h"
+#include "include/base.h"
+#include "graphic/surface.h"
+#include "gui/progress_bar.h"
+#include "object/physical_obj.h"
 #include "launcher.h"
 
 class BounceBall : public WeaponProjectile
@@ -36,6 +36,7 @@ class BounceBall : public WeaponProjectile
     BounceBall(ExplosiveWeaponConfig& cfg,
                WeaponLauncher * p_launcher);
     void Refresh();
+    DECLARE_GETWEAPONSTRING();
   protected:
     void SignalOutOfMap();
 };

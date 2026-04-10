@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,74 +23,40 @@
 #define GAME_MENU_H
 
 #include "menu.h"
-#include "../include/base.h"
-#include "../graphic/font.h"
-
-class Team;
-
-const uint MAX_NB_TEAMS=4;
-
-class TeamBox : public HBox
-{
- private:
-  Team * associated_team;
-  PictureWidget *team_logo;
-  Label * team_name;
-  TextBox * player_name;
-  SpinButton * nb_characters;
-
- public:
-  TeamBox(uint width);
-
-  void SetTeam(Team& _team);
-  void ClearTeam();
-  Team* GetTeam() const;  
-  void ValidOptions() const;
-
-  void Update(const Point2i &mousePosition,
-	      const Point2i &lastMousePosition,
-	      Surface& surf);
-  Widget* Clic(const Point2i &mousePosition, uint button);
-};
+#include "map_selection_box.h"
+#include "teams_selection_box.h"
+#include "include/base.h"
+#include "graphic/font.h"
 
 class GameMenu : public Menu
 {
+  /* If you need this, implement it (correctly)*/
+   GameMenu(const GameMenu&);
+   GameMenu operator=(const GameMenu&);
+   /********************************************/
+
    /* Team controllers */
-   TeamBox* teams_selections[MAX_NB_TEAMS];
-   SpinButtonBig *teams_nb;
+   TeamsSelectionBox * team_box;
 
    /* Map controllers */
-   Box * map_box;
-   uint selected_map_index;
-   PictureWidget *map_preview_selected;
-   PictureWidget *map_preview_before, *map_preview_before2;
-   PictureWidget *map_preview_after, *map_preview_after2;  
-   Label *map_name_label;
-   Label *map_author_label;
-   Button *bt_map_plus, *bt_map_minus;
-   
+   MapSelectionBox * map_box;
+
    /* Game options controllers */
    Box * game_options;
    SpinButtonWithPicture *opt_duration_turn;
-   //SpinButtonWithPicture *opt_duration_end_turn;
-   //SpinButtonBig *opt_nb_characters;
    SpinButtonWithPicture *opt_energy_ini;
-
-
-   void ChangeMap(int delta_index);   
-
-   void SetNbTeams(uint nb_teams);
-   void NextTeam(int i);
+   CheckBox *opt_scroll_on_border;
 
    void SaveOptions();
-   void OnClic(const Point2i &mousePosition, int button);
+   void OnClick(const Point2i &mousePosition, int button);
+   void OnClickUp(const Point2i &mousePosition, int button);
    void Draw(const Point2i &mousePosition);
 
-   void __sig_ok();
-   void __sig_cancel();
+   bool signal_ok();
+   bool signal_cancel();
 
 public:
-   GameMenu(); 
+   GameMenu();
    ~GameMenu();
 };
 

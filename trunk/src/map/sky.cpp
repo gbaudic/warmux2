@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 #include "camera.h"
 #include "map.h"
 #include "maps_list.h"
-#include "../graphic/surface.h"
-#include "../include/app.h"
+#include "graphic/surface.h"
+#include "include/app.h"
 
 // Vitesse (comprise entre 0 et 0.5)
 const Point2d SKY_SPEED( 0.3, 1);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,25 +24,36 @@
 #include <map>
 #include "clothe.h"
 #include "member.h"
-#include "../team/teams_list.h"
-#include "../game/time.h"
-#include "../tool/debug.h"
-#include "../tool/random.h"
-#include "../tool/resource_manager.h"
-#include "../tool/xml_document.h"
-#include "../particles/body_member.h"
-#include "../particles/teleport_member.h"
+#include "team/teams_list.h"
+#include "game/time.h"
+#include "tool/debug.h"
+#include "tool/random.h"
+#include "tool/resource_manager.h"
+#include "tool/xml_document.h"
+#include "particles/body_member.h"
+#include "particles/teleport_member.h"
 
-Body::Body(xmlpp::Element* xml, Profile* res)
+Body::Body(xmlpp::Element* xml, Profile* res):
+  members_lst(),
+  clothes_lst(),
+  mvt_lst(),
+  current_clothe(NULL),
+  current_mvt(NULL),
+  play_once_mvt_sauv(NULL),
+  play_once_clothe_sauv(NULL),
+  play_once_frame_sauv(0),
+  weapon_member(new WeaponMember()),
+  weapon_pos(0,0),
+  last_refresh(0),
+  current_frame(0),
+  walk_events(0),
+  main_rotation_rad(0),
+  squel_lst(),
+  direction(DIRECTION_RIGHT),
+  animation_number(0),
+  need_rebuild(false),
+  owner(NULL)
 {
-  need_rebuild = true;
-  current_clothe = NULL;
-  current_mvt = NULL;
-  walk_events = 0;
-  animation_number = 0;
-  direction = 1;
-  main_rotation = 0;
-
   // Load members
   xmlpp::Node::NodeList nodes = xml -> get_children("sprite");
   xmlpp::Node::NodeList::iterator it=nodes.begin();
@@ -51,7 +62,7 @@ Body::Body(xmlpp::Element* xml, Profile* res)
    {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
     std::string name;
-    LitDocXml::LitAttrString( elem, "name", name);
+    XmlReader::ReadStringAttr( elem, "name", name);
 
     Member* member = new Member(elem, res);
     if(members_lst.find(name) != members_lst.end())
@@ -62,8 +73,6 @@ Body::Body(xmlpp::Element* xml, Profile* res)
     it++;
   }
 
-  // Add a special weapon member to the body
-  weapon_member = new WeaponMember();
   members_lst["weapon"] = weapon_member;
 
   // Load clothes
@@ -74,7 +83,7 @@ Body::Body(xmlpp::Element* xml, Profile* res)
   {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it2);
     std::string name;
-    LitDocXml::LitAttrString( elem, "name", name);
+    XmlReader::ReadStringAttr( elem, "name", name);
 
     Clothe* clothe = new Clothe(elem, members_lst);
     if (clothes_lst.find(name) != clothes_lst.end())
@@ -93,8 +102,8 @@ Body::Body(xmlpp::Element* xml, Profile* res)
    {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it4);
     std::string mvt, corresp;
-    LitDocXml::LitAttrString( elem, "movement", mvt);
-    LitDocXml::LitAttrString( elem, "correspond_to", corresp);
+    XmlReader::ReadStringAttr( elem, "movement", mvt);
+    XmlReader::ReadStringAttr( elem, "correspond_to", corresp);
     mvt_alias.insert(std::make_pair(mvt,corresp));
     it4++;
   }
@@ -107,7 +116,7 @@ Body::Body(xmlpp::Element* xml, Profile* res)
   {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it3);
     std::string name;
-    LitDocXml::LitAttrString( elem, "name", name);
+    XmlReader::ReadStringAttr( elem, "name", name);
     if(strncmp(name.c_str(),"animation", 9)==0)
       animation_number++;
 
@@ -129,28 +138,37 @@ Body::Body(xmlpp::Element* xml, Profile* res)
   }
 }
 
-Body::Body(Body *_body)
+Body::Body(const Body& _body):
+  clothes_lst(),
+  mvt_lst(),
+  current_clothe(NULL),
+  current_mvt(NULL),
+  play_once_mvt_sauv(NULL),
+  play_once_clothe_sauv(NULL),
+  play_once_frame_sauv(0),
+  weapon_member(new WeaponMember()),
+  weapon_pos(0,0),
+  last_refresh(0),
+  current_frame(0),
+  walk_events(0),
+  main_rotation_rad(0),
+  squel_lst(),
+  direction(DIRECTION_RIGHT),
+  animation_number(_body.animation_number),
+  need_rebuild(true),
+  owner(NULL)
 {
-  need_rebuild = true;
-  current_clothe = NULL;
-  current_mvt = NULL;
-  walk_events = 0;
-  animation_number = _body->animation_number;
-  direction = 1;
-  main_rotation = 0;
-
   // Add a special weapon member to the body
-  weapon_member = new WeaponMember();
   members_lst["weapon"] = weapon_member;
 
   // Make a copy of members
-  std::map<std::string, Member*>::iterator it1 = _body->members_lst.begin();
-  while(it1 != _body->members_lst.end())
+  std::map<std::string, Member*>::const_iterator it1 = _body.members_lst.begin();
+  while(it1 != _body.members_lst.end())
   if(it1->second->name != "weapon")
   {
     std::pair<std::string,Member*> p;
     p.first = it1->first;
-    p.second = new Member(it1->second);
+    p.second = new Member(*it1->second);
     members_lst.insert(p);
     it1++;
   }
@@ -158,8 +176,8 @@ Body::Body(Body *_body)
     it1++;
 
   // Make a copy of clothes
-  std::map<std::string, Clothe*>::iterator it2 = _body->clothes_lst.begin();
-  while(it2 != _body->clothes_lst.end())
+  std::map<std::string, Clothe*>::const_iterator it2 = _body.clothes_lst.begin();
+  while(it2 != _body.clothes_lst.end())
   {
     std::pair<std::string,Clothe*> p;
     p.first = it2->first;
@@ -169,8 +187,8 @@ Body::Body(Body *_body)
   }
 
   // Movement are shared
-  std::map<std::string, Movement*>::iterator it3 = _body->mvt_lst.begin();
-  while(it3 != _body->mvt_lst.end())
+  std::map<std::string, Movement*>::const_iterator it3 = _body.mvt_lst.begin();
+  while(it3 != _body.mvt_lst.end())
   {
     std::pair<std::string,Movement*> p;
     p.first = it3->first;
@@ -207,7 +225,6 @@ Body::~Body()
 void Body::ResetMovement()
 {
   for(int layer=0;layer < (int)current_clothe->layers.size() ;layer++)
-  if(current_clothe->layers[layer]->name != "weapon")
     current_clothe->layers[layer]->ResetMovement();
 }
 
@@ -228,52 +245,52 @@ void Body::ApplyMovement(Movement* mvt, uint frame)
       if(mb_mvt.follow_crosshair && ActiveCharacter().body == this && ActiveTeam().AccessWeapon().UseCrossHair())
       {
         // Use the movement of the crosshair
-        int angle = ActiveTeam().crosshair.GetAngle(); // returns -180 < angle < 180
+        double angle = owner->GetFiringAngle(); /* Get -2 * M_PI < angle =< 2 * M_PI*/
         if(angle < 0)
-          angle += 360; // so now 0 < angle < 360;
-        if(ActiveCharacter().GetDirection() == -1)
-          angle = 180 - angle;
+          angle += 2 * M_PI; // so now 0 < angle < 2 * M_PI;
+        if(ActiveCharacter().GetDirection() == DIRECTION_LEFT)
+          angle = M_PI - angle;
 
-        mb_mvt.angle += angle ;
+        mb_mvt.SetAngle(mb_mvt.GetAngle() + angle);
       }
 
       if(mb_mvt.follow_half_crosshair && ActiveCharacter().body == this && ActiveTeam().AccessWeapon().UseCrossHair())
       {
         // Use the movement of the crosshair
-        int angle = ActiveTeam().crosshair.GetAngle(); // returns -180 < angle < 180
-        if(ActiveCharacter().GetDirection() == 1)
-          angle /= 2; // -90 < angle < 90
+        double angle_rad = owner->GetFiringAngle(); // returns -180 < angle < 180
+        if(ActiveCharacter().GetDirection() == DIRECTION_RIGHT)
+          angle_rad /= 2; // -90 < angle < 90
         else
-        if(angle > 90)
-          angle = 45 + (90 - angle) / 2;
+        if(angle_rad > M_PI_2)
+          angle_rad = M_PI_2 - angle_rad / 2;//formerly in deg to 45 + (90 - angle) / 2;
         else
-          angle = -45 + (-90 - angle) / 2;
+          angle_rad = -M_PI_2 - angle_rad / 2;//formerly in deg to -45 + (-90 - angle) / 2;
 
 
 
-        if(angle < 0)
-          angle += 360; // so now 0 < angle < 360;
+        if(angle_rad < 0)
+          angle_rad += 2 * M_PI; // so now 0 < angle < 2 * M_PI;
 
-        mb_mvt.angle += angle ;
+        mb_mvt.SetAngle(mb_mvt.GetAngle() + angle_rad);
       }
 
       if(mb_mvt.follow_speed)
       {
         // Use the movement of the character
-        int angle = (int)(owner->GetSpeedAngle()/M_PI*180.0);
-        if(angle < 0)
-          angle += 360; // so now 0 < angle < 360;
-        if(owner->GetDirection() == -1)
-          angle = 180 - angle;
+        double angle_rad = (owner->GetSpeedAngle());
+        if(angle_rad < 0)
+          angle_rad += 2 * M_PI; // so now 0 < angle < 2 * M_PI;
+        if(owner->GetDirection() == DIRECTION_LEFT)
+          angle_rad = M_PI - angle_rad;
 
-        mb_mvt.angle += angle;
+        mb_mvt.SetAngle(mb_mvt.GetAngle() + angle_rad);
       }
 
       if(mb_mvt.follow_direction)
       {
         // Use the direction of the character
-        if(owner->GetDirection() == -1)
-          mb_mvt.angle += 180;
+        if(owner->GetDirection() == DIRECTION_LEFT)
+          mb_mvt.SetAngle(mb_mvt.GetAngle() + M_PI);
       }
 
 
@@ -288,7 +305,7 @@ void Body::ApplySqueleton()
   std::vector<junction>::iterator member = squel_lst.begin();
   // The first member is the body, we set it to pos:
   member->member->pos = Point2f(0,0);
-  member->member->angle = 0;
+  member->member->SetAngle(0);
   member++;
 
   for(;member != squel_lst.end();
@@ -306,20 +323,31 @@ void Body::Build()
   if(walk_events > 0 || current_mvt->type!="walk")
   if(Time::GetInstance()->Read() > last_refresh + current_mvt->speed)
   {
+    // Compute the new frame number
     current_frame += (Time::GetInstance()->Read()-last_refresh) / current_mvt->speed;
     last_refresh += ((Time::GetInstance()->Read()-last_refresh) / current_mvt->speed) * current_mvt->speed;
 
+    // Depending on playmode loop if we have exceeded the nbr of frame of this movement
     if(current_frame >= current_mvt->frames.size())
     {
-      if(play_once_clothe_sauv)
-        SetClothe(play_once_clothe_sauv->name);
-      if(play_once_mvt_sauv)
+      if(current_mvt->play_mode == Movement::LOOP)
       {
-        SetMovement(play_once_mvt_sauv->type);
-        current_frame = play_once_frame_sauv;
+        current_frame %= current_mvt->frames.size();
+      }
+      else
+      if(current_mvt->play_mode == Movement::PLAY_ONCE)
+      {
+        current_frame = current_mvt->frames.size() - 1;
+        if(play_once_clothe_sauv)
+          SetClothe(play_once_clothe_sauv->name);
+        if(play_once_mvt_sauv)
+        {
+          SetMovement(play_once_mvt_sauv->type);
+          current_frame = play_once_frame_sauv;
+        }
       }
     }
-    current_frame %= current_mvt->frames.size();
+
   }
 
   need_rebuild |= (last_frame != current_frame);
@@ -351,26 +379,31 @@ void Body::Build()
   }
   body_mvt.pos.y = (float)GetSize().y - y_max + current_mvt->test_bottom;
   body_mvt.pos.x = GetSize().x / 2.0 - squel_lst.front().member->spr->GetWidth() / 2.0;
-  body_mvt.angle = main_rotation;
+  body_mvt.SetAngle(main_rotation_rad);
   squel_lst.front().member->ApplyMovement(body_mvt, squel_lst);
 
   need_rebuild = false;
+}
+
+void Body::UpdateWeaponPosition(const Point2i& _pos)
+{
+  // update the weapon position
+  if(direction == DIRECTION_RIGHT)
+    weapon_pos = Point2i((int)weapon_member->pos.x,(int)weapon_member->pos.y);
+  else
+    weapon_pos = Point2i(GetSize().x - (int)weapon_member->pos.x,(int)weapon_member->pos.y);
+  weapon_pos += _pos;
 }
 
 void Body::Draw(const Point2i& _pos)
 {
   Build();
 
-  // update the weapon position
-  if(direction == 1)
-    weapon_pos = Point2i((int)weapon_member->pos.x,(int)weapon_member->pos.y);
-  else
-    weapon_pos = Point2i(GetSize().x - (int)weapon_member->pos.x,(int)weapon_member->pos.y);
-  weapon_pos += _pos;
+  UpdateWeaponPosition(_pos);
 
   // Finally draw each layer one by one
   for(int layer=0;layer < (int)current_clothe->layers.size() ;layer++)
-    current_clothe->layers[layer]->Draw(_pos, _pos.x + GetSize().x/2, direction);
+    current_clothe->layers[layer]->Draw(_pos, _pos.x + GetSize().x/2, int(direction));
 }
 
 void Body::AddChildMembers(Member* parent)
@@ -434,14 +467,12 @@ void Body::SetClothe(std::string name)
   {
     current_clothe = clothes_lst.find(name)->second;
     BuildSqueleton();
-    main_rotation = 0;
+    main_rotation_rad = 0;
     need_rebuild = true;
+    play_once_clothe_sauv = NULL;
   }
   else
     MSG_DEBUG("body","Clothe not found");
-
-
-  play_once_clothe_sauv = NULL;
 
   assert(current_clothe != NULL);
 }
@@ -459,13 +490,12 @@ void Body::SetMovement(std::string name)
     current_mvt = mvt_lst.find(name)->second;
     current_frame = 0;
     last_refresh = Time::GetInstance()->Read();
-    main_rotation = 0;
+    main_rotation_rad = 0;
     need_rebuild = true;
+    play_once_mvt_sauv = NULL;
   }
   else
     MSG_DEBUG("body","Movement not found");
-
-  play_once_mvt_sauv = NULL;
 
   assert(current_mvt != NULL);
 }
@@ -489,7 +519,7 @@ void Body::SetClotheOnce(std::string name)
       play_once_clothe_sauv = current_clothe;
     current_clothe = clothes_lst.find(name)->second;
     BuildSqueleton();
-    main_rotation = 0;
+    main_rotation_rad = 0;
     need_rebuild = true;
   }
   else
@@ -517,7 +547,7 @@ void Body::SetMovementOnce(std::string name)
     current_mvt = mvt_lst.find(name)->second;
     current_frame = 0;
     last_refresh = Time::GetInstance()->Read();
-    main_rotation = 0;
+    main_rotation_rad = 0;
     need_rebuild = true;
   }
   else
@@ -528,7 +558,7 @@ void Body::SetMovementOnce(std::string name)
 
 void Body::GetTestRect(uint &l, uint&r, uint &t, uint &b)
 {
-  if(direction == 1)
+  if(direction == DIRECTION_RIGHT)
   {
     l = current_mvt->test_left;
     r = current_mvt->test_right;
@@ -542,12 +572,12 @@ void Body::GetTestRect(uint &l, uint&r, uint &t, uint &b)
   b = current_mvt->test_bottom;
 }
 
-void Body::SetDirection(int dir)
+void Body::SetDirection(Direction_t dir)
 {
   direction=dir;
 }
 
-const int Body::GetDirection()
+const Body::Direction_t &Body::GetDirection() const
 {
   return direction;
 }
@@ -616,18 +646,28 @@ void Body::MakeTeleportParticles(const Point2i& pos, const Point2i& dst)
   if(current_clothe->layers[layer]->type != "weapon")
   {
     ParticleEngine::AddNow(new TeleportMemberParticle(current_clothe->layers[layer]->spr,
-                                                  current_clothe->layers[layer]->GetPos()+pos,
-                                                  current_clothe->layers[layer]->GetPos()+dst,
-                                                  direction));
+						      current_clothe->layers[layer]->GetPos()+pos,
+						      current_clothe->layers[layer]->GetPos()+dst,
+						      int(direction)));
   }
 }
 
-void Body::SetRotation(int angle)
+void Body::SetRotation(double angle)
 {
   MSG_DEBUG("body", "%s -> new angle: %i", owner->GetName().c_str(), angle);
-  main_rotation = angle;
+  main_rotation_rad = angle;
   need_rebuild = true;
 }
 
 const std::string& Body::GetMovement() { return current_mvt->type; }
 const std::string& Body::GetClothe() { return current_clothe->name; }
+
+void Body::DebugState()
+{
+	MSG_DEBUG("body.state", "clothe: %s\tmovement: %s\t%i", current_clothe->name.c_str(),current_mvt->type.c_str(), current_frame);
+	MSG_DEBUG("body.state", "(played once)clothe: %s\tmovement: %s",
+			(play_once_clothe_sauv?play_once_clothe_sauv->name.c_str():"(NULL)"),
+			(play_once_mvt_sauv?play_once_mvt_sauv->type.c_str():"(NULL)"),
+			play_once_frame_sauv);
+	MSG_DEBUG("body.state", "need rebuild = %i",need_rebuild);
+}

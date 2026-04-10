@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,24 +25,38 @@
 #include "string_tools.h"
 #include "file_tools.h"
 
-bool LitDocXml::Charge (const std::string &nomfich)
+bool XmlReader::Load(const std::string &filename)
 {
-  // Le fichier existe bien ?
-  if( !IsFileExist(nomfich) )
+  if( !IsFileExist(filename) )
      return false;
 
-  // Active la validation DTD du parser
+  // Activate DTD validation parser
   //  parser.set_validate (true);
 
-  // Parse le fichier
-  parser.parse_file(nomfich);
-  return EstOk();
+  // Read file
+  parser.parse_file(filename);
+  return IsOk();
 }
 
-xmlpp::Element* LitDocXml::AccesBalise (const xmlpp::Node *x, 
-					const std::string &nom)
+bool XmlReader::LoadFromString(const std::string &contents)
 {
-  xmlpp::Node::NodeList nodes = x -> get_children(nom);
+  // Activate DTD validation parser
+  //  parser.set_validate (true);
+
+  // Read string in memory
+  parser.parse_memory(contents);
+  return IsOk();
+}
+
+std::string XmlReader::ExportToString()
+{
+  return parser.get_document()->write_to_string();
+}
+
+xmlpp::Element* XmlReader::GetMarker(const xmlpp::Node *x,
+                                     const std::string &name)
+{
+  xmlpp::Node::NodeList nodes = x -> get_children(name);
   if (nodes.size() != 1) return NULL;
 
   xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (nodes.front());
@@ -50,12 +64,12 @@ xmlpp::Element* LitDocXml::AccesBalise (const xmlpp::Node *x,
   return elem;
 }
 
-xmlpp::Element* LitDocXml::Access (const xmlpp::Node *x, 
-				   const std::string &name,
-				   const std::string &attr_name)
+xmlpp::Element* XmlReader::Access(const xmlpp::Node *x,
+                                  const std::string &name,
+                                  const std::string &attr_name)
 {
   xmlpp::Node::NodeList nodes = x -> get_children(name);
-  xmlpp::Node::NodeList::iterator 
+  xmlpp::Node::NodeList::iterator
     it = nodes.begin(),
     end = nodes.end();
   for (; it != end; ++it) {
@@ -70,228 +84,221 @@ xmlpp::Element* LitDocXml::Access (const xmlpp::Node *x,
   return NULL;
 }
 
-bool LitDocXml::LitString (const xmlpp::Node *x, 
-			   const std::string &nom,
-			   std::string &sortie)
+/* FIXME this should return the string (std::string &output) and should use
+ * exceptions for errors */
+bool XmlReader::ReadString(const xmlpp::Node *x,
+                           const std::string &name,
+                           std::string &output)
 {
-  xmlpp::Element *elem = AccesBalise(x, nom);
+  xmlpp::Element *elem = GetMarker(x, name);
   if (elem == NULL) return false;
-  return LitValeurBalise (elem, sortie);
+  return ReadMarkerValue(elem, output);
 }
 
-bool LitDocXml::LitDouble (const xmlpp::Node *x, 
-			const std::string &nom,
-			double &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadDouble(const xmlpp::Node *x,
+                           const std::string &name,
+                           double &output)
 {
   std::string val;
-  if (!LitString(x,nom,val)) return false;
-  return str2double (val, sortie);
+  if (!ReadString(x, name, val)) return false;
+  return str2double (val, output);
 }
 
-bool LitDocXml::LitInt (const xmlpp::Node *x, 
-			const std::string &nom,
-			int &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadInt(const xmlpp::Node *x,
+                        const std::string &name,
+                        int &output)
 {
   std::string val;
-  if (!LitString(x,nom,val)) return false;
-  return str2int (val, sortie);
+  if (!ReadString(x, name, val)) return false;
+  return str2int (val, output);
 }
 
-bool LitDocXml::LitUint (const xmlpp::Node *x, 
-			const std::string &nom,
-			unsigned int &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadUint(const xmlpp::Node *x,
+                         const std::string &name,
+                         uint &output)
 {
   int val;
-  if (!LitInt(x,nom,val)) return false;
+  if (!ReadInt(x, name, val)) return false;
   if (0 <= val) {
-    sortie = static_cast<unsigned int> (val);
+    output = static_cast<unsigned int>(val);
     return true;
   } else {
     return false;
   }
 }
 
-bool LitDocXml::LitBool (const xmlpp::Node *x, 
-			 const std::string &nom,
-			 bool &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadBool (const xmlpp::Node *x,
+                          const std::string &name,
+                          bool &output)
 {
   std::string val;
-  if (!LitString(x,nom,val)) return false;
-  return str2bool (val, sortie);
+  if (!ReadString(x, name, val)) return false;
+  return str2bool (val, output);
 }
 
-bool LitDocXml::LitValeurBalise (const xmlpp::Node *balise,
-				 std::string &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadMarkerValue(const xmlpp::Node *marker,
+                                std::string &output)
 {
-  if (balise -> get_children().size()==0)
+  if(marker->get_children().size() == 0)
   {
-    sortie = "";
+    output = "";
     return true;
   }
 
-  // Lit la valeur du noeud
-  assert (balise -> get_children().size()==1);
-  assert (balise -> get_children().front() -> get_name() == "text");
-  const xmlpp::TextNode *texte = dynamic_cast<const xmlpp::TextNode*> 
-    (balise -> get_children().front());
-  assert (texte != NULL);
-  sortie = texte -> get_content();
+  // Read node value
+  assert(marker->get_children().size() == 1);
+  assert(marker->get_children().front()->get_name() == "text");
+  const xmlpp::TextNode *text = dynamic_cast<const xmlpp::TextNode*>(marker->get_children().front());
+  assert(text != NULL);
+  output = text->get_content();
   return true;
 }
 
-bool LitDocXml::LitListeString (const xmlpp::Node *x, 
-				const std::string &nom,
-				std::list<std::string> &sortie)
-{
-  xmlpp::Node::NodeList nodes = x -> get_children(nom);
-  xmlpp::Node::NodeList::iterator 
-    it=nodes.begin(),
-    end=nodes.end();
-
-  sortie.clear();
-  for (; it != end; ++it)
-  {
-    std::string txt;
-
-    xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
-    assert (elem != NULL);
-    if (!LitValeurBalise(elem, txt)) 
-    {
-      sortie.clear();
-      return false;
-    }
-    sortie.push_back (txt);
-  }
-  return true;
-}
-
-bool LitDocXml::LitAttrString (const xmlpp::Element *x, 
-			       const std::string &nom, 
-			       std::string &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadStringAttr(const xmlpp::Element *x,
+                               const std::string &name,
+                               std::string &output)
 {
   assert (x != NULL);
-  const xmlpp::Attribute *attr = x -> get_attribute(nom);
+  const xmlpp::Attribute *attr = x -> get_attribute(name);
   if (attr == NULL) return false;
-  sortie = attr -> get_value();
+  output = attr->get_value();
   return true;
 }
 
-bool LitDocXml::LitAttrInt (const xmlpp::Element *x, 
-			    const std::string &nom, 
-			    int &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadIntAttr(const xmlpp::Element *x,
+                            const std::string &name,
+                            int &output)
 {
   std::string val;
-  if (!LitAttrString (x, nom, val)) return false;
-  return str2int (val, sortie);
+  if (!ReadStringAttr(x, name, val)) return false;
+  return str2int (val, output);
 }
 
-bool LitDocXml::LitAttrUint (const xmlpp::Element *x, 
-			     const std::string &nom, 
-			     unsigned int &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadUintAttr(const xmlpp::Element *x,
+                             const std::string &name,
+                             unsigned int &output)
 {
   int val;
-  if (!LitAttrInt(x,nom,val)) return false;
+  if (!ReadIntAttr(x, name, val)) return false;
   if (0 <= val) {
-    sortie = static_cast<unsigned int> (val);
+    output = static_cast<unsigned int> (val);
     return true;
   } else {
     return false;
   }
 }
 
-bool LitDocXml::LitAttrBool (const xmlpp::Element *x, 
-			     const std::string &nom, 
-			     bool &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadBoolAttr(const xmlpp::Element *x,
+                             const std::string &name,
+                             bool &output)
 {
   std::string val;
-  if (!LitAttrString(x,nom,val)) return false;
-  return str2bool(val, sortie);
+  if (!ReadStringAttr(x, name, val)) return false;
+  return str2bool(val, output);
 }
 
 
-bool LitDocXml::LitAttrDouble (const xmlpp::Element *x, 
-			    const std::string &nom, 
-			    double &sortie)
+/* FIXME see XmlReader::ReadString comment */
+bool XmlReader::ReadDoubleAttr(const xmlpp::Element *x,
+                               const std::string &name,
+                               double &output)
 {
   std::string val;
-  if (!LitAttrString(x,nom,val)) return false;
-  return str2double (val, sortie);
+  if (!ReadStringAttr(x, name, val)) return false;
+  return str2double(val, output);
 }
 
-bool LitDocXml::EstOk() const 
-{ return parser; }
+bool XmlReader::IsOk() const
+{
+  return parser;
+}
 
-xmlpp::Element* LitDocXml::racine() const 
-{ 
-  assert(EstOk()); 
-  xmlpp::Element *racine = parser.get_document()->get_root_node();
-  assert (racine != NULL);
-  return racine;
+xmlpp::Element* XmlReader::GetRoot() const
+{
+  assert(IsOk());
+  xmlpp::Element *root = parser.get_document()->get_root_node();
+  assert(root != NULL);
+  return root;
 }
 
 //-----------------------------------------------------------------------------
 
-EcritDocXml::EcritDocXml()
+XmlWriter::XmlWriter()
 {
   m_doc = NULL;
-  m_racine = NULL;
-  m_sauve = false;
+  m_root = NULL;
+  m_save = false;
 }
 
-EcritDocXml::~EcritDocXml()
+XmlWriter::~XmlWriter()
 {
-  Sauve();
+  Save();
   delete m_doc;
 }
 
-bool EcritDocXml::EstOk() const
+bool XmlWriter::IsOk() const
 {
-  return (m_doc != NULL) && (m_racine != NULL);
+  return (m_doc != NULL) && (m_root != NULL);
 }
 
-void EcritDocXml::EcritBalise (xmlpp::Element *x, 
-			       const std::string &nom,
-			       const std::string &valeur)
+void XmlWriter::WriteElement(xmlpp::Element *x,
+                             const std::string &name,
+                             const std::string &value)
 {
-  xmlpp::Element *elem = x -> add_child(nom);
-  elem -> add_child_text (valeur);
-  m_sauve = false;
+  xmlpp::Element *elem = x->add_child(name);
+  elem->add_child_text(value);
+  m_save = false;
 }
 
-bool EcritDocXml::Cree (const std::string &nomfich, 
-			const std::string &racine,
-			const std::string &version, 
-			const std::string &encodage)
+void XmlWriter::WriteComment(xmlpp::Element *x,
+			     const std::string& comment)
+{
+  x->add_child_comment(comment);
+  m_save = false;
+}
+
+bool XmlWriter::Create(const std::string &filename,const std::string &root,
+                       const std::string &version,const std::string &encoding)
 {
   delete m_doc;
-  delete m_racine;
-  m_sauve = false;
-  m_nomfich = nomfich;
-  m_encodage = encodage;
+  delete m_root;
+  m_save = false;
+  m_filename = filename;
+  m_encoding = encoding;
   m_doc = new xmlpp::Document(version);
-  m_racine = m_doc -> create_root_node (racine);
-  assert (m_racine != NULL);
+  m_root = m_doc->create_root_node(root);
+  assert(m_root != NULL);
   return true;
 }
 
-xmlpp::Element* EcritDocXml::racine()
+xmlpp::Element* XmlWriter::GetRoot()
 {
-  assert (m_racine != NULL);
-  return m_racine;
+  assert (m_root != NULL);
+  return m_root;
 }
 
-bool EcritDocXml::Sauve()
+bool XmlWriter::Save()
 {
-  if (m_sauve) return true;
-  m_sauve = true;
-  try
-  {
-    m_doc -> write_to_file_formatted(m_nomfich, m_encodage);
-  }
-  catch (const xmlpp::exception &err)
-  {
+  if (m_save) return true;
+  m_save = true;
+  try {
+    m_doc->write_to_file_formatted(m_filename, m_encoding);
+  } catch (const xmlpp::exception &err) {
     return false;
   }
   return true;
 }
 
+std::string XmlWriter::SaveToString()
+{
+  return m_doc->write_to_string(m_encoding);
+}

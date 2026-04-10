@@ -20,132 +20,146 @@
  *****************************************************************************/
 
 #include <sstream>
-#include "../include/app.h"
-#include "../include/constant.h"
+#include "include/app.h"
+#include "include/constant.h"
 #include "results.h"
-#include "../character/character.h"
+#include "character/character.h"
 #include "team.h"
 #include "macro.h"
-#include "../tool/i18n.h"
+#include "tool/i18n.h"
 
 TeamResults::TeamResults(const std::string& name,
 			 const Surface* logo,
                          const Character* MV,
                          const Character* MUl,
                          const Character* MUs,
-                         const Character* BT)
+                         const Character* BT,
+			 const Character* MS)
   : teamName(name),
     team_logo(logo),
     mostViolent(MV),
-    mostUsefull(MUl),
+    mostUseful(MUl),
     mostUseless(MUs),
-    biggestTraitor(BT)
+    biggestTraitor(BT),
+    mostClumsy(MS)
 {
 }
 
 TeamResults* TeamResults::createTeamResults(Team* team)
 {
-  int         most_violent    = 0;
-  int         most_useless    = 0x0FFFFFFF;
-  int         most_usefull    = 0;
-  int         most_traitor    = 0;
+  uint most_violent = 0;
+  uint most_useless = 0x0FFFFFFF;
+  uint most_useful = 0;
+  uint most_traitor = 0;
+  uint most_clumsy = 0;
+
   const Character* MostViolent = NULL;
-  const Character* MostUsefull = NULL;
+  const Character* MostUseful = NULL;
   const Character* MostUseless = NULL;
   const Character* BiggestTraitor = NULL;
+  const Character* MostClumsy = NULL;
 
   // Search best/worst performers
-  for (Team::const_iterator player = team->begin(),
-       last_player = team->end();
-       player != last_player;
-       ++player) 
-    //FOR_EACH_CHARACTER(team, player)
+  FOR_EACH_LIVING_AND_DEAD_CHARACTER(team, player)
   {
     // Most damage in one shot
-    if (player->GetMostDamage() > most_violent)
+    if (player->GetDamageStats().GetMostDamage() > most_violent)
     {
-      most_violent = player->GetMostDamage();
+      most_violent = player->GetDamageStats().GetMostDamage();
       MostViolent  = &(*(player));
     }
     // Most damage oplayerall to other teams
-    if (player->GetOtherDamage() > most_usefull)
+    if (player->GetDamageStats().GetOthersDamage() > most_useful)
     {
-      most_usefull = player->GetOtherDamage();
-      MostUsefull  = &(*(player));
+      most_useful = player->GetDamageStats().GetOthersDamage();
+      MostUseful  = &(*(player));
     }
     // Least damage oplayerall to other teams
-    if (player->GetOtherDamage() < most_useless)
+    if (player->GetDamageStats().GetOthersDamage() < most_useless)
     {
-      most_useless = player->GetOtherDamage();
+      most_useless = player->GetDamageStats().GetOthersDamage();
       MostUseless  = &(*(player));
     }
-    // Most damage oplayerall to his own team
-    if (player->GetOwnDamage() > most_traitor)
+    // Most damage oplayerall to his own team (but not itself)
+    if (player->GetDamageStats().GetFriendlyFireDamage() > most_traitor)
     {
-      most_traitor = player->GetOwnDamage();
+      most_traitor = player->GetDamageStats().GetFriendlyFireDamage();
       BiggestTraitor  = &(*(player));
     }
+    // Most damage to itself
+    if (player->GetDamageStats().GetItselfDamage() > most_clumsy)
+    {
+      most_clumsy = player->GetDamageStats().GetItselfDamage();
+      MostClumsy = &(*(player));
+    }
+    
   }
 
   return new TeamResults(team->GetName()+" - "+team->GetPlayerName(),
 			 &team->flag,
                          MostViolent,
-                         MostUsefull,
+                         MostUseful,
                          MostUseless,
-                         BiggestTraitor);
+                         BiggestTraitor,
+			 MostClumsy);
 }
 
-TeamResults* TeamResults::createGlobalResults(std::vector<TeamResults*>* list)
+TeamResults* TeamResults::createGlobalResults()
 {
-  int         most_violent    = 0;
-  int         most_useless    = 0x0FFFFFFF;
-  int         most_usefull    = 0;
-  int         most_traitor    = 0;
+  uint most_violent = 0;
+  uint most_useless = 0x0FFFFFFF;
+  uint most_useful = 0;
+  uint most_traitor = 0;
+  uint most_clumsy = 0;
   const Character* MostViolent = NULL;
-  const Character* MostUsefull = NULL;
+  const Character* MostUseful = NULL;
   const Character* MostUseless = NULL;
   const Character* BiggestTraitor = NULL;
+  const Character* MostClumsy = NULL;
 
-  for (res_iterator result=list->begin(), last_result=list->end();
-       result != last_result;
-       ++result)
+  FOR_ALL_LIVING_AND_DEAD_CHARACTER(team, player)
   {
-    const Character* player;
     // Most damage in one shot
-    player = (*(result))->getMostViolent();
-    if(player == NULL) continue;
-    if (player->GetMostDamage() > most_violent)
+    if (player->GetDamageStats().GetMostDamage() > most_violent)
     {
-      most_violent = player->GetMostDamage();
-      MostViolent  = player;
+      most_violent = player->GetDamageStats().GetMostDamage();
+      MostViolent  = &(*player);
     }
     // Most damage oplayerall to other teams
-    if (player->GetOtherDamage() > most_usefull)
+    if (player->GetDamageStats().GetOthersDamage() > most_useful)
     {
-      most_usefull = player->GetOtherDamage();
-      MostUsefull  = player;
+      most_useful = player->GetDamageStats().GetOthersDamage();
+      MostUseful  = &(*player); 
     }
     // Least damage oplayerall to other teams
-    if (player->GetOtherDamage() < most_useless)
+    if (player->GetDamageStats().GetOthersDamage() < most_useless)
     {
-      most_useless = player->GetOtherDamage();
-      MostUseless  = player;
+      most_useless = player->GetDamageStats().GetOthersDamage();
+      MostUseless  = &(*player); 
     }
-    // Most damage oplayerall to his own team
-    if (player->GetOwnDamage() > most_traitor)
+    // Most damage oplayerall to his own team (but not to itself)
+    if (player->GetDamageStats().GetFriendlyFireDamage() > most_traitor)
     {
-      most_traitor = player->GetOwnDamage();
-      BiggestTraitor  = player;
+      most_traitor = player->GetDamageStats().GetFriendlyFireDamage();
+      BiggestTraitor = &(*player);
     }
+    // Most damage to itself
+    if (player->GetDamageStats().GetItselfDamage() > most_traitor)
+    {
+      most_clumsy = player->GetDamageStats().GetItselfDamage();
+      MostClumsy  = &(*player); 
+    }
+    
   }
 
   // We'll do as if NULL is for all teams
   return new TeamResults(_("All teams"),
 			 NULL,
                          MostViolent,
-                         MostUsefull,
+                         MostUseful,
                          MostUseless,
-                         BiggestTraitor);
+                         BiggestTraitor,
+			 MostClumsy);
 }
 
 std::vector<TeamResults*>* TeamResults::createAllResults(void)
@@ -162,8 +176,8 @@ std::vector<TeamResults*>* TeamResults::createAllResults(void)
   }
  
   // Add overall results to list
-  results = TeamResults::createGlobalResults(results_list);
-  results_list->push_back(results);
+  results = TeamResults::createGlobalResults();
+  results_list->insert(results_list->begin(), results);
 
   return results_list;
 }
@@ -176,40 +190,4 @@ void TeamResults::deleteAllResults(std::vector<TeamResults*>* results_list)
  
   // Add overall results to list
   delete results_list;
-}
-
-void TeamResults::RenderText(std::string& txt)
-{
-  std::ostringstream mv;
-  std::ostringstream muf;
-  std::ostringstream mul;
-  std::ostringstream bt;
-  if(mostViolent)
-    mv << mostViolent->GetName() << " (" << mostViolent->GetMostDamage() << ").\n";
-  else
-    mv << _("Nobody!");
-
-  if(mostUsefull)
-    mv << mostUsefull->GetName() << " (" << mostUsefull->GetMostDamage() << ").\n";
-  else
-    mv << _("Nobody!");
-
-  if(mostUseless)
-    mv << mostUseless->GetName() << " (" << mostUseless->GetMostDamage() << ").\n";
-  else
-    mv << _("Nobody!");
-
-  if(biggestTraitor)
-    mv << biggestTraitor->GetName() << " (" << biggestTraitor->GetMostDamage() << ").\n";
-  else
-    mv << _("Nobody!");
-
-  if (team_logo)
-    txt += Format(_("Team %s results:\n"), teamName.c_str());
-  else
-    txt += _("All teams results:\n");
-  txt += _("  Most violent  :  ") + mv.str();
-  txt += _("  Most useful   :  ") + muf.str();
-  txt += _("  Most useless  :  ") + mul.str();
-  txt += _("  Most sold-out  :  ") + bt.str();
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,22 +16,22 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Arme grenade : 
+ * Arme grenade :
  * Explose au bout de quelques secondes
  *****************************************************************************/
 
 #include "grenade.h"
 //-----------------------------------------------------------------------------
 #include <sstream>
-#include "../game/time.h"
-#include "../team/teams_list.h"
-#include "../graphic/video.h"
-#include "../tool/math_tools.h"
-#include "../map/camera.h"
-#include "../weapon/explosion.h"
-#include "../interface/game_msg.h"
-#include "../tool/i18n.h"
-#include "../object/objects_list.h"
+#include "game/time.h"
+#include "team/teams_list.h"
+#include "graphic/video.h"
+#include "tool/math_tools.h"
+#include "map/camera.h"
+#include "weapon/explosion.h"
+#include "interface/game_msg.h"
+#include "tool/i18n.h"
+#include "object/objects_list.h"
 //-----------------------------------------------------------------------------
 
 Grenade::Grenade(ExplosiveWeaponConfig& cfg,
@@ -47,26 +47,33 @@ Grenade::Grenade(ExplosiveWeaponConfig& cfg,
 void Grenade::Refresh()
 {
   WeaponProjectile::Refresh();
-
-  double angle = GetSpeedAngle() * 180/M_PI ;
-  image->SetRotation_deg( angle);
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
 //-----------------------------------------------------------------------------
 
 void Grenade::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add ("The grenade left the battlefield before exploding");
+  GameMessages::GetInstance()->Add (_("The grenade left the battlefield before exploding"));
   WeaponProjectile::SignalOutOfMap();
+}
+
+std::string Grenade::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u grenade!",
+            "%s team has won %u grenades!",
+            items_count), TeamName, items_count);
 }
 
 //-----------------------------------------------------------------------------
 
-GrenadeLauncher::GrenadeLauncher() : 
+GrenadeLauncher::GrenadeLauncher() :
   WeaponLauncher(WEAPON_GRENADE, "grenade", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
-{  
+{
 
   m_name = _("Grenade");
+  m_category = THROW;
   m_allow_change_timeout = true;
   ReloadLauncher();
 }

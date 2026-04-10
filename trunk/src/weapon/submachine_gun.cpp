@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,24 +18,23 @@
  ******************************************************************************
  * Submachine gun. Don't fire bullet one by one but with burst fire (like
  * a submachine gun :)
- * The hack in order to firing multiple bullet at once consist in using a 
- * std::list of projectile and overide the Refresh & HandleKeyEvent methods.
+ * The hack in order to firing multiple bullet at once consist in using a
+ * std::list of projectile and override the Refresh and the management of the keys
  *****************************************************************************/
 
 #include <sstream>
-#include "../map/map.h"
-#include "../game/time.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../interface/game_msg.h"
-#include "../interface/game_msg.h"
-#include "../weapon/explosion.h"
-#include "../weapon/submachine_gun.h"
-#include "../network/randomsync.h"
+#include "map/map.h"
+#include "game/time.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "interface/game_msg.h"
+#include "interface/game_msg.h"
+#include "weapon/explosion.h"
+#include "weapon/submachine_gun.h"
+#include "network/randomsync.h"
 
 const uint    SUBMACHINE_BULLET_SPEED       = 30;
-const uint    SUBMACHINE_EXPLOSION_RANGE    = 15;
 const double  SUBMACHINE_TIME_BETWEEN_SHOOT = 70;
 const double  SUBMACHINE_RANDOM_ANGLE       = 0.01;
 
@@ -43,7 +42,7 @@ SubMachineGunBullet::SubMachineGunBullet(ExplosiveWeaponConfig& cfg,
                                          WeaponLauncher * p_launcher) :
   WeaponBullet("m16_bullet", cfg, p_launcher)
 {
-  cfg.explosion_range = SUBMACHINE_EXPLOSION_RANGE;
+  camera_follow_closely = false;
 }
 
 void SubMachineGunBullet::RandomizeShoot(double &angle,double &strength)
@@ -61,8 +60,8 @@ void SubMachineGunBullet::ShootSound()
 SubMachineGun::SubMachineGun() : WeaponLauncher(WEAPON_SUBMACHINE_GUN, "m16", new ExplosiveWeaponConfig())
 {
   m_name = _("Submachine Gun");
+  m_category = RIFLE;
 
-  override_keys = true ;
   ignore_collision_signal = true;
   ignore_explosion_signal = true;
   ignore_ghost_state_signal = true;
@@ -89,11 +88,8 @@ void SubMachineGun::IncMissedShots()
   WeaponLauncher::IncMissedShots();
 }
 
-bool SubMachineGun::p_Shoot ()
-{  
-  if (m_is_active)
-    return false;
-
+bool SubMachineGun::p_Shoot()
+{
   projectile->Shoot(SUBMACHINE_BULLET_SPEED);
   projectile = NULL;
   ReloadLauncher();
@@ -104,40 +100,56 @@ bool SubMachineGun::p_Shoot ()
   particle.AddNow(pos, 1, particle_BULLET, true, angle,
   	                   5.0 + (Time::GetInstance()->Read() % 6));
 
-  m_is_active = true;
   announce_missed_shots = false;
   return true;
+}
+
+void SubMachineGun::p_Deselect()
+{
+  m_is_active = false;
 }
 
 // Overide regular Refresh method
 void SubMachineGun::RepeatShoot()
 {
-  if ( m_is_active )
-  {
-    uint tmp = Time::GetInstance()->Read();
-    uint time = tmp - m_last_fire_time;
+  uint tmp = Time::GetInstance()->Read();
+  uint time = tmp - m_last_fire_time;
 
-    if (time >= SUBMACHINE_TIME_BETWEEN_SHOOT)
+  if (time >= SUBMACHINE_TIME_BETWEEN_SHOOT)
     {
-      m_is_active = false;
-      NewActionShoot();
+      NewActionWeaponShoot();
       m_last_fire_time = tmp;
     }
+}
+
+void SubMachineGun::SignalTurnEnd()
+{
+  // It's too late !
+  m_is_active = false;
+}
+
+void SubMachineGun::HandleKeyPressed_Shoot()
+{
+  HandleKeyRefreshed_Shoot();
+}
+
+void SubMachineGun::HandleKeyRefreshed_Shoot()
+{
+  if (EnoughAmmoUnit()) {
+    RepeatShoot();
   }
 }
 
-// Special handle to allow multiple shoot at a time
-void SubMachineGun::HandleKeyEvent(int action, int event_type)
+void SubMachineGun::HandleKeyReleased_Shoot()
 {
-  switch (action) {
-    case ACTION_SHOOT:
-      if (event_type == KEY_REFRESH)
-        m_is_active = true;
-      if (event_type == KEY_RELEASED)
-        m_is_active = false;
-      if (m_is_active) RepeatShoot();
-      break;
-    default:
-      break;
-  };
+  m_is_active = false;
 }
+
+std::string SubMachineGun::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u submachine gun!",
+            "%s team has won %u submachine guns!",
+            items_count), TeamName, items_count);
+}
+

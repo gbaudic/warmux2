@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,13 +21,16 @@
 
 #include "ground_particles.h"
 #include "particle.h"
-#include "../game/time.h"
-#include "../map/map.h"
+#include "game/time.h"
+#include "map/map.h"
 
 GroundParticle::GroundParticle(const Point2i& size, const Point2i& position) :
   Particle("ground_particle")
 {
-  m_left_time_to_live = 1;
+  SetCollisionModel(true, false, false);
+  SetSize(Point2i(1,1));
+  m_initial_time_to_live = 1; // used as a boolean because we redefine Refresh!
+  m_left_time_to_live = 1; // used as a boolean because we redefine Refresh!
   image = NULL;
 
   Rectanglei rec;
@@ -39,8 +42,9 @@ GroundParticle::GroundParticle(const Point2i& size, const Point2i& position) :
 void GroundParticle::Refresh()
 {
   UpdatePosition();
-  image->SetRotation_deg((Time::GetInstance()->Read()/2) % 360);
+  image->SetRotation_rad(Time::GetInstance()->Read() / 180.0 * M_PI);
   image->Update();
-  if(IsOutsideWorld(GetPosition()))
+  if(IsOutsideWorld()) {
     m_left_time_to_live = 0;
+  }
 }

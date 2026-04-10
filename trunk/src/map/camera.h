@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,53 +16,60 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Caméra : gêre la position à l'intérieur du terrain. On peut "suivre" un
- * objet et se centrer sur un objet. Lors d'un déplacement manuel (au clavier
- * ou à la souris), le mode "suiveur" est désactivé.
+ * Camera : follow an object, center on it or follow mouse interaction.
  *****************************************************************************/
 
 #ifndef SCROLLING_H
 #define SCROLLING_H
 
-#include "../include/base.h"
-#include "../object/physical_obj.h"
-#include "../tool/point.h"
-#include "../tool/rectangle.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
+#include "tool/point.h"
+#include "tool/rectangle.h"
 
-class Camera : public Rectanglei{
-public:
-  bool autorecadre;
+class Camera : public Rectanglei
+{
+  Camera(const Camera&);
+  const Camera& operator=(const Camera&);
 
 private:
-  PhysicalObj* obj_suivi;
-  bool lance;
+  bool auto_crop;
+  const PhysicalObj* followed_object;
+  bool throw_camera;
+  bool follow_closely;
 
+  Point2i FreeDegrees() const;
+  Point2i NonFreeDegrees() const;
 public:
   Camera();
 
-  // Scrolle le fond en X ou Y
+  // before beginning a game
+  void Reset();
+
+  bool HasFixedX() const;
+  bool HasFixedY() const;
+
+  // set camera to position
   void SetXY(Point2i pos);
   void SetXYabs(int x, int y);
   void SetXYabs(const Point2i &pos);
 
-  // Recadrage automatique sur l'objet suivi
-  void ChangeObjSuivi (PhysicalObj *obj, 
-		       bool suit, bool recentre,
-		       bool force_recentrage=false);
+  // Auto crop on an object
+  void FollowObject (PhysicalObj *obj,
+                     bool follow, bool center_on,
+                     bool force_center_on_object=false);
   void StopFollowingObj (PhysicalObj* obj);
 
   bool IsVisible(const PhysicalObj &obj);
 
   void Refresh();
 
-  bool HasFixedX() const;
-  bool HasFixedY() const;
-  Point2i FreeDegrees() const;
-  Point2i NonFreeDegrees() const;
-
   void CenterOn(const PhysicalObj &obj);
   void CenterOnFollowedObject();
-  void AutoRecadre();
+  void AutoCrop();
+  void SetAutoCrop(bool crop);
+  bool IsAutoCrop() const;
+  void SetCloseFollowing(bool close);
 };
 
 extern Camera camera;

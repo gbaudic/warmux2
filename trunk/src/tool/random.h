@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,16 +26,18 @@
 #include "point.h"
 
 class Random{
-public:
-	Random();
+ public:
+  Random();
 
-	bool GetBool();
-	long GetLong(long min, long max);
-	double GetDouble();
-	double GetDouble(double max);
-	double GetDouble(double min, double max);
-	Point2i GetPoint(const Rectanglei &rect);
-	Point2i GetPoint(const Point2i &pt);
+  static bool GetBool();
+  static long GetLong(long min, long max);
+  static int GetInt(int min, int max);
+  static double GetDouble();
+  static double GetDouble(double max);
+  static double GetDouble(double min, double max);
+  static Point2i GetPoint(const Rectanglei &rect);
+  static Point2i GetPoint(const Point2i &pt);
+  static int GetSign();
 };
 
 extern Random randomObj;

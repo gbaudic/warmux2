@@ -48,6 +48,9 @@ where XXXXX is one of the following:
 To get a more verbose compilation output use:
      make VERBOSE=1
 
+To enable profiling support (e.g. for gprof) add the option:
+    -DPROFILE=1
+
 
 Compilation outside of source-dir:
 ----------------------------------
@@ -70,6 +73,8 @@ If you add a new C++ sourcefile that needs to be compiled, you just have
 to add a line with the relative path in src/SourceFiles.cmake.
 If you create a new translation in the po subdirectory, you have to add
 it in po/CMakeLists.txt.
+After adding new data or source files you can also run the script SearchFiles.sh
+in the cmake/ subdir.
 
 
 Package generation:
@@ -84,6 +89,17 @@ Note that you should use build-type 'Release' with binary packages.
 To create source achives you need to have a clean source tree and build
 Wormux outside the source-dir (see above):
      make package_source
+
+
+Win32 compilation:
+------------------
+
+I assume that Mingw is installed in /mingw.
+Export the following variables so that CMake can find the rigth paths:
+	export CMAKE_INCLUDE_PATH=/mingw/include
+	export CMAKE_LIBRARY_PATH=/mingw/lib
+Then run CMake:
+	cmake ../wormux-src -G "MSYS Makefiles"
 
 
 Problems:

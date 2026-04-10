@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,25 +16,23 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Main_Menu du jeu permettant de lancer une partie, modifier les options, d'obtenir
- * des informations, ou encore quitter le jeu.
+ * Game menu from which one may start a new game, modify options, obtain some
+ * infomations or leave the game.
  *****************************************************************************/
 
 #include "main_menu.h"
 #include <string>
-#include "../game/config.h"
-#include "../game/time.h"
-#include "../graphic/effects.h"
-#include "../graphic/font.h"
-#include "../graphic/fps.h"
-#include "../include/app.h"
-#include "../include/constant.h"
-#include "../sound/jukebox.h"
-#include "../tool/i18n.h"
-#include "../tool/file_tools.h"
-#include "../tool/resource_manager.h"
-
-#define NETWORK_BUTTON 
+#include "game/config.h"
+#include "game/time.h"
+#include "graphic/effects.h"
+#include "graphic/font.h"
+#include "graphic/fps.h"
+#include "include/app.h"
+#include "include/constant.h"
+#include "sound/jukebox.h"
+#include "tool/i18n.h"
+#include "tool/file_tools.h"
+#include "tool/resource_manager.h"
 
 #ifndef WIN32
 #include <dirent.h>
@@ -47,8 +45,8 @@ const int DEFAULT_SCREEN_HEIGHT = 768 ;
 
 Main_Menu::~Main_Menu()
 {
-  delete skin_left;
-  delete skin_right;
+ // delete skin_left;
+ // delete skin_right;
   delete version_text;
   delete website_text;
 }
@@ -59,9 +57,6 @@ Main_Menu::Main_Menu() :
   int x_button;
   double y_scale;
 
-  Font * normal_font = Font::GetInstance(Font::FONT_NORMAL);
-  Font * large_font = Font::GetInstance(Font::FONT_LARGE);
-
   int button_width = 402;
   int button_height = 64;
 
@@ -71,112 +66,116 @@ Main_Menu::Main_Menu() :
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
 
-  skin_left = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_1"));
-  skin_right = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_2"));
+  /* skin_left = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_1"));
+   skin_right = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_2"));
 
   s_title = resource_manager.LoadImage(res,"main_menu/title");
   title = new PictureWidget(Rectanglei(AppWormux::GetInstance()->video.window.GetWidth()/2  - s_title.GetWidth()/2 + 10, 0, 648, 168));
-  title->SetSurface(s_title);
+  title->SetSurface(s_title); */
 
   int y = int(290 * y_scale) ;
   const int y2 = AppWormux::GetInstance()->video.window.GetHeight() + VERSION_DY -20 - button_height;
-#ifdef NETWORK_BUTTON  
-  int dy = std::max((y2-y)/4, button_height);
-#else  
-  int dy = std::max(((y2-y)/3, button_height);
-#endif  
 
-  play = new ButtonText( Point2i(x_button, y),
-			res, "main_menu/button",
-			_("Play"),
-			large_font);
+  int dy = std::max((y2-y)/3, button_height);
+  if(Config::GetInstance()->IsNetworkActivated())
+    dy = std::max((y2-y)/4, button_height);
+
+  play = new ButtonText(Point2i(x_button, y),
+                        res, "main_menu/button",
+                        _("Play"),
+                        Font::FONT_LARGE, Font::FONT_NORMAL);
   y += dy;
 
-#ifdef NETWORK_BUTTON  
-  network = new ButtonText( Point2i(x_button, y),
-			   res, "main_menu/button",
-			   _("Network Game"),
-			   large_font );
-  y += dy;
-#else
-  network = NULL;
-#endif
-  
-  options = new ButtonText( Point2i(x_button, y),
-			   res, "main_menu/button",
-			   _("Options"),
-			   large_font);  
+  if(Config::GetInstance()->IsNetworkActivated()) {
+    network = new ButtonText( Point2i(x_button, y),
+                              res, "main_menu/button",
+                              _("Network Game"),
+                              Font::FONT_LARGE, Font::FONT_NORMAL );
+    y += dy;
+  } else {
+    network = NULL;
+  }
+
+  options = new ButtonText(Point2i(x_button, y),
+                           res, "main_menu/button",
+                           _("Options"),
+                           Font::FONT_LARGE, Font::FONT_NORMAL);
   y += dy;
 
-  infos =  new ButtonText( Point2i(x_button, y),
-			  res, "main_menu/button",
-			  _("Credits"),
-			  large_font);  
+  infos =  new ButtonText(Point2i(x_button, y),
+                          res, "main_menu/button",
+                          _("Credits"),
+                          Font::FONT_LARGE, Font::FONT_NORMAL);
   y += dy;
 
-  quit =  new ButtonText( Point2i(x_button, y),
-			 res, "main_menu/button",
-			 _("Quit"),
-			 large_font);  
+  quit =  new ButtonText(Point2i(x_button, y),
+                         res, "main_menu/button",
+                         _("Quit"),
+                         Font::FONT_LARGE, Font::FONT_NORMAL);
 
   widgets.AddWidget(play);
-#ifdef NETWORK_BUTTON 
-  widgets.AddWidget(network);
-#endif
+  if(Config::GetInstance()->IsNetworkActivated())
+    widgets.AddWidget(network);
   widgets.AddWidget(options);
   widgets.AddWidget(infos);
   widgets.AddWidget(quit);
-  widgets.AddWidget(title);
+ // widgets.AddWidget(title);
 
   resource_manager.UnLoadXMLProfile( res);
 
   std::string s("Version "+Constants::VERSION);
-  version_text = new Text(s, green_color, normal_font, false);
+  version_text = new Text(s, green_color, Font::FONT_MEDIUM, Font::FONT_NORMAL, false);
 
   std::string s2(Constants::WEB_SITE);
-  website_text = new Text(s2, green_color, normal_font, false);
+  website_text = new Text(s2, green_color, Font::FONT_MEDIUM, Font::FONT_NORMAL, false);
+
+  if(!jukebox.IsPlayingMusic())
+     jukebox.PlayMusic("menu");
 }
 
-void Main_Menu::button_clic()
+void Main_Menu::button_click()
 {
   jukebox.Play("share", "menu/clic");
 }
 
-void Main_Menu::OnClic(const Point2i &mousePosition, int button)
+void Main_Menu::OnClickUp(const Point2i &mousePosition, int button)
 {
-  Widget* b = widgets.Clic(mousePosition,button);
-  if(b == play)
+  Widget* b = widgets.ClickUp(mousePosition,button);
+  if (b == play)
   {
     choice = menuPLAY;
     close_menu = true;
-    button_clic();
+    button_click();
   }
-#ifdef NETWORK_BUTTON  
-  else if(b == network)
+  else if(b == network && Config::GetInstance()->IsNetworkActivated())
   {
     choice = menuNETWORK;
     close_menu = true;
-    button_clic();
+    button_click();
   }
-#endif  
   else if(b == options)
   {
     choice = menuOPTIONS;
     close_menu = true;
-    button_clic();
+    button_click();
   }
   else if(b == infos)
   {
     choice = menuCREDITS;
     close_menu = true;
-    button_clic();
+    button_click();
   }
   else if(b == quit)
   {
     choice = menuQUIT;
     close_menu = true;
-    button_clic();
+    button_click();
   }
+}
+
+void Main_Menu::OnClick(const Point2i &mousePosition, int button)
+{
+  // nothing to do while button is still not released
 }
 
 menu_item Main_Menu::Run ()
@@ -189,37 +188,27 @@ menu_item Main_Menu::Run ()
   return choice;
 }
 
-void Main_Menu::key_ok()
-{
-  choice = menuPLAY;
-  close_menu = true;
-}
-
-void Main_Menu::key_cancel()
+bool Main_Menu::signal_cancel()
 {
   choice = menuQUIT;
-  close_menu = true;
+  return true;
 }
 
-void Main_Menu::__sig_cancel()
+bool Main_Menu::signal_ok()
 {
-  key_cancel();
+  choice = menuPLAY;
+  return true;
 }
 
-void Main_Menu::__sig_ok()
-{
-  key_ok();
-}
-
-void Main_Menu::DrawBackground(const Point2i &mousePosition)
+void Main_Menu::DrawBackground()
 {
   Surface& window = AppWormux::GetInstance()->video.window;
 
-  Menu::DrawBackground(mousePosition);
-  skin_left->Blit(window, 0, window.GetHeight() - skin_left->GetHeight());
-  skin_right->Blit(window, window.GetWidth()  - skin_right->GetWidth(),
-		   window.GetHeight() - skin_right->GetHeight());
-  
+  Menu::DrawBackground();
+  // skin_left->Blit(window, 0, window.GetHeight() - skin_left->GetHeight());
+  // skin_right->Blit(window, window.GetWidth()  - skin_right->GetWidth(),
+  // 		   window.GetHeight() - skin_right->GetHeight());
+
   version_text->DrawCenter( window.GetWidth()/2,
                             window.GetHeight() + VERSION_DY);
   website_text->DrawCenter( window.GetWidth()/2,
@@ -234,12 +223,12 @@ void Main_Menu::Redraw(const Rectanglei& rect, Surface &window)
   // we never had to redraw texts
   // but sometimes we need to redraw the skins...
 
-  Rectanglei dest(0, window.GetHeight() - skin_left->GetHeight(),
+  /*Rectanglei dest(0, window.GetHeight() - skin_left->GetHeight(),
 		  skin_left->GetWidth(), skin_left->GetHeight());
   dest.Clip(rect);
 
-  Rectanglei src(rect.GetPositionX() - 0, 
-		 rect.GetPositionY() - (window.GetHeight() - skin_left->GetHeight()), 
+  Rectanglei src(rect.GetPositionX() - 0,
+		 rect.GetPositionY() - (window.GetHeight() - skin_left->GetHeight()),
 		 dest.GetSizeX(), dest.GetSizeY());
 
   skin_left->Blit(window, src, dest.GetPosition());
@@ -248,12 +237,12 @@ void Main_Menu::Redraw(const Rectanglei& rect, Surface &window)
 		   window.GetHeight() - skin_right->GetHeight(),
 		   skin_right->GetWidth(), skin_right->GetHeight());
   dest2.Clip(rect);
-	 
-  Rectanglei src2(dest2.GetPositionX() - (window.GetWidth()  - skin_right->GetWidth()), 
-		  dest2.GetPositionY() - (window.GetHeight() - skin_right->GetHeight()), 
+
+  Rectanglei src2(dest2.GetPositionX() - (window.GetWidth()  - skin_right->GetWidth()),
+		  dest2.GetPositionY() - (window.GetHeight() - skin_right->GetHeight()),
 		  dest2.GetSizeX(), dest2.GetSizeY());
 
-  skin_right->Blit(window, src2, dest2.GetPosition());
+  skin_right->Blit(window, src2, dest2.GetPosition());*/
 
 
 }

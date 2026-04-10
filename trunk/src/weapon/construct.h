@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,17 +22,20 @@
 #ifndef CONSTRUCT_H
 #define CONSTRUCT_H
 #include "weapon.h"
-#include "../include/base.h"
-#include "../tool/point.h"
-#include "../graphic/sprite.h"
+#include "include/base.h"
+#include "tool/point.h"
+#include "graphic/sprite.h"
 
 class Construct : public Weapon
 {
 private:
   bool target_chosen;
   Sprite* construct_spr;
-  int angle;
+  double angle;
   Point2i dst;
+
+  void Up();
+  void Down();
 
 protected:
   bool p_Shoot();
@@ -43,12 +46,14 @@ public:
   ~Construct();
   void Draw();
   void ChooseTarget(Point2i mouse_pos);
-  void HandleKeyEvent(int key, int event_type);
 
-  void ActionUp ();    // Mouse wheel up
-  void ActionDown ();  // Mouse wheel down
-  void Up();
-  void Down();
+  virtual void HandleKeyPressed_Down();
+  virtual void HandleKeyPressed_Up();
+  virtual void HandleMouseWheelUp();
+  virtual void HandleMouseWheelDown();
+
+  void SetAngle(double angle); // to be used by network
+  DECLARE_GETWEAPONSTRING();
 
   WeaponConfig& cfg();
 };

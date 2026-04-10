@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 
 #include "magic_star.h"
 #include "particle.h"
-#include "../tool/random.h"
-#include "../game/time.h"
+#include "tool/random.h"
+#include "game/time.h"
 
 MagicStarParticle::MagicStarParticle() :
   Particle("magic_star_particle")
@@ -50,8 +50,8 @@ void MagicStarParticle::Refresh()
   if (time >= m_time_between_scale) {
     if (m_left_time_to_live <= 0) return ;
     float lived_time = m_initial_time_to_live - m_left_time_to_live;
-    float coeff = sin((M_PI/2.0)*((float)lived_time/((float)m_initial_time_to_live)));
-    image->SetRotation_deg(coeff * 360.0);
+    float coeff = sin(M_PI_2*((float)lived_time/((float)m_initial_time_to_live)));
+    image->SetRotation_rad(coeff * 2 * M_PI);
   }
   Particle::Refresh();
 }

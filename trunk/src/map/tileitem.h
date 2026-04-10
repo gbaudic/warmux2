@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ public:
 class TileItem_AlphaSoftware : public TileItem
 {
   unsigned char* last_filled_pixel;
+  const TileItem_AlphaSoftware& operator=(const TileItem_AlphaSoftware&);
 
 public:
   bool need_check_empty;

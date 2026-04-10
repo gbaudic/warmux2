@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,19 +23,23 @@
 #define TIME_H
 
 #include <string>
-#include "../include/base.h"
+#include "include/base.h"
 
 class Time
 {
 private:
-  uint pause_start;
-  uint pause_offset;// Offset between get_time() and LitTemps()
+  uint current_time;
+  //uint max_time;
+  uint delta_t;
   bool is_game_paused;
   static Time * singleton;
 
+  uint real_time_game_start;
+  uint real_time_pause_dt;
+  uint real_time_pause_begin;
+
 private:
   Time();
-   
 public:
   static Time * GetInstance();
 
@@ -43,9 +47,13 @@ public:
   bool IsGamePaused() const;
 
   // Read the time of the game, excluding paused time
+  uint ReadRealTime();
   uint Read() const;
   uint ReadSec() const;
   uint ReadMin() const;
+  void Refresh();
+  uint GetDelta() const;
+  //void RefreshMaxTime(uint updated_max_time);
 
   // Read the clock time
   uint ClockSec();  // ReadSec() % 60

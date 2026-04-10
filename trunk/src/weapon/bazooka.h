@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,20 +23,22 @@
 #define BAZOOKA_H
 #include "launcher.h"
 
-class RoquetteBazooka : public WeaponProjectile
+class BazookaRocket : public WeaponProjectile
 {
   ParticleEngine smoke_engine;
 public:
-  RoquetteBazooka(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
+  BazookaRocket(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
   void Refresh();
 protected:
   void SignalOutOfMap();
+  void SignalDrowning();
 };
 
 class Bazooka : public WeaponLauncher
 {
  public:
   Bazooka();
+  DECLARE_GETWEAPONSTRING();
  protected:
   WeaponProjectile * GetProjectileInstance();
 };

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,9 +33,9 @@
  */
 #ifdef DEBUG
 #  define MSG_DEBUG(LEVEL, MESSAGE, ARGS...) \
-	PrintDebug( __FILE__, __PRETTY_FUNCTION__, __LINE__, LEVEL, MESSAGE, ## ARGS);
+	PrintDebug( __FILE__, __PRETTY_FUNCTION__, __LINE__, LEVEL, MESSAGE, ## ARGS)
 #else
-#  define MSG_DEBUG(LEVEL, MESSAGE, ARGS...)
+#  define MSG_DEBUG(LEVEL, MESSAGE, ARGS...) do {} while (0)
 #endif
 
 void PrintDebug (const char *filename, const char *function, unsigned long line,

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,20 +19,20 @@
  * AirHammer - Use it to dig
  *****************************************************************************/
 
-#include "../weapon/airhammer.h"
+#include "weapon/airhammer.h"
 //-----------------------------------------------------------------------------
 #include <sstream>
-#include "../game/game.h"
-#include "../game/game_loop.h"
-#include "../game/time.h"
-#include "../include/action_handler.h"
-#include "../map/map.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../team/macro.h"
-#include "../tool/i18n.h"
-#include "../interface/game_msg.h"
-#include "../weapon/explosion.h"
+#include "game/game.h"
+#include "game/game_loop.h"
+#include "game/time.h"
+#include "include/action_handler.h"
+#include "map/map.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "team/macro.h"
+#include "tool/i18n.h"
+#include "interface/game_msg.h"
+#include "weapon/explosion.h"
 
 //-----------------------------------------------------------------------------
 
@@ -44,7 +44,8 @@ const uint MIN_TIME_BETWEEN_JOLT = 100; // in milliseconds
 Airhammer::Airhammer() : Weapon(WEAPON_AIR_HAMMER,"airhammer",new AirhammerConfig())
 {
   m_name = _("Airhammer");
-  override_keys = true ;
+  m_help = _("Howto use it : keep space key pressed\nan ammo per turn");
+  m_category = TOOL;
 
   impact = resource_manager.LoadImage( weapons_res_profile, "airhammer_impact");
   m_last_jolt = 0;
@@ -102,9 +103,9 @@ bool Airhammer::p_Shoot()
       // Did we touch somebody ?
       if( character->ObjTouche(Point2i(x, y)) )
       {
-	// Apply damage (*ver).SetEnergyDelta (-cfg().damage);
-	      character->SetEnergyDelta(-cfg().damage);
-	end = true;
+        // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
+        character->SetEnergyDelta(-cfg().damage);
+        end = true;
       }
     }
   } while (!end);
@@ -120,12 +121,10 @@ void Airhammer::RepeatShoot()
   uint tmp = Time::GetInstance()->Read();
 
   if (time >= MIN_TIME_BETWEEN_JOLT)
-  {
-    m_is_active = false;
-    NewActionShoot();
-    m_last_jolt = tmp;
-  }
-
+    {
+      NewActionWeaponShoot();
+      m_last_jolt = tmp;
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -134,48 +133,65 @@ void Airhammer::Refresh()
 {
 }
 
+void Airhammer::SignalTurnEnd()
+{
+  // It's too late !
+  m_is_active = false;
+}
+
+void Airhammer::ActionStopUse()
+{
+  ActiveTeam().AccessNbUnits() = 0; // ammo units are lost
+  m_is_active = false;
+  GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
+}
+
+
 //-----------------------------------------------------------------------------
 
-void Airhammer::HandleKeyEvent(int action, int event_type)
+void Airhammer::HandleKeyPressed_Shoot()
 {
-  switch (action) {
-
-  case ACTION_SHOOT:
-
-    if (event_type == KEY_RELEASED || ActiveCharacter().GotInjured()) {
-      // stop when key is released or character got injured
-      ActiveTeam().AccessNbUnits() = 0;
-      m_is_active = false;
-      GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
-    }
-
-    if (event_type == KEY_REFRESH)
-      RepeatShoot();
-
-    break ;
-
-  default:
-    break ;
-  } ;
-
+  HandleKeyRefreshed_Shoot();
 }
+
+void Airhammer::HandleKeyRefreshed_Shoot()
+{
+  if (EnoughAmmoUnit()) {
+    RepeatShoot();
+  }
+}
+
+void Airhammer::HandleKeyReleased_Shoot()
+{
+  NewActionWeaponStopUse();
+}
+
+std::string Airhammer::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u airhammer!",
+            "%s team has won %u airhammers!",
+            items_count), TeamName, items_count);
+}
+
+
 //-----------------------------------------------------------------------------
 
 AirhammerConfig& Airhammer::cfg() {
-	return static_cast<AirhammerConfig&>(*extra_params);
+  return static_cast<AirhammerConfig&>(*extra_params);
 }
 
 //-----------------------------------------------------------------------------
 
 AirhammerConfig::AirhammerConfig(){
-	range =  30;
-	damage = 3;
+  range =  30;
+  damage = 3;
 }
 
 //-----------------------------------------------------------------------------
 
 void AirhammerConfig::LoadXml(xmlpp::Element *elem){
-	WeaponConfig::LoadXml(elem);
-	LitDocXml::LitUint (elem, "range", range);
-	LitDocXml::LitUint (elem, "damage", damage);
+  WeaponConfig::LoadXml(elem);
+  XmlReader::ReadUint(elem, "range", range);
+  XmlReader::ReadUint(elem, "damage", damage);
 }

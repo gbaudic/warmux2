@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,12 +37,12 @@ private:
 
   // Handler for each action
   typedef void (*callback_t) (Action *a);
-  std::map<Action_t, callback_t> handler;
-  typedef std::map<Action_t, callback_t>::const_iterator handler_it;
+  std::map<Action::Action_t, callback_t> handler;
+  typedef std::map<Action::Action_t, callback_t>::const_iterator handler_it;
 
   // Action strings
-  std::map<Action_t, std::string> action_name;
-  typedef std::map<Action_t, std::string>::const_iterator name_it;
+  std::map<Action::Action_t, std::string> action_name;
+  typedef std::map<Action::Action_t, std::string>::const_iterator name_it;
 
   // Action queue
   std::list<Action*> queue;
@@ -52,20 +52,33 @@ private:
 public:
   static ActionHandler * GetInstance();
 
-  void NewAction (Action* a, bool repeat_to_network=true);
-  void ExecActions ();
-  std::string GetActionName(Action_t action);
-	
+  void NewAction(Action* a, bool repeat_to_network=true);
+  void NewActionActiveCharacter(Action* a); // send infos (on the network) about active character in the same time
+
+  void ExecActions();
+  std::string GetActionName(Action::Action_t action);
+
 private:
   ActionHandler();
 
-  void Exec (Action *a);
-  void Register (Action_t action, const std::string &name, callback_t fct);
+  /* If you need this, you probably made an error in your code... */
+  ActionHandler(const ActionHandler&);
+  const ActionHandler& operator=(const ActionHandler&);
+  /****************************************************************/
+
+  void Exec(Action *a);
+  void Register(Action::Action_t action, const std::string &name, callback_t fct);
 };
 
-Action* BuildActionSendCharacterPhysics(int team_no, int char_no);
+// TODO: Move it in an object !
+
+void SendCharacterInfo(int team_no, int char_no);// Send character information over the network (it's totally stupid to send it locally ;-)
+void SendActiveCharacterInfo(bool can_be_dropped = false);
+
 void SendGameMode();
 void SyncCharacters();
+
+
 
 //-----------------------------------------------------------------------------
 #endif

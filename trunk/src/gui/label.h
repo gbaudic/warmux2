@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,29 +22,43 @@
 #ifndef LABEL_H
 #define LABEL_H
 
-#include "../include/base.h"
-#include "../graphic/text.h"
-#include "../gui/widget.h"
+#include "include/base.h"
+#include "graphic/text.h"
+#include "gui/widget.h"
 #include <string>
 
 class Label : public Widget{
+  /* If you need this, implement it (correctly)*/
+  Label(const Label&);
+  Label operator=(const Label&);
+  /*********************************************/
+
  protected:
   Text *txt_label;
+  bool hidden;
  private:
-  Font *font;
+  Font::font_size_t font_size;
+  Font::font_style_t font_style;
   const Color& font_color;
   bool center;
+  bool shadowed;
 
  public:
-  Label(const std::string &label, const Rectanglei &rect, Font& font,
-	const Color& color = white_color, bool center = false);
+  Label(const std::string &label,
+	const Rectanglei &rect,
+	Font::font_size_t font_size,
+	Font::font_style_t font_style,
+	const Color& color = white_color,
+	bool center = false,
+	bool shadowed = true);
   ~Label();
-  void Draw (const Point2i &mousePosition, Surface& surf);
+
+  void Draw (const Point2i &mousePosition, Surface& surf) const;
   void SetSizePosition(const Rectanglei &rect);
   void SetText(const std::string &new_txt);
-  std::string &GetText();
+  const std::string& GetText() const;
 
-  void SetFontColor(const Color& color);
+  void SetVisible(bool visible);
 };
 
 #endif

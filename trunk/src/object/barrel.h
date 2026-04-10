@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define BARREL_H
 
 #include "physical_obj.h"
-#include "../graphic/sprite.h"
+#include "graphic/sprite.h"
 
 
 class PetrolBarrel : public PhysicalObj
@@ -35,7 +35,7 @@ class PetrolBarrel : public PhysicalObj
     void Draw();
     void Refresh();
   protected:
-    void SignalDeath();
+    void SignalGhostState(bool was_already_dead);
 };
 
 #endif /* BARREL_H */

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,9 +22,9 @@
 #ifndef CURSOR_H
 #define CURSOR_H
 //-----------------------------------------------------------------------------
-#include "../graphic/sprite.h"
-#include "../object/physical_obj.h"
-#include "../include/base.h"
+#include "graphic/sprite.h"
+#include "object/physical_obj.h"
+#include "include/base.h"
 //-----------------------------------------------------------------------------
 
 class CharacterCursor
@@ -33,6 +33,11 @@ public:
    Sprite *image;
 
 private:
+  /* If you need this, implement it (correctly)*/
+  CharacterCursor(const CharacterCursor&);
+  const CharacterCursor& operator=(const CharacterCursor&);
+  /*********************************************/
+
   uint time_begin_anim;
   uint last_update;
   PhysicalObj *obj_designe;
@@ -58,7 +63,7 @@ public:
   // Hide the cursor
   void Hide();
 
-  
+
 
 private:
   CharacterCursor();

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,11 @@
 class WidgetList : public Widget, public Container
 {
 private:
+  /* If you need this, implement it (correctly)*/
+  WidgetList(const WidgetList&);
+  WidgetList operator=(const WidgetList&);
+  /*********************************************/
+
   Point2i lastMousePosition;
   Widget* last_clicked;
 
@@ -42,22 +47,25 @@ public:
   WidgetList(const Rectanglei &rect);
   virtual ~WidgetList();
 
+  void Update(const Point2i &mousePosition, Surface& surf);
+
   // methods specialized from Widget to manage the list of widgets
   virtual void SendKey(SDL_keysym key);
-  virtual Widget* Clic(const Point2i &mousePosition, uint button);
-  virtual void Draw(const Point2i &mousePosition, Surface& surf);
+  virtual Widget* Click(const Point2i &mousePosition, uint button);
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
+  virtual void Draw(const Point2i &mousePosition, Surface& surf) const;
 
   // needed to implements Widget
-  virtual void SetSizePosition(const Rectanglei &rect) {};  
+  virtual void SetSizePosition(const Rectanglei &rect) {};
 
   // to add a widget
   virtual void AddWidget(Widget*);
 
   // redraw bottom layer container
   virtual void Redraw(const Rectanglei& rect, Surface& surf);
-  
+
   // set need_redrawing to true for all sub widgets;
-  void ForceRedraw(); 
+  void ForceRedraw();
 
   // set focus on a widget
   void SetFocusOn(Widget*);

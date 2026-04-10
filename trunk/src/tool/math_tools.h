@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,15 +27,17 @@ extern const double EPS_ZERO;
 
 // Borne une valeur dans l'intervale [min;max]
 long BorneLong (const long &valeur, const long &min, const long &max);
-double BorneDouble (const double &valeur, const double &min, 
+double BorneDouble (const double &valeur, const double &min,
 		    const double &max);
 
 // Inverse un angle par rapport à l'axe vertical
 double InverseAngle (const double &angle);
 double InverseAngleDeg (const double &angle);
+double InverseAngleRad (const double &angle);
 
 // Conversion degré en radian
 double Deg2Rad (int degre);
+int Rad2Deg(double rad);
 
 // Valeur absolue
 double AbsReel (const double x);

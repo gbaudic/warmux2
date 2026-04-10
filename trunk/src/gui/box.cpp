@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 
 #include <SDL_gfxPrimitives.h>
 #include "box.h"
-#include "../graphic/colors.h"
-#include "../include/app.h"
+#include "graphic/colors.h"
+#include "include/app.h"
 
 Box::Box(const Rectanglei &rect, bool _visible) : WidgetList( rect )
 {
@@ -55,12 +55,12 @@ void Box::Update(const Point2i &mousePosition,
     Draw(mousePosition, surf);
   }
 
-  WidgetList::Draw(mousePosition, surf);
+  WidgetList::Update(mousePosition, surf);
   need_redrawing = false;
 }
 
 void Box::Draw(const Point2i &mousePosition,
-	       Surface& surf)
+	       Surface& surf) const
 {
   Rectanglei rect(position, size);
 	
@@ -70,9 +70,14 @@ void Box::Draw(const Point2i &mousePosition,
   }
 }
 
-Widget* Box::Clic (const Point2i &mousePosition, uint button)
+Widget* Box::Click(const Point2i &mousePosition, uint button)
 {
-  return WidgetList::Clic(mousePosition, button);
+  return WidgetList::Click(mousePosition, button);
+}
+
+Widget* Box::ClickUp(const Point2i &mousePosition, uint button)
+{
+  return WidgetList::ClickUp(mousePosition, button);
 }
 
 void Box::SetMargin (uint _margin)

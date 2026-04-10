@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include <vector>
 #include "launcher.h"
-#include "../include/base.h"
+#include "include/base.h"
 
 class SnipeBullet : public WeaponBullet
 {
@@ -44,6 +44,7 @@ class SnipeRifle : public WeaponLauncher
     Point2i targeted_point;
     bool targeting_something;
     Sprite * m_laser_image;
+    Color laser_beam_color;
     bool ComputeCrossPoint(bool force);
 
   protected:
@@ -55,6 +56,7 @@ class SnipeRifle : public WeaponLauncher
     void SignalProjectileGhostState();
     void DrawBeam();
     void Draw();  // In order to draw the laser beam / and the contact point.
+    DECLARE_GETWEAPONSTRING();
 };
 
 #endif /* SNIPE_RIFLE_H */

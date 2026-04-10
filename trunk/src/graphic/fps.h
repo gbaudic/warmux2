@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,6 +28,11 @@
 class FramePerSecond
 {
 private:
+  /* If you need this, implement it (correctly) */
+  FramePerSecond(const FramePerSecond&);
+  FramePerSecond operator=(const FramePerSecond&);
+  /**********************************************/
+
   // Minimum number of values needed to compute the average
   static const uint MIN_NB_VALUES;
 
@@ -39,7 +44,7 @@ private:
 
 public:
   bool display;
-  
+
 public:
   FramePerSecond();
   ~FramePerSecond();

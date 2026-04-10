@@ -2,7 +2,7 @@
 #define _VECTOR2_H
 
 #include <math.h>
-#define VECTOR2_EPS_ZERO (0.05)
+#define VECTOR2_EPS_ZERO (0.005)
 
 /**
  * Class for storing a vector of two points x, y.
@@ -10,7 +10,7 @@
 template<class T> class Vector2
 {
 	private:
-		const static double EPS_ZERO = 0.05;
+		static const double EPS_ZERO = 0.05;
 
 	public:
 		T x, y;
@@ -18,10 +18,9 @@ template<class T> class Vector2
 		/**
 		 * Default constructor that will be a vector null (0, 0)
 		 */
-		inline Vector2(){
-			x = 0;
-			y = 0;
-		}
+		inline Vector2():
+			x(0), y(0)
+                { }
 
 		/**
 		 * Constructor that build a new vector from two values, x and y.
@@ -29,10 +28,9 @@ template<class T> class Vector2
 		 * @param x
 		 * @param y
 		 */
-		inline Vector2(T x, T y){
-			this->x = x;
-			this->y = y;
-		}
+		inline Vector2(T _x, T _y):
+			x(_x), y(_y)
+		{}
 
 		/**
 		 * Return the x coordinate.
@@ -48,13 +46,21 @@ template<class T> class Vector2
 			return y;
 		}
 
+		/**
+		 *
+		 */
+		inline bool IsZero(T val) const{
+			return (val == 0 || (val <= static_cast<T>(VECTOR2_EPS_ZERO) &&
+                               val >= static_cast<T>(-VECTOR2_EPS_ZERO)));
+		}
+
 		// Comparators
 
 		/**
 		 *
 		 */
 		inline bool operator==(const Vector2<T> &p2) const{
-			return (x == p2.x) && (y == p2.y);
+			return IsZero(x - p2.x) && IsZero(y - p2.y);
 		}
 
 		/**
@@ -62,7 +68,8 @@ template<class T> class Vector2
 		 * @param p2
 		 */
 		inline bool operator!=(const Vector2<T> &p2) const{
-			return (x != p2.x) || (y != p2.y);
+               //         return (x != p2.x) || (y != p2.y);
+			return !IsZero(x - p2.x) || !IsZero(y - p2.y);
 		}
 
 		/**
@@ -77,10 +84,24 @@ template<class T> class Vector2
 		 *
 		 * @param p2
 		 */
+		inline bool operator>(const Vector2<T> &p2) const{
+			return (x > p2.x) && (y > p2.y);
+		}
+		/**
+		 *
+		 * @param p2
+		 */
 		inline bool operator<=(const Vector2<T> &p2) const{
 			return (x <= p2.x) && (y <= p2.y);
 		}
 
+		/**
+		 *
+		 * @param p2
+		 */
+		inline bool operator<(const Vector2<T> &p2) const{
+			return (x < p2.x) && (y < p2.y);
+		}
 		// Vector/Vector operations
 
 		/**
@@ -178,7 +199,7 @@ template<class T> class Vector2
 		 */
 		inline void operator-=(const T val){
 			x -= val;
-			y += val;
+			y -= val;
 		}
 
 		/**
@@ -303,13 +324,6 @@ template<class T> class Vector2
 		/**
 		 *
 		 */
-		inline bool IsZero(T val) const{
-			return (val <= VECTOR2_EPS_ZERO) && (-val <= VECTOR2_EPS_ZERO);
-		}
-
-		/**
-		 *
-		 */
 		inline bool IsXNull() const{
 			return IsZero( x );
 		}
@@ -329,7 +343,8 @@ template<class T> class Vector2
 		}
 
 		/**
-		 *  Calcule l'angle en radian du point M dans le repère de centre O
+		 *  Compute the angle of point M in the Cartesian plane
+                 *  centered on O
 		 *
 		 * Pour O=(0,0) :
 		 * - M=(10,10) -> PI/4 (0.78)
@@ -338,32 +353,32 @@ template<class T> class Vector2
 		 * - M=(10,-10) -> -PI/4 (-0.78)
 		 * - M=O -> 0
 		 */
-		double ComputeAngle() const{
-			double angle;
+                double ComputeAngle() const{
+                  double angle;
 
-			if( !IsZero( x ) )
-				if( !IsZero( y ) ){
-					angle = atan((double)y/x);
-					if( x < 0 )
-						if( y > 0 )
-							angle += M_PI;
-						else
-							angle -= M_PI;
-				}
-				else
-					if( x > 0)
-						angle = 0;
-					else
-						angle = M_PI;
-			else
-				if( y > 0 )
-					angle = M_PI_2;
-				else if(y < 0)
-					angle = -M_PI_2;
-				else
-					angle = 0;
+                  if( !IsZero( x ) )
+                    if( !IsZero( y ) ){
+                      angle = atan(double(y)/double(x));
+                      if( x < 0 )
+                        if( y > 0 )
+                          angle += M_PI;
+                        else
+                          angle -= M_PI;
+                    }
+                    else
+                      if( x > 0)
+                        angle = 0;
+                      else
+                        angle = M_PI;
+                  else
+                    if( y > 0 )
+                      angle = M_PI_2;
+                    else if(y < 0)
+                      angle = -M_PI_2;
+                    else
+                      angle = 0;
 
-			return angle;
+                  return angle;
 		}
 
 		/**

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,12 +39,23 @@ class Blowtorch : public Weapon
     uint new_timer, old_timer;
   protected:
     bool p_Shoot();
+    void p_Deselect();
     void Refresh();
-    void EndTurn();
+
+    void RepeatShoot();
   public:
     Blowtorch();
     BlowtorchConfig& cfg();
-    void HandleKeyEvent(int action, int event_type);
+
+    virtual void SignalTurnEnd();
+    virtual void ActionStopUse();
+
+    virtual void HandleKeyPressed_Shoot();
+    virtual void HandleKeyRefreshed_Shoot();
+    virtual void HandleKeyReleased_Shoot();
+
+    //std::string GetWeaponWinString(const char *, uint);
+    DECLARE_GETWEAPONSTRING();
 };
 
 #endif  // __BLOWTORCH_H__

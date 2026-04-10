@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  * Widget list : store all widgets displayed on one screen
  * It is a fake widget.
  *****************************************************************************/
-#include "../include/app.h"
-#include "../graphic/colors.h"
+#include "include/app.h"
+#include "graphic/colors.h"
 #include "widget_list.h"
 #include "widget.h"
 #include <iostream>
@@ -58,7 +58,7 @@ void WidgetList::AddWidget(Widget* w)
   w->SetContainer(this);
 }
 
-void WidgetList::Draw(const Point2i &mousePosition, Surface& surf)
+void WidgetList::Update(const Point2i &mousePosition, Surface& surf)
 {
   for(std::list<Widget*>::iterator w=widget_list.begin();
       w != widget_list.end();
@@ -71,6 +71,9 @@ void WidgetList::Draw(const Point2i &mousePosition, Surface& surf)
   lastMousePosition = mousePosition;
 }
 
+void WidgetList::Draw(const Point2i &mousePosition, Surface& surf) const
+{
+}
 
 void WidgetList::Redraw(const Rectanglei& rect, Surface& surf)
 {
@@ -86,7 +89,7 @@ void WidgetList::SendKey(SDL_keysym key)
     last_clicked -> SendKey(key);
 }
 
-Widget* WidgetList::Clic(const Point2i &mousePosition, uint button)
+Widget* WidgetList::ClickUp(const Point2i &mousePosition, uint button)
 {
   for(std::list<Widget*>::iterator w=widget_list.begin();
       w != widget_list.end();
@@ -94,12 +97,26 @@ Widget* WidgetList::Clic(const Point2i &mousePosition, uint button)
   {
     if((*w)->Contains(mousePosition))
     {
-      Widget* child = (*w)->Clic(mousePosition,button);
+      Widget* child = (*w)->ClickUp(mousePosition,button);
       if(child != NULL)
       {
 	SetFocusOn(child);
         return child;
       }
+    }
+  }
+  return NULL;
+}
+
+Widget* WidgetList::Click(const Point2i &mousePosition, uint button)
+{
+  for(std::list<Widget*>::iterator w=widget_list.begin();
+      w != widget_list.end();
+      w++)
+  {
+    if((*w)->Contains(mousePosition))
+    {
+      (*w)->Click(mousePosition,button);
     }
   }
   return NULL;

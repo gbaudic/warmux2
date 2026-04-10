@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,10 +21,10 @@
 
 #include "fire.h"
 #include "particle.h"
-#include "../game/time.h"
-#include "../tool/random.h"
-#include "../weapon/explosion.h"
-#include "../map/camera.h"
+#include "game/time.h"
+#include "tool/random.h"
+#include "weapon/explosion.h"
+#include "map/camera.h"
 
 const uint living_time = 5000;
 const uint dig_ground_time = 1000;
@@ -32,32 +32,31 @@ const uint dig_ground_time = 1000;
 ExplosiveWeaponConfig fire_cfg;
 
 FireParticle::FireParticle() :
-  Particle("fire_particle")
+  Particle("fire_particle"),
+  direction(randomObj.GetBool() ? -1 : 1),
+  creation_time(Time::GetInstance()->Read()),
+  on_ground(false),
+  oscil_delta(randomObj.GetLong(0, dig_ground_time))
 {
   SetCollisionModel(false, false, false);
   m_left_time_to_live = 100;
   m_check_move_on_end_turn = true;
+
   fire_cfg.damage = 1;
   fire_cfg.explosion_range = 5;
   fire_cfg.blast_range = 0;
   fire_cfg.blast_force = 0;
   fire_cfg.particle_range = 6;
-//  direction = randomSync.GetBool() ? -1 : 1;
-//  oscil_delta = randomSync.GetLong(0, dig_ground_time);
-  direction = randomObj.GetBool() ? -1 : 1;
-  oscil_delta = randomObj.GetLong(0, dig_ground_time);
-  on_ground = false;
+
   image = ParticleEngine::GetSprite(FIRE_spr);
   image->SetRotation_HotSpot(Point2i(image->GetWidth()/2,image->GetHeight()));
-  creation_time = Time::GetInstance()->Read();
-  SetSize( image->GetSize() );
+  SetSize(image->GetSize());
   SetTestRect((image->GetWidth() / 2)-1, (image->GetWidth() / 2) - 1,
       (image->GetHeight()/2)-1,1);
 }
 
 FireParticle::~FireParticle()
 {
-  camera.StopFollowingObj(this);
 }
 
 void FireParticle::Refresh()
@@ -92,15 +91,15 @@ void FireParticle::Refresh()
       fire_cfg.explosion_range = (uint)(0.5 * scale * image->GetWidth()) + 1;
       fire_cfg.particle_range = (uint)(0.6 * scale * image->GetWidth()) + 1;
     }
-    float angle = 0.0;
-    angle += cos((((now + oscil_delta) % 1000)/500.0) * M_PI) * 30.0;
+    double angle = 0.0;
+    angle += cos((((now + oscil_delta) % 1000)/500.0) * M_PI) * 0.5; // 0.5 is arbirtary
     image->SetRotation_HotSpot(Point2i(image->GetWidth()/2,image->GetHeight()));
-    image->SetRotation_deg( angle * direction);
+    image->SetRotation_rad( angle);
   }
   else
   {
-    double angle = GetSpeedAngle() * 180/M_PI;
-    image->SetRotation_deg((angle - 90.0) * direction);
+    double angle = GetSpeedAngle();
+    image->SetRotation_rad((angle - M_PI_2) * direction);
   }
 
   m_last_refresh = now;
@@ -115,4 +114,9 @@ void FireParticle::SignalDrowning()
 {
   m_left_time_to_live = 0;
   // jukebox.Play("share","fire/pschiit");
+}
+
+void FireParticle::SignalOutOfMap()
+{
+  m_left_time_to_live = 0;
 }

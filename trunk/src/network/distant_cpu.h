@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,18 +25,39 @@
 #include <SDL_net.h>
 #include <SDL_thread.h>
 #include <SDL_mutex.h>
-#include "../include/base.h" 
+#include "include/base.h"
 #include <list>
 #include <string>
-#include "../include/action.h" 
+#include "include/action.h"
 //-----------------------------------------------------------------------------
+
+class Action;
+
 class DistantComputer
 {
+ public:
+  typedef enum {
+    ERROR,
+    INITIALIZED,
+    READY
+  } state_t;
+
+ private:
+  /* If you need this, implement it (correctly)*/
+  DistantComputer(const DistantComputer&);
+  const DistantComputer& operator=(const DistantComputer&);
+  /*********************************************/
+
   SDL_mutex* sock_lock;
   TCPsocket sock;
   std::list<std::string> owned_teams;
-  
+
+  DistantComputer::state_t state;
+
 public:
+  bool version_checked;
+  bool force_disconnect;
+
   DistantComputer(TCPsocket new_sock);
   ~DistantComputer();
 
@@ -49,6 +70,9 @@ public:
 
   void ManageTeam(Action* team);
   void SendChatMessage(Action* a);
+
+  void SetState(DistantComputer::state_t _state);
+  DistantComputer::state_t GetState() const;
 };
 
 #endif

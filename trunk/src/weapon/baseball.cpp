@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,23 +20,25 @@
  *****************************************************************************/
 
 #include "baseball.h"
-#include "../game/game_loop.h"
-#include "../map/camera.h"
-#include "../team/macro.h"
-#include "../tool/point.h"
-#include "../tool/i18n.h"
+#include "game/game_loop.h"
+#include "map/camera.h"
+#include "team/macro.h"
+#include "tool/point.h"
+#include "tool/i18n.h"
 #include "explosion.h"
 
 Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball", new BaseballConfig())
 {
   m_name = _("Baseball Bat");
+  m_help = _("Angle : Up/Down\nFire : space key\na hit per turn");
+  m_category = DUEL;
   m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
 }
 
 bool Baseball::p_Shoot (){
 
-  double angle = ActiveTeam().crosshair.GetAngleRad();
+  double angle = ActiveCharacter().GetFiringAngle();
   double rayon = 0.0;
   bool fin = false;
 
@@ -66,7 +68,7 @@ bool Baseball::p_Shoot (){
 	// Apply damage (*ver).SetEnergyDelta (-cfg().damage);
 	ver->SetSpeed (cfg().strength / ver->GetMass(), angle);
 	ver->SetMovement("fly");
-	camera.ChangeObjSuivi (&(*ver), true, true);
+	camera.FollowObject (&(*ver), true, true);
 	return true;
       }
     }
@@ -84,6 +86,15 @@ BaseballConfig& Baseball::cfg() {
   return static_cast<BaseballConfig&>(*extra_params);
 }
 
+std::string Baseball::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u baseball bat!",
+            "%s team has won %u baseball bats!",
+            items_count), TeamName, items_count);
+}
+
+
 BaseballConfig::BaseballConfig(){
   range =  70;
   strength = 250;
@@ -91,6 +102,6 @@ BaseballConfig::BaseballConfig(){
 
 void BaseballConfig::LoadXml(xmlpp::Element *elem){
   WeaponConfig::LoadXml(elem);
-  LitDocXml::LitUint (elem, "range", range);
-  LitDocXml::LitUint (elem, "strength", strength);
+  XmlReader::ReadUint(elem, "range", range);
+  XmlReader::ReadUint(elem, "strength", strength);
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,21 +20,24 @@
 #include "spin_button.h"
 #include <sstream>
 #include <iostream>
-#include "../include/app.h"
-#include "../tool/math_tools.h"
-#include "../tool/resource_manager.h"
-#include "../graphic/font.h"
+#include "include/app.h"
+#include "tool/math_tools.h"
+#include "tool/resource_manager.h"
+#include "graphic/font.h"
 
 SpinButton::SpinButton (const std::string &label, const Rectanglei &rect,
-			int value, int step, int min_value, int max_value)
+			int value, int step, int min_value, int max_value,
+			const Color& color, bool _shadowed)
 {
   position =  rect.GetPosition();
   size = rect.GetSize();
   size.y = (*Font::GetInstance(Font::FONT_SMALL)).GetHeight();
-	  
+  shadowed = _shadowed;
+
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false); 
 
-  txt_label = new Text(label, white_color, Font::GetInstance(Font::FONT_SMALL));
+  txt_label = new Text(label, color, Font::FONT_SMALL, Font::FONT_NORMAL, shadowed);
+  txt_label->SetMaxWidth(size.x - 30);
 
   if ( min_value != -1 && min_value <= value)
     m_min_value = min_value;
@@ -44,7 +47,7 @@ SpinButton::SpinButton (const std::string &label, const Rectanglei &rect,
     m_max_value = max_value;
   else m_max_value = value*2;
 
-  txt_value = new Text("", white_color, Font::GetInstance(Font::FONT_SMALL));
+  txt_value = new Text("", color, Font::FONT_SMALL, Font::FONT_NORMAL, shadowed);
   SetValue(value);
 
   std::ostringstream max_value_s;
@@ -79,9 +82,11 @@ void SpinButton::SetSizePosition(const Rectanglei &rect)
   
   m_plus->SetSizePosition( Rectanglei(position.x + size.x - 5, position.y, 5, 10) );
   m_minus->SetSizePosition( Rectanglei(position.x + size.x - max_value_w - 5 - 2 * margin, position.y, 5, 10) );
+
+  txt_label->SetMaxWidth(size.x - 30);
 }
 
-void SpinButton::Draw(const Point2i &mousePosition, Surface& surf)
+void SpinButton::Draw(const Point2i &mousePosition, Surface& surf) const
 {
   txt_label->DrawTopLeft(position);
    
@@ -92,7 +97,7 @@ void SpinButton::Draw(const Point2i &mousePosition, Surface& surf)
   txt_value->DrawCenterTop(center, position.y);
 }
 
-Widget* SpinButton::Clic(const Point2i &mousePosition, uint button)
+Widget* SpinButton::ClickUp(const Point2i &mousePosition, uint button)
 {
   need_redrawing = true;
 
@@ -100,12 +105,16 @@ Widget* SpinButton::Clic(const Point2i &mousePosition, uint button)
       (button == SDL_BUTTON_LEFT && m_minus->Contains(mousePosition)) ){
     SetValue(m_value - m_step);
     return this;
-  } else
-  	if( (button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
-        (button == SDL_BUTTON_LEFT && m_plus->Contains(mousePosition)) ){
-    	SetValue(m_value + m_step);
-    	return this;
-  	}
+  } else if( (button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
+	     (button == SDL_BUTTON_LEFT && m_plus->Contains(mousePosition)) ){
+    SetValue(m_value + m_step);
+    return this;
+  }
+  return NULL;
+}
+
+Widget* SpinButton::Click(const Point2i &mousePosition, uint button)
+{
   return NULL;
 }
 

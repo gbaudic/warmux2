@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,20 +16,20 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Menu du jeu permettant de lancer une partie, modifier les options, d'obtenir
- * des informations, ou encore quitter le jeu.
+ * Game menu from which one may start a new game, modify options, obtain some
+ * infomations or leave the game.
  *****************************************************************************/
 
 #ifndef MAIN_MENU_H
 #define MAIN_MENU_H
 
-#include "../include/base.h"
-#include "../graphic/fps.h"
-#include "../graphic/surface.h"
-#include "../gui/widget_list.h"
-#include "../gui/button_text.h"
-#include "../gui/picture_widget.h"
-#include "../menu/menu.h"
+#include "include/base.h"
+#include "graphic/fps.h"
+#include "graphic/surface.h"
+#include "gui/widget_list.h"
+#include "gui/button_text.h"
+#include "gui/picture_widget.h"
+#include "menu/menu.h"
 #include <SDL.h>
 #include <vector>
 
@@ -45,15 +45,15 @@ typedef enum
 
 class Main_Menu : public Menu
 {
-  PictureWidget *title;
-  Surface s_title;
-
-  Sprite *skin_left, *skin_right;
+  /* If you need this, implement it (correctly) */
+  Main_Menu(const Main_Menu&);
+  Main_Menu operator=(const Main_Menu&);
+  /**********************************************/
 
   ButtonText *play, *network, *options, *infos, *quit;
 
   Text *version_text, *website_text;
- 
+
 
 public:
   menu_item choice;
@@ -65,18 +65,17 @@ public:
   void Redraw(const Rectanglei& rect, Surface& surf);
 
 protected:
-   void __sig_ok();
-   void __sig_cancel();
-   void key_ok();
-   void key_cancel();
+   bool signal_ok();
+   bool signal_cancel();
 
 private:
-   virtual void DrawBackground(const Point2i &mousePosition);
-   void OnClic(const Point2i &mousePosition, int button);
+   virtual void DrawBackground();
+   void OnClick(const Point2i &mousePosition, int button);
+   void OnClickUp(const Point2i &mousePosition, int button);
 
-  // Main drawing function: refresh parts of screen 
+  // Main drawing function: refresh parts of screen
   void Draw(const Point2i &mousePosition) {};
-  void button_clic();
+  void button_click();
 };
 
 #endif

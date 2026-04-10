@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,14 +25,13 @@
 
 #include <list>
 #include "launcher.h"
-#include "../graphic/surface.h"
-#include "../gui/progress_bar.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
+#include "graphic/surface.h"
+#include "gui/progress_bar.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
 
 class ClusterBombConfig;
 
-// Les fragments
 class Cluster : public WeaponProjectile
 {
 public:
@@ -45,18 +44,15 @@ protected:
   void DoExplosion();
 };
 
-// La ClusterBomb
 class ClusterBomb : public WeaponProjectile
 {
 public:
-  std::list<Cluster> tableau_cluster;
-  typedef std::list<Cluster>::iterator iterator;
-
   ClusterBomb(ClusterBombConfig& cfg,
               WeaponLauncher * p_launcher);
   void Refresh();
+  DECLARE_GETWEAPONSTRING();
 protected:
-  void Explosion();
+  void DoExplosion();
   void SignalOutOfMap();
 };
 

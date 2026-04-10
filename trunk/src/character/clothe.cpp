@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,12 +22,14 @@
 #include <map>
 #include <iostream>
 #include "member.h"
-#include "../tool/xml_document.h"
-#include "../tool/string_tools.h"
+#include "tool/xml_document.h"
+#include "tool/string_tools.h"
 
-Clothe::Clothe(xmlpp::Element *xml, std::map<std::string, Member*>& members_lst)
+Clothe::Clothe(xmlpp::Element *xml, std::map<std::string, Member*>& members_lst):
+  name(),
+  layers()
 {
-  LitDocXml::LitAttrString( xml, "name", name);
+  XmlReader::ReadStringAttr( xml, "name", name);
 
   xmlpp::Node::NodeList nodes = xml -> get_children("member");
   xmlpp::Node::NodeList::iterator
@@ -39,7 +41,7 @@ Clothe::Clothe(xmlpp::Element *xml, std::map<std::string, Member*>& members_lst)
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
     assert (elem != NULL);
     std::string att;
-    if (!LitDocXml::LitAttrString(elem, "name", att))
+    if (!XmlReader::ReadStringAttr(elem, "name", att))
     {
       std::cerr << "Malformed attached member definition" << std::endl;
       continue;
@@ -55,13 +57,7 @@ Clothe::Clothe(xmlpp::Element *xml, std::map<std::string, Member*>& members_lst)
       std::cerr << "Undefined member \"" << att << "\"" << std::endl;
     }
 
-    int lay=0;
-    if(LitDocXml::LitAttrInt(elem, "layer", lay))
-    {
-      if((uint)lay >= layers.size())
-        layers.resize( lay+1, (Member*)NULL);
-      layers[lay] = member;
-    }
+    layers.push_back( member );
   }
 
   std::vector<Member*>::iterator i = layers.begin();
@@ -72,10 +68,10 @@ Clothe::Clothe(xmlpp::Element *xml, std::map<std::string, Member*>& members_lst)
     i=layers.erase(i);
 }
 
-Clothe::Clothe(Clothe* c, std::map<std::string, Member*>& members_lst)
+Clothe::Clothe(Clothe* c, std::map<std::string, Member*>& members_lst):
+  name(c->name),
+  layers()
 {
-  name = c->name;
-
   for (std::vector<Member*>::iterator it = c->layers.begin();
       it != c->layers.end();
       ++it)

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,15 +22,15 @@
 #include "snipe_rifle.h"
 #include <sstream>
 #include "explosion.h"
-#include "../game/time.h"
-#include "../interface/game_msg.h"
-#include "../map/map.h"
-#include "../map/camera.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../include/app.h"
-#include "../game/game_loop.h"
+#include "game/time.h"
+#include "interface/game_msg.h"
+#include "map/map.h"
+#include "map/camera.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "include/app.h"
+#include "game/game_loop.h"
 
 
 const uint SNIPE_RIFLE_BEAM_START = 5;
@@ -40,7 +40,7 @@ const uint SNIPE_RIFLE_MAX_BEAM_SIZE = 500;
 SnipeBullet::SnipeBullet(ExplosiveWeaponConfig& cfg,
                      WeaponLauncher * p_launcher) :
     WeaponBullet("snipe_rifle_bullet", cfg, p_launcher)
-{ 
+{
 }
 
 void SnipeBullet::ShootSound()
@@ -53,12 +53,14 @@ void SnipeBullet::ShootSound()
 SnipeRifle::SnipeRifle() : WeaponLauncher(WEAPON_SNIPE_RIFLE,"snipe_rifle", new ExplosiveWeaponConfig())
 {
   m_name = _("Sniper Rifle");
+  m_category = RIFLE;
 
   last_angle = 0.0;
   targeting_something = false;
   m_laser_image = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_laser"));
   m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
+  laser_beam_color = resource_manager.LoadColor(weapons_res_profile,m_id+"_laser_color");
 
   ReloadLauncher();
 }
@@ -75,7 +77,6 @@ bool SnipeRifle::p_Shoot()
     return false;
 
   m_is_active = true;
-  ReloadLauncher();
   projectile->Shoot (SNIPE_RIFLE_BULLET_SPEED);
   projectile = NULL;
   ReloadLauncher();
@@ -94,7 +95,7 @@ bool SnipeRifle::ComputeCrossPoint(bool force = false)
 {
   // Did the current character is moving ?
   Point2i pos = GetGunHolePosition();
-  double angle = ActiveTeam().crosshair.GetAngleRad();
+  double angle = ActiveCharacter().GetFiringAngle();
   if ( !force && last_rifle_pos == pos && last_angle == angle ) return targeting_something;
   else {
     last_rifle_pos=pos;
@@ -128,7 +129,7 @@ bool SnipeRifle::ComputeCrossPoint(bool force = false)
     if ( distance < SNIPE_RIFLE_BEAM_START ) laser_beam_start = pos;
 
     // the point is outside the map
-    if ( world.EstHorsMondeX(pos.x) || world.EstHorsMondeY(pos.y) ) break;
+    if ( world.IsOutsideWorldX(pos.x) || world.IsOutsideWorldY(pos.y) ) break;
 
     // is there a collision ??
     if ( distance > 30 && !projectile->IsInVacuumXY( pos )){
@@ -145,14 +146,14 @@ bool SnipeRifle::ComputeCrossPoint(bool force = false)
 // Reset crosshair when switching from a weapon to another to avoid misused
 void SnipeRifle::p_Deselect()
 {
-  ActiveTeam().crosshair.ChangeAngleVal(0);
+  ActiveCharacter().SetFiringAngle(0.);
 }
 
 void SnipeRifle::DrawBeam()
 {
   Point2i pos1 = laser_beam_start - camera.GetPosition();
   Point2i pos2 = targeted_point - camera.GetPosition();
-  AppWormux::GetInstance()->video.window.AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, Color(255, 0, 0, 100));
+  AppWormux::GetInstance()->video.window.AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color);
 
   // Set area of the screen to be redrawn:
   // Splited into little rectangles to avoid too large area of redraw
@@ -197,9 +198,18 @@ void SnipeRifle::DrawBeam()
 void SnipeRifle::Draw()
 {
   WeaponLauncher::Draw();
-  if( GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING || IsActive() ) return;
+  if( GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING || IsInUse() ) return;
   ComputeCrossPoint();
   DrawBeam();
   // Draw the laser impact
   if( targeting_something ) m_laser_image->Draw(targeted_point - (m_laser_image->GetSize()/2));
 }
+
+std::string SnipeRifle::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u snipe rifle!",
+            "%s team has won %u snipe rifles!",
+            items_count), TeamName, items_count);
+}
+

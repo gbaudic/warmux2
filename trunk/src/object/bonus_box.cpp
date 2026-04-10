@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,77 +17,50 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
  * Bonus box : fall from the sky at random time.
- * The box can contain bonus or mallus (dynamite, Guns, loss of energy etc).
+ * The box can contain any weapon in the game.
  *****************************************************************************/
 
 #include "bonus_box.h"
 #include <sstream>
 #include <iostream>
-#include "../game/game_loop.h"
-#include "../game/time.h"
-#include "../graphic/sprite.h"
-#include "../include/app.h"
-#include "../interface/game_msg.h"
-#include "../map/camera.h"
-#include "../map/map.h"
-#include "../network/randomsync.h"
-#include "../object/objects_list.h"
-#include "../team/macro.h"
-#include "../tool/debug.h"
-#include "../tool/i18n.h"
-#include "../tool/resource_manager.h"
-#include "../weapon/weapons_list.h"
-
-//#define FAST
-
-#ifdef FAST
-  const uint MIN_TIME_BETWEEN_CREATION = 1; // seconds
-  const uint MAX_TIME_BETWEEN_CREATION = 3; // seconds
-#else
-  const uint MIN_TIME_BETWEEN_CREATION = 10; // seconds
-  const uint MAX_TIME_BETWEEN_CREATION = 5*60; // seconds
-#endif
+#include <math.h>
+#include "game/game_mode.h"
+#include "game/game_loop.h"
+#include "game/time.h"
+#include "graphic/sprite.h"
+#include "include/app.h"
+#include "interface/game_msg.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "network/randomsync.h"
+#include "object/objects_list.h"
+#include "team/macro.h"
+#include "tool/debug.h"
+#include "tool/i18n.h"
+#include "tool/resource_manager.h"
+#include "weapon/explosion.h"
+#include "weapon/weapons_list.h"
 
 const uint SPEED = 5; // meter / seconde
-const uint SPEED_PARACHUTE = 170; // ms par image
+const uint SPEED_PARACHUTE = 170; // ms per frame
 const uint NB_MAX_TRY = 20;
 
-// Bonus offert par la caisse
-const uint BONUS_ENERGY=100;
-const uint BONUS_TRAP=75;
-const uint BONUS_DYNAMITE=3;
-const uint BONUS_ANVIL=1;
-const uint BONUS_BASEBALL=3;
-const uint BONUS_HOLLY_GRENADE=1;
-const uint BONUS_LOWGRAV=2;
-const uint BONUS_AIR_ATTACK=1;
-const uint BONUS_TELEPORTATION=2;
-const uint BONUS_AUTO_BAZOOKA=3;
-const uint BONUS_RIOT_BOMB=2;
-
-
-
-BonusBox::BonusBox()
-  : PhysicalObj("bonus_box"){
+BonusBox::BonusBox():
+  ObjBox("bonus_box"),
+  nbr_ammo(2),
+  contents(Weapon::WEAPON_MINE)
+{
   SetTestRect (29, 29, 63, 6);
-  m_allow_negative_y = true;
-  enable = false;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  anim = resource_manager.LoadSprite( res, "objet/caisse");
+  anim = resource_manager.LoadSprite( res, "object/bonus_box");
   resource_manager.UnLoadXMLProfile(res);
 
   SetSize(anim->GetSize());
   anim->animation.SetLoopMode(false);
   anim->SetCurrentFrame(0);
 
-  parachute = true;
-
-  SetSpeed (SPEED, M_PI_2);
-}
-
-BonusBox::~BonusBox(){
-  delete anim;
+  PickRandomWeapon();
 }
 
 void BonusBox::Draw()
@@ -98,12 +71,12 @@ void BonusBox::Draw()
 void BonusBox::Refresh()
 {
   // If we touch a character, we remove the bonus box
-  FOR_ALL_LIVING_CHARACTERS(equipe, ver)
+  FOR_ALL_LIVING_CHARACTERS(team, character)
   {
-    if( ObjTouche(*ver) )
+    if( ObjTouche(*character) )
     {
-      // here is the gift (truly a gift ?!? :)
-      ApplyBonus (**equipe, *ver);
+      // here is the gift
+      ApplyBonus (**team, *character);
       Ghost();
       return;
     }
@@ -113,174 +86,81 @@ void BonusBox::Refresh()
   if (!anim->IsFinished() && !parachute) anim->Update();
 }
 
-// Signale la fin d'une chute
-void BonusBox::SignalCollision()
-{
-  SetAirResistFactor(1.0);
-
-  MSG_DEBUG("bonus", "End of the fall: parachute=%d", parachute);
-  if (!parachute) return;
-
-  MSG_DEBUG("bonus", "Start of the animation 'fold of the parachute'.");
-  parachute = false;
-
-  anim->SetCurrentFrame(0);
-  anim->Start();
+void BonusBox::PickRandomWeapon() {
+  uint weapon_num = 0;
+  if(weapon_count <= 0) { //there was an error in the LoadXml function, or it wasn't called, so have it explode
+    life_points = 0;
+    MSG_DEBUG("bonus","Weapon count is zero");
+    return;
+  }
+  weapon_num = (int)randomSync.GetDouble(1,weapon_count);
+  contents = (weapon_map[weapon_num].first)->GetType();
+  if(ActiveTeam().ReadNbAmmos(contents)==INFINITE_AMMO) {
+    life_points = 0;
+    nbr_ammo = 0;
+    MSG_DEBUG("bonus","Weapon %s already has infinite ammo",WeaponsList::GetInstance()->GetWeapon(contents)->GetName().c_str());
+  }
+  else
+    nbr_ammo = weapon_map[weapon_num].second;
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-
-void BonusBox::ApplyBonus (Team &equipe, Character &ver){
+void BonusBox::ApplyBonus(Team &equipe, Character &ver) {
+  if(weapon_count == 0 || nbr_ammo == 0) return;
   std::ostringstream txt;
-  uint bonus = randomSync.GetLong (1, nb_bonus);
-  switch (bonus){
-  case bonusTELEPORTATION:
-    txt << Format(ngettext(
-                "%s team has won %u teleportation.",
-                "%s team has won %u teleportations.",
-                BONUS_TELEPORTATION),
-            ActiveTeam().GetName().c_str(), BONUS_TELEPORTATION);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_TELEPORTATION)->GetName() ] += BONUS_TELEPORTATION;
-    break;
+    /*this next 'if' should never be true, but I am loath to remove it just in case. */
+    if(equipe.ReadNbAmmos(contents)!=INFINITE_AMMO) {
+        equipe.m_nb_ammos[contents] += nbr_ammo;
+//        txt << Format(ngettext(
+//                "%s team has won %u %s!",
+//                "%s team has won %u %ss!",
+//                nbr_ammo),
+//            equipe.GetName().c_str(), nbr_ammo, WeaponsList::GetInstance()->GetWeapon(contents)->GetName().c_str());
 
-  case bonusENERGY:
-    txt << Format(ngettext(
-                "%s has won %u point of energy!",
-                "%s has won %u points of energy!",
-                BONUS_ENERGY),
-            ver.GetName().c_str(), BONUS_ENERGY);
-    ver.SetEnergyDelta (BONUS_ENERGY);
-    break;
-
-  case bonusTRAP:
-    txt << Format(ngettext(
-                "%s has lost %u point of energy.",
-                "%s has lost %u points of energy.",
-                BONUS_TRAP),
-            ver.GetName().c_str(), BONUS_TRAP);
-    ver.SetEnergyDelta (-BONUS_TRAP);
-    break;
-
-  case bonusAIR_ATTACK:
-    txt << Format(ngettext(
-                "'%s has won %u Air Attack",
-                "'%s has won %u Air Attacks",
-                BONUS_AIR_ATTACK),
-            ActiveTeam().GetName().c_str(), BONUS_AIR_ATTACK);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_AIR_ATTACK)->GetName() ] += BONUS_AIR_ATTACK;
-    break;
-
-  case bonusBASEBALL:
-    txt << Format(ngettext(
-                "'%s has won %u Baseball bat",
-                "'%s has won %u Baseball bats",
-                BONUS_BASEBALL),
-            ActiveTeam().GetName().c_str(), BONUS_BASEBALL);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_BASEBALL)->GetName() ] += BONUS_BASEBALL;
-    break;
-
-  case bonusLOWGRAV:
-    txt << Format(ngettext(
-                "'%s has won %u Low gravity",
-                "'%s has won %u Low gravity",
-                BONUS_LOWGRAV),
-            ActiveTeam().GetName().c_str(), BONUS_LOWGRAV);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_LOWGRAV)->GetName() ] += BONUS_LOWGRAV;
-    break;
-
-  case bonusANVIL:
-    txt << Format(ngettext(
-                "'%s has won %u Anvil",
-                "'%s has won %u Anvil",
-                BONUS_ANVIL),
-            ActiveTeam().GetName().c_str(), BONUS_ANVIL);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_ANVIL)->GetName() ] += BONUS_ANVIL;
-    break;
-
-  case bonusHOLLY_GRENADE:
-    txt << Format(ngettext(
-                "'%s has won %u Holy grenade",
-                "'%s has won %u Holy grenades",
-                BONUS_HOLLY_GRENADE),
-            ActiveTeam().GetName().c_str(), BONUS_HOLLY_GRENADE);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_HOLLY_GRENADE)->GetName() ] += BONUS_HOLLY_GRENADE;
-    break;
-
-  case bonusAUTO_BAZOOKA:
-    txt << Format(ngettext(
-                "%s team has won %u Automatic Bazooka!",
-                "%s team has won %u Automatic Bazookas!",
-                BONUS_AUTO_BAZOOKA),
-		  ActiveTeam().GetName().c_str(), BONUS_AUTO_BAZOOKA);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_AUTOMATIC_BAZOOKA)->GetName() ] += BONUS_AUTO_BAZOOKA;
-    break;
-
-  case bonusRIOT_BOMB:
-    txt << Format(ngettext(
-                "%s team has won %u Riot Bomb!",
-                "%s team has won %u Riot Bombs!",
-                BONUS_RIOT_BOMB),
-		  ActiveTeam().GetName().c_str(), BONUS_RIOT_BOMB);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_RIOT_BOMB)->GetName() ] += BONUS_RIOT_BOMB;
-    break;
-
-  default: std::cout << bonus << std::endl; assert (false);
-  case bonusDYNAMITE:
-    txt << Format(ngettext(
-                "%s team has won %u stick of Dynamite!",
-                "%s team has won %u sticks of Dynamite!",
-                BONUS_DYNAMITE),
-            ActiveTeam().GetName().c_str(), BONUS_DYNAMITE);
-    equipe.m_nb_ammos[ weapons_list.GetWeapon(WEAPON_DYNAMITE)->GetName() ] += BONUS_DYNAMITE;
-    break;
-  }
-
+        txt << WeaponsList::GetInstance()->
+                GetWeapon(contents)->
+                GetWeaponWinString(equipe.GetName().c_str(),nbr_ammo);
+    }
+    else {
+        txt << Format(gettext("%s team already has infinite ammo for the %s!"), //this should never appear
+            equipe.GetName().c_str(), WeaponsList::GetInstance()->GetWeapon(contents)->GetName().c_str());
+    }
   GameMessages::GetInstance()->Add (txt.str());
 }
+
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 // Static methods
-bool BonusBox::enable = false;
-uint BonusBox::time = 0;
+uint BonusBox::weapon_count = 0;
+std::map<int,std::pair<Weapon*,int> > BonusBox::weapon_map;
 
-// Active les caisses ?
-void BonusBox::Enable (bool _enable)
+/* Weapon probabilities could possibily be stored in the weapon section of classic.xml
+  and retrieved by weapon.GetBonusProbability() and weapon.GetBonusAmmo()
+  however, this is not the way that was chosen.
+*/
+void BonusBox::LoadXml(xmlpp::Element * object)
 {
-  MSG_DEBUG("bonus", "Enable ? %d", _enable);
-  enable = _enable;
-}
-
-bool BonusBox::PlaceBonusBox (BonusBox& bonus_box)
-{
-  if (!bonus_box.PutRandomly(true, 0)) return false;
-
-  time = randomSync.GetLong(MIN_TIME_BETWEEN_CREATION,
-			   MAX_TIME_BETWEEN_CREATION-MIN_TIME_BETWEEN_CREATION);
-  time *= 1000;
-  time += Time::GetInstance()->Read();
-
-  return true;
-}
-
-bool BonusBox::NewBonusBox()
-{
-
-  if (!enable || (Time::GetInstance()->Read() < time)) {
-    return false;
+  XmlReader::ReadInt(object,"life_points",start_life_points);
+  object = XmlReader::GetMarker(object, "probability");
+  std::list<Weapon*> l_weapons_list = WeaponsList::GetInstance()->GetList();
+  std::list<Weapon*>::iterator
+      itw = l_weapons_list.begin(),
+      end = l_weapons_list.end();
+  xmlpp::Element *elem;
+  uint a = 0;
+  int prob = 0;
+  int ammo = 0;
+  for(; itw != end; ++itw) {
+    XmlReader::ReadInt(object, (*itw)->GetID().c_str(), prob);
+    elem = XmlReader::GetMarker(object, (*itw)->GetID());
+    if(elem != NULL)
+      XmlReader::ReadIntAttr (elem, "ammo", ammo);
+    if((*itw)->ReadInitialNbAmmo() == INFINITE_AMMO) {
+      prob = 0;
+    }
+    for(a = weapon_count; a < weapon_count+prob; ++a) {
+      weapon_map[a]=std::make_pair<Weapon*,int>(*itw,ammo);
+    }
+    weapon_count+=prob;
   }
-
-  BonusBox * box = new BonusBox();
-  if (!PlaceBonusBox(*box)) {
-    MSG_DEBUG("bonus", "Missed to put the bonus box");
-    delete box;
-  } else {
-    lst_objects.AddObject(box);
-    camera.ChangeObjSuivi(box, true, true);
-    GameMessages::GetInstance()->Add (_("Is it a gift?"));
-    return true;
-  }
-
-  return false;
 }

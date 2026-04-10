@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,35 +22,46 @@
 #ifndef GAME_LOOP_H
 #define GAME_LOOP_H
 
-#include "../graphic/fps.h"
-#include "../include/base.h"
-#include "../character/character.h"
-#include "../network/chat.h"
+#include "graphic/fps.h"
+#include "include/base.h"
+#include "character/character.h"
+#include "network/chat.h"
+#include "object/bonus_box.h"
+#include "object/medkit.h"
 
 class GameLoop
 {
-private:
-  int state;
-  uint pause_seconde;
-  uint duration;
+  /* If you need this, implement it (correctly)*/
+  GameLoop(const GameLoop&);
+  const GameLoop& operator=(const GameLoop&);
+  /**********************************************/
 
 public:
-  static const int PLAYING = 0;
-  static const int HAS_PLAYED = 1;
-  static const int END_TURN = 2;
+  typedef enum {
+    PLAYING = 0,
+    HAS_PLAYED = 1,
+    END_TURN = 2
+  } game_loop_state_t;
+
+private:
+  game_loop_state_t state;
+  uint pause_seconde;
+  uint duration;
+  ObjBox * current_ObjBox;
+  bool give_objbox;
 
   FramePerSecond fps;
-  Chat chatsession;
-  
+
   static GameLoop * singleton;
+  GameLoop();
 
 public:
   static GameLoop * GetInstance();
 
-  void Init();
-  
   bool character_already_chosen;
-  bool interaction_enabled;
+  Chat chatsession;
+
+  void Init();
 
   // Draw to screen
   void Draw();
@@ -58,12 +69,10 @@ public:
   // Main loop
   void Run();
 
-  // Refresh all objects (position, state ...)
-  void Refresh();
-
   // Read/Set State
-  int ReadState() const { return state; }
-  void SetState(int new_state, bool begin_game=false);
+  game_loop_state_t ReadState() const { return state; }
+  void SetState(game_loop_state_t new_state, bool begin_game=false);
+  void Really_SetState(game_loop_state_t new_state); // called by the action_handler
 
   // Signal death of a player
   void SignalCharacterDeath (Character *character);
@@ -71,20 +80,32 @@ public:
   // Signal character damage
   void SignalCharacterDamage(Character *character);
 
-private:
-  GameLoop();
+  void SetCurrentBox(ObjBox * current_box);
+  ObjBox * GetCurrentBox() const;
 
-  void InitGameData_NetServer();
-  void InitGameData_NetClient();
-  void InitData_Local();
-  void InitData();
-    
+private:
+
+  // Refresh all objects (position, state ...)
+  void RefreshObject();
   void RefreshClock();
+
+  // Input management (keyboard/mouse)
+  void RefreshInput();
+  void IgnorePendingInputEvents();
+
+  void PingClient();
+
   void CallDraw();
 
   PhysicalObj* GetMovingObject();
   bool IsAnythingMoving();
   void ApplyDiseaseDamage();
   void ApplyDeathMode();
+
+  void __SetState_PLAYING();
+  void __SetState_HAS_PLAYED();
+  void __SetState_END_TURN();
+
+  void EndOfGame();
 };
 #endif

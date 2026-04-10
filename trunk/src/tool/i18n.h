@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,14 +23,14 @@
 #ifndef FORMAT_H
 #define FORMAT_H
 
-#include "../include/base.h"
+#include "include/base.h"
 #include <string>
 #include <libintl.h>
 
 #define _(X) gettext(X)
 
 std::string Format (const char *format, ...);
-void InitI18N();
+void InitI18N(const std::string &dir);
 void I18N_SetDir(const std::string &dir);
 
 #endif

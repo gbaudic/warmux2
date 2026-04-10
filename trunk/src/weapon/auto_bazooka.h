@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,44 +22,51 @@
 #ifndef AUTO_BAZOOKA_H
 #define AUTO_BAZOOKA_H
 #include "launcher.h"
-#include "../graphic/surface.h"
-#include "../gui/progress_bar.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
+#include "graphic/surface.h"
+#include "gui/progress_bar.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
 
 class AutomaticBazooka;
+class AutomaticBazookaConfig;
 
-class RoquetteTeteCherche : public WeaponProjectile
+class RPG : public WeaponProjectile
 {
   ParticleEngine smoke_engine;
   protected:
     double angle_local;
-    Point2i m_cible;
-    bool m_attire;
+    Point2i m_target;
+    bool m_targeted;
+    double m_force;
+    uint m_lastrefresh;
   public:
-    RoquetteTeteCherche(ExplosiveWeaponConfig& cfg,
+    RPG(AutomaticBazookaConfig& cfg,
                         WeaponLauncher * p_launcher);
     void Refresh();
     void Shoot(double strength);
     void SetTarget (int x,int y);
+
   protected:
     void SignalOutOfMap();
+    void SignalDrowning();
 };
 
 class AutomaticBazooka : public WeaponLauncher
 {
   private:
-    struct s_cible
+    struct target_t
     {
       Point2i pos;
-      bool choisie;
+      bool selected;
       Surface image;
-    } cible;
+    } m_target;
   public:
     AutomaticBazooka();
     void Draw ();
     bool IsReady() const;
     virtual void ChooseTarget(Point2i mouse_pos);
+    AutomaticBazookaConfig &cfg();
+    DECLARE_GETWEAPONSTRING();
   protected:
     void Refresh();
     void p_Select(); 

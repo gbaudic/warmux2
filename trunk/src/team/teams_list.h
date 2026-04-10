@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,22 +16,23 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Refresh des diff�entes �uipes.
+ * Handle team list
  *****************************************************************************/
 
 #ifndef TEAMS_LIST_H
 #define TEAMS_LIST_H
 //-----------------------------------------------------------------------------
 #include "team.h"
+#include "team_config.h"
 #include <list>
 //-----------------------------------------------------------------------------
 
 class TeamsList
 {
 public:
-  typedef std::list<Team>::iterator full_iterator;
-  typedef std::vector<Team*>::iterator iterator;
-  std::list<Team> full_list;
+  typedef std::list<Team *>::iterator full_iterator;
+  typedef std::vector<Team *>::iterator iterator;
+  std::list<Team *> full_list;
   std::vector<Team*> playing_list;
 
 private:
@@ -43,22 +44,23 @@ private:
 public:
   TeamsList();
   ~TeamsList();
-  void LoadList ();
-  void NextTeam (bool begin_game);
+  void LoadList();
+  void NextTeam();
   Team& ActiveTeam();
-  void LoadGamingData(uint how_many_characters);
+  void LoadGamingData();
   void UnloadGamingData();
   void Clear();
 
 
   // Add a new team to playing, and change active team
-  void AddTeam (const std::string &id, bool generate_error=true);
+  void AddTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
+  void UpdateTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
   void DelTeam (const std::string &id);
   void SetActive(const std::string &id);
-  void InitList (const std::list<std::string> &liste_nom);
+  void InitList (const std::list<ConfigTeam> &lst);
   void InitEnergy ();
-  void RefreshEnergy (); //Actualise les jauges d'�ergie
-  void RefreshSort (); //Actualise le classement des jauges
+  void RefreshEnergy (); //Refresh energy bar
+  void RefreshSort (); //Refresh energy bar position
   void ChangeSelection (const std::list<uint>& liste);
   bool IsSelected (uint index);
 
@@ -73,15 +75,15 @@ public:
 extern TeamsList teams_list;
 //-----------------------------------------------------------------------------
 
-// Team active
+// current active team
 Team& ActiveTeam();
 
-// Ver actif
+// current active character
 Character& ActiveCharacter();
 
 //-----------------------------------------------------------------------------
 
-bool compareTeams(const Team& a, const Team& b);
+bool compareTeams(const Team *a, const Team *b);
 
 //-----------------------------------------------------------------------------
 #endif

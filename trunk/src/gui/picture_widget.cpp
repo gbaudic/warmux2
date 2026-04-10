@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,18 +20,20 @@
  *****************************************************************************/
 #include "picture_widget.h"
 //#include <SDL_gfxPrimitives.h>
-#include "../graphic/colors.h"
-#include "../include/app.h"
-#include "../tool/resource_manager.h"
+#include "graphic/colors.h"
+#include "include/app.h"
+#include "tool/resource_manager.h"
 
 PictureWidget::PictureWidget (const Rectanglei &rect) : Widget(rect)
 {
   spr = NULL;
+  disabled = false;
 }
 
 PictureWidget::PictureWidget (const Rectanglei &rect, std::string resource_id) : Widget(rect)
 {
   spr = NULL;
+  disabled = false;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   Surface tmp = resource_manager.LoadImage(res, resource_id);
@@ -72,17 +74,28 @@ void PictureWidget::SetNoSurface()
 }
 
 void PictureWidget::Draw(const Point2i &mousePosition,
-			 Surface& surf)
+			 Surface& surf) const
 {
   if (spr != NULL) {
     int x = GetPositionX() + ( GetSizeX()/2 ) - (spr->GetWidth()/2);
     int y = GetPositionY() + ( GetSizeY()/2 ) - (spr->GetHeight()/2);
 
     spr->Blit ( surf, x, y);
+
+    // Draw a transparency mask
+    if (disabled) {
+      surf.BoxColor(Rectanglei(x,y,spr->GetWidth(),spr->GetHeight()),
+		    defaultOptionColorBox);
+    }
   }
 }
 
 void PictureWidget::SetSizePosition(const Rectanglei &rect)
 {
   StdSetSizePosition(rect);
+}
+
+void PictureWidget::Disable()
+{
+  disabled = true;
 }

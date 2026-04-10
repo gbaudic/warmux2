@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,9 @@
 //-----------------------------------------------------------------------------
 #include <sstream>
 #include <iostream>
-#include "../game/config.h"
-#include "../include/app.h"
+#include "game/config.h"
+#include "tool/i18n.h"
+#include "include/app.h"
 //-----------------------------------------------------------------------------
 
 class Author
@@ -44,8 +45,11 @@ public:
 
 bool Author::Feed (const xmlpp::Node *node)
 {
-   if (!LitDocXml::LitString(node, "name", name)) return false;
-   if (!LitDocXml::LitString(node, "description", description)) return false;
+   if (!XmlReader::ReadString(node, "name", name)) return false;
+   if (!XmlReader::ReadString(node, "description", description)) return false;
+   XmlReader::ReadString(node, "nickname", nickname);
+   XmlReader::ReadString(node, "email", email);
+   XmlReader::ReadString(node, "country", country);
    return true;
 }
 
@@ -61,11 +65,11 @@ std::string Author::PrettyString(bool with_email)
    }
    if (!nickname.empty())
    {
-     ss << " aka " << nickname;
+     ss << " " << _("aka") << " " << nickname;
    }
    if (!country.empty())
    {
-     ss << "from " << country;
+     ss << " " << _("from") << " " << country;
    }
    ss << ": " << description;
    return ss.str();
@@ -75,14 +79,13 @@ std::string Author::PrettyString(bool with_email)
 //-----------------------------------------------------------------------------
 
 CreditsMenu::CreditsMenu()  :
-  Menu("menu/bg_network", vOk)
+  Menu("credit/background", vOk)
 {
-  int title_height = AppWormux::GetInstance()->video.window.GetHeight() * 110 / 600;
-  ListBox * lbox_authors = new ListBox( Rectanglei( 30, title_height,
+  ListBox * lbox_authors = new ListBox( Rectanglei( 30, 30,
 						    AppWormux::GetInstance()->video.window.GetWidth()-60,
-						    AppWormux::GetInstance()->video.window.GetHeight()-60-title_height),
+						    AppWormux::GetInstance()->video.window.GetHeight()-60-30),
                                         false);
-
+  lbox_authors->SetBackgroundColor(Color(0,0,0,200));
   widgets.AddWidget(lbox_authors);
 
   PrepareAuthorsList(lbox_authors);
@@ -92,60 +95,86 @@ CreditsMenu::~CreditsMenu()
 {
 }
 
-void CreditsMenu::__sig_ok()
+bool CreditsMenu::signal_ok()
 {
-  // Nothing to do
+  return true;
 }
-void CreditsMenu::__sig_cancel()
+
+bool CreditsMenu::signal_cancel()
 {
-  // Nothing to do
+  return true;
 }
 
 
 void CreditsMenu::PrepareAuthorsList(ListBox * lbox_authors)
 {
   std::string filename = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "authors.xml";
-  LitDocXml doc;
-  if (!doc.Charge (filename))
+  XmlReader doc;
+  if(!doc.Load(filename))
   {
     // Error: do something ...
     return;
   }
+  // Use an array for this is the best solution I think, but there is perhaps a better code...
+  static std::string teams[] = { "team", "contributors", "thanks" };
 
-  xmlpp::Node::NodeList sections = doc.racine() -> get_children("section");
-  xmlpp::Node::NodeList::iterator
-    section=sections.begin(),
-    end_section=sections.end();
-
-  for (; section != end_section; ++section)
+  for(uint i = 0; i < (sizeof teams / sizeof* teams); ++i)
   {
-    xmlpp::Node::NodeList authors = (**section).get_children("author");
+
+    xmlpp::Node::NodeList team = doc.GetRoot()->get_children(teams[i]);
+
+    if(team.empty()) continue;
+
+    std::string team_title = teams[i];
+    std::transform( team_title.begin(), team_title.end(), team_title.begin(), static_cast<int (*)(int)>(toupper) );
+
+    // I think this is ugly, but someone can use a better presentation
+    std::cout << "       ===[ " << team_title << " ]===" << std::endl << std::endl;
+
+    lbox_authors->AddItem (false, " ", "", 
+			   Font::FONT_BIG, Font::FONT_NORMAL);
+    lbox_authors->AddItem (false, team_title, teams[i], 
+			   Font::FONT_BIG, Font::FONT_NORMAL, c_red);
+
+    // We think there is ONLY ONE occurence of team section, so we use the first
+    xmlpp::Node::NodeList sections = team.front()->get_children("section");
     xmlpp::Node::NodeList::iterator
-      node=authors.begin(),
-      end=authors.end();
-    std::string title;
-    xmlpp::Element *elem = dynamic_cast<xmlpp::Element*>(*section);
-    if (!elem)
+      section=sections.begin(),
+      end_section=sections.end();
+
+    for (; section != end_section; ++section)
     {
-        std::cerr << "cast error" << std::endl;
-        continue;
+      xmlpp::Node::NodeList authors = (**section).get_children("author");
+      xmlpp::Node::NodeList::iterator
+        node=authors.begin(),
+        end=authors.end();
+      std::string title;
+      xmlpp::Element *elem = dynamic_cast<xmlpp::Element*>(*section);
+      if (!elem)
+      {
+          std::cerr << "cast error" << std::endl;
+          continue;
+      }
+      if (!XmlReader::ReadStringAttr(elem, "title", title)) continue;
+
+      std::cout << "== " << title << " ==" << std::endl;
+
+      lbox_authors->AddItem (false, " ", "");
+      lbox_authors->AddItem (false, "   "+title, title,
+			     Font::FONT_MEDIUM, Font::FONT_NORMAL, c_yellow);
+
+      for (; node != end; ++node)
+      {
+          Author author;
+          if (author.Feed(*node))
+          {
+            std::cout << author.PrettyString(false) << std::endl;
+            lbox_authors->AddItem (false, author.PrettyString(false), author.name);
+          }
+      }
+      std::cout << std::endl;
+      lbox_authors->AddItem (false, "", "");
     }
-    if (!LitDocXml::LitAttrString(elem, "title", title)) continue;
-
-    std::cout << "=== " << title << " ===" << std::endl;
-
-    lbox_authors->AddItem (false, "=== "+title+" ===", title);
-
-    for (; node != end; ++node)
-    {
-        Author author;
-        if (author.Feed(*node))
-        {
-          std::cout << author.PrettyString(false) << std::endl;
-	  lbox_authors->AddItem (false, author.PrettyString(false), author.name);
-        }
-    }
-    std::cout << std::endl;
   }
 
 }
@@ -154,9 +183,14 @@ void CreditsMenu::Draw(const Point2i& mousePosition)
 {
 }
 
-void CreditsMenu::OnClic(const Point2i &mousePosition, int button)
+void CreditsMenu::OnClick(const Point2i &mousePosition, int button)
 {
-  widgets.Clic(mousePosition, button);
+  widgets.Click(mousePosition, button);
+}
+
+void CreditsMenu::OnClickUp(const Point2i &mousePosition, int button)
+{
+  widgets.ClickUp(mousePosition, button);
 }
 
 //-----------------------------------------------------------------------------

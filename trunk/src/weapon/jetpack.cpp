@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,35 +21,33 @@
 
 #include "jetpack.h"
 #include "explosion.h"
-#include "../game/game.h"
-#include "../game/game_loop.h"
-#include "../game/game_mode.h"
-#include "../game/time.h"
-#include "../interface/game_msg.h"
-#include "../map/camera.h"
-#include "../network/network.h"
-#include "../object/physical_obj.h"
-#include "../sound/jukebox.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../character/move.h"
-#include "../include/action_handler.h"
+#include "game/game.h"
+#include "game/game_loop.h"
+#include "game/game_mode.h"
+#include "game/time.h"
+#include "interface/game_msg.h"
+#include "map/camera.h"
+#include "network/network.h"
+#include "object/physical_obj.h"
+#include "sound/jukebox.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "character/move.h"
+#include "include/action_handler.h"
 
-// Espace entre l'espace en l'image
-const uint ESPACE = 5;
-const double JETPACK_FORCE = 2000.0;
+const double JETPACK_FORCE = 2500.0;
 
-const uint DELTA_FUEL_DOWN = 200 ;  // Delta time between 2 fuel unit consumption.
+const uint DELTA_FUEL_DOWN = 100 ;  // Delta time between 2 fuel unit consumption.
 
 JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack",
-			    new WeaponConfig(),
-			    NEVER_VISIBLE)
+                            new WeaponConfig(),
+                            NEVER_VISIBLE)
 {
   m_name = _("Jetpack");
+  m_category = MOVE;
   m_unit_visibility = VISIBLE_ONLY_WHEN_ACTIVE;
 
-  override_keys = true ;
-  use_unit_on_first_shoot = false;  
+  use_unit_on_first_shoot = false;
 
   m_x_force = 0.0;
   m_y_force = 0.0;
@@ -58,50 +56,52 @@ JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack",
 
 void JetPack::Refresh()
 {
-  if(!ActiveTeam().is_local)
-    return;
-
-  Point2d F;
-
   if (m_is_active)
-    {
-      F.x = m_x_force ;
-      F.y = m_y_force ;
-
-      ActiveCharacter().SetExternForceXY(F);
-      ActiveCharacter().UpdatePosition();
-      SendCharacterPosition();
-      Action a(ACTION_SET_CHARACTER_DIRECTION, ActiveCharacter().GetDirection());
-      network.SendAction(&a);
-
-      if( !F.IsNull() )
-	{
-	  // We are using fuel !!!
-
-	  uint current = Time::GetInstance()->Read() ;
-	  double delta = (double)(current - m_last_fuel_down);
-
-	  while (delta >= DELTA_FUEL_DOWN)
-	    {
-	      if (EnoughAmmoUnit())
-		{
-		  UseAmmoUnit();
-		  m_last_fuel_down += DELTA_FUEL_DOWN ;
-		  delta -= DELTA_FUEL_DOWN ;
-		}
-	      else
-		{
-		  p_Deselect();
-		  break;
-		}
-	    }
-	}
+  {
+    if (!ActiveTeam().IsLocal()) {
+      return;
     }
+
+    Point2d F;
+    F.x = m_x_force ;
+    F.y = m_y_force ;
+
+    ActiveCharacter().SetExternForceXY(F);
+    SendActiveCharacterInfo();
+
+    if (!F.IsNull())
+    {
+      // We are using fuel !!!
+      uint current = Time::GetInstance()->Read() ;
+      double delta = (double)(current - m_last_fuel_down);
+
+      while (delta >= DELTA_FUEL_DOWN)
+      {
+        if (EnoughAmmoUnit())
+        {
+          UseAmmoUnit();
+          m_last_fuel_down += DELTA_FUEL_DOWN ;
+          delta -= DELTA_FUEL_DOWN ;
+        }
+        else
+        {
+          p_Deselect();
+          break;
+        }
+      }
+    }
+  }
 }
 
 void JetPack::p_Select()
 {
   ActiveCharacter().SetClothe("jetpack");
+
+  if (!ActiveTeam().IsLocal() && !ActiveTeam().IsLocalAI()) {
+    m_unit_visibility = NEVER_VISIBLE; // do not show ammo units accross the network
+  } else {
+    m_unit_visibility = VISIBLE_ONLY_WHEN_ACTIVE;
+  }
 }
 
 void JetPack::p_Deselect()
@@ -111,6 +111,7 @@ void JetPack::p_Deselect()
   m_y_force = 0;
   ActiveCharacter().SetExternForce(0,0);
   StopUse();
+  camera.SetCloseFollowing(false);
   ActiveCharacter().SetClothe("normal");
   ActiveCharacter().SetMovement("walk");
 }
@@ -123,9 +124,10 @@ void JetPack::StartUse()
       m_last_fuel_down = Time::GetInstance()->Read();
       channel = jukebox.Play(ActiveTeam().GetSoundProfile(),"weapon/jetpack", -1);
 
-      camera.ChangeObjSuivi (&ActiveCharacter(),true, true, true); 
-// 			     bool suit, bool recentre,
-// 			     bool force_recentrage=false);
+      camera.FollowObject (&ActiveCharacter(),true, true, true);
+      camera.SetCloseFollowing(true);
+//                           bool suit, bool recentre,
+//                           bool force_recentrage=false);
     }
 }
 
@@ -143,23 +145,23 @@ void JetPack::StopUse()
 void JetPack::GoUp()
 {
   StartUse();
-  m_y_force = -(ActiveCharacter().GetMass() * GameMode::GetInstance()->gravity + JETPACK_FORCE) ;
+  m_y_force = -(ActiveCharacter().GetMass() * GameMode::GetInstance()->gravity + JETPACK_FORCE);
 }
 
 void JetPack::GoLeft()
 {
   StartUse();
   m_x_force = - JETPACK_FORCE ;
-  if(ActiveCharacter().GetDirection() == 1)
-    ActiveCharacter().SetDirection(-1);
+  if(ActiveCharacter().GetDirection() == Body::DIRECTION_RIGHT)
+    ActiveCharacter().SetDirection(Body::DIRECTION_LEFT);
 }
 
 void JetPack::GoRight()
 {
   StartUse();
   m_x_force = JETPACK_FORCE ;
-  if(ActiveCharacter().GetDirection() == -1)
-    ActiveCharacter().SetDirection(1);
+  if(ActiveCharacter().GetDirection() == Body::DIRECTION_LEFT)
+    ActiveCharacter().SetDirection(Body::DIRECTION_RIGHT);
 }
 
 void JetPack::StopUp()
@@ -180,41 +182,60 @@ void JetPack::StopRight()
   StopUse();
 }
 
-void JetPack::HandleKeyEvent(int action, int event_type)
+void JetPack::HandleKeyPressed_Up()
 {
-  switch (action) {
-    case ACTION_UP:
-      if (event_type == KEY_PRESSED)
-	GoUp();
-      else
-	if (event_type == KEY_RELEASED)
-	  StopUp();
-      break ;
+  if (m_is_active)
+    GoUp();
+  else
+    ActiveCharacter().HandleKeyPressed_Up();
+}
 
-    case ACTION_MOVE_LEFT:
-      if (event_type == KEY_PRESSED)
-	GoLeft();
-      else
-	if (event_type == KEY_RELEASED)
-	  StopLeft();
-      break ;
+void JetPack::HandleKeyReleased_Up()
+{
+  if (m_is_active)
+    StopUp();
+  else
+    ActiveCharacter().HandleKeyReleased_Up();
+}
 
-    case ACTION_MOVE_RIGHT:
-      if (event_type == KEY_PRESSED)
-	GoRight();
-      else
-	if (event_type == KEY_RELEASED)
-	  StopRight();
-      break ;
+void JetPack::HandleKeyPressed_MoveLeft()
+{
+  if (m_is_active)
+    GoLeft();
+  else
+    ActiveCharacter().HandleKeyPressed_MoveLeft();
+}
 
-    case ACTION_SHOOT:
-      if (event_type == KEY_PRESSED)
-        ActionHandler::GetInstance()->NewAction(new Action(ACTION_WEAPON_STOP_USE));
-      break ;
+void JetPack::HandleKeyReleased_MoveLeft()
+{
+  if (m_is_active)
+    StopLeft();
+  else
+    ActiveCharacter().HandleKeyReleased_MoveLeft();
+}
 
-    default:
-      break ;
-  } ;
+void JetPack::HandleKeyPressed_MoveRight()
+{
+  if (m_is_active)
+    GoRight();
+  else
+    ActiveCharacter().HandleKeyPressed_MoveRight();
+}
+
+void JetPack::HandleKeyReleased_MoveRight()
+{
+  if (m_is_active)
+    StopRight();
+  else
+    ActiveCharacter().HandleKeyReleased_MoveRight();
+}
+
+void JetPack::HandleKeyPressed_Shoot()
+{
+  if (!m_is_active)
+    NewActionWeaponShoot();
+  else
+    NewActionWeaponStopUse();
 }
 
 bool JetPack::p_Shoot()
@@ -234,3 +255,12 @@ void JetPack::ActionStopUse()
 {
   p_Deselect();
 }
+
+std::string JetPack::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u jetpack!",
+            "%s team has won %u jetpacks!",
+            items_count), TeamName, items_count);
+}
+

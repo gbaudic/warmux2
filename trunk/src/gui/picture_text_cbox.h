@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef PICTURE_TEXT_CBOX_H
 #define PICTURE_TEXT_CBOX_H
 
-#include "../gui/check_box.h"
+#include "gui/check_box.h"
 
 class PictureTextCBox : public CheckBox
 {
@@ -31,7 +31,9 @@ class PictureTextCBox : public CheckBox
    
  public:
   PictureTextCBox(const std::string &label, const std::string &resource_id, const Rectanglei &rect, bool value = true);
-  void Draw(const Point2i &mousePosition, Surface& surf) ;
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+
+  void SetSizePosition(const Rectanglei &rect);
 };
 
 #endif

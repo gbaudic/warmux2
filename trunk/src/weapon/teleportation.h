@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #ifndef TELEPORTATION_H
 #define TELEPORTATION_H
 #include "weapon.h"
-#include "../include/base.h"
-#include "../tool/point.h"
+#include "include/base.h"
+#include "tool/point.h"
 
 class Teleportation : public Weapon
 {
@@ -33,12 +33,15 @@ class Teleportation : public Weapon
     Point2i src, dst;
   protected:
     bool p_Shoot();
+    void p_Select();
+    void p_Deselect();
     void Refresh();
   public:
     Teleportation();
     void Draw();
     void ChooseTarget(Point2i mouse_pos);
     WeaponConfig& cfg();
+    DECLARE_GETWEAPONSTRING();
 };
 
 #endif /* TELEPORTATION_H */

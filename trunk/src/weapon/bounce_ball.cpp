@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,16 +23,16 @@
 #include "bounce_ball.h"
 //-----------------------------------------------------------------------------
 #include <sstream>
-#include "../tool/debug.h"
-#include "../game/time.h"
-#include "../team/teams_list.h"
-#include "../graphic/video.h"
-#include "../tool/math_tools.h"
-#include "../map/camera.h"
-#include "../weapon/explosion.h"
-#include "../interface/game_msg.h"
-#include "../tool/i18n.h"
-#include "../object/objects_list.h"
+#include "tool/debug.h"
+#include "game/time.h"
+#include "team/teams_list.h"
+#include "graphic/video.h"
+#include "tool/math_tools.h"
+#include "map/camera.h"
+#include "weapon/explosion.h"
+#include "interface/game_msg.h"
+#include "tool/i18n.h"
+#include "object/objects_list.h"
 //-----------------------------------------------------------------------------
 
 BounceBall::BounceBall(ExplosiveWeaponConfig& cfg,
@@ -49,27 +49,35 @@ BounceBall::BounceBall(ExplosiveWeaponConfig& cfg,
 void BounceBall::Refresh()
 {
   WeaponProjectile::Refresh();
-
-  // rotation de l'image de la grenade...
-  double angle = GetSpeedAngle() * 180/M_PI ;
-  image->SetRotation_deg( angle);
+  // rotation of ball image...
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
 
 //-----------------------------------------------------------------------------
 
 void BounceBall::SignalOutOfMap()
-{   
-  GameMessages::GetInstance()->Add ("The ball left the battlefield before exploding");
+{
+  GameMessages::GetInstance()->Add (_("The ball left the battlefield before exploding"));
   WeaponProjectile::SignalOutOfMap();
+}
+
+std::string BounceBall::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u bounce ball!",
+            "%s team has won %u bounce balls!",
+            items_count), TeamName, items_count);
 }
 
 //-----------------------------------------------------------------------------
 
-BounceBallLauncher::BounceBallLauncher() : 
+BounceBallLauncher::BounceBallLauncher() :
   WeaponLauncher(WEAPON_BOUNCE_BALL, "bounce_ball", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Bounce Ball");
+  m_help = _("Timeout : Wheel mouse or Page Up/Down\nAngle : Up/Down\nFire : space key\nan ammo per turn");
+  m_category = DUEL;
   ReloadLauncher();
 }
 
@@ -83,7 +91,7 @@ bool BounceBallLauncher::p_Shoot ()
 {
   if (max_strength == 0)
     projectile->Shoot (10);
-  else 
+  else
     projectile->Shoot (m_strength);
   projectile = NULL;
   ReloadLauncher();

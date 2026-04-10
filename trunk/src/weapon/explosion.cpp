@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,19 +20,19 @@
  *****************************************************************************/
 
 #include "explosion.h"
-#include "../graphic/surface.h"
-#include "../graphic/video.h"
-#include "../include/action_handler.h"
-#include "../map/camera.h"
-#include "../map/map.h"
-#include "../network/network.h"
-#include "../object/objects_list.h"
-#include "../particles/particle.h"
-#include "../object/physical_obj.h"
-#include "../sound/jukebox.h"
-#include "../team/macro.h"
-#include "../tool/debug.h"
-#include "../tool/math_tools.h"
+#include "graphic/surface.h"
+#include "graphic/video.h"
+#include "include/action_handler.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "network/network.h"
+#include "object/objects_list.h"
+#include "particles/particle.h"
+#include "object/physical_obj.h"
+#include "sound/jukebox.h"
+#include "team/macro.h"
+#include "tool/debug.h"
+#include "tool/math_tools.h"
 
 Profile *weapons_res_profile = NULL;
 
@@ -50,13 +50,13 @@ void ApplyExplosion (const Point2i &pos,
 		     ParticleEngine::ESmokeStyle smoke
 		     )
 {
-  if(network.IsLocal())
+  if(Network::GetInstance()->IsLocal())
     ApplyExplosion_common(pos, config, son, fire_particle, smoke);
   else
-  if(network.IsServer())
+  if(Network::GetInstance()->IsServer())
     ApplyExplosion_server(pos, config, son, fire_particle, smoke);
   else
-  if(network.IsClient())
+  if(Network::GetInstance()->IsClient())
     return;
   // client receives explosion via the action handler
 }
@@ -92,12 +92,14 @@ void ApplyExplosion_common (const Point2i &pos,
   jukebox.Play("share", son);
 
   // Apply damage on the character.
-  // Do not care about the death of the active worm.
+  // Do not care about the death of the active character.
   double highest_force = 0.0;
   Character* fastest_character = NULL;
   FOR_ALL_CHARACTERS(equipe,ver)
   {
     double distance = pos.Distance(ver -> GetCenter());
+    if(distance < 1.0)
+      distance = 1.0;
 
     // If the character is in the explosion range, apply damage on it !
     if (distance <= config.explosion_range)
@@ -139,35 +141,42 @@ void ApplyExplosion_common (const Point2i &pos,
   }
 
   if(fastest_character != NULL)
-    camera.ChangeObjSuivi (fastest_character, true, true);
+    camera.FollowObject (fastest_character, true, true);
 
   // Apply the blast on physical objects.
-  FOR_EACH_OBJECT(obj) if ( !(obj -> ptr -> GoesThroughWall()) )
-  { 
-    double distance = pos.Distance(obj -> ptr -> GetCenter());
-    if (distance <= config.explosion_range)
-    {
-      double dmg = cos(M_PI_2 * distance / config.explosion_range);
-      dmg *= config.damage;
-      obj -> ptr -> AddDamage (config.damage);
-    }
+  FOR_EACH_OBJECT(it)
+   {
+     PhysicalObj *obj = *it;
+     if (!obj->GoesThroughWall() && !obj->IsGhost())
+     {
+       double distance = pos.Distance(obj->GetCenter());
+       if(distance < 1.0)
+         distance = 1.0;
 
-    if (distance <= config.blast_range)
-    {
-      double angle;
-      double force = cos(M_PI_2 * distance / config.blast_range);
-      force *= config.blast_force;
+       if (distance <= config.explosion_range)
+       {
+         double dmg = cos(M_PI_2 * distance / config.explosion_range);
+         dmg *= config.damage;
+         obj->AddDamage (config.damage);
+       }
 
-      if (!EgalZero(distance))
-        angle  = pos.ComputeAngle(obj->ptr->GetCenter());
-      else
-        angle = -M_PI_2;
+       if (distance <= config.blast_range)
+       {
+         double angle;
+         double force = cos(M_PI_2 * distance / config.blast_range);
+         force *= config.blast_force;
 
-      if(fastest_character != NULL)
-        camera.ChangeObjSuivi (obj->ptr, true, true);
-      obj -> ptr -> AddSpeed (force / obj->ptr->GetMass(), angle);
-    }
-  }
+         if (!EgalZero(distance))
+           angle  = pos.ComputeAngle(obj->GetCenter());
+         else
+           angle = -M_PI_2;
+
+         if(fastest_character != NULL)
+           camera.FollowObject (obj, true, true);
+         obj->AddSpeed (force / obj->GetMass(), angle);
+       }
+     }
+   }
 
   ParticleEngine::AddExplosionSmoke(pos, config.particle_range, smoke);
 
@@ -177,20 +186,22 @@ void ApplyExplosion_common (const Point2i &pos,
 }
 
 void ApplyExplosion_server (const Point2i &pos,
-		     const ExplosiveWeaponConfig &config,
-		     const std::string& son,
-		     bool fire_particle,
-		     ParticleEngine::ESmokeStyle smoke
-		     )
+			    const ExplosiveWeaponConfig &config,
+			    const std::string& son,
+			    bool fire_particle,
+			    ParticleEngine::ESmokeStyle smoke
+			    )
 {
   ActionHandler* action_handler = ActionHandler::GetInstance();
 
-  Action a_begin_sync(ACTION_SYNC_BEGIN);
-  network.SendAction(&a_begin_sync);
+  Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
+  Network::GetInstance()->SendAction(&a_begin_sync);
 
   TeamsList::iterator
     it=teams_list.playing_list.begin(),
     end=teams_list.playing_list.end();
+
+  Action a_characters_info(Action::ACTION_CHARACTER_SET_PHYSICS);
 
   for (int team_no = 0; it != end; ++it, ++team_no)
   {
@@ -209,15 +220,15 @@ void ApplyExplosion_server (const Point2i &pos,
       if (distance <= config.explosion_range || distance < config.blast_range)
       {
         // cliens : Place characters
-        Action* a = BuildActionSendCharacterPhysics(team_no, char_no);
-        action_handler->NewAction(a);
+        a_characters_info.StoreCharacter(team_no, char_no);
       }
     }
   }
+  // send characters infos on network
+  Network::GetInstance()->SendAction(&a_characters_info);
 
-  Action* a = new Action(ACTION_EXPLOSION);
-  a->Push(pos.x);
-  a->Push(pos.y);
+  Action* a = new Action(Action::ACTION_EXPLOSION);
+  a->Push(pos);
   a->Push((int)config.explosion_range);
   a->Push((int)config.particle_range);
   a->Push((int)config.damage);
@@ -228,7 +239,6 @@ void ApplyExplosion_server (const Point2i &pos,
   a->Push(smoke);
 
   action_handler->NewAction(a);
-//  network.SendAction(&a);
-  Action a_sync_end(ACTION_SYNC_END);
-  network.SendAction(&a_sync_end);
+  Action a_sync_end(Action::ACTION_NETWORK_SYNC_END);
+  Network::GetInstance()->SendAction(&a_sync_end);
 }

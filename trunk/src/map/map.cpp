@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,20 +20,19 @@
  *****************************************************************************/
 
 #include "map.h"
-#include <iostream>
+//#include <iostream>
 #include "camera.h"
 #include "maps_list.h"
 #include "wind.h"
-#include "../game/config.h"
-#include "../game/time.h"
-#include "../graphic/surface.h"
-#include "../graphic/font.h"
-#include "../include/constant.h"
-#include "../object/bonus_box.h"
-#include "../tool/i18n.h"
-#include "../tool/stats.h"
+#include "game/time.h"
+#include "graphic/surface.h"
+#include "graphic/font.h"
+#include "include/constant.h"
+#include "object/bonus_box.h"
+#include "tool/i18n.h"
+#include "tool/stats.h"
 
-const double DST_MIN_ENTRE_VERS = 50.0;
+const double MINIMUM_DISTANCE_BETWEEN_CHARACTERS = 50.0;
 
 const uint AUTHOR_INFO_TIME = 5000; // ms
 const uint AUTHOR_INFO_X = 100;
@@ -43,7 +42,7 @@ Map world;
 
 Map::Map()
 {
-  dst_min_entre_vers = DST_MIN_ENTRE_VERS;
+  min_distance_between_characters = MINIMUM_DISTANCE_BETWEEN_CHARACTERS;
 
   to_redraw = new std::list<Rectanglei>;
   to_redraw_now = new std::list<Rectanglei>;
@@ -66,10 +65,9 @@ void Map::Reset()
   water.Reset();
   wind.Reset();
 
-  // Configure le jeu selon que le terrain soit ouvert ou non
-  bool ouvert = ground.EstOuvert();
-  BonusBox::Enable(ouvert);
-  Config::GetInstance()->SetExterieurMondeVide(  ouvert );
+  // Configure game about open or closed world
+  bool open = ground.IsOpen();
+  ObjBox::Enable(open);
 
   delete author_info1; author_info1 = NULL;
   delete author_info2; author_info2 = NULL;
@@ -155,7 +153,7 @@ void Map::DrawSky()
 {
   SwitchDrawingCache();
   SwitchDrawingCacheParticles();
-  
+
   OptimizeCache(*to_redraw_now);
 
   sky.Draw();
@@ -178,64 +176,69 @@ void Map::Draw()
   ground.Draw();
 }
 
-bool Map::EstHorsMondeX(int x) const{
+bool Map::IsOutsideWorldX(int x) const{
   return (x < 0) || ((int)GetWidth() <= x);
 }
 
-bool Map::EstHorsMondeY(int y) const{
+bool Map::IsOutsideWorldY(int y) const{
   return (y < 0) || ((int)GetHeight() <= y);
 }
 
-bool Map::EstHorsMondeXlarg(int x, uint larg) const{
+bool Map::IsOutsideWorldXwidth(int x, uint larg) const{
   return (x + (int)larg - 1 < 0) || ((int)GetWidth() <= x);
 }
 
-bool Map::EstHorsMondeYhaut(int y, uint haut) const{
+bool Map::IsOutsideWorldYheight(int y, uint haut) const{
   return ((y + (int)haut - 1 < 0) || ((int)GetHeight() <= y));
 }
 
-bool Map::EstHorsMondeXY(int x, int y) const{
-  return EstHorsMondeX(x) || EstHorsMondeY(y);
+bool Map::IsOutsideWorldXY(int x, int y) const{
+  return IsOutsideWorldX(x) || IsOutsideWorldY(y);
 }
 
-bool Map::EstHorsMonde (const Point2i &pos) const{
-  return EstHorsMondeXY(pos.x, pos.y);
+bool Map::IsOutsideWorld(const Point2i &pos) const{
+  return IsOutsideWorldXY(pos.x, pos.y);
 }
 
-bool Map::EstDansVide(int x, int y){
+bool Map::IsInVacuum(int x, int y) const{
   return ground.IsEmpty(Point2i(x, y));
 }
 
-bool Map::LigneH_EstDansVide (int ox, int y, int width)
-{
-  // Traite une ligne
-  for (int i=0; i<width; i++)
-	if (!EstDansVide(ox+i, (uint)y))
-	  return false;
-
-   return true;
+bool Map::IsInVacuum(const Point2i& pos) const{
+  return ground.IsEmpty(pos);
 }
 
-// TODO : for consistency, LigneV_EstDansVide should use a 'height' as LigneH does it ...
-bool Map::LigneV_EstDansVide (int x, int top, int bottom)
+bool Map::HorizontalLine_IsInVacuum(int ox, int y, int width) const
+{
+  // Traite une ligne
+
+  for (int i=0; i<width; ++i)
+	if (!IsInVacuum(ox+i, (uint)y))
+	  return false;
+  return true;
+}
+
+// TODO : for consistency, VerticalLine_IsInVacuum should use a 'height' as LigneH does it ...
+bool Map::VerticalLine_IsInVacuum(int x, int top, int bottom) const
 {
   assert (top <= bottom);
 
-  // V�ifie qu'on reste dans le monde
-  if (EstHorsMondeX(x) || EstHorsMondeYhaut(top, bottom-top+1))
-    return Config::GetInstance()->GetExterieurMondeVide();
+  // Check we are still inside the world
+  if (IsOutsideWorldX(x) || IsOutsideWorldYheight(top, bottom-top+1))
+    return IsOpen();
+
   if (top < 0) top = 0;
   if ((int)GetHeight() <= bottom) bottom = GetHeight()-1;
 
   // Traite une ligne
   for (uint iy=(uint)top; iy<=(uint)bottom; iy++)
   {
-    if (!EstDansVide((uint)x, iy)) return false;
+    if (!IsInVacuum((uint)x, iy)) return false;
   }
   return true;
 }
 
-bool Map::RectEstDansVide (const Rectanglei &prect)
+bool Map::RectIsInVacuum(const Rectanglei &prect) const
 {
    // only check whether the border touch the ground
 
@@ -248,25 +251,25 @@ bool Map::RectEstDansVide (const Rectanglei &prect)
    if(rect.GetSizeX()==0 || rect.GetSizeY()==0)
      return true;
 
-   if(!LigneH_EstDansVide (rect.GetPositionX(), rect.GetPositionY(), rect.GetSizeX()))
+   if(!HorizontalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY(), rect.GetSizeX()))
      return false;
 
    if(rect.GetSizeY() > 1)
    {
-     if(!LigneH_EstDansVide (rect.GetPositionX(), rect.GetPositionY() + rect.GetSizeY() - 1, rect.GetSizeX()))
+     if(!HorizontalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY() + rect.GetSizeY() - 1, rect.GetSizeX()))
        return false;
-     if(!LigneV_EstDansVide (rect.GetPositionX(), rect.GetPositionY(), rect.GetPositionY() + rect.GetSizeY() -1))
+     if(!VerticalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY(), rect.GetPositionY() + rect.GetSizeY() -1))
        return false;
 
      if(rect.GetSizeX() > 1)
-     if(!LigneV_EstDansVide (rect.GetPositionX()+rect.GetSizeX()-1, rect.GetPositionY(), rect.GetPositionY() + rect.GetSizeY() -1))
+     if(!VerticalLine_IsInVacuum (rect.GetPositionX()+rect.GetSizeX()-1, rect.GetPositionY(), rect.GetPositionY() + rect.GetSizeY() -1))
        return false;
    }
 
    return true;
 }
 
-bool Map::ParanoiacRectIsInVacuum(const Rectanglei &prect)
+bool Map::ParanoiacRectIsInVacuum(const Rectanglei &prect) const
 {
    // only check whether the rectangle touch the ground pixel by pixel
    // Prefere using the method above, as performing a pixel by pixel test is quite slow!
@@ -278,36 +281,36 @@ bool Map::ParanoiacRectIsInVacuum(const Rectanglei &prect)
 
    // Check line by line
    for( int i = rect.GetPositionY(); i < rect.GetPositionY() + rect.GetSizeY(); i++ )
-     if( !LigneH_EstDansVide (rect.GetPositionX(), i, rect.GetSizeX()) )
+     if( !HorizontalLine_IsInVacuum (rect.GetPositionX(), i, rect.GetSizeX()) )
        return false;
 
    return true;
 }
 
-bool Map::EstDansVide_haut (const PhysicalObj &obj, int dx, int dy)
+bool Map::IsInVacuum_top(const PhysicalObj &obj, int dx, int dy) const
 {
-  return LigneH_EstDansVide (obj.GetTestRect().GetPositionX() + dx,
+  return HorizontalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + dx,
 			     obj.GetTestRect().GetPositionY() + obj.GetTestRect().GetSizeY() + dy,
 			     obj.GetTestRect().GetSizeX());
 }
 
-bool Map::EstDansVide_bas (const PhysicalObj &obj, int dx, int dy)
+bool Map::IsInVacuum_bottom(const PhysicalObj &obj, int dx, int dy) const
 {
-  return LigneH_EstDansVide (obj.GetTestRect().GetPositionX() + dx,
+  return HorizontalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + dx,
 			     obj.GetTestRect().GetPositionY() + dy,
 			     obj.GetTestRect().GetSizeX());
 }
 
-bool Map::IsInVacuum_left (const PhysicalObj &obj, int dx, int dy)
+bool Map::IsInVacuum_left(const PhysicalObj &obj, int dx, int dy) const
 {
-  return LigneV_EstDansVide (obj.GetTestRect().GetPositionX() + dx,
+  return VerticalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + dx,
 			     obj.GetTestRect().GetPositionY() + dy,
 			     obj.GetTestRect().GetPositionY() + obj.GetTestRect().GetSizeY() + dy);
 }
 
-bool Map::IsInVacuum_right (const PhysicalObj &obj, int dx, int dy)
+bool Map::IsInVacuum_right(const PhysicalObj &obj, int dx, int dy) const
 {
-  return LigneV_EstDansVide (obj.GetTestRect().GetPositionX() + obj.GetTestRect().GetSizeX() + dx,
+  return VerticalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + obj.GetTestRect().GetSizeX() + dx,
 			     obj.GetTestRect().GetPositionY() + dy,
 			     obj.GetTestRect().GetPositionY() + obj.GetTestRect().GetSizeY() + dy);
 }
@@ -327,9 +330,9 @@ void Map::DrawAuthorName()
     std::string txt;
     txt  = Format(_("Map %s, a creation of: "),
 		  ActiveMap().ReadName().c_str());
-    author_info1 = new Text(txt, white_color, Font::GetInstance(Font::FONT_SMALL));
+    author_info1 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_NORMAL);
     txt = ActiveMap().ReadAuthorInfo();
-    author_info2 = new Text(txt, white_color, Font::GetInstance(Font::FONT_SMALL));
+    author_info2 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_NORMAL);
   }
 
   author_info1->DrawTopLeft(AUTHOR_INFO_X,AUTHOR_INFO_Y);
@@ -344,7 +347,7 @@ bool CompareRectangle(const Rectanglei& a, const Rectanglei& b)
 void Map::OptimizeCache(std::list<Rectanglei>& rectangleCache)
 {
   rectangleCache.sort(CompareRectangle);
-	
+
   std::list<Rectanglei>::iterator it = rectangleCache.begin(),
     jt = rectangleCache.begin(),
     end = rectangleCache.end(),
@@ -357,7 +360,7 @@ void Map::OptimizeCache(std::list<Rectanglei>& rectangleCache)
 
   while (it != end && jt != end) {
     if ( (*it).Contains(*jt) ) {
-    //   std::cout << "X: " << (*jt).GetPositionX() << " ; " << (*jt).GetBottomRightPoint().GetX() << " - " ; 
+    //   std::cout << "X: " << (*jt).GetPositionX() << " ; " << (*jt).GetBottomRightPoint().GetX() << " - " ;
 //       std::cout << "Y: " << (*jt).GetPositionY() << " ; " << (*jt).GetBottomRightPoint().GetY();
 //       std::cout << std::endl;
       tmp = jt;
@@ -366,12 +369,12 @@ void Map::OptimizeCache(std::list<Rectanglei>& rectangleCache)
       jt = tmp;
 
     } else if ( (*jt).Contains(*it) ) {
-//       std::cout << "X: " << (*it).GetPositionX() << " ; " << (*it).GetBottomRightPoint().GetX() << " - " ; 
+//       std::cout << "X: " << (*it).GetPositionX() << " ; " << (*it).GetBottomRightPoint().GetX() << " - " ;
 //       std::cout << "Y: " << (*it).GetPositionY() << " ; " << (*it).GetBottomRightPoint().GetY();
 //       std::cout << std::endl;
       tmp = it;
       --tmp;
-      rectangleCache.erase(it);      
+      rectangleCache.erase(it);
       it = tmp;
 
     } else {

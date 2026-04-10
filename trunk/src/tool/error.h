@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,9 +37,25 @@ void WakeUpDebugger();
 #  define assert(COND) \
      if (!(COND)) MissedAssertion (__FILE__, __LINE__, #COND);
 
-// Force une assertion
-#define FORCE_ASSERT(COND) \
-  if (!(COND)) MissedAssertion (__FILE__, __LINE__, #COND);
+
+
+// Usage:
+// net_assert(COND)
+// {
+//   // What to do if assertion failed
+//   // This code is only executed during a network game
+//   // and if DEBUG isn't defined
+//   return;
+// }
+#ifdef DEBUG
+#define net_assert(COND) \
+  assert(COND); \
+  if(false)
+#else
+#define net_assert(COND) \
+  assert(COND); \
+  if(!(COND) && Network::GetInstance()->IsConnected())
+#endif
 
 void TriggerError (const char *filename, unsigned long line, 
 		      const std::string &txt);

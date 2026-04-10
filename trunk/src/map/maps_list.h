@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,16 +24,18 @@
 #include <SDL.h>
 #include <string>
 #include <map>
-#include "../graphic/surface.h"
-#include "../include/base.h"
-#include "../tool/resource_manager.h"
-#include "../tool/xml_document.h"
+#include "graphic/surface.h"
+#include "include/base.h"
+#include "tool/resource_manager.h"
+#include "tool/xml_document.h"
 
 class InfoMap{
 
 private:
+
   std::string name;
   std::string author_info;
+  std::string music_playlist;
   Surface img_ground, img_sky;
   Surface preview;
 
@@ -43,10 +45,11 @@ private:
   bool is_opened;
   bool use_water;
   bool is_data_loaded;
+  bool random;
 
   Profile *res_profile;
 
-  bool TraiteXml (xmlpp::Element *xml);
+  bool ProcessXmlData(xmlpp::Element *xml);
   void LoadData();
 
 public:
@@ -56,6 +59,7 @@ public:
     uint nb_sprite;
     uint default_nb_sprite;
     bool need_flip; //do we need to flip the sprite when it changes direction?
+    float rotation_speed;
   } wind;
 
 public:
@@ -65,6 +69,7 @@ public:
 
   const std::string& ReadName() const { return name; }
   const std::string& ReadAuthorInfo() const { return author_info; }
+  const std::string& ReadMusicPlaylist() const { return music_playlist; }
 
   Surface ReadImgGround();
   Surface ReadImgSky();

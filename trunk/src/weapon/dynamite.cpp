@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,19 +23,19 @@
 
 #include "dynamite.h"
 #include "explosion.h"
-#include "../game/config.h"
-#include "../include/app.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../tool/resource_manager.h"
-#include "../tool/debug.h"
+#include "game/config.h"
+#include "include/app.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "tool/resource_manager.h"
+#include "tool/debug.h"
 
 #ifdef __MINGW32__
 #undef LoadImage
 #endif
 
-BatonDynamite::BatonDynamite(ExplosiveWeaponConfig& cfg,
+DynamiteStick::DynamiteStick(ExplosiveWeaponConfig& cfg,
                              WeaponLauncher * p_launcher) :
   WeaponProjectile("dynamite_bullet", cfg, p_launcher)
 {
@@ -47,7 +47,7 @@ BatonDynamite::BatonDynamite(ExplosiveWeaponConfig& cfg,
   SetTestRect (0, 0, 2, 3);
 }
 
-void BatonDynamite::Shoot(double strength)
+void DynamiteStick::Shoot(double strength)
 {
   unsigned int delay = (1000 * WeaponProjectile::GetTotalTimeout())/image->GetFrameCount();
   image->SetFrameSpeed(delay);
@@ -58,28 +58,28 @@ void BatonDynamite::Shoot(double strength)
   WeaponProjectile::Shoot(strength);
 }
 
-void BatonDynamite::Refresh()
+void DynamiteStick::Refresh()
 {
   image->Update();
   if (image->IsFinished()) Explosion();
 }
 
-void BatonDynamite::ShootSound()
+void DynamiteStick::ShootSound()
 {
   channel = jukebox.Play("share","weapon/dynamite_fuze", -1);
 }
 
-void BatonDynamite::SignalExplosion()
+void DynamiteStick::SignalExplosion()
 {
   jukebox.Stop(channel);
 }
 
-void BatonDynamite::SignalOutOfMap()
+void DynamiteStick::SignalOutOfMap()
 {
   jukebox.Stop(channel);
 }
 
-void BatonDynamite::SignalDrowning()
+void DynamiteStick::SignalDrowning()
 {
   jukebox.Stop(channel);
 }
@@ -89,13 +89,14 @@ Dynamite::Dynamite() :
     WeaponLauncher(WEAPON_DYNAMITE, "dynamite", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Dynamite");
+  m_category = THROW;
   ReloadLauncher();
 }
 
 WeaponProjectile * Dynamite::GetProjectileInstance()
 {
   return dynamic_cast<WeaponProjectile *>
-      (new BatonDynamite(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+      (new DynamiteStick(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
 
 // drop a dynamite
@@ -111,3 +112,12 @@ bool Dynamite::p_Shoot ()
 
   return true;
 }
+
+std::string Dynamite::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u dynamite!",
+            "%s team has won %u dynamites!",
+            items_count), TeamName, items_count);
+}
+

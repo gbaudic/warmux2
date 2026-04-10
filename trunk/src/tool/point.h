@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,8 +27,14 @@
 
 #include "vector2.h"
 
-typedef Vector2<int>    Point2i;   
-typedef Vector2<float>  Point2f;   
-typedef Vector2<double> Point2d;   
+typedef Vector2<int>    Point2i;
+typedef Vector2<float>  Point2f;
+typedef Vector2<double> Point2d;
+
+#define POINT2D_2_POINT2I(point) \
+  Point2i((int)point.x, (int)point.y)
+
+#define POINT2I_2_POINT2D(point) \
+  Point2d((double)point.x, (double)point.y)
 
 #endif // _POINT_H

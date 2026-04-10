@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,47 +23,59 @@
 #define RESULTS_MENU_H
 
 #include "menu.h"
-#include "../include/base.h"
-#include "../graphic/font.h"
+#include "include/base.h"
+#include "graphic/font.h"
+#include "team/results.h"
 
-class TeamResults;
 class ResultBox;
 
 class ResultsMenu : public Menu
 {
  private:
+    ResultsMenu(const ResultsMenu&);
+    const ResultsMenu& operator=(const ResultsMenu&);
+
     const std::vector<TeamResults*>* results;
+    Team *first_team, *second_team, *third_team;
     int     index;
 
     // Box sizes
-    int     total_width;
     int     max_height;
     Point2i team_size;
     Point2i type_size;
     Point2i name_size;
     Point2i score_size;
-    
+
     /* Team controllers */
     Button  *bt_prev_team;
     Button  *bt_next_team;
     PictureWidget *team_logo;
     Label   *team_name;
-    HBox    *team_box;
-    
+    Box    *team_box;
+
+    Box    *winner_box;
+    Box    *statistics_box;
     ResultBox* most_violent;
-    ResultBox* most_usefull;
+    ResultBox* most_useful;
     ResultBox* most_useless;
     ResultBox* biggest_traitor;
-    
-    void __sig_ok() { };
-    void __sig_cancel() { };
-    
+    ResultBox* most_clumsy;
+
+    Surface podium_img;
+
+    bool signal_ok() { return true;};
+    bool signal_cancel() { return true;};
+
+    void ComputeTeamsOrder();
     void SetResult(int i);
-    void OnClic(const Point2i &mousePosition, int button);
+    void OnClick(const Point2i &mousePosition, int button);
+    void OnClickUp(const Point2i &mousePosition, int button);
+    void DrawPodium(const Point2i &position);
+    void DrawTeamOnPodium(const Team& team, const Point2i& podium_position, 
+			  const Point2i& relative_position);
     void Draw(const Point2i &mousePosition);
  public:
-    ResultsMenu(const std::vector<TeamResults*>* v,
-                const char *winner_name);
+    ResultsMenu(const std::vector<TeamResults*>* v);
     ~ResultsMenu();
 };
 

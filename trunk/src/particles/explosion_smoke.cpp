@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 
 #include "explosion_smoke.h"
 #include "particle.h"
-#include "../game/time.h"
-#include "../tool/random.h"
+#include "game/time.h"
+#include "tool/random.h"
 
 ExplosionSmoke::ExplosionSmoke(const uint size_init) :
   Particle("explosion_smoke_particle")

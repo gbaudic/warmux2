@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8alpha1], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8beta1], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -22,7 +22,6 @@ AC_CANONICAL_TARGET
 #AC_CONFIG_AUX_DIR([config])
 AM_INIT_AUTOMAKE([foreign 1.5])
 
-AM_MAINTAINER_MODE
 AM_GNU_GETTEXT([external])
 
 dnl ========================================================================
@@ -88,24 +87,34 @@ AM_CONDITIONAL([WIN32], test "$WIN32" = "yes")
 
 if test "${WIN32}" = "yes"; then DATADIR="data"
 else DATADIR="${prefix}/share/wormux"; fi
-AC_ARG_WITH(datadir-name,
-    [  --with-datadir-name=DIR       specify where datas are installed (default: ${prefix}/share/wormux)],
+AC_ARG_WITH([datadir-name],
+    [AS_HELP_STRING([--with-datadir-name=DIR],
+		    [specify where datas are installed (default: ${prefix}/share/wormux)])],
     [DATADIR="$withval"])
 AC_SUBST([DATADIR])
 
 
 if test "${WIN32}" = "yes"; then LOCALEDIR="locale"
 else LOCALEDIR="${prefix}/share/locale"; fi
-AC_ARG_WITH(localedir-name,
-    [  --with-localedir-name=DIR       specify where locales are installed (default: ${prefix}/share/locale)],
+AC_ARG_WITH([localedir-name],
+    [AS_HELP_STRING([--with-localedir-name=DIR],
+		    [specify where locales are installed (default: ${prefix}/share/locale)])],
     [LOCALEDIR="$withval"])
 AC_SUBST([LOCALEDIR])
 
 FONTFILE="\${DATADIR}/font/DejaVuSans.ttf"
-AC_ARG_WITH(font-path,
-    [  --with-font-path=FILE       specify the font file (default: ${datadir}/font/DejaVuSans.ttf)],
+AC_ARG_WITH([font-path],
+    [AS_HELP_STRING([--with-font-path=FILE],
+		    [specify the font file (default: ${datadir}/font/DejaVuSans.ttf)])],
     [FONTFILE="$withval"])
 AC_SUBST([FONTFILE])
+
+AC_ARG_ENABLE([autopackage],
+	[AS_HELP_STRING([--enable-autopackage],
+			[Enable autopackage @<:@default=disable@:>@])],
+	[],
+	[enable_autopackage=no])
+AM_CONDITIONAL([AUTOPACKAGE], [test "$enable_autopackage" = "yes"])
 
 AM_CONDITIONAL([STATIC], [test x$static = xyes])
 AM_CONDITIONAL([GCC], [test x$GXX = xyes])
@@ -181,6 +190,18 @@ if test "x$PACKAGE_CONFIG" = "xnone"; then
 has not been found.])
 fi
 
+dnl === Check for PNG ==================================================
+
+AC_MSG_CHECKING(for libpng)
+if $PACKAGE_CONFIG --cflags libpng > /dev/null 2>&1 ; then
+  LIBPNG_CFLAGS=`$PACKAGE_CONFIG --cflags libpng`
+  LIBPNG_LIB=`$PACKAGE_CONFIG --libs libpng`
+  CFLAGS="$CFLAGS $LIBPNG_CFLAGS"
+  LIBS="$LIBS $LIBPNG_LIB"
+else
+  AC_MSG_ERROR([*** libpng not found])
+fi
+
 dnl === Check for SDL_gfx ==================================================
 
 AC_ARG_WITH(sdl-gfx-prefix,
@@ -190,12 +211,15 @@ AC_SUBST(SDL_GFX_PREFIX)
 if test "x$SDL_GFX_PREFIX" != "x"; then
   CPPFLAGS="$CPPFLAGS -I$SDL_GFX_PREFIX/include/SDL"
   CXXFLAGS="$CXXFLAGS -I$SDL_GFX_PREFIX/include/SDL"
+  LIBS="-L$SDL_GFX_PREFIX/lib $LIBS"
 fi
 AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,,check_sdl_gfx="no")
 AC_CHECK_HEADERS(SDL_rotozoom.h,,check_sdl_gfx="no")
 
-dnl === Check for SDL image, mixer, etc. and libxml++ =======================
+dnl === Check for SDL image, mixer, etc., libxml++, libcurl and libpng ==============
 
+AC_CHECK_LIB(png, png_error,,,)
+AC_CHECK_LIB(curl, curl_easy_init,check_curl="yes",check_curl="no")
 AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
 AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
 AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
@@ -211,6 +235,15 @@ else
 	check_libxmlpp="no"
 fi
 
+AC_MSG_CHECKING(for libcurl)
+
+if test x$check_curl = xyes; then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+	check_libcurl="no"
+        AC_MSG_ERROR([*** No libCurl found. Please install a valid libcurl ***])
+fi
 
 dnl === Display error if SDL image, mixer, etc. is missing ==================
 
@@ -244,13 +277,19 @@ if test \
 	exit 1
 fi
 
-dnl === Add libxml++ flags =================================================
+dnl === Add libxml++, libcurl flags and libpng =================================================
+LIBCURL_CFLAGS=`curl-config --cflags`
+LIBCURL_LIBS=`curl-config --libs`
 
 LIBXMLPP_CFLAGS=`$PACKAGE_CONFIG libxml++-2.6 --cflags`
 LIBXMLPP_LIBS=`$PACKAGE_CONFIG libxml++-2.6 --libs`
-CFLAGS="$CFLAGS $LIBXMLPP_CFLAGS"
-CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS"
-LIBS="$LIBS $LIBXMLPP_LIBS"
+
+LIBPNG_CFLAGS=`$PACKAGE_CONFIG libpng --cflags`
+LIBPNG_LIBS=`$PACKAGE_CONFIG libpng --libs`
+
+CFLAGS="$CFLAGS $LIBXMLPP_CFLAGS $LIBCURL_CFLAGGS $LIBPNG_CFLAGS"
+CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS $LIBCURL_CFLAGS $LIBPNG_CFLAGS"
+LIBS="$LIBS $LIBXMLPP_LIBS $LIBCURL_LIBS $LIBPNG_LIBS"
 
 dnl ========================================================================
 dnl == Check for header files                                              =
@@ -272,8 +311,6 @@ DATA_FILES=`echo $DATA_FILES`
 AC_SUBST([DATA_FILES])
 AC_SUBST([BUILD_ENV])
 
-AM_PO_SUBDIRS
-
 AC_CONFIG_FILES([Makefile
 		 data/Makefile
 		 src/Makefile
@@ -287,14 +324,15 @@ AC_OUTPUT
 
 if test "${WIN32}" = "yes"; then INSTALL_OP="build NSIS installer..."
 else INSTALL_OP="install..."; fi
-AC_MSG_RESULT([
 
-Configuration complete
-
-* Game data will be installed into $DATADIR
-* Game locale will be installed into $LOCALEDIR
-* Font file will be $FONTFILE
-
-Execute make to compile then execute make install to $INSTALL_OP
-
-])
+   echo "Configuration complete"
+   echo ""
+if test "$enable_autopackage" = "yes"; then
+   echo "Use autopackage for file locations"
+else
+   echo "* Game data will be installed into $DATADIR"
+   echo "* Game locale will be installed into $LOCALEDIR"
+   echo "* Font file will be $FONTFILE"
+fi
+echo ""
+echo "Execute make to compile then execute make install to $INSTALL_OP"

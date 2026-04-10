@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,53 +22,61 @@
 
 #include "riot_bomb.h"
 #include "explosion.h"
-#include "../game/config.h"
-#include "../game/time.h"
-#include "../graphic/video.h"
-#include "../interface/game_msg.h"
-#include "../map/camera.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/math_tools.h"
-#include "../tool/i18n.h"
+#include "game/config.h"
+#include "game/time.h"
+#include "graphic/video.h"
+#include "interface/game_msg.h"
+#include "map/camera.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/math_tools.h"
+#include "tool/i18n.h"
 
-RoquetteRiotBomb::RoquetteRiotBomb(ExplosiveWeaponConfig& cfg,
+RiotBombRocket::RiotBombRocket(ExplosiveWeaponConfig& cfg,
                                    WeaponLauncher * p_launcher) :
   WeaponProjectile ("riot_rocket", cfg, p_launcher)
-{  
+{
   explode_colliding_character = true;
 }
 
-void RoquetteRiotBomb::Refresh()
+void RiotBombRocket::Refresh()
 {
   WeaponProjectile::Refresh();
-
-  double angle = GetSpeedAngle() *180/M_PI;
-  image->SetRotation_deg( angle);
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
-void RoquetteRiotBomb::SignalOutOfMap()
+void RiotBombRocket::SignalOutOfMap()
 {
   GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 }
 
-void RoquetteRiotBomb::DoExplosion()
+void RiotBombRocket::DoExplosion()
 {
   Point2i pos = GetCenter();
-  ApplyExplosion (pos, cfg, "weapon/explosion", false, ParticleEngine::LittleESmoke);
+  ApplyExplosion (pos, cfg, "weapon/riot_bomb_exp", false, ParticleEngine::LittleESmoke);
 }
 //-----------------------------------------------------------------------------
 
 RiotBomb::RiotBomb() :
   WeaponLauncher(WEAPON_RIOT_BOMB, "riot_bomb", new ExplosiveWeaponConfig())
-{  
+{
   m_name = _("Riot Bomb");
+  m_category = HEAVY;
   ReloadLauncher();
 }
 
 WeaponProjectile * RiotBomb::GetProjectileInstance()
 {
   return dynamic_cast<WeaponProjectile *>
-      (new RoquetteRiotBomb(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+      (new RiotBombRocket(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
+
+std::string RiotBomb::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u riot bomb!",
+            "%s team has won %u riot bombs!",
+            items_count), TeamName, items_count);
+}
+

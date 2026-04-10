@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,205 +16,181 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Barre d'énergie de chaque équipe
+ * energy bar of each team
  *****************************************************************************/
 
 #include "team_energy.h"
 #include <sstream>
 #include <math.h>
-#include "../map/camera.h"
-#include "../game/time.h"
-#include "../graphic/text.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "game/time.h"
+#include "graphic/text.h"
+#include "team.h"
+#include "teams_list.h"
+#include "include/app.h"
 
-const uint BARRE_LARG = 200;
-const uint BARRE_HAUT = 13;
-const uint ESPACEMENT = 3;
+const uint BAR_WIDTH = 13;
+const uint BAR_SPACING = 30;
+const uint BAR_HEIGHT = 50;
+const uint SPACING = 3;
 
 const uchar ALPHA = 127;
-const uchar ALPHA_FOND = 0;
+const uchar BACK_ALPHA = 0;
 
-const uchar R_INIT = 0; //Couleur R à 100%
-const uchar V_INIT = 255; //Couleur V à 100%
-const uchar B_INIT = 0; //Couleur B à 100%
+const float MOVE_DURATION = 750.0;
 
-const uchar R_INTER = 255; //Couleur R à 50%
-const uchar V_INTER = 255; //Couleur V à 50%
-const uchar B_INTER = 0; //Couleur B à 50%
-
-const uchar R_FINAL = 255; //Couleur R à 0%
-const uchar V_FINAL = 0; //Couleur V à 0%
-const uchar B_FINAL = 0; //Couleur B à 0%
-
-const float DUREE_MVT = 750.0;
-
-TeamEnergy :: TeamEnergy(const std::string &_team_name)
+TeamEnergy::TeamEnergy(Team * _team):
+  energy_bar(),
+  value(0),
+  new_value(0),
+  max_value(0),
+  team(_team),
+  icon(NULL),
+  t_team_energy(new Text("None", black_color,
+                         Font::FONT_SMALL, Font::FONT_NORMAL, false)),
+  dx(0),
+  dy(0),
+  rank(0),
+  new_rank(0),
+  team_name("not initialized"),
+  move_start_time(0),
+  rank_tmp(0),
+  status(EnergyStatusOK)
 {
-  dx = 0;
-  dy = 0;
-  tps_debut_mvt = 0;
-  valeur_max = 0;
-  status = EnergyStatusOK;
-  barre_energie.InitPos (0,0, BARRE_LARG, BARRE_HAUT);
-
-  barre_energie.SetValueColor( Color(R_INIT, V_INIT, B_INIT, ALPHA) );
-  barre_energie.SetBorderColor( Color(255, 255, 255, ALPHA) );
-  barre_energie.SetBackgroundColor( Color(255*6/10, 255*6/10, 255*6/10, ALPHA_FOND) );
-
-  bar_text = new Text("");
-  team_name = _team_name;
+  energy_bar.InitPos(0, 0, BAR_WIDTH, BAR_HEIGHT);
+  energy_bar.SetBorderColor(Color(255, 255, 255, ALPHA));
+  energy_bar.SetBackgroundColor(Color(255*6/10, 255*6/10, 255*6/10, BACK_ALPHA));
 }
 
-TeamEnergy :: ~TeamEnergy ()
+TeamEnergy::~TeamEnergy()
 {
-  delete bar_text;
+  if(icon) delete icon;
+  if(t_team_energy) delete t_team_energy;
 }
 
 void TeamEnergy::Config(uint _current_energy,
-			uint _max_energy)
+                        uint _max_energy)
 {
-  valeur_max = _max_energy;
+  max_value = _max_energy;
 
-  valeur = _current_energy;
-  nv_valeur = _current_energy;
-  assert(valeur_max != 0)
-  barre_energie.InitVal (valeur, 0, valeur_max);
+  value = _current_energy;
+  new_value = _current_energy;
+  assert(max_value != 0)
+      energy_bar.InitVal(value, 0, max_value, ProgressBar::PROG_BAR_VERTICAL);
+  icon = new Sprite(team->flag);
+  icon->Scale(0.8,0.8);
 }
 
-void TeamEnergy :: Refresh ()
+void TeamEnergy::Refresh()
 {
   switch(status)
   {
-  //La valeur de l'énergie d'une des équipe change
-  case EnergyStatusValueChange:
-    if(nv_valeur > valeur)
-      valeur = nv_valeur;
-    if(valeur > nv_valeur)
-      --valeur;
-    if(valeur == nv_valeur)
-      status = EnergyStatusWait;
-    break;
+    // energy value from one team have changed
+    case EnergyStatusValueChange:
+      if(new_value > value)
+        value = new_value;
+      if(value > new_value)
+        --value;
+      if(value == new_value)
+        status = EnergyStatusWait;
+      break;
 
-  //Le classement se modifie
-  case EnergyStatusClassementChange:
-    Move();
-    break;
+    // ranking is changing
+    case EnergyStatusRankChange:
+      Move();
+      break;
 
-  //Aucun changement ne s'effectue en ce moment
-  case EnergyStatusOK:
-    if( valeur != nv_valeur && !IsMoving())
-      status = EnergyStatusValueChange;
-    else
-    if( classement != nv_classement )
-      status = EnergyStatusClassementChange;
-    break;
+    // Currently no move
+    case EnergyStatusOK:
+      if( value != new_value && !IsMoving())
+        status = EnergyStatusValueChange;
+      else
+        if( rank != new_rank )
+          status = EnergyStatusRankChange;
+      break;
 
-  //Cette barre d'énergie n'a plus rien à faire
-  //Elle attend une synchronisation avec les autres barres
-  case EnergyStatusWait:
-    break;
+    // This energy bar wait others bar before moving
+    case EnergyStatusWait:
+      break;
   }
 }
 
-void TeamEnergy :: Draw ()
+void TeamEnergy::Draw(const Point2i& pos)
 {
-  barre_energie.Actu(valeur);
-
-  float r,v,b;
-  if( valeur < (valeur_max / 2) )
-  {
-    r = ( 2.0 * ((R_FINAL * ((valeur_max / 2) - valeur)) + (valeur * R_INTER))) / valeur_max;
-    v = ( 2.0 * ((V_FINAL * ((valeur_max / 2) - valeur)) + (valeur * V_INTER))) / valeur_max;
-    b = ( 2.0 * ((B_FINAL * ((valeur_max / 2) - valeur)) + (valeur * B_INTER))) / valeur_max;
-  }
-  else
-  {
-    r = ( 2.0 * ((R_INIT * (valeur - (valeur_max / 2))) + (R_INTER * (valeur_max - valeur)))) / valeur_max;
-    v = ( 2.0 * ((V_INIT * (valeur - (valeur_max / 2))) + (V_INTER * (valeur_max - valeur)))) / valeur_max;
-    b = ( 2.0 * ((B_INIT * (valeur - (valeur_max / 2))) + (B_INTER * (valeur_max - valeur)))) / valeur_max;
-  }
-
-  Color color( (unsigned char)r, (unsigned char)v, (unsigned char)b, ALPHA);
-
-  barre_energie.SetValueColor( color );
-
-  int x,y;
-  x = camera.GetSizeX() - (BARRE_LARG + 10) + dx;
-  y = BARRE_HAUT +(classement * (BARRE_HAUT + ESPACEMENT)) +dy;
-  barre_energie.DrawXY( Point2i(x, y) );
-
-  std::ostringstream ss;
-  ss << team_name << "/" << valeur;
-  x = camera.GetSizeX() - ((BARRE_LARG/2) + 10) + dx;
-  y = BARRE_HAUT + (classement * (BARRE_HAUT + ESPACEMENT)) + dy;
-  std::string txt = ss.str();
-  bar_text->Set(txt);
-  bar_text->DrawCenterTop(x,y);
+  energy_bar.Actu(value);
+  Point2i tmp = pos + Point2i(BAR_SPACING / 2 + rank * (BAR_WIDTH + BAR_SPACING) + dx, dy);
+  energy_bar.DrawXY(tmp);
+  icon->DrawXY(tmp + Point2i(energy_bar.GetWidth() / 2, 0));
 }
 
-void TeamEnergy::SetValue (uint nv_energie)
-{ nv_valeur = nv_energie; }
-
-void TeamEnergy::FixeClassement (uint classem)
+void TeamEnergy::SetValue(uint new_energy)
 {
-  classement = classem;
-  nv_classement = classem;
+  new_value = new_energy;
 }
 
-void TeamEnergy::NouveauClassement (uint nv_classem)
-{ nv_classement = nv_classem; }
-
-void TeamEnergy::Move ()
+void TeamEnergy::SetRanking(uint _rank)
 {
-  //Déplacement des jauges (changement dans le classement)
-  if( valeur != nv_valeur && !IsMoving())
-  {
-    //D'autres jauges sont en train de changer de classement
-    //Celle-là ne doit pas changer de classement tant que sa
-    //valeur d'énergie n'a pas été actualisée à l'écran
+  rank = _rank;
+  new_rank = _rank;
+}
+
+void TeamEnergy::NewRanking(uint _new_rank)
+{
+  new_rank = _new_rank;
+}
+
+// Move energy bar (change in ranking)
+void TeamEnergy::Move()
+{
+  if( value != new_value && !IsMoving()) {
+    // Other energy bar are moving so waiting for others to move
     status = EnergyStatusWait;
     return;
   }
 
-  if( classement == nv_classement && !IsMoving())
-  {
-    //D'autres jauges sont en train de changer de classement
+  if( rank == new_rank && !IsMoving()) {
+    // Others energy bar are moving
     status = EnergyStatusWait;
     return;
   }
 
-  //Le classement de cette jauge a changé
+  // teams ranking have changed
   Time * global_time = Time::GetInstance();
-  if( classement != nv_classement )
+  if( rank != new_rank )
   {
-    if(tps_debut_mvt == 0)
-      tps_debut_mvt = global_time->Read();
+    if(move_start_time == 0)
+      move_start_time = global_time->Read();
 
-    dy = (int)(( (BARRE_HAUT+ESPACEMENT) * ((float)nv_classement - classement))
-             * ((global_time->Read() - tps_debut_mvt) / DUREE_MVT));
+    dx = (int)(((float)new_rank - rank) * (BAR_WIDTH + BAR_SPACING) * ((global_time->Read() - move_start_time) / MOVE_DURATION));
 
-    // Déplacement en arc de cercle seulement quand la jauge descend
-    // dans le classement
-    if( nv_classement > classement )
-      dx = (int)(( 3.0 * (BARRE_HAUT+ESPACEMENT) * ((float)classement - nv_classement))
-             * sin( M_PI * ((global_time->Read() - tps_debut_mvt) /DUREE_MVT)));
-
-    //Mouvement terminé?
-    if( (global_time->Read() - tps_debut_mvt) > DUREE_MVT )
-    {
-      dy = 0;
-      dx = 0;
-      classement = nv_classement;
-      tps_debut_mvt = 0;
-      status = EnergyStatusWait;
-      return;
+    // displacement in arc of circle only when losing place ranking
+    if( new_rank > rank ) {
+      dy = (int)((BAR_HEIGHT * ((float)rank - new_rank)) * 0.5 *
+           sin( M_PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
+    } else {
+      dy = (int)((BAR_HEIGHT * ((float)rank - new_rank)) * 0.5 *
+          sin( M_PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
     }
+    // End of movement ?
+    if( (global_time->Read() - move_start_time) > MOVE_DURATION)
+      FinalizeMove();
+  } else {
+    // While moving, it came back to previous place in ranking
+    dy = (int)((float)dy - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dy);
+    dx = (int)((float)dx - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dx);
   }
-  else
-  {//Pendant que la jauge bougeait, elle est revenue
-  //à sa place d'origine dans le classement
-    dy = (int)((float)dy - ((global_time->Read() - tps_debut_mvt) /DUREE_MVT) * dy);
-    dx = (int)((float)dx - ((global_time->Read() - tps_debut_mvt) /DUREE_MVT) * dx);
-  }
+}
+
+// Move energy bar immediatly to there final destination
+void TeamEnergy::FinalizeMove()
+{
+  dy = 0;
+  dx = 0;
+  rank = new_rank;
+  move_start_time = 0;
+  status = EnergyStatusWait;
+  return;
 }
 
 bool TeamEnergy::IsMoving () const
@@ -222,9 +198,4 @@ bool TeamEnergy::IsMoving () const
   if( dx != 0 || dy != 0 )
     return true;
   return false;
-}
-
-void TeamEnergy::SetTeamName(const std::string& _team_name)
-{
-  team_name = _team_name;
 }

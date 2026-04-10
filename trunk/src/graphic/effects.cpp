@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include <math.h>
 #include "sprite.h"
 #include "video.h"
-#include "../game/time.h"
+#include "game/time.h"
 
 //Make the sdl_surface 'a', do a wave of 'nbr_frames', and last 'duration' milliseconds.
 //wave_amp is the amplitude of the wave on the left and the right side of the sprite

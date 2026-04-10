@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,20 +21,20 @@
 
 #include "air_attack.h"
 #include <sstream>
-#include "../game/game_loop.h"
-#include "../graphic/sprite.h"
-#include "../include/action_handler.h"
-#include "../interface/mouse.h"
-#include "../map/map.h"
-#include "../map/camera.h"
-#include "../network/randomsync.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../weapon/explosion.h"
+#include "game/game_loop.h"
+#include "graphic/sprite.h"
+#include "include/action_handler.h"
+#include "interface/mouse.h"
+#include "map/map.h"
+#include "map/camera.h"
+#include "network/randomsync.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "weapon/explosion.h"
 
-const uint FORCE_X_MIN = 10;
-const uint FORCE_X_MAX = 120;
+const int FORCE_X_MIN = -50;
+const uint FORCE_X_MAX = 0;
 const uint FORCE_Y_MIN = 1;
 const uint FORCE_Y_MAX = 40;
 
@@ -48,16 +48,16 @@ Obus::Obus(AirAttackConfig& cfg) :
 
 //-----------------------------------------------------------------------------
 
-Plane::Plane(AirAttackConfig &p_cfg) : 
+Plane::Plane(AirAttackConfig &p_cfg) :
   PhysicalObj("air_attack_plane"),
   cfg(p_cfg)
 {
   SetCollisionModel(true, false, false);
 
-  image = resource_manager.LoadSprite( weapons_res_profile, "air_attack_plane");
+  image = resource_manager.LoadSprite(weapons_res_profile, "air_attack_plane");
   SetSize(image->GetSize());
   obus_dx = 100;
-  obus_dy = GetY()+GetHeight();
+  obus_dy = GetY() + GetHeight();
 }
 
 void Plane::Shoot(double speed, Point2i& target)
@@ -68,48 +68,54 @@ void Plane::Shoot(double speed, Point2i& target)
   Point2d speed_vector ;
   int dir = ActiveCharacter().GetDirection();
   cible_x = target.x;
-  SetY (0);
+  SetY(0);
+  distance_to_release =(int)(speed * sqrt(2 * (GetY() + target.y)));
 
   image->Scale(dir, 1);
 
-  if (dir == 1)
-    {
-      speed_vector.SetValues( speed, 0);
-      SetX (-image->GetWidth()+1);
-    }
-  else
-    {
-      speed_vector.SetValues( -speed, 0) ;
-      SetX (world.GetWidth()-1);
-    }
+  if (dir == 1) {
+    speed_vector.SetValues(speed, 0);
+    SetX(-image->GetWidth() + 1);
+    //distance_to_release -= obus_dx;
+    if(distance_to_release > cible_x) distance_to_release=0;
+  } else {
+    speed_vector.SetValues(-speed, 0) ;
+    SetX(world.GetWidth() - 1);
+    //distance_to_release += obus_dx;
+    if(distance_to_release > (world.GetWidth()-cible_x - obus_dx)) distance_to_release=0;
+  }
 
   SetSpeedXY (speed_vector);
 
-  camera.ChangeObjSuivi (this, true, true);
+  camera.FollowObject(this, true, true);
 
   lst_objects.AddObject(this);
+  camera.SetCloseFollowing(true);
 }
 
 void Plane::DropBomb()
 {
   Obus * instance = new Obus(cfg);
-  instance->SetXY( Point2i(GetX(), obus_dy) );
-  
+  instance->SetXY(Point2i(GetX(), obus_dy) );
+
   Point2d speed_vector;
-  
-  int fx = randomSync.GetLong (FORCE_X_MIN, FORCE_X_MAX);
+  GetSpeedXY(speed_vector);
+
+  int fx = randomSync.GetLong(FORCE_X_MIN, FORCE_X_MAX);
   fx *= GetDirection();
-  int fy = randomSync.GetLong (FORCE_Y_MIN, FORCE_Y_MAX);
-  
-  speed_vector.SetValues( fx/30.0, fy/30.0);
-  instance->SetSpeedXY (speed_vector);
-  
+  int fy = randomSync.GetLong(FORCE_Y_MIN, FORCE_Y_MAX);
+
+  speed_vector.SetValues(speed_vector.x + fx/30.0, speed_vector.y + fy/30.0);
+  instance->SetSpeedXY(speed_vector);
+
   lst_objects.AddObject(instance);
-  
-  camera.ChangeObjSuivi (instance, true, true);
-  
+
   last_dropped_bomb = instance;
   nb_dropped_bombs++;
+
+  if (nb_dropped_bombs == 1)
+    camera.FollowObject(instance, true, true);
+
 }
 
 void Plane::Refresh()
@@ -117,17 +123,19 @@ void Plane::Refresh()
   UpdatePosition();
   image->Update();
   // First shoot !!
-  if ( OnTopOfTarget() && nb_dropped_bombs == 0)
+  if ( OnTopOfTarget() && nb_dropped_bombs == 0) {
+  //  camera.StopFollowingObj(this);
     DropBomb();
-  else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {
+    m_ignore_movements = true;
+  } else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {
     // Get the last rocket and check the position to be sure to not collide with it
     if ( last_dropped_bomb->GetY() > GetY()+GetHeight()+10 )
       DropBomb();
   }
 }
 
-int Plane::GetDirection() const 
-{ 
+int Plane::GetDirection() const
+{
   float x,y;
   image->GetScaleFactors(x,y);
   return (x<0)?-1:1;
@@ -135,24 +143,26 @@ int Plane::GetDirection() const
 
 void Plane::Draw()
 {
-  if (IsGhost()) return;  
-  image->Draw(GetPosition());  
+  if (IsGhost()) return;
+  image->Draw(GetPosition());
 }
 
 bool Plane::OnTopOfTarget() const
 {
-  if (GetDirection() == 1) 
-    return (cible_x <= GetX()+obus_dx);
+  if (GetDirection() == 1)
+    return (cible_x <= GetX() + distance_to_release);
   else
-    return (GetX()+(int)image->GetWidth()-obus_dx <= cible_x);
+    return (GetX() - (int)image->GetWidth() + obus_dx - distance_to_release <= cible_x);
 }
 
 //-----------------------------------------------------------------------------
 
 AirAttack::AirAttack() :
   Weapon(WEAPON_AIR_ATTACK, "air_attack",new AirAttackConfig(), ALWAYS_VISIBLE)//, plane(cfg())
-{  
+{
   m_name = _("Air Attack");
+  m_help = _("attack direction : Left/Right\nBombing : left clic on target\na bombing per turn");
+  m_category = HEAVY;
   mouse_character_selection = false;
   can_be_used_on_closed_map = false;
   target_chosen = false;
@@ -173,17 +183,40 @@ void AirAttack::ChooseTarget(Point2i mouse_pos)
 bool AirAttack::p_Shoot ()
 {
   if(!target_chosen)
-	return false;
+    return false;
+
+  // Go back to default cursor
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
 
   Plane* plane = new Plane(cfg());
-  plane->Shoot (cfg().speed, target);
+  plane->Shoot(cfg().speed, target);
   return true;
 }
 
-AirAttackConfig& AirAttack::cfg() 
+void AirAttack::p_Select()
+{
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_FIRE);
+}
+
+void AirAttack::p_Deselect()
+{
+  // Go back to default cursor
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
+}
+
+AirAttackConfig& AirAttack::cfg()
 {
   return static_cast<AirAttackConfig&>(*extra_params);
 }
+
+std::string AirAttack::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u air attack!",
+            "%s team has won %u air attacks!",
+            items_count), TeamName, items_count);
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -196,6 +229,6 @@ AirAttackConfig::AirAttackConfig()
 void AirAttackConfig::LoadXml(xmlpp::Element *elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
-  LitDocXml::LitUint (elem, "nbr_obus", nbr_obus);
-  LitDocXml::LitDouble (elem, "speed", speed);
+  XmlReader::ReadUint(elem, "nbr_obus", nbr_obus);
+  XmlReader::ReadDouble(elem, "speed", speed);
 }

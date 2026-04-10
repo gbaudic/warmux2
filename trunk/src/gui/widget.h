@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,14 +23,17 @@
 #define GUI_WIDGET_H
 
 #include <SDL_keyboard.h>
-#include "../include/base.h"
-#include "../tool/rectangle.h"
-#include "../tool/point.h"
+#include "include/base.h"
+#include "tool/rectangle.h"
+#include "tool/point.h"
 
 #include "container.h"
 
 class Widget : public Rectanglei
 {
+  Widget(const Widget&);
+  const Widget& operator=(const Widget&);
+
  protected:
   Container * ct;
   bool need_redrawing;
@@ -45,20 +48,21 @@ class Widget : public Rectanglei
 
   virtual void Update(const Point2i &mousePosition,
 		      const Point2i &lastMousePosition,
-		      Surface& surf); // virtual only for Box !!
-  virtual void Draw(const Point2i &mousePosition, 
-		    Surface& surf) = 0;
+		      Surface& surf); // virtual only for Box and ListBox
+  virtual void Draw(const Point2i &mousePosition,
+		    Surface& surf) const = 0;
   virtual void ForceRedraw(); // set need_redrawing to true; -- virtual for widget_list
 
   virtual void SendKey(SDL_keysym key);
-  virtual Widget* Clic(const Point2i &mousePosition, uint button);
+  virtual Widget* Click(const Point2i &mousePosition, uint button);
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
   void SetContainer(Container * _ct);
 
   virtual void SetSizePosition(const Rectanglei &rect) = 0;
-  void SetXY(int _x, int _y){ 
-	  SetSizePosition( Rectanglei(Point2i(_x, _y), size) ); 
-  };  
+  void SetXY(int _x, int _y){
+	  SetSizePosition( Rectanglei(Point2i(_x, _y), size) );
+  };
 };
 
 #endif

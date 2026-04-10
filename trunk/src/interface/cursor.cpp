@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,15 +21,15 @@
 
 #include "cursor.h"
 #include <SDL.h>
-#include "../game/game_loop.h"
-#include "../game/time.h"
-#include "../graphic/effects.h"
-#include "../include/app.h"
-#include "../map/camera.h"
-#include "../object/physical_obj.h"
-#include "../team/teams_list.h" // ActiveCharacter()
-#include "../tool/point.h"
-#include "../tool/resource_manager.h"
+#include "game/game_loop.h"
+#include "game/time.h"
+#include "graphic/effects.h"
+#include "include/app.h"
+#include "map/camera.h"
+#include "object/physical_obj.h"
+#include "team/teams_list.h" // ActiveCharacter()
+#include "tool/point.h"
+#include "tool/resource_manager.h"
 
 const uint show_hide_time = 200; //time to show and hide the arrow
 const uint y_min = 20; //number of pixels between the bottom of the arrow and the top of the sprite
@@ -53,7 +53,7 @@ CharacterCursor::CharacterCursor()
   time_begin_anim = 0;
   last_update = 0;
   image = NULL;
-  dy = 0;  
+  dy = 0;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   image = resource_manager.LoadSprite( res, "gfx/curseur");
@@ -65,18 +65,18 @@ CharacterCursor::~CharacterCursor()
   if(image) delete image;
 }
 
-// Dessine le curseur
+// Draw cursor
 void CharacterCursor::Draw()
 {
   if (!IsDisplayed()) return;
   if (obj_designe == NULL) return;
   if (obj_designe -> IsGhost()) return;
 
-  // Dessine le curseur autour du ver
+  // Draw cursor arround character
   Point2i centre = obj_designe->GetCenter();
   uint x = centre.x - image->GetWidth()/2;
   uint y = obj_designe->GetY() - image->GetHeight() - y_min;
-  
+
   image->Draw( Point2i(x, y+dy) );
 }
 

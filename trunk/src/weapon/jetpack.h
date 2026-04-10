@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,15 +32,24 @@ class JetPack : public Weapon
 
     int channel;
 
-  // Jetpack fuel.
+    // Jetpack fuel.
     uint m_last_fuel_down;
 
   public:
     JetPack();
     void Reset();
-    void HandleKeyEvent(int key, int event_type) ;
     void SignalTurnEnd();
     void ActionStopUse();
+    
+    virtual void HandleKeyPressed_Up();
+    virtual void HandleKeyReleased_Up();
+    virtual void HandleKeyPressed_MoveLeft();
+    virtual void HandleKeyReleased_MoveLeft();
+    virtual void HandleKeyPressed_MoveRight();
+    virtual void HandleKeyReleased_MoveRight();
+    virtual void HandleKeyPressed_Shoot();
+    
+    DECLARE_GETWEAPONSTRING();
 
   protected:
     void Refresh();

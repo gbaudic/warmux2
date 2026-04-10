@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,21 +22,23 @@
 #ifndef CREDITS_MENU_H
 #define CREDITS_MENU_H
 
-#include "../include/base.h"
-#include "../graphic/font.h"
-#include "../gui/list_box.h"
-#include "../menu/menu.h"
+#include "include/base.h"
+#include "graphic/font.h"
+#include "gui/list_box.h"
+#include "menu/menu.h"
 
 class CreditsMenu : public Menu
 {
  private:
   void PrepareAuthorsList(ListBox *lbox_authors);
   
-  void __sig_ok();
-  void __sig_cancel();   
+  bool signal_ok();
+  bool signal_cancel();   
 
   void Draw(const Point2i &mousePosition);   
-  void OnClic(const Point2i &mousePosition, int button);
+
+  void OnClick(const Point2i &mousePosition, int button);
+  void OnClickUp(const Point2i &mousePosition, int button);
  public:
   CreditsMenu(); 
   ~CreditsMenu();

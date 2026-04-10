@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,11 +21,11 @@
 
 #ifndef PARTICLE_H
 #define PARTICLE_H
-#include "../object/physical_obj.h"
-#include "../graphic/sprite.h"
-#include "../graphic/surface.h"
-#include "../include/base.h"
-#include "../weapon/weapon_cfg.h"
+#include "object/physical_obj.h"
+#include "graphic/sprite.h"
+#include "graphic/surface.h"
+#include "include/base.h"
+#include "weapon/weapon_cfg.h"
 
 typedef enum {
   particle_DARK_SMOKE,
@@ -59,6 +59,11 @@ const int particle_spr_nbr = POLECAT_FART_spr + 1;
 
 class Particle : public PhysicalObj
 {
+  /* If you need this, implement it (correctly)*/
+  Particle(const Particle&);
+  const Particle& operator=(const Particle&);
+  /*********************************************/
+
  protected:
   bool on_top; // if true displayed on top of characters and weapons
   uint m_initial_time_to_live;
@@ -86,6 +91,7 @@ class ParticleEngine
   uint m_last_refresh;
   uint m_time_between_add;
 
+  static bool sprites_loaded;
   static Sprite* particle_sprite[particle_spr_nbr];
   static std::list<Particle *> lst_particles;
 
@@ -99,7 +105,7 @@ class ParticleEngine
 		   bool upper,
 		   double angle=-1, double norme=-1);
 
-  static void Init();
+  static void Load();
   static void FreeMem();
   static Sprite* GetSprite(particle_spr type);
 

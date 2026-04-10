@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,11 +27,11 @@ class LowGrav : public Weapon
 {
   public:
     LowGrav();
-    void Reset();
-    void HandleKeyEvent(int action, int event_type);
     void SignalTurnEnd();
     void Draw();
     void ActionStopUse();
+    void HandleKeyPressed_Shoot();
+    DECLARE_GETWEAPONSTRING();
   protected:
     void Refresh();
     void p_Deselect();

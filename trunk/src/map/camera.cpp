@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,34 +16,39 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Caméra : gêre la position à l'intérieur du terrain. On peut "suivre" un
- * objet et se centrer sur un objet. Lors d'un déplacement manuel (au clavier
- * ou à la souris), le mode "suiveur" est désactivé.
+ * Camera : follow an object, center on it or follow mouse interaction.
  *****************************************************************************/
 
 #include "camera.h"
 #include "map.h"
 #include "maps_list.h"
 #include "wind.h"
-#include "../include/app.h"
-#include "../interface/mouse.h"
-#include "../team/teams_list.h"
-#include "../tool/debug.h"
-#include "../tool/rectangle.h"
-#include "../tool/math_tools.h"
+#include "include/app.h"
+#include "interface/mouse.h"
+#include "team/teams_list.h"
+#include "tool/debug.h"
+#include "tool/rectangle.h"
+#include "tool/math_tools.h"
+#include "game/game.h"
 
-// Marge de cadrage
-const int MARGE = 200;
-const double VITESSE_CAMERA = 20;
-const Point2i marge(200, 200);
-const Point2i vitesseCamera(20, 20);
+const Point2i CAMERA_MARGIN(200, 200);
+const Point2i CAMERA_SPEED(20, 20);
 
 Camera camera;
 
-Camera::Camera(){
-  lance = false;
-  autorecadre = true;
-  obj_suivi = NULL;
+Camera::Camera():
+  auto_crop(true),
+  followed_object(NULL),
+  throw_camera(false),
+  follow_closely(false)
+{}
+
+void Camera::Reset()
+{
+  auto_crop = true;
+  followed_object = NULL;
+  throw_camera = false;
+  follow_closely = false;
 }
 
 bool Camera::HasFixedX() const{
@@ -55,12 +60,12 @@ bool Camera::HasFixedY() const{
 }
 
 Point2i Camera::FreeDegrees() const{
-	return Point2i( HasFixedX()? 0:1,
-			HasFixedY()? 0:1 );
+  return Point2i(HasFixedX()? 0 : 1,
+                 HasFixedY()? 0 : 1);
 }
 
 Point2i Camera::NonFreeDegrees() const{
-	return Point2i(1, 1) - FreeDegrees();
+  return Point2i(1, 1) - FreeDegrees();
 }
 
 void Camera::SetXYabs(int x, int y){
@@ -76,26 +81,26 @@ void Camera::SetXYabs(int x, int y){
   else
     position.y = - (app->video.window.GetHeight() - world.GetHeight())/2;
 
-  lance = true;
+  throw_camera = true;
 }
 
 void Camera::SetXYabs(const Point2i &pos){
-	SetXYabs(pos.x, pos.y);
+  SetXYabs(pos.x, pos.y);
 }
 
 void Camera::SetXY(Point2i pos){
-	pos = pos * FreeDegrees();
-	if( pos.IsNull() )
-		return;
+  pos = pos * FreeDegrees();
+  if( pos.IsNull() )
+    return;
 
-	SetXYabs(position + pos);
+  SetXYabs(position + pos);
 }
 
 void Camera::CenterOnFollowedObject(){
-  CenterOn(*obj_suivi);
+  CenterOn(*followed_object);
 }
 
-// Centrage immédiat sur un objet
+// Center on a object
 void Camera::CenterOn(const PhysicalObj &obj){
   if (obj.IsGhost())
     return;
@@ -110,70 +115,85 @@ void Camera::CenterOn(const PhysicalObj &obj){
   SetXYabs( pos );
 }
 
-void Camera::AutoRecadre(){
-  if( !obj_suivi || obj_suivi -> IsGhost() )
+void Camera::AutoCrop(){
+  if( !followed_object || followed_object->IsGhost() )
     return;
 
-  if( !IsVisible(*obj_suivi) )
+  if( !IsVisible(*followed_object) )
   {
     MSG_DEBUG("camera.scroll", "The object is not visible.");
     CenterOnFollowedObject();
     return;
   }
 
-  Point2i pos = obj_suivi->GetPosition();
-  Point2i size = obj_suivi->GetSize();
+  if(follow_closely)
+  {
+    CenterOn(*followed_object);
+    return;
+  }
+  Point2i pos = followed_object->GetPosition();
+  Point2i size = followed_object->GetSize();
 
   if( pos.y < 0 )
     pos.y = 0;
 
-  Point2i dstMax = GetSize()/2 - marge;
+  Point2i dstMax = GetSize()/2 - CAMERA_MARGIN;
   Point2i cameraBR = GetSize() + position;
-  Point2i objectBRmargin = pos + size + marge;
+  Point2i objectBRmargin = pos + size + CAMERA_MARGIN;
   Point2i dst(0, 0);
 
   dst += cameraBR.inf(objectBRmargin) * (objectBRmargin - cameraBR);
-  dst += (pos - marge).inf(position) * (pos - marge - position);
+  dst += (pos - CAMERA_MARGIN).inf(position) * (pos - CAMERA_MARGIN - position);
 
-  SetXY( dst * vitesseCamera / dstMax );
+  SetXY( dst * CAMERA_SPEED / dstMax );
+}
+
+void Camera::SetAutoCrop(bool crop)
+{
+  auto_crop = crop;
+}
+
+bool Camera::IsAutoCrop() const
+{
+  return auto_crop;
+}
+
+void Camera::SetCloseFollowing(bool close)
+{
+  follow_closely = close;
 }
 
 void Camera::Refresh(){
-  lance = false;
+  throw_camera = false;
 
-  // Camera à la souris
+  // mouse mouvement
   Mouse::GetInstance()->TestCamera();
-  if (lance) return;
+  if (throw_camera) return;
 
-#ifdef TODO_KEYBOARD // ???
-  // Camera au clavier
-  clavier.TestCamera();
-  if (lance)
-    return;
-#endif
-
-  if (autorecadre)
-    AutoRecadre();
+  if (auto_crop)
+    AutoCrop();
 }
 
-void Camera::ChangeObjSuivi (PhysicalObj *obj, bool suit, bool recentre,
-			     bool force_recentrage){
-  MSG_DEBUG( "camera.tracking", "Following object %s, recentre=%d, suit=%d", obj->GetName().c_str(), recentre, suit);
-  if (recentre)
-  if ((obj_suivi != obj) || !IsVisible(*obj) || force_recentrage)
+void Camera::FollowObject(PhysicalObj *obj, bool follow, bool center_on, bool force_center_on_object){
+  MSG_DEBUG( "camera.tracking", "Following object %s, center_on=%d, follow=%d", obj->GetName().c_str(), center_on, follow);
+  if ((center_on) && (followed_object != obj ||
+                      !IsVisible(*obj) || force_center_on_object))
   {
     bool visible = IsVisible(*obj);
     CenterOn(*obj);
-    autorecadre = suit;
+    auto_crop = follow;
     if(!visible)
       wind.RandomizeParticlesPos();
   }
-  obj_suivi = obj;
+  followed_object = obj;
 }
 
-void Camera::StopFollowingObj (PhysicalObj* obj){
-  if( obj_suivi == obj )
-    ChangeObjSuivi((PhysicalObj*)&ActiveCharacter(), true, true, true);
+void Camera::StopFollowingObj(PhysicalObj* obj){
+  if(Game::GetInstance()->IsGameFinished())
+    return;
+
+  if (followed_object == obj)
+    FollowObject((PhysicalObj*)&ActiveCharacter(), true, true, true);
 }
 
 bool Camera::IsVisible(const PhysicalObj &obj){

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 #define LOADING_SCREEN_H
 
 #include <string>
-#include "../graphic/sprite.h"
-#include "../tool/resource_manager.h"
+#include "graphic/sprite.h"
+#include "tool/resource_manager.h"
 
 class LoadingScreen
 {

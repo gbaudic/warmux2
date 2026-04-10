@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,18 +20,18 @@
  * if we hit a character.
  *****************************************************************************/
 
-#include "../weapon/gun.h"
+#include "weapon/gun.h"
 #include <sstream>
-#include "../map/map.h"
-#include "../game/time.h"
-#include "../object/objects_list.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-#include "../interface/game_msg.h"
-#include "../interface/game_msg.h"
-#include "../weapon/gun.h"
-#include "../tool/math_tools.h"
-#include "../weapon/explosion.h"
+#include "map/map.h"
+#include "game/time.h"
+#include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "interface/game_msg.h"
+#include "interface/game_msg.h"
+#include "weapon/gun.h"
+#include "tool/math_tools.h"
+#include "weapon/explosion.h"
 
 const uint GUN_BULLET_SPEED = 20;
 
@@ -51,6 +51,7 @@ void GunBullet::ShootSound()
 Gun::Gun() : WeaponLauncher(WEAPON_GUN, "gun", new ExplosiveWeaponConfig())
 {
   m_name = _("Gun");
+  m_category = RIFLE;
   m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
   ReloadLauncher();
@@ -65,12 +66,20 @@ WeaponProjectile * Gun::GetProjectileInstance()
 bool Gun::p_Shoot()
 {
   if (m_is_active)
-    return false;  
+    return false;
 
   m_is_active = true;
   projectile->Shoot (GUN_BULLET_SPEED);
   projectile = NULL;
   ReloadLauncher();
   return true;
+}
+
+std::string Gun::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u gun!",
+            "%s team has won %u guns!",
+            items_count), TeamName, items_count);
 }
 

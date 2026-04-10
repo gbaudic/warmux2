@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,97 +16,80 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Interface affichant différentes informations sur la jeu.
+ * Interface showing various informations about the game.
  *****************************************************************************/
 
 #ifndef WEAPON_MENU_H
 #define WEAPON_MENU_H
 
-#include "../graphic/sprite.h"
-#include "../include/base.h"
-#include "../character/character.h"
-#include "../team/team.h"
-#include "../weapon/weapon.h"
+#include "include/base.h"
+#include "character/character.h"
+#include "team/team.h"
+#include "weapon/weapon.h"
+#include "graphic/sprite.h"
+#include "graphic/polygon.h"
 #include <vector>
+#include <sstream>
 
-class WeaponMenuItem
-{
-public:
-  Point2i position;
-  double scale;
+class WeaponMenuItem : public PolygonItem {
+  WeaponMenuItem(const WeaponMenuItem&);
+  const WeaponMenuItem& operator=(const WeaponMenuItem&);
+  bool zoom;
+
+ public:
   Weapon* weapon;
-  Sprite *weapon_icon;
-  uint zoom_start_time;
-  uint weapon_type;
+  int zoom_start_time;
 
-private:
-  bool zoom, dezoom;
-
-public:
-  WeaponMenuItem(uint num_sort);
-  void Reset();
-
-  void Draw();
-  void ChangeZoom();
-
-  bool MouseOn(const Point2i &mousePos);
-
-private:
-  void ComputeScale();
+ public:
+  WeaponMenuItem(Weapon * weapon, const Point2d & position);
+  ~WeaponMenuItem();
+  bool IsMouseOver();
+  void SetZoom(bool value);
+  void Draw(Surface * dest);
+  Weapon * GetWeapon() const;
 };
 
 class WeaponsMenu
 {
-public:
-  Sprite *my_button1;
-  Sprite *my_button2;
-  Sprite *my_button3;
-  Sprite *my_button4;
-  Sprite *my_button5;
+ public:
+  static const int MAX_NUMBER_OF_WEAPON;
 
-private:
-  std::vector<WeaponMenuItem> boutons;
-  typedef std::vector<WeaponMenuItem>::iterator iterator;
-  typedef std::vector<WeaponMenuItem>::const_iterator const_iterator;
-
-  bool display;
-  bool show; // True during the motion to show the weapon menu.
-  bool hide; // True during the motion to hide the weapon menu.
-
+ private:
+  Polygon * weapons_menu;
+  Polygon * tools_menu;
+  Polygon * help;
+  WeaponMenuItem * current_overfly_item;
+  AffineTransform2D position;
+  AffineTransform2D shear;
+  AffineTransform2D rotation;
+  AffineTransform2D zoom;
+  Sprite * infinite;
+  Sprite * cross;
+  bool show;
   uint motion_start_time;
+  uint select_start_time;
 
-  uint nbr_weapon_type; //nombre de type d'arme = nbr de colonnes
-  uint max_weapon;  //nombre max d'arme dans les differents type = nbr de lignes
+  int nbr_weapon_type; // number of weapon type = number of rows
+  int * nb_weapon_type;
 
-public:
+ public:
   WeaponsMenu();
-
-  // Renvoie true si un bouton a été cliqué
-  bool ActionClic(const Point2i &mousePos);
-
+  ~WeaponsMenu();
+  void RefreshWeaponList();
+  void AddWeapon(Weapon* new_item);
   void Draw();
-  void Reset();
-
-  int GetX() const;
-  int GetY() const;
-  Point2i GetPosition() const;
-  int GetWidth() const;
-  int GetHeight() const;
-  Point2i GetSize() const;
-  bool IsDisplayed() const;
-
-  void NewItem(Weapon* new_item, uint num_sort);
   void SwitchDisplay();
-  void Hide();
-
-  void MouseOver(const Point2i &mousePos);
-
-private:
-  void ComputeSize();
+  AffineTransform2D ComputeWeaponTransformation();
+  AffineTransform2D ComputeToolTransformation();
   void Show();
-  void DrawBouton(iterator bouton);
-  void ShowMotion(int nr_bottons, int button_no, iterator it, int column);
-  bool HideMotion(int nr_buttons, int button_no, iterator it, int column);
+  void Hide();
+  void Reset();
+  void SetHelp(std::ostringstream msg);
+  bool IsDisplayed() const;
+  bool ActionClic(const Point2i &mouse_pos);
+  Sprite * GetInfiniteSymbol() const;
+  Sprite * GetCrossSymbol() const;
+  Weapon * UpdateCurrentOverflyItem(Polygon * poly);
 };
 
 #endif

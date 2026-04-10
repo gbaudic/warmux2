@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,9 +21,9 @@
 
 #ifndef AIR_ATTACK_H
 #define AIR_ATTACK_H
-#include "../graphic/surface.h"
-#include "../graphic/sprite.h"
-#include "../include/base.h"
+#include "graphic/surface.h"
+#include "graphic/sprite.h"
+#include "include/base.h"
 #include "launcher.h"
 
 class AirAttack;
@@ -54,6 +54,7 @@ class Plane : public PhysicalObj
     Sprite *image;
 
     int cible_x;
+    int distance_to_release;
     AirAttackConfig &cfg;
 
     bool OnTopOfTarget() const;
@@ -75,10 +76,13 @@ class AirAttack : public Weapon
     //Plane plane;
   protected:
     bool p_Shoot();
+    void p_Select();
+    void p_Deselect();
     void Refresh();
   public:
     AirAttack();
     virtual void ChooseTarget (Point2i mouse_pos);
+    DECLARE_GETWEAPONSTRING();
 
   private:
     AirAttackConfig& cfg();

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,56 +27,91 @@
 #include <SDL.h>
 #include "widget.h"
 #include "button.h"
-#include "../include/base.h"
+#include "label.h"
+#include "include/base.h"
 
-typedef struct s_list_box_item_t{
-    std::string label;
-    std::string value;
-    bool enabled;
-} list_box_item_t;
+class ListBoxItem : public Label
+{
+private:
+  std::string value;
+
+public:
+  ListBoxItem(const std::string& _label,
+	      Font::font_size_t font_size,
+	      Font::font_style_t font_style,
+	      const std::string& value,
+	      const Color& color = white_color);
+
+  const std::string& GetLabel() const;
+  const std::string& GetValue() const;
+};
 
 class ListBox : public Widget
 {
+  /* If you need this, implement it (correctly)*/
+  ListBox(const ListBox&);
+  ListBox operator=(const ListBox&);
+  /*********************************************/
+
 private:
   bool always_one_selected;
 
-protected:
-  // for the placement
-  uint nb_visible_items, nb_visible_items_max;
-  uint height_item;
+  bool scrolling;
+  Rectanglei ScrollBarPos() const;
 
+protected:
   // what are the items ?
   uint first_visible_item;
   int selected_item;
-  std::vector<list_box_item_t> m_items;
+  std::vector<ListBoxItem*> m_items;
 
   // Buttons
   Button *m_up, *m_down;
 
+  // Colors
+  Color border_color;
+  Color background_color;
+  Color selected_item_color;
+  Color default_item_color;
+
 public:
+  void SetBorderColor(const Color & border);
+  void SetBackgroundColor(const Color & background);
+  void SetSelectedItemColor(const Color & selected_item);
+  void SetDefaultItemColor(const Color & default_item);
+
   ListBox (const Rectanglei &rect, bool always_one_selected_b = true);
   ~ListBox();
 
-  void Draw(const Point2i &mousePosition, Surface& surf);
-  Widget* Clic(const Point2i &mousePosition, uint button);
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  void Update(const Point2i &mousePosition,
+	      const Point2i &lastMousePosition,
+	      Surface& surf);
+
+  Widget* Click(const Point2i &mousePosition, uint button);
+  Widget* ClickUp(const Point2i &mousePosition, uint button);
   void SetSizePosition(const Rectanglei &rect);
 
   void AddItem(bool selected, const std::string &label,
-		const std::string &value, bool enabled = true);
+	       const std::string &value,
+	       Font::font_size_t fsize = Font::FONT_SMALL,
+	       Font::font_style_t fstyle = Font::FONT_NORMAL,
+	       const Color& color = white_color);
   void Sort();
 
-  int MouseIsOnWhichItem(const Point2i &mousePosition);
+  int MouseIsOnWhichItem(const Point2i &mousePosition) const;
 
   void Select(uint index);
   void Select(const std::string& val);
-  int GetSelectedItem();
+  int GetSelectedItem() const;
   void Deselect();
   void RemoveSelected();
   const std::string& ReadLabel() const;
   const std::string& ReadValue() const;
+  const int ReadIntValue() const;
   const std::string& ReadValue(int index) const;
 
-  std::vector<list_box_item_t> *GetItemsList();
+  uint Size() const;
 };
 
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,21 +23,20 @@
 #define MOVE_H
 
 #include "character.h"
-#include "../object/physical_obj.h"
+#include "object/physical_obj.h"
 
-// Pause entre deux deplacement
-#define PAUSE_BOUGE 30 // ms
+// Pause between two movements
+const uint PAUSE_MOVEMENT=30; // ms
 
-// Calcule la hauteur a chuter ou grimper lors d'un déplacement horizontal
-// Renvoie si le mouvement est possible
-bool CalculeHauteurBouge (Character &character, int &hauteur);
+// Compute the height to fall or to walk on when moving horizontally
+// Return a boolean which says if movement is possible
+bool ComputeHeightMovement (Character &character, int &height,
+			    bool falling);
 
 void MoveCharacter (Character &character);
 
-// Move a character to the left/right
-void MoveCharacterRight (Character &character);
-void MoveCharacterLeft (Character &character);
-
-void SendCharacterPosition();
+// Move the active character to the left/right
+void MoveActiveCharacterRight();
+void MoveActiveCharacterLeft();
 
 #endif

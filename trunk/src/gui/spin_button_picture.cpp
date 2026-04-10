@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,10 +20,10 @@
 #include "spin_button_picture.h"
 #include <sstream>
 #include <iostream>
-#include "../include/app.h"
-#include "../tool/math_tools.h"
-#include "../tool/resource_manager.h"
-#include "../graphic/font.h"
+#include "include/app.h"
+#include "tool/math_tools.h"
+#include "tool/resource_manager.h"
+#include "graphic/font.h"
 
 SpinButtonWithPicture::SpinButtonWithPicture (const std::string &label, const std::string &resource_id,
 					      const Rectanglei &rect,
@@ -36,7 +36,8 @@ SpinButtonWithPicture::SpinButtonWithPicture (const std::string &label, const st
   m_image = resource_manager.LoadImage(res, resource_id);
   resource_manager.UnLoadXMLProfile( res); 
 
-  txt_label = new Text(label, gray_color, Font::GetInstance(Font::FONT_NORMAL));
+  txt_label = new Text(label, dark_gray_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
+  txt_label->SetMaxWidth(GetSizeX());
 
   if ( min_value != -1 && min_value <= value)
     m_min_value = min_value;
@@ -46,7 +47,7 @@ SpinButtonWithPicture::SpinButtonWithPicture (const std::string &label, const st
     m_max_value = max_value;
   else m_max_value = value*2;
 
-  txt_value = new Text("", gray_color, Font::GetInstance(Font::FONT_LARGE));
+  txt_value = new Text("", dark_gray_color, Font::FONT_LARGE, Font::FONT_NORMAL, false);
   SetValue(value);
 
   m_step = step;
@@ -61,18 +62,16 @@ SpinButtonWithPicture::~SpinButtonWithPicture ()
 void SpinButtonWithPicture::SetSizePosition(const Rectanglei &rect)
 {
   StdSetSizePosition(rect);
+  txt_label->SetMaxWidth(GetSizeX());
 }
 
-void SpinButtonWithPicture::Draw(const Point2i &mousePosition, Surface& surf)
+void SpinButtonWithPicture::Draw(const Point2i &mousePosition, Surface& surf) const
 {
   // center the image on the first half
   uint tmp_x = GetPositionX() + (GetSizeX() - m_image.GetWidth())/4 ;
   uint tmp_y = GetPositionY() + (GetSizeY() - m_image.GetHeight() - txt_label->GetHeight() - 5) /2;
 
   AppWormux::GetInstance()->video.window.Blit(m_image, Point2i(tmp_x, tmp_y));
-
-  txt_label->DrawTopLeft( GetPositionX(), GetPositionY() + GetSizeY() - txt_label->GetHeight() );
-  
 
   tmp_x = GetPositionX() + (3*GetSizeX()/4);
   tmp_y = GetPositionY() + (GetSizeY()/2) - txt_label->GetHeight()/2;
@@ -81,10 +80,11 @@ void SpinButtonWithPicture::Draw(const Point2i &mousePosition, Surface& surf)
 
   txt_value->DrawCenterTop(tmp_x, tmp_y - value_h/2);
 
-  txt_label->DrawTopLeft( GetPositionX(), GetPositionY() + GetSizeY() - txt_label->GetHeight() );
+  txt_label->DrawCenterTop( GetPositionX() + GetSizeX()/2, 
+			    GetPositionY() + GetSizeY() - txt_label->GetHeight() );
 }
 
-Widget* SpinButtonWithPicture::Clic(const Point2i &mousePosition, uint button)
+Widget* SpinButtonWithPicture::ClickUp(const Point2i &mousePosition, uint button)
 {
   need_redrawing = true;
 
@@ -92,6 +92,12 @@ Widget* SpinButtonWithPicture::Clic(const Point2i &mousePosition, uint button)
     
     m_value += m_step;
     if (m_value > m_max_value) SetValue(m_min_value);
+    else SetValue(m_value);
+
+  } else if (button == SDL_BUTTON_RIGHT && Contains(mousePosition)) {  
+    
+    m_value -= m_step;
+    if (m_value < m_min_value) SetValue(m_max_value);
     else SetValue(m_value);
 
   } else if( button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition) ) {
@@ -104,6 +110,11 @@ Widget* SpinButtonWithPicture::Clic(const Point2i &mousePosition, uint button)
     SetValue(m_value + m_step);
     return this;
   }
+  return NULL;
+}
+
+Widget* SpinButtonWithPicture::Click(const Point2i &mousePosition, uint button)
+{
   return NULL;
 }
 

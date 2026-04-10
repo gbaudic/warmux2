@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,10 +25,10 @@
 #include <SDL.h>
 #include "grenade.h"
 #include "weapon.h"
-#include "../graphic/sprite.h"
-#include "../gui/progress_bar.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
+#include "graphic/sprite.h"
+#include "gui/progress_bar.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
 
 class PolecatFart : public WeaponProjectile
 {
@@ -51,6 +51,7 @@ class Polecat : public WeaponProjectile
       WeaponLauncher * p_launcher);
   void Shoot(double strength);
   void Refresh();
+  DECLARE_GETWEAPONSTRING();
 };
 
 class PolecatLauncher : public WeaponLauncher

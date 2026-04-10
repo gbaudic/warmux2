@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,32 +22,45 @@
 #ifndef BODY_H
 #define BODY_H
 #include <map>
-//#include "character.h"
 #include "body_list.h"
 #include "clothe.h"
 #include "member.h"
 #include "movement.h"
-#include "../tool/resource_manager.h"
-#include "../tool/point.h"
-#include "../tool/xml_document.h"
-
+#include "tool/resource_manager.h"
+#include "tool/point.h"
+#include "tool/xml_document.h"
 class Character;
 class BodyList;
 class Member;
 class Clothe;
 
+/*
+ * FIXME: this class is either very useless either very badly used.
+ * It would be nice to keep members in private section. There is no
+ * copy constructor, this is really suspect.... */
 class c_junction
 {
 public:
   Member* member;
   Member* parent;
-  c_junction() { member = NULL; parent = NULL; } ;
+  c_junction(): member(NULL), parent(NULL) {};
 };
 
 typedef class c_junction junction;
 
 class Body
 {
+  /* If you need this, implement it (correctly) */
+  const Body& operator=(const Body&);
+  /**********************************************/
+
+public:
+  typedef enum
+  {
+    DIRECTION_LEFT = -1,
+    DIRECTION_RIGHT = 1
+  } Direction_t;
+private:
   friend class BodyList;
   std::map<std::string, Member*> members_lst;
   std::map<std::string, Clothe*> clothes_lst;
@@ -69,13 +82,13 @@ class Body
   uint current_frame;
   int walk_events;
 
-  int main_rotation;
+  double main_rotation_rad;
 
   std::vector<junction> squel_lst; // Squeleton of the body:
                                         // Order to use to build the body
                                         // First element: member to build
                                         // Secnd element: parent member
-  int direction;
+  Body::Direction_t direction;
 
   int animation_number;
   bool need_rebuild;
@@ -86,12 +99,12 @@ class Body
 
   void BuildSqueleton();
   void AddChildMembers(Member* parent);
+  const Character* owner;
 
 public:
-  Character* owner;
 
   Body(xmlpp::Element *xml, Profile* res);
-  Body(Body *_body);
+  Body(const Body&);
   ~Body();
 
   Point2i GetSize() {return Point2i(30,45);};
@@ -101,16 +114,18 @@ public:
   void SetMovement(std::string name);
   void SetClotheOnce(std::string name); //use this only during one movement
   void SetMovementOnce(std::string name); //play the movement only once
-  void SetRotation(int angle);
+  void SetRotation(double angle);
   void SetFrame(uint no);
-  void SetDirection(int dir);
+  void SetDirection(Body::Direction_t dir);
+  inline void SetOwner(const Character* belonger) { owner = belonger; };
   void PlayAnimation();
   void Build();
+  void UpdateWeaponPosition(const Point2i& pos);
 
   const std::string& GetMovement();
   const std::string& GetClothe();
   void GetTestRect(uint &l, uint &r, uint &t, uint &b);
-  const int GetDirection();
+  const Direction_t &GetDirection() const;
   const Point2i &GetHandPosition() const;
   uint GetMovementDuration();
   uint GetFrame() { return current_frame; };
@@ -123,6 +138,7 @@ public:
 
   void MakeParticles(const Point2i& pos);
   void MakeTeleportParticles(const Point2i& pos, const Point2i& dst);
+  void DebugState();
 };
 
 #endif //BODY_H

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,28 +21,27 @@
 
 #include "construct.h"
 #include "explosion.h"
-#include "../game/game_loop.h"
-#include "../game/game_mode.h"
-#include "../include/action_handler.h"
-#include "../interface/mouse.h"
-#include "../map/camera.h"
-#include "../map/map.h"
-#include "../network/network.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
+#include "game/game_loop.h"
+#include "game/game_mode.h"
+#include "include/action_handler.h"
+#include "interface/mouse.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
 
-const int angle_step = 30; // should be a multiple of 360
+const double DELTA_ANGLE = M_PI / 6.0; // should be a multiple
 
 
 Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
-					new WeaponConfig(),
-					NEVER_VISIBLE)
+				new WeaponConfig(),
+				NEVER_VISIBLE)
 {
   construct_spr = resource_manager.LoadSprite( weapons_res_profile, "construct_spr");
-  construct_spr->EnableRotationCache(360 / angle_step);
+  construct_spr->EnableRotationCache(static_cast<int>(2 * M_PI / DELTA_ANGLE));
   m_name = _("Construct");
+  m_category = TOOL;
   angle = 0;
-  force_override_keys = true;
   target_chosen = false;
 }
 
@@ -54,10 +53,9 @@ Construct::~Construct()
 bool Construct::p_Shoot ()
 {
   if(!target_chosen)
-	return false;
+    return false;
   jukebox.Play("share", "weapon/construct");
   world.MergeSprite(dst - construct_spr->GetSizeMax()/2, construct_spr);
-  GameLoop::GetInstance()->interaction_enabled = false;
   return true;
 }
 
@@ -72,7 +70,7 @@ void Construct::Draw()
     Weapon::Draw();
 
     dst = Mouse::GetInstance()->GetWorldPosition();
-    construct_spr->SetRotation_deg(angle);
+    construct_spr->SetRotation_rad(angle);
     construct_spr->Draw(dst - construct_spr->GetSize()/2);
   }
 }
@@ -84,49 +82,55 @@ void Construct::ChooseTarget(Point2i mouse_pos)
   Shoot();
 }
 
-void Construct::HandleKeyEvent(int action, int event_type)
-{
-  switch (action) {
-    case ACTION_UP:
-      if (event_type == KEY_PRESSED)
-        Up();
-      break ;
-    case ACTION_DOWN:
-      if (event_type == KEY_PRESSED)
-        Down();
-      break ;
-    default:
-      ActiveCharacter().HandleKeyEvent( action, event_type);
-      break ;
-  }
-}
-
-void Construct::ActionUp()
+void Construct::HandleKeyPressed_Up()
 {
   Up();
 }
 
-void Construct::ActionDown()
+void Construct::HandleKeyPressed_Down()
+{
+  Down();
+}
+
+void Construct::HandleMouseWheelUp()
+{
+  Up();
+}
+
+void Construct::HandleMouseWheelDown()
 {
   Down();
 }
 
 void Construct::Up()
 {
-  Action a(ACTION_CONSTRUCTION_UP);
-  if(ActiveTeam().is_local)
-    network.SendAction(&a);
-  angle += angle_step;
+  double new_angle = angle + DELTA_ANGLE;
+
+  Action* a = new Action(Action::ACTION_WEAPON_CONSTRUCTION, new_angle);
+  ActionHandler::GetInstance()->NewAction(a);
 }
 
 void Construct::Down()
 {
-  Action a(ACTION_CONSTRUCTION_DOWN);
-  if(ActiveTeam().is_local)
-    network.SendAction(&a);
-  angle -= angle_step;
+  double new_angle = angle - DELTA_ANGLE;
+
+  Action* a = new Action(Action::ACTION_WEAPON_CONSTRUCTION, new_angle);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
+void Construct::SetAngle(double _angle)
+{
+  angle = _angle;
 }
 
 WeaponConfig& Construct::cfg()
 { return static_cast<WeaponConfig&>(*extra_params); }
+
+std::string Construct::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u construct!",
+            "%s team has won %u constructs!",
+            items_count), TeamName, items_count);
+}
 

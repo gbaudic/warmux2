@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,15 +16,16 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Affiche un message dans le jeu, puis pose une question dans le jeu ou
- * attend au moins la pression d'une touche.
+ * Display a message on the game screen, and asks a question in the game or wait
+ * at least for the player to press a key.
  *****************************************************************************/
 
 #ifndef QUESTION_H
 #define QUESTION_H
 //-----------------------------------------------------------------------------
-#include "../include/base.h"
-#include "../graphic/sprite.h"
+#include "include/base.h"
+#include "graphic/sprite.h"
+#include "graphic/text.h"
 #include <string>
 #include <list>
 #include <SDL_events.h>
@@ -33,6 +34,11 @@
 
 class Question
 {
+  /* If you need this, implement it (correctly)*/
+  Question(const Question&);
+  Question operator=(const Question&);
+  /*********************************************/
+
   Sprite* background;
 
   // A choice = a key return a value
@@ -42,8 +48,8 @@ class Question
       int m_key;
       int m_val;
     public:
-      choice_t (int key, int value)
-      { m_key = key; m_val = value; };
+      choice_t (int key, int value):
+        m_key(key), m_val(value) { };
       inline const int & key() const { return m_key; };
       inline const int & val() const { return m_val; };
   };
@@ -59,9 +65,9 @@ class Question
   } default_choice;
 
   int TreatsKey (SDL_Event &event);
-  void Draw();
+
   // Message to display
-  std::string message;
+  Text * text;
 
 public:
   Question();
@@ -72,6 +78,8 @@ public:
 	   int default_value,
       const std::string &bg_sprite="");
   int Ask();
+  void Draw() const;
+
   inline void add_choice(int key, int value)
   {
     return this->choices.push_back(choice_t(key,value));

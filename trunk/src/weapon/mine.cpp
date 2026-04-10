@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,19 +24,20 @@
 #include <iostream>
 #include <sstream>
 #include "explosion.h"
-#include "../game/config.h"
-#include "../game/time.h"
-#include "../graphic/sprite.h"
-#include "../include/app.h"
-#include "../include/constant.h"
-#include "../interface/game_msg.h"
-#include "../map/map.h"
-#include "../object/objects_list.h"
-#include "../team/macro.h"
-#include "../tool/debug.h"
-#include "../tool/i18n.h"
-#include "../network/randomsync.h"
-#include "../tool/resource_manager.h"
+#include "game/config.h"
+#include "game/time.h"
+#include "graphic/sprite.h"
+#include "include/app.h"
+#include "include/constant.h"
+#include "interface/game_msg.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "object/objects_list.h"
+#include "team/macro.h"
+#include "tool/debug.h"
+#include "tool/i18n.h"
+#include "network/randomsync.h"
+#include "tool/resource_manager.h"
 
 #ifdef __MINGW32__
 #undef LoadImage
@@ -48,7 +49,7 @@ ObjMine::ObjMine(MineConfig& cfg,
                  WeaponLauncher * p_launcher) :
   WeaponProjectile("mine", cfg, p_launcher)
 {
-  m_allow_negative_y = true; 
+  m_allow_negative_y = true;
   animation = false;
   channel = -1;
   is_active = true;
@@ -84,6 +85,9 @@ void ObjMine::StartTimeout()
   if (!animation)
   {
     animation=true;
+    
+    camera.CenterOn(*this);
+    
     MSG_DEBUG("mine", "EnableDetection - CurrentTime : %d",Time::GetInstance()->ReadSec() );
     attente = Time::GetInstance()->ReadSec() + cfg.timeout;
     MSG_DEBUG("mine", "EnableDetection : %d", attente);
@@ -105,20 +109,42 @@ void ObjMine::Detection()
 
   if (current_time < escape_time) return;
 
-  MSG_DEBUG("mine", "Escape_time is finished : %d", current_time);
+  //MSG_DEBUG("mine", "Escape_time is finished : %d", current_time);
 
-  FOR_ALL_LIVING_CHARACTERS(equipe, ver)
-  { 
-    if (MeterDistance (GetCenter(), ver->GetCenter()) < static_cast<MineConfig&>(cfg).detection_range
-        && !animation)
-    {
+  double detection_range = static_cast<MineConfig&>(cfg).detection_range;
+
+  FOR_ALL_LIVING_CHARACTERS(team, character) {
+    if (MeterDistance(GetCenter(), character->GetCenter()) < detection_range &&
+        !animation) {
       std::string txt = Format(_("%s is next to a mine!"),
-                                  ver -> GetName().c_str());
-      GameMessages::GetInstance()->Add (txt);
+                               character->GetName().c_str());
+      GameMessages::GetInstance()->Add(txt);
       StartTimeout();
       return;
     }
   }
+
+  double speed_detection = static_cast<MineConfig&>(cfg).speed_detection;
+  double norm, angle;
+  FOR_EACH_OBJECT(obj) {
+    if ((*obj) != this && !animation && GetName() != (*obj)->GetName() &&
+        MeterDistance(GetCenter(), (*obj)->GetCenter()) < detection_range) {
+
+      (*obj)->GetSpeed(norm, angle);
+      if (norm < speed_detection && norm > 0.0) {
+	MSG_DEBUG("mine", "norm: %d, speed_detection: %d", norm, speed_detection); 
+        StartTimeout();
+        return;
+      }
+    }
+  }
+}
+
+void ObjMine::AddDamage(uint damage_points)
+{
+  // Don't call Explosion here, we're already in an explosion
+  attente = 0;
+  animation=true;
 }
 
 void ObjMine::Refresh()
@@ -138,7 +164,7 @@ void ObjMine::Refresh()
   {
     Detection();
   }
-  else 
+  else
   {
     image->Update();
 
@@ -148,17 +174,22 @@ void ObjMine::Refresh()
       is_active = false;
       jukebox.Stop(channel);
       channel = -1;
-      if (!fake) Explosion();
-      else FakeExplosion();
-      if (launcher != NULL) launcher->SignalProjectileTimeout();
+      if (!fake) 
+	Explosion();
+      else 
+	FakeExplosion();
+
+      if (launcher != NULL) 
+	launcher->SignalProjectileTimeout();
     }
   }
 }
 
 bool ObjMine::IsImmobile() const
 {
-  if (is_active && animation) return false;
-  return WeaponProjectile::IsImmobile();
+  if (is_active && animation) 
+    return false;
+  return PhysicalObj::IsImmobile();
 }
 
 void ObjMine::Draw()
@@ -166,22 +197,12 @@ void ObjMine::Draw()
   image->Draw(GetPosition());
 }
 //-----------------------------------------------------------------------------
-
-MineConfig * MineConfig::singleton = NULL;
-
-MineConfig * MineConfig::GetInstance() 
-{
-  if (singleton == NULL) {
-    singleton = new MineConfig();
-  }
-  return singleton;
-}
-
 //-----------------------------------------------------------------------------
 
 Mine::Mine() : WeaponLauncher(WEAPON_MINE, "minelauncher", MineConfig::GetInstance(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Mine");
+  m_category = THROW;
   ReloadLauncher();
 }
 
@@ -213,6 +234,27 @@ void Mine::Add (int x, int y)
   ReloadLauncher();
 }
 
+std::string Mine::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u mine!",
+            "%s team has won %u mines!",
+            items_count), TeamName, items_count);
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+MineConfig * MineConfig::singleton = NULL;
+
+MineConfig * MineConfig::GetInstance()
+{
+  if (singleton == NULL) {
+    singleton = new MineConfig();
+  }
+  return singleton;
+}
+
 MineConfig& Mine::cfg()
 {
   return static_cast<MineConfig&>(*extra_params);
@@ -220,14 +262,16 @@ MineConfig& Mine::cfg()
 
 MineConfig::MineConfig()
 {
-  detection_range= 1;
+  detection_range = 1;
+  speed_detection = 2;
   timeout = 3;
   escape_time = 2;
 }
 
-void MineConfig::LoadXml(xmlpp::Element *elem) 
+void MineConfig::LoadXml(xmlpp::Element *elem)
 {
   ExplosiveWeaponConfig::LoadXml (elem);
-  LitDocXml::LitUint (elem, "escape_time", escape_time);
-  LitDocXml::LitDouble (elem, "detection_range", detection_range);
+  XmlReader::ReadUint(elem, "escape_time", escape_time);
+  XmlReader::ReadDouble(elem, "detection_range", detection_range);
+  XmlReader::ReadDouble(elem, "speed_detection", speed_detection);
 }

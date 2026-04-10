@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define AIRHAMMER_H
 //-----------------------------------------------------------------------------
 #include <SDL.h>
-#include "../include/base.h"
+#include "include/base.h"
 #include "weapon.h"
 //-----------------------------------------------------------------------------
 
@@ -53,8 +53,16 @@ class Airhammer : public Weapon
 
   public:
     Airhammer();
-    void HandleKeyEvent(int action, int event_type);
     AirhammerConfig &cfg();
+    
+    virtual void SignalTurnEnd();
+    virtual void ActionStopUse();
+
+    virtual void HandleKeyPressed_Shoot();
+    virtual void HandleKeyRefreshed_Shoot();
+    virtual void HandleKeyReleased_Shoot();
+
+    DECLARE_GETWEAPONSTRING();
 };
 
 //-----------------------------------------------------------------------------

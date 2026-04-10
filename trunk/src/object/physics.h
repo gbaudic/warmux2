@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,9 +27,9 @@
 #ifndef PHYSICS_H
 #define PHYSICS_H
 
-#include "../include/base.h"
-#include "../tool/euler_vector.h"
-#include "../tool/point.h"
+#include "include/base.h"
+#include "tool/euler_vector.h"
+#include "tool/point.h"
 #include "object_cfg.h"
 
 typedef enum
@@ -45,10 +45,10 @@ class Physics : private ObjectConfig
 {
 private:
   MotionType_t m_motion_type ;
-
-protected:
   EulerVector m_pos_x;          // x0 = pos, x1 = speed, x2 = acc on the X axys
   EulerVector m_pos_y;          // x0 = pos, x1 = speed, x2 = acc on the Y axys
+
+protected:
   Point2d m_extern_force;  // External strength applyed to the object
   uint m_last_move;             // Time since last move
   double m_phys_width, m_phys_height;
@@ -106,24 +106,30 @@ public:
   // Add a initial speed to the current speed.
   void AddSpeed (double norme, double angle);
   void AddSpeedXY (Point2d vector);
- 
+
   // Get current object speed
-  void GetSpeed (double &norm, double &angle);
-  void GetSpeedXY (Point2d &vector);
-  double GetAngularSpeed();
-  double GetSpeedAngle();
+  void GetSpeed (double &norm, double &angle) const;
+  void GetSpeedXY (Point2d &vector) const;
+  Point2d GetSpeed() const;
+  double GetAngularSpeed() const;
+  double GetSpeedAngle() const;
 
   // Add new strength
   void SetExternForce (double length, double angle);
   void SetExternForceXY (Point2d vector);
+  Point2d GetExternForce() const;
 
   // Add / Remove a fixation point.
   void SetPhysFixationPointXY(double g_x, double g_y,
 			      double dx, double dy) ;
   void UnsetPhysFixationPoint() ;
-  void ChangePhysRopeSize(double dl) ;
-  double GetRopeAngle() ;
-  double GetRopeLength();
+  void ChangePhysRopeSize(double delta) ;
+
+  double GetRopeAngle() const;
+  void SetRopeAngle(double angle);
+
+  double GetRopeLength() const;
+  void SetRopeLength(double length);
 
   // Physical engine : update position (and state) with current time
   void RunPhysicalEngine();

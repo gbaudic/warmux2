@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,81 +21,45 @@
 
 #include "crosshair.h"
 #include "weapon.h"
-#include "../game/game_loop.h"
-#include "../graphic/surface.h"
-#include "../include/app.h"
-#include "../map/camera.h"
-#include "../map/map.h"
-#include "../team/teams_list.h"
-#include "../tool/math_tools.h"
+#include "game/game_loop.h"
+#include "graphic/surface.h"
+#include "include/app.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "team/teams_list.h"
+#include "tool/math_tools.h"
 
-// Distance entre le pointeur et le ver
-#define RAYON 40 // pixels
+// Distance between crosshair and character
+#define RAY 40 // pixels
 
 CrossHair::CrossHair()
 {
   enable = false;
-  angle = 0;  
-
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   image = resource_manager.LoadImage(res, "gfx/pointeur1");
-  resource_manager.UnLoadXMLProfile( res); 
+  resource_manager.UnLoadXMLProfile(res);
 }
 
 void CrossHair::Reset()
 {
-  ChangeAngleVal (45);
+  ActiveCharacter().SetFiringAngle(0.0);
 }
 
-void CrossHair::ChangeAngle (int delta)
+// Compute crosshair position
+void CrossHair::Refresh(double angle)
 {
-  ChangeAngleVal (angle+delta);
-}
-
-void CrossHair::ChangeAngleVal (int val)
-{
-  angle = BorneLong(val, - (ActiveTeam().GetWeapon().max_angle),
-		    - (ActiveTeam().GetWeapon().min_angle) );
-  
-  const double angleRAD = Deg2Rad(angle);
-
-  // Calcul des coordonnées du point
-  calcul_d = Point2i(RAYON, RAYON) * Point2d(cos(angleRAD), sin(angleRAD));
+  crosshair_position = Point2i(RAY, RAY) * Point2d(cos(angle), sin(angle)) - image.GetSize() / 2;
 }
 
 void CrossHair::Draw()
 {
   if( !enable )
-	return;
+    return;
   if( ActiveCharacter().IsDead() )
-	return;
+    return;
   if( GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING )
-	return;
-
-  Point2i pos = ActiveCharacter().GetHandPosition();
-  pos += calcul_d * Point2i(ActiveCharacter().GetDirection(), 1);
-  pos -= image.GetSize()/2;
-  
-  AppWormux::GetInstance()->video.window.Blit(image, pos - camera.GetPosition());
-  world.ToRedrawOnMap(Rectanglei(pos, image.GetSize()));
-}
-
-int CrossHair::GetAngle() const
-{ 
-	if (ActiveCharacter().GetDirection() == -1) 
-		return int( InverseAngleDeg (angle) );
-	else
-		return angle; 
-}
-
-int CrossHair::GetAngleVal() const
-{ return angle; }
-
-double CrossHair::GetAngleRad() const
-{
-  double angleR = Deg2Rad(angle);
-
-  if (ActiveCharacter().GetDirection() == -1)
-	  angleR = InverseAngle (angleR);
-  return angleR;
+    return;
+  Point2i tmp = ActiveCharacter().GetHandPosition() + crosshair_position;
+  AppWormux::GetInstance()->video.window.Blit(image, tmp - camera.GetPosition());
+  world.ToRedrawOnMap(Rectanglei(tmp, image.GetSize()));
 }

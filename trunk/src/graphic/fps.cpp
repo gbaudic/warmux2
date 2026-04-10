@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,34 +26,34 @@
 #include "colors.h"
 #include "video.h"
 #include "text.h"
-#include "../include/app.h"
-#include "../tool/i18n.h"
+#include "include/app.h"
+#include "tool/i18n.h"
 
 const uint FramePerSecond::MIN_NB_VALUES = 4;
-  
+
 FramePerSecond::~FramePerSecond(){
   delete text;
-}    
+}
 
-FramePerSecond::FramePerSecond(){
-  text = NULL;
-  display = true;
-  average = -1;
-  
+FramePerSecond::FramePerSecond():
+  nb_valid_values(-1),
+  average(-1),
+  nb_frames(),
+  time_in_second(0),
+  text(NULL),
+  display(true)
+{
   for( uint i=0; i<=MIN_NB_VALUES; ++i )
     nb_frames.push_back (0);
-  
-  time_in_second = 0;
-  nb_valid_values = -1;
 }
 
 void FramePerSecond::Reset(){
   average = -1;
   nb_frames.clear();
-  
+
   for( uint i=0; i<=MIN_NB_VALUES; ++i )
     nb_frames.push_back (0);
-  
+
   time_in_second = SDL_GetTicks()+1000;
   nb_valid_values = -1;
 
@@ -67,8 +67,8 @@ void FramePerSecond::AddOneFrame(){
 
 void FramePerSecond::Refresh()
 {
-  uint nv_temps = SDL_GetTicks();   
-   
+  uint nv_temps = SDL_GetTicks();
+
   // Pas encore l'heure de recalculer : exit !
   if (nv_temps <= time_in_second)
     return;
@@ -98,9 +98,9 @@ void FramePerSecond::Draw(){
     return;
   if( average < 0 )
     return;
-  
+
   char buffer[20];
-  
+
   snprintf(buffer, sizeof(buffer)-1, "%.1f", average);
   buffer[sizeof(buffer)-1] = '\0';
   text->Set (Format(_("%s fps"), buffer));

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,10 +25,16 @@
 #include <SDL_gfxPrimitives.h>
 #include <SDL_image.h>
 #include <SDL_rotozoom.h>
-#include "../tool/debug.h"
-#include "../tool/error.h"
-#include "../tool/i18n.h"
-#include "../include/base.h"
+#include <png.h>
+#include "tool/debug.h"
+#include "tool/error.h"
+#include "tool/i18n.h"
+#include "include/base.h"
+
+/* texturedPolygon import from SDL_gfx v2.0.15 */
+#if (SDL_GFXPRIMITIVES_MAJOR == 2) && (SDL_GFXPRIMITIVES_MINOR == 0) && (SDL_GFXPRIMITIVES_MICRO < 14)
+#include "textured_polygon.h"
+#endif /* texturedPolygon import from SDL_gfx v2.0.15 */
 
 /**
  * Default constructor.
@@ -56,7 +62,7 @@ Surface::Surface(SDL_Surface *sdl_surface){
  * @param size
  * @param flags
  * @param useAlpha
- * @see NewSurface 
+ * @see NewSurface
  */
 Surface::Surface(const Point2i &size, Uint32 flags, bool useAlpha){
 	surface = NULL;
@@ -76,7 +82,7 @@ Surface::Surface(const std::string &filename){
 		Error( Format("Unable to open image file : %s", filename.c_str() ) );
 }
 
-/** 
+/**
  * Copy constructor: build a surface from an other surface.
  *
  * The two surfaces share the same graphic data.
@@ -95,6 +101,36 @@ Surface::Surface(const Surface &src){
  */
 Surface::~Surface(){
 	AutoFree();
+}
+
+bool Surface::IsNull() const{
+  return surface == NULL;
+}
+
+/**
+ * Return the size of a surface.
+ */
+Point2i Surface::GetSize() const{
+  return Point2i( GetWidth(), GetHeight() );
+}
+
+Uint32 Surface::GetFlags() const{
+  return surface->flags;
+}
+
+/// Return the length of a surface scanline in bytes.
+Uint16 Surface::GetPitch() const{
+  return surface->pitch;
+}
+
+/// Return the number of bytes used to represent each pixel in a surface. Usually one to four.
+Uint8 Surface::GetBytesPerPixel() const{
+  return surface->format->BytesPerPixel;
+}
+
+/// Return a pointer on the pixels data.
+unsigned char *Surface::GetPixels() const{
+  return (unsigned char *) surface->pixels;
 }
 
 Surface &Surface::operator=(const Surface & src){
@@ -123,7 +159,7 @@ void Surface::AutoFree(){
 		Free();
 }
 
-/** 
+/**
  * Set the auto free status of a surface.
  *
  * In general it should always be true for non-system surface.
@@ -131,28 +167,6 @@ void Surface::AutoFree(){
  */
 void Surface::SetAutoFree( bool newAutoFree ){
 	autoFree = newAutoFree;
-}
-
-/**
- * Return the pointer of the SDL_Surface.
- *
- * Should be used carefully.
- */
-SDL_Surface *Surface::GetSurface(){
-	return surface;
-}
-
-/**
- * Change the surface pointer.
- *
- * @param newSurface The new surface to use.
- * @param freePrevius Indicate if the old surface should be freed.
- */
-void Surface::SetSurface(SDL_Surface *newSurface, bool freePrevious){
-	if( freePrevious )
-		Free();
-
-	surface = newSurface;
 }
 
 /**
@@ -238,7 +252,7 @@ int Surface::Blit(const Surface& src){
  */
 int Surface::Blit(const Surface& src, const Point2i &dst){
 	SDL_Rect dstRect = GetSDLRect( dst );;
-	
+
 	return Blit(src, NULL, &dstRect);
 }
 
@@ -254,6 +268,61 @@ int Surface::Blit(const Surface& src, const Rectanglei &srcRect, const Point2i &
 	SDL_Rect sdlDstRect = GetSDLRect( dstPoint );
 
 	return Blit(src, &sdlSrcRect, &sdlDstRect);
+}
+
+/**
+ * Merge a sprite (spr) with current Surface at a given position.
+ *
+ * No more buggy but slow ! :) Don't use it for quick blit. Needed by the ground generator.
+ *
+ * @param spr
+ * @param position
+ */
+void Surface::MergeSurface(Surface &spr, const Point2i &pos) {
+  Uint32 spr_pix, cur_pix;
+  Uint8 r, g, b, a, p_r, p_g, p_b, p_a;
+  SDL_PixelFormat * current_fmt = surface->format;
+  SDL_PixelFormat * spr_fmt = spr.surface->format;
+  int current_offset, spr_offset, temp;
+  Point2i offset;
+
+  spr.Lock();
+  Lock();
+  // for each pixel lines of a source image
+  for (offset.x = (pos.x > 0 ? 0 : -pos.x); offset.x < spr.GetWidth() && pos.x + offset.x < GetWidth(); offset.x++) {
+    for (offset.y = (pos.y > 0 ? 0 : -pos.y); offset.y < spr.GetHeight() && pos.y + offset.y < GetHeight(); offset.y++) {
+      // Computing offset on both sprite
+      current_offset = (pos.y + offset.y) * surface->w + pos.x + offset.x;
+      spr_offset = offset.y * spr.surface->w + offset.x;
+      // Retrieving a pixel of sprite to merge
+      spr_pix = ((Uint32*)spr.surface->pixels)[spr_offset];
+      cur_pix = ((Uint32*)surface->pixels)[current_offset];
+      // Retreiving each chanel of the pixel using pixel format
+      r = (Uint8)(((spr_pix & spr_fmt->Rmask) >> spr_fmt->Rshift) << spr_fmt->Rloss);
+      g = (Uint8)(((spr_pix & spr_fmt->Gmask) >> spr_fmt->Gshift) << spr_fmt->Gloss);
+      b = (Uint8)(((spr_pix & spr_fmt->Bmask) >> spr_fmt->Bshift) << spr_fmt->Bloss);
+      a = (Uint8)(((spr_pix & spr_fmt->Amask) >> spr_fmt->Ashift) << spr_fmt->Aloss);
+      // Retreiving previous alpha value
+      p_a = (Uint8)(((cur_pix & spr_fmt->Amask) >> spr_fmt->Ashift) << spr_fmt->Aloss);
+      if(a == SDL_ALPHA_OPAQUE || (p_a == 0 && a >0)) // new pixel with no alpha or nothing on previous pixel
+        ((Uint32 *)(surface->pixels))[current_offset] = SDL_MapRGBA(current_fmt, r, g, b, a);
+      else if (a > 0) { // alpha is lower => merge color with previous value
+        p_r = (Uint8)(((cur_pix & spr_fmt->Rmask) >> spr_fmt->Rshift) << spr_fmt->Rloss);
+        p_g = (Uint8)(((cur_pix & spr_fmt->Gmask) >> spr_fmt->Gshift) << spr_fmt->Gloss);
+        p_b = (Uint8)(((cur_pix & spr_fmt->Bmask) >> spr_fmt->Bshift) << spr_fmt->Bloss);
+        temp = (r * a + p_r * p_a) / (a + p_a);
+        r = (temp > 255 ? 255 : temp);
+        temp = (g * a + p_g * p_a) / (a + p_a);
+        g = (temp > 255 ? 255 : temp);
+        temp = (b * a + p_b * p_a) / (a + p_a);
+        b = (temp > 255 ? 255 : temp);
+        a = (a > p_a ? a : p_a);
+        ((Uint32 *)(surface->pixels))[current_offset] = SDL_MapRGBA(current_fmt, r, g, b, a);
+      }
+    }
+  }
+  Unlock();
+  spr.Unlock();
 }
 
 /**
@@ -285,39 +354,43 @@ int Surface::SetColorKey(Uint32 flag, Uint8 r, Uint8 g, Uint8 b, Uint8 a){
  * @param b
  * @param a
  */
-void Surface::GetRGBA(Uint32 color, Uint8 &r, Uint8 &g, Uint8 &b, Uint8 &a){
-	SDL_GetRGBA(color, surface->format, &r, &g, &b, &a);
+void Surface::GetRGBA(Uint32 color, Uint8 &r, Uint8 &g, Uint8 &b, Uint8 &a) const
+{
+  SDL_GetRGBA(color, surface->format, &r, &g, &b, &a);
 }
 
-/** 
+/**
  * @param r
  * @param g
  * @param b
  * @param a
  */
-Uint32 Surface::MapRGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a){
-    return SDL_MapRGBA(surface->format, r, g, b, a);
+Uint32 Surface::MapRGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a) const
+{
+  return SDL_MapRGBA(surface->format, r, g, b, a);
 }
 
 /**
  *
  * @param color
  */
-Color Surface::GetColor(Uint32 color){
-	Uint8 r, g, b, a;
-	GetRGBA(color, r, g, b, a);
-	return Color(r, g, b, a);
+Color Surface::GetColor(Uint32 color) const
+{
+  Uint8 r, g, b, a;
+  GetRGBA(color, r, g, b, a);
+  return Color(r, g, b, a);
 }
 
 /**
  *
  * @param color
  */
-Uint32 Surface::MapColor(Color color){
-	return MapRGBA(color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+Uint32 Surface::MapColor(Color color) const
+{
+  return MapRGBA(color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 }
 
-/** 
+/**
  * @param rect
  */
 void Surface::SetClipRect(const Rectanglei &rect){
@@ -342,37 +415,37 @@ int Surface::RectangleColor(const Rectanglei &rect, const Color &color, const ui
 {
   if( rect.IsSizeZero() )
     return 0;
-  
+
   Point2i ptBR = rect.GetBottomRightPoint();
-  
+
   if (border_size == 1)
     return rectangleRGBA( surface, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 
   // top border
-  boxRGBA (surface, 
-	   rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), rect.GetPositionY()+border_size, 
+  boxRGBA (surface,
+	   rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), rect.GetPositionY()+border_size,
 	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
-  
+
   // bottom border
-  boxRGBA (surface, 
-	   rect.GetPositionX(), ptBR.GetY() - border_size, ptBR.GetX(), ptBR.GetY(), 
+  boxRGBA (surface,
+	   rect.GetPositionX(), ptBR.GetY() - border_size, ptBR.GetX(), ptBR.GetY(),
 	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 
   // left border
-  boxRGBA (surface, 
-	   rect.GetPositionX(), rect.GetPositionY() + border_size, rect.GetPositionX()+border_size, ptBR.GetY()-border_size, 
+  boxRGBA (surface,
+	   rect.GetPositionX(), rect.GetPositionY() + border_size, rect.GetPositionX()+border_size, ptBR.GetY()-border_size,
 	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 
   // right border
-  boxRGBA (surface, 
-	   ptBR.GetX() - border_size, rect.GetPositionY() + border_size, ptBR.GetX(), ptBR.GetY()-border_size, 
+  boxRGBA (surface,
+	   ptBR.GetX() - border_size, rect.GetPositionY() + border_size, ptBR.GetX(), ptBR.GetY()-border_size,
 	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 
   return 1;
 }
 
 int Surface::VlineColor(const uint &x1, const uint &y1, const uint &y2, const Color &color){
-	return vlineRGBA( surface, x1, y1, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+  return vlineRGBA( surface, x1, y1, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 }
 
 int Surface::LineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color){
@@ -384,27 +457,89 @@ int Surface::AALineColor(const uint &x1, const uint &x2, const uint &y1, const u
 }
 
 int Surface::CircleColor(const uint &x, const uint &y, const uint &rad, const Color &color){
-    return circleRGBA( surface, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+  return circleRGBA( surface, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+}
+
+int Surface::AAPolygonColor(const Sint16 * vx, const Sint16 * vy, const int n, const Color & color){
+  return aapolygonRGBA(surface, vx, vy, n, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+}
+
+int Surface::AAPolygonColor(std::list<Point2i> polygon, const Color & color)
+{
+  Sint16 * vx, * vy;
+  vx = new Sint16[polygon.size()];
+  vy = new Sint16[polygon.size()];
+  int i = 0;
+  for(std::list<Point2i>::iterator point = polygon.begin(); point != polygon.end(); point++, i++) {
+    vx[i] = point->x;
+    vy[i] = point->y;
+  }
+  int result = aapolygonRGBA(surface, vx, vy, polygon.size(), color.GetRed(),
+                             color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  delete vx;
+  delete vy;
+  return result;
+}
+
+int Surface::FilledPolygon(const Sint16 * vx, const Sint16 * vy, const int n, const Color & color){
+  return filledPolygonRGBA(surface, vx, vy, n, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+}
+
+int Surface::FilledPolygon(std::list<Point2i> polygon, const Color & color)
+{
+  Sint16 * vx, * vy;
+  vx = new Sint16[polygon.size()];
+  vy = new Sint16[polygon.size()];
+  int i = 0;
+  for(std::list<Point2i>::iterator point = polygon.begin(); point != polygon.end(); point++, i++) {
+    vx[i] = point->x;
+    vy[i] = point->y;
+  }
+  int result = filledPolygonRGBA(surface, vx, vy, polygon.size(), color.GetRed(),
+                                 color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  delete vx;
+  delete vy;
+  return result;
+}
+
+int Surface::TexturedPolygon(const Sint16 * vx, const Sint16 * vy, const int n, const Surface *texture, const int texture_dx, const int texture_dy){
+  return texturedPolygon(surface, vx, vy, n, texture->surface, texture_dx, texture_dy);
+}
+
+int Surface::TexturedPolygon(std::list<Point2i> polygon, const Surface * texture)
+{
+  Sint16 * vx, * vy;
+  vx = new Sint16[polygon.size()];
+  vy = new Sint16[polygon.size()];
+  int i = 0;
+  for(std::list<Point2i>::iterator point = polygon.begin(); point != polygon.end(); point++, i++) {
+    vx[i] = point->x;
+    vy[i] = point->y;
+  }
+  int result = texturedPolygon(surface, vx, vy, polygon.size(), texture->surface, 0, 0);
+  delete vx;
+  delete vy;
+  return result;
 }
 
 /**
  *
  * @param color
  */
-int Surface::Fill(Uint32 color){
+int Surface::Fill(Uint32 color) const {
     return SDL_FillRect( surface, NULL, color);
 }
 
-int Surface::Fill(const Color &color){
+int Surface::Fill(const Color &color) const{
 	return Fill( MapColor(color) );
 }
 
-/** 
+/**
  *
  * @param dstRect
  * @param color
  */
-int Surface::FillRect(const Rectanglei &dstRect, Uint32 color){
+int Surface::FillRect(const Rectanglei &dstRect, Uint32 color) const{
 	SDL_Rect sdlDstRect = GetSDLRect( dstRect );
 
 	return SDL_FillRect( surface, &sdlDstRect, color);
@@ -415,8 +550,8 @@ int Surface::FillRect(const Rectanglei &dstRect, Uint32 color){
  * @param dstRect
  * @param color
  */
-int Surface::FillRect(const Rectanglei &dstRect, const Color &color){
-	
+int Surface::FillRect(const Rectanglei &dstRect, const Color &color) const{
+
 	return FillRect( dstRect, MapColor(color) );
 }
 
@@ -425,28 +560,93 @@ int Surface::FillRect(const Rectanglei &dstRect, const Color &color){
  * @param filename
  */
 int Surface::ImgLoad(std::string filename){
-	AutoFree();
-	surface = IMG_Load( filename.c_str() );
+  AutoFree();
+  surface = IMG_Load( filename.c_str() );
 
-	return !IsNull();
+  return !IsNull();
 }
 
 /**
  *
- * @param angle
+ * @param filename
+ */
+int Surface::ImgSave(std::string filename){
+  FILE *f             = NULL;
+  png_structp png_ptr = NULL;
+  png_infop info_ptr  = NULL;
+  Uint32 spr_pix;
+  Uint8 r, g, b, a;
+  SDL_PixelFormat * spr_fmt = surface->format;
+
+  // Creating a png ...
+  png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+  if(png_ptr == NULL) // Structure and ...
+    return 1;
+  info_ptr = png_create_info_struct(png_ptr);
+  if(info_ptr == NULL) { // Information.
+    png_destroy_write_struct(&png_ptr, NULL);
+    return 1;
+  }
+
+  // Opening a new file
+  f = fopen(filename.c_str(), "wb");
+  if(f == NULL) {
+    png_destroy_write_struct(&png_ptr, NULL);
+    return 1;
+  }
+  png_init_io(png_ptr, f); // Associate png struture with a file
+  png_set_IHDR(png_ptr, info_ptr, surface->w, surface->h, 8,
+               PNG_COLOR_TYPE_RGB_ALPHA,      PNG_INTERLACE_NONE,
+               PNG_COMPRESSION_TYPE_DEFAULT,  PNG_FILTER_TYPE_DEFAULT);
+  png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
+
+  // Creating the png file
+  png_write_info(png_ptr, info_ptr);
+
+  Lock();
+  Uint8 tmp_line[surface->w * spr_fmt->BytesPerPixel];
+  for(int y = 0; y < surface->h; y++) {
+    for(int x = 0; x < surface->w; x++) {
+      // Retrieving a pixel of sprite to merge
+      spr_pix = ((Uint32*)surface->pixels)[y * surface->w  + x];
+      // Retreiving each chanel of the pixel using pixel format
+      r = (Uint8)(((spr_pix & spr_fmt->Rmask) >> spr_fmt->Rshift) << spr_fmt->Rloss);
+      g = (Uint8)(((spr_pix & spr_fmt->Gmask) >> spr_fmt->Gshift) << spr_fmt->Gloss);
+      b = (Uint8)(((spr_pix & spr_fmt->Bmask) >> spr_fmt->Bshift) << spr_fmt->Bloss);
+      a = (Uint8)(((spr_pix & spr_fmt->Amask) >> spr_fmt->Ashift) << spr_fmt->Aloss);
+      tmp_line[x * spr_fmt->BytesPerPixel] = r;
+      tmp_line[x * spr_fmt->BytesPerPixel + 1] = g;
+      tmp_line[x * spr_fmt->BytesPerPixel + 2] = b;
+      tmp_line[x * spr_fmt->BytesPerPixel + 3] = a;
+    }
+    png_write_row(png_ptr, (Uint8 *)tmp_line);
+  }
+  Unlock();
+  png_write_flush(png_ptr);
+  png_write_end(png_ptr, info_ptr);
+  fclose(f);
+  return 0;
+}
+
+/**
+ *
+ * @param angle in radian
  * @param zoomx
  * @param zoomy
  * @param smooth
- */
+* Warning rotozoomSurfaceXY uses degrees so the rotation of image use degrees here,
+* but when accessing thanks to GetSurfaceForAngle the index is using radian
+* (because we juste need an index in array, not an angle) */
+static const double ratio_deg_to_rad = 180 / M_PI;
 Surface Surface::RotoZoom(double angle, double zoomx, double zoomy, int smooth){
 	Surface newSurf;
 
-	newSurf.SetSurface( rotozoomSurfaceXY(surface, angle, zoomx, zoomy, smooth) );
+	newSurf.SetSurface( rotozoomSurfaceXY(surface, angle * ratio_deg_to_rad , zoomx, zoomy, smooth) );
 
 	if( newSurf.IsNull() )
 		Error( "Unable to make a rotozoom on the surface !" );
 
-	return newSurf;	
+	return newSurf;
 }
 
 /**
@@ -550,24 +750,26 @@ void Surface::PutPixel(int x, int y, Uint32 pixel){
     }
 }
 
-SDL_Rect Surface::GetSDLRect(const Rectanglei &r){
-	SDL_Rect sdlRect;
+SDL_Rect Surface::GetSDLRect(const Rectanglei &r) const
+{
+  SDL_Rect sdlRect;
 
-    sdlRect.x = r.GetPositionX();
-    sdlRect.y = r.GetPositionY();
-    sdlRect.w = r.GetSizeX();
-    sdlRect.h = r.GetSizeY();
+  sdlRect.x = r.GetPositionX();
+  sdlRect.y = r.GetPositionY();
+  sdlRect.w = r.GetSizeX();
+  sdlRect.h = r.GetSizeY();
 
-	return sdlRect;	
+  return sdlRect;
 }
 
-SDL_Rect Surface::GetSDLRect(const Point2i &pt){
-	SDL_Rect sdlRect;
+SDL_Rect Surface::GetSDLRect(const Point2i &pt) const
+{
+  SDL_Rect sdlRect;
 
-	sdlRect.x = pt.GetX();
-	sdlRect.y = pt.GetY();
-	sdlRect.w = 0;
-	sdlRect.h = 0;
+  sdlRect.x = pt.GetX();
+  sdlRect.y = pt.GetY();
+  sdlRect.w = 0;
+  sdlRect.h = 0;
 
-	return sdlRect;
+  return sdlRect;
 }

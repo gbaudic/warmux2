@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,39 +20,109 @@
  *****************************************************************************/
 
 #include "network.h"
+#include "network_local.h"
+#include "network_client.h"
+#include "network_server.h"
 //-----------------------------------------------------------------------------
-#include <SDL_net.h>
-#include <SDL_thread.h>
-#include "../game/game_mode.h"
-#include "../gui/question.h"
-#include "../include/action_handler.h"
-#include "../tool/debug.h"
-#include "../tool/i18n.h"
-#include "distant_cpu.h"
-//-----------------------------------------------------------------------------
-Network network;
+#include "game/game_mode.h"
+#include "game/game.h"
+#include "include/action_handler.h"
+#include "include/app.h"
+#include "include/constant.h"
+#include "tool/debug.h"
+#include "tool/i18n.h"
+
+#if defined(DEBUG) && not defined(WIN32)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
 
 //-----------------------------------------------------------------------------
 
-Network::Network()
+// Standard header, only needed for the following method
+#ifndef WIN32
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <errno.h>
+#else
+#include <winsock.h>
+#endif
+
+//-----------------------------------------------------------------------------
+
+bool Network::sdlnet_initialized = false;
+bool Network::stop_thread = true;
+
+Network * Network::singleton = NULL;
+
+Network * Network::GetInstance()
 {
-  max_player_number = 0;
-  m_is_connected = false;
-  m_is_server = false;
-  m_is_client = false;
-  state = NETWORK_NOT_CONNECTED;
-  inited = false;
-  sync_lock = false;
-  network_menu = NULL;
+  if (singleton == NULL) {
+    singleton = new NetworkLocal();
+  }
+  return singleton;
+}
 
-  //Set nickname
-  nickname = getenv("USER");
+NetworkServer * Network::GetInstanceServer()
+{
+  if (singleton == NULL || !singleton->IsServer()) {
+    return NULL;
+  }
+  return (NetworkServer*)singleton;
+}
+
+Network::Network():
+  state(NO_NETWORK),// useless value at beginning
+  thread(NULL),
+  socket_set(NULL),
+  ip(),
+#if defined(DEBUG) && not defined(WIN32)
+  fout(0),
+  fin(0),
+#endif
+  network_menu(NULL),
+  cpu(),
+  sync_lock(false),
+#ifdef WIN32
+  nickname(getenv("USERNAME"))
+#else
+  nickname(getenv("USER"))
+#endif
+{
+  sdlnet_initialized = false;
+}
+//-----------------------------------------------------------------------------
+
+Network::~Network()
+{
+  if (sdlnet_initialized)
+  {
+    SDLNet_Quit();
+    sdlnet_initialized = false;
+
+#if defined(DEBUG) && not defined(WIN32)
+    if (fin != 0)
+      close(fin);
+    if (fout != 0)
+      close(fout);
+#endif
+  }
 }
 
 //-----------------------------------------------------------------------------
-int net_thread_func(void* no_param)
+
+bool Network::ThreadToContinue()
 {
-  network.ReceiveActions();
+  return !stop_thread;
+}
+
+int Network::ThreadRun(void* no_param)
+{
+  GetInstance()->ReceiveActions();
+  Disconnect();
+  std::cout << "Network : end of thread" << std::endl;
   return 1;
 }
 
@@ -60,34 +130,43 @@ int net_thread_func(void* no_param)
 
 void Network::Init()
 {
-  if(inited) return;
+  if (sdlnet_initialized) return;
   if (SDLNet_Init()) {
-      Error(_("Failed to initialize network library!"));
+      Error("Failed to initialize network library! (SDL_Net)");
+      exit(1);
   }
-  inited = true;
-  max_player_number = GameMode::GetInstance()->max_teams;
-  connected_player = 0;
+  sdlnet_initialized = true;
+
+  std::cout << "o " << _("Network initialization") << std::endl;
 }
 
 //-----------------------------------------------------------------------------
 
-Network::~Network()
-{
-  Disconnect();
-  if(inited)
-    SDLNet_Quit();
-}
-
-//-----------------------------------------------------------------------------
-
+// Static method
 void Network::Disconnect()
 {
-  if(!m_is_connected) return;
+  // restore Windows title
+  AppWormux::GetInstance()->video.SetWindowCaption( std::string("Wormux ") + Constants::VERSION);
 
-  m_is_connected = false; // To make the threads terminate
+  if (singleton != NULL) {
+    singleton->stop_thread = true;
+    singleton->DisconnectNetwork();
+    delete singleton;
+    singleton = NULL;
+  }
+}
 
-  SDL_WaitThread(thread,NULL);
-  printf("Network thread finished\n");
+// Protected method for client and server
+void Network::DisconnectNetwork()
+{
+  if (thread != NULL && SDL_ThreadID() != SDL_GetThreadID(thread)) {
+    SDL_WaitThread(thread, NULL);
+    printf("Network thread finished\n");
+  }
+
+  thread = NULL;
+  stop_thread = true;
+
   for(std::list<DistantComputer*>::iterator client = cpu.begin();
       client != cpu.end();
       client++)
@@ -95,273 +174,216 @@ void Network::Disconnect()
     delete *client;
   }
   cpu.clear();
-  SDLNet_FreeSocketSet(socket_set);
 
-  if(m_is_server)
-    SDLNet_TCP_Close(server_socket);
-
-  m_is_server = false;
-  m_is_client = false;
+  if (socket_set != NULL) {
+    SDLNet_FreeSocketSet(socket_set);
+    socket_set = NULL;
+  }
 }
 
 //-----------------------------------------------------------------------------
-//----------------       Client specific methods   ----------------------------
-//-----------------------------------------------------------------------------
-void Network::ClientConnect(const std::string &host, const std::string& port)
-{
-  MSG_DEBUG("network", "Client connect to %s:%s", host.c_str(), port.c_str());
 
+const Network::connection_state_t Network::CheckHost(const std::string &host,
+						     const std::string& port) const
+{
+  MSG_DEBUG("network", "Checking connection to %s:%s", host.c_str(), port.c_str());
   int prt=0;
-  IPaddress ip;
   sscanf(port.c_str(),"%i",&prt);
 
-  if(SDLNet_ResolveHost(&ip,host.c_str(),prt)==-1)
+  struct hostent* hostinfo;
+  hostinfo = gethostbyname(host.c_str());
+  if( ! hostinfo )
+    return Network::CONN_BAD_HOST;
+
+#ifndef WIN32
+  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  if( fd == -1 )
+    return Network::CONN_BAD_SOCKET;
+
+#else
+  SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
+  if( fd == INVALID_SOCKET )
+    return Network::CONN_BAD_SOCKET;
+#endif
+
+  // Set the timeout
+  struct timeval timeout;
+  memset(&timeout, 0, sizeof(timeout));
+  timeout.tv_sec = 5; // 5seconds timeout
+#ifndef WIN32
+  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void*)&timeout, sizeof(timeout));
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (void*)&timeout, sizeof(timeout));
+#else
+  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
+#endif
+
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+#ifndef WIN32
+  addr.sin_addr.s_addr = *(in_addr_t*)*hostinfo->h_addr_list;
+#else
+  addr.sin_addr.s_addr = inet_addr(*hostinfo->h_addr_list);
+#endif
+
+  addr.sin_port = htons(prt);
+
+#ifndef WIN32
+  if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == -1 )
   {
-    Question question;
-    question.Set(_("Invalid server adress!"),1,0);
-    question.Ask();
-    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
-    return;
+    switch(errno)
+    {
+    case ECONNREFUSED: return Network::CONN_REJECTED;
+    case EINPROGRESS:
+    case ETIMEDOUT: return Network::CONN_TIMEOUT;
+    default: return Network::CONN_BAD_SOCKET;
+    }
   }
-
-  TCPsocket socket = SDLNet_TCP_Open(&ip);
-
-  if(!socket)
+  close(fd);
+#else
+  if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) != 0 )
   {
-    Question question;
-    question.Set(_("Unable to contact server!"),1,0);
-    question.Ask();
-    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
-    return;
+    switch(WSAGetLastError())
+    {
+    case WSAECONNREFUSED: return Network::CONN_REJECTED;
+    case WSAEINPROGRESS:
+    case WSAETIMEDOUT: return Network::CONN_TIMEOUT;
+    default: return Network::CONN_BAD_SOCKET;
+    }
   }
-
-  m_is_client = true;
-  m_is_server = false;
-  state = NETWORK_OPTION_SCREEN;
-  m_is_connected = true;
-
-  socket_set = SDLNet_AllocSocketSet(1);
-  connected_player = 1;
-  cpu.push_back(new DistantComputer(socket));
-  //Send nickname to server
-  Action a(ACTION_NICKNAME, nickname);
-  network.SendAction(&a);
-
-  //Control to net_thread_func
-  thread = SDL_CreateThread(net_thread_func,NULL);
-}
-
-//-----------------------------------------------------------------------------
-//----------------       Server specific methods   ----------------------------
-//-----------------------------------------------------------------------------
-
-void Network::ServerStart(const std::string &port)
-{
-  // The server starts listening for clients
-  MSG_DEBUG("network", "Start server on port %s", port.c_str());
-
-  cpu.clear();
-  // Convert port number (std::string port) into SDL port number format:
-  int prt;
-  sscanf(port.c_str(),"%i",&prt);
-
-  if(SDLNet_ResolveHost(&ip,NULL,prt)==-1)
-  {
-    Question question;
-    question.Set(_("Invalid port!"),1,0);
-    question.Ask();
-    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
-    return;
-  }
-
-  m_is_server = true;
-  m_is_client = false;
-  m_is_connected = true;
-
-  // Open the port to listen to
-  AcceptIncoming();
-  connected_player = 1;
-  printf("\nConnected\n");
-  state = NETWORK_OPTION_SCREEN;
-  socket_set = SDLNet_AllocSocketSet(GameMode::GetInstance()->max_teams);
-  thread = SDL_CreateThread(net_thread_func,NULL);
-}
-
-std::list<DistantComputer*>::iterator Network::CloseConnection(std::list<DistantComputer*>::iterator closed)
-{
-  printf("Client disconnected\n");
-  delete *closed;
-  if(m_is_server && connected_player == max_player_number)
-  {
-    // A new player will be able to connect, so we reopen the socket
-    // For incoming connections
-    printf("Allowing new connections\n");
-    AcceptIncoming();
-  }
-
-  connected_player--;
-  return cpu.erase(closed);
-}
-
-void Network::AcceptIncoming()
-{
-  assert(m_is_server);
-  if(state == NETWORK_PLAYING) return;
-
-  server_socket = SDLNet_TCP_Open(&ip);
-  if(!server_socket)
-  {
-    Question question;
-    question.Set(_("Unable to listen for client!"),1,0);
-    question.Ask();
-    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
-    return;
-  }
-  printf("\nStart listening");
-}
-
-void Network::RejectIncoming()
-{
-  assert(m_is_server);
-  if(!server_socket) return;
-  SDLNet_TCP_Close(server_socket);
-  server_socket = NULL;
-  printf("\nStop listening");
+  closesocket(fd);
+#endif
+  return Network::CONNECTED;
 }
 
 //-----------------------------------------------------------------------------
 //----------------       Action handling methods   ----------------------------
 //-----------------------------------------------------------------------------
-void Network::ReceiveActions()
-{
-  char* packet;
-
-  while(m_is_connected && (cpu.size()==1 || m_is_server))
-  {
-    while(SDLNet_CheckSockets(socket_set, 100) == 0 && m_is_connected) //Loop while nothing is received
-    if(m_is_server && server_socket)
-    {
-      // Check for an incoming connection
-      TCPsocket incoming;
-      incoming = SDLNet_TCP_Accept(server_socket);
-      if(incoming)
-      {
-        cpu.push_back(new DistantComputer(incoming));
-        connected_player++;
-        printf("New client connected\n");
-        if(connected_player >= max_player_number)
-          RejectIncoming();
-        ActionHandler::GetInstance()->NewAction(new Action(ACTION_ASK_VERSION));
-      }
-    }
-
-    std::list<DistantComputer*>::iterator dst_cpu = cpu.begin();
-    while(dst_cpu != cpu.end() && m_is_connected)
-    {
-      if((*dst_cpu)->SocketReady()) // Check if this socket contains data to receive
-      {
-        // Read the size of the packet
-        int packet_size = (*dst_cpu)->ReceiveDatas(packet);
-        if( packet_size <= 0)
-        {
-          dst_cpu = CloseConnection(dst_cpu);
-          continue;
-        }
-
-        Action* a = new Action(packet);
-        MSG_DEBUG("network.traffic","Received action %s",
-                ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
-
-	//Add relation between nickname and socket
-	if( a->GetType() == ACTION_NICKNAME){
-	  std::string nickname = a->PopString();
-	  std::cout<<"New nickname: " + nickname<< std::endl;
-	  (*dst_cpu)->nickname = nickname;
-	  delete a;
-	  break;
-	}
-
-        if( a->GetType() == ACTION_NEW_TEAM
-        &&  a->GetType() == ACTION_DEL_TEAM)
-        {
-          (*dst_cpu)->ManageTeam(a);
-          delete a;
-        }
-        else
-        if(a->GetType() == ACTION_CHAT_MESSAGE)
-        {
-          (*dst_cpu)->SendChatMessage(a);
-          delete a;
-        }
-        else
-        {
-          ActionHandler::GetInstance()->NewAction(a, false);
-        }
-
-        // Repeat the packet to other clients:
-        if(a->GetType() != ACTION_SEND_VERSION
-        && a->GetType() != ACTION_CHANGE_STATE
-        && a->GetType() != ACTION_CHAT_MESSAGE)
-        for(std::list<DistantComputer*>::iterator client = cpu.begin();
-            client != cpu.end();
-            client++)
-        if(client != dst_cpu)
-        {
-          (*client)->SendDatas(packet, packet_size);
-        }
-        free(packet);
-      }
-      dst_cpu++;
-    }
-  }
-}
 
 // Send Messages
-void Network::SendAction(Action* a)
+void Network::SendAction(Action* a) const
 {
-  if (!m_is_connected) return;
-
   MSG_DEBUG("network.traffic","Send action %s",
-        ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+	    ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
 
   int size;
   char* packet;
   a->WritePacket(packet, size);
 
-  assert(*((int*)packet) != 0 );
+  assert(packet != NULL);
   SendPacket(packet, size);
 
   free(packet);
 }
 
-void Network::SendPacket(char* packet, int size)
+void Network::SendPacket(char* packet, int size) const
 {
-  for(std::list<DistantComputer*>::iterator client = cpu.begin();
-      client != cpu.end();
-      client++)
+#if defined(DEBUG) && not defined(WIN32)
+  if (fout != 0) {
+    int tmp = 0xFFFFFFFF;
+    write(fout, &size, 4);
+    write(fout, packet, size);
+    write(fout, &tmp, 4);
+  }
+#endif
+
+  for (std::list<DistantComputer*>::const_iterator client = cpu.begin();
+       client != cpu.end();
+       client++)
   {
     (*client)->SendDatas(packet, size);
   }
 }
 
-void Network::SendChatMessage(std::string txt)
+//-----------------------------------------------------------------------------
+
+// Static method
+bool Network::IsConnected()
 {
-  if(IsServer())
-  {
-    ActionHandler::GetInstance()->NewAction(new Action(ACTION_CHAT_MESSAGE, nickname + std::string("> ") + txt));
-  }
-  else
-  {
-    Action a(ACTION_CHAT_MESSAGE, txt);
-    network.SendAction(&a);
-  }
+  return (!GetInstance()->IsLocal() && !stop_thread);
+}
+
+const uint Network::GetPort() const
+{
+  Uint16 prt;
+  prt = SDLNet_Read16(&ip.port);
+  return (uint)prt;
 }
 
 //-----------------------------------------------------------------------------
 
-const bool Network::IsConnected() const { return m_is_connected; }
-const bool Network::IsLocal() const { return !m_is_server && !m_is_client; }
-const bool Network::IsServer() const { return m_is_server; }
-const bool Network::IsClient() const { return m_is_client; }
+// Static method
+Network::connection_state_t Network::ClientStart(const std::string &host,
+						 const std::string& port)
+{
+  NetworkClient* net = new NetworkClient();
+
+  // replace current singleton
+  Network* prev = singleton;
+  singleton = net;
+
+  // try to connect
+  stop_thread = false;
+  const Network::connection_state_t error = net->ClientConnect(host, port);
+
+  if (error != Network::CONNECTED) {
+    // revert change if connection failed
+    stop_thread = true;
+    singleton = prev;
+    delete net;
+  } else if (prev != NULL) {
+
+    // that's ok
+    AppWormux::GetInstance()->video.SetWindowCaption( std::string("Wormux ") + Constants::VERSION + " - Client mode");
+    delete prev;
+  }
+  return error;
+}
 
 //-----------------------------------------------------------------------------
+
+// Static method
+Network::connection_state_t Network::ServerStart(const std::string& port)
+{
+  NetworkServer* net = new NetworkServer();
+
+  // replace current singleton
+  Network* prev = singleton;
+  singleton = net;
+
+  // try to connect
+  stop_thread = false;
+  const Network::connection_state_t error = net->ServerStart(port);
+
+  if (error != Network::CONNECTED) {
+    // revert change
+    stop_thread = true;
+    singleton = prev;
+    delete net;
+  } else if (prev != NULL) {
+
+    // that's ok
+    AppWormux::GetInstance()->video.SetWindowCaption( std::string("Wormux ") + Constants::VERSION + " - Server mode");
+    delete prev;
+  }
+  return error;
+}
+
+//-----------------------------------------------------------------------------
+
+void Network::SetState(Network::network_state_t _state)
+{
+  state = _state;
+}
+
+Network::network_state_t Network::GetState() const
+{
+  return state;
+}
+
+void Network::SendNetworkState() const
+{
+  Action a(Action::ACTION_NETWORK_CHANGE_STATE);
+  a.Push(state);
+  SendAction(&a);
+}

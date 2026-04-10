@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,8 +26,8 @@
 #include <SDL.h>
 #include <vector>
 #include "launcher.h"
-#include "../include/base.h"
-#include "../tool/point.h"
+#include "include/base.h"
+#include "tool/point.h"
 
 class SubMachineGunBullet : public WeaponBullet
 {
@@ -48,9 +48,14 @@ class SubMachineGun : public WeaponLauncher
     WeaponProjectile * GetProjectileInstance();
     void IncMissedShots();
     bool p_Shoot();
+    void p_Deselect();
   public:
     SubMachineGun();
-    void HandleKeyEvent(int action, int event_type);
+    virtual void SignalTurnEnd();
+    virtual void HandleKeyPressed_Shoot();
+    virtual void HandleKeyRefreshed_Shoot();
+    virtual void HandleKeyReleased_Shoot();
+    DECLARE_GETWEAPONSTRING();
 };
 
 #endif /* SUBMACHINE_GUN_H */

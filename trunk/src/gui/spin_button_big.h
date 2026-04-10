@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,14 +22,19 @@
 #ifndef SPIN_BUTTON_BIG_H
 #define SPIN_BUTTON_BIG_H
 
-#include "../include/base.h"
-#include "../graphic/text.h"
+#include "include/base.h"
+#include "graphic/text.h"
 #include "widget.h"
 #include "button.h"
 #include <string>
 
 class SpinButtonBig : public Widget
 {
+  /* If you need this, implement it (correctly)*/
+  SpinButtonBig(const SpinButtonBig&);
+  SpinButtonBig operator=(const SpinButtonBig&);
+  /*********************************************/
+
  protected:
   Text *txt_label, *txt_value;
 
@@ -44,8 +49,9 @@ class SpinButtonBig : public Widget
 
   void SetSizePosition(const Rectanglei &rect);
 
-  void Draw(const Point2i &mousePosition, Surface& surf);
-  Widget* Clic(const Point2i &mousePosition, uint button);
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  Widget* Click(const Point2i &mousePosition, uint button);
+  Widget* ClickUp(const Point2i &mousePosition, uint button);
   int GetValue() const;
   void SetValue(int value);
 };

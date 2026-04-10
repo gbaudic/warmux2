@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,41 +26,48 @@
 #include <map>
 #include <string>
 
+#include "team.h"
+
 class Character;
-class Team;
 
 // Could be a 5-tuple
 class TeamResults
 {
 private:
+  TeamResults(const TeamResults&);
+  const TeamResults& operator=(const TeamResults&);
+
   //std::couple<const sting&, int> ?
   const std::string teamName;
   const Surface* team_logo;
   const Character* mostViolent;
-  const Character* mostUsefull;
+  const Character* mostUseful;
   const Character* mostUseless;
   const Character* biggestTraitor;
+  const Character* mostClumsy;
+
+  static TeamResults* createTeamResults(Team* team);
+  static TeamResults* createGlobalResults();
+
 protected:
   TeamResults(const std::string& name,
 	      const Surface* team_logo,
 	      const Character* MV,
 	      const Character* MUl,
 	      const Character* MUs,
-	      const Character* BT);
+	      const Character* BT,
+	      const Character* MS);
 public:
-  static TeamResults* createTeamResults(Team* team);
-  static TeamResults* createGlobalResults(std::vector<TeamResults*>* list);
   static std::vector<TeamResults*>* createAllResults(void);
   static void deleteAllResults(std::vector<TeamResults*>* results_list);
-
-  void RenderText(std::string& str);
 
   const std::string& getTeamName() const { return teamName; };
   const Surface* getTeamLogo() const {return team_logo;};
   const Character* getMostViolent() const { return mostViolent; };
-  const Character* getMostUsefull() const { return mostUsefull; };
+  const Character* getMostUseful() const { return mostUseful; };
   const Character* getMostUseless() const { return mostUseless; };
   const Character* getBiggestTraitor() const { return biggestTraitor; };
+  const Character* getMostClumsy() const { return mostClumsy; };
 };
 
 typedef std::vector<TeamResults*>::iterator res_iterator;

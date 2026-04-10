@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,19 +22,27 @@
 #ifndef MSG_BOX_H
 #define MSG_BOX_H
 
-#include "../include/base.h"
-#include "../graphic/font.h"
-#include "box.h"
+#include "include/base.h"
+#include "graphic/font.h"
+#include "graphic/text.h"
+#include "widget.h"
+#include <list>
 
-class MessageBox : public VBox
+class MsgBox : public Widget
 {
-  Font* font;
- protected:
+  Font::font_size_t font_size;
+  Font::font_style_t font_style;
+  std::list<Text*> messages;
+  void Flush();
+
  public:
 
-  MessageBox(int message_nbr, const Rectanglei& rect, Font* _font);
+  MsgBox(const Rectanglei& rect, Font::font_size_t font_size, Font::font_style_t font_style);
 
-  void NewMessage(const std::string& msg);
+  void NewMessage(const std::string& msg, const Color& color = white_color);
+  
+  void Draw (const Point2i &mousePosition, Surface& surf) const;
+  void SetSizePosition(const Rectanglei &rect);
 };
 
 #endif

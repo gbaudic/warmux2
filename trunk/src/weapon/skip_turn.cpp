@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,29 +21,25 @@
 
 #include "skip_turn.h"
 //-----------------------------------------------------------------------------
-#include "../game/game_loop.h"
-#include "../interface/game_msg.h"
-#include "../team/teams_list.h"
-#include "../tool/i18n.h"
-//-----------------------------------------------------------------------------
-
-// Espace entre l'espace en l'image
-const uint ESPACE = 5;
-
+#include "game/game_loop.h"
+#include "interface/game_msg.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
 //-----------------------------------------------------------------------------
 
 SkipTurn::SkipTurn() : Weapon(WEAPON_SKIP_TURN, "skip_turn", new WeaponConfig())
 {
   m_name = _("Skip turn");
+  m_category = TOOL;
 }
 
 //-----------------------------------------------------------------------------
 
 bool SkipTurn::p_Shoot()
-{ 
-  
+{
+
   // Show message
-  GameMessages::GetInstance()->Add (Format(_("%s team has skipped its turn."), 
+  GameMessages::GetInstance()->Add (Format(_("%s team has skipped its turn."),
 			      ActiveTeam().GetName().c_str()));
 
   jukebox.Play(ActiveTeam().GetSoundProfile(), "skip_turn");
@@ -62,3 +58,12 @@ void SkipTurn::Refresh()
 }
 
 //-----------------------------------------------------------------------------
+
+std::string SkipTurn::GetWeaponWinString(const char *TeamName, uint items_count )
+{
+  return Format(ngettext(
+            "%s team has won %u turn skip!",
+            "%s team has won %u turn skips!",
+            items_count), TeamName, items_count);
+}
+

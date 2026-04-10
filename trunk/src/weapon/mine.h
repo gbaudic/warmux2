@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@
 
 #include <SDL.h>
 #include "launcher.h"
-#include "../graphic/surface.h"
-#include "../graphic/sprite.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
-#include "../character/character.h"
+#include "graphic/surface.h"
+#include "graphic/sprite.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
+#include "character/character.h"
 
 class Mine;
 class MineConfig;
@@ -58,7 +58,9 @@ class ObjMine : public WeaponProjectile
 
     void StartTimeout();
     void Detection();
-    bool IsImmobile() const;
+    virtual bool IsImmobile() const;
+    // Damage handling
+    virtual void AddDamage(uint damage_points);
 
     void Draw();
     void Refresh();
@@ -71,6 +73,7 @@ class MineConfig : public ExplosiveWeaponConfig
   public: 
     uint escape_time;
     double detection_range;
+    double speed_detection;
 
   private:
     MineConfig();
@@ -89,7 +92,9 @@ class Mine : public WeaponLauncher
   public:
     Mine();
     MineConfig& cfg();
-  
+
+    DECLARE_GETWEAPONSTRING();
+
 };
 
 #endif /* MINE_H */

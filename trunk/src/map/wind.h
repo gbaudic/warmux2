@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,44 +24,48 @@
 
 #include <SDL.h>
 #include <list>
-#include "../game/config.h"
-#include "../graphic/sprite.h"
-#include "../gui/progress_bar.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
-#include "../tool/xml_document.h"
+#include "game/config.h"
+#include "graphic/sprite.h"
+#include "gui/progress_bar.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
+#include "tool/xml_document.h"
 
 class WindParticle : public PhysicalObj
 {
+  /* You should not need this */
+  WindParticle(const WindParticle&);
+  const WindParticle& operator=(const WindParticle&);
+
 public:
   Sprite *sprite;
-     
+  Sprite *flipped;
+
 public:
-  WindParticle(std::string& xml_file);
-  void Resize(double size);
+  WindParticle(std::string& xml_file, float scale);
+  ~WindParticle() { delete sprite; if(flipped) delete flipped;};
   void Draw();
   void Refresh();
 };
 
 class Wind
 {
-  BarreProg barre;
   long m_val, m_nv_val;
   uint m_last_move;
   uint m_last_part_mvt;
 
 public:
-  std::list<WindParticle> particles;
-  typedef std::list<WindParticle>::iterator iterator;
+  std::list<WindParticle *> particles;
+  typedef std::list<WindParticle *>::iterator iterator;
 
 public:
   Wind();
+  ~Wind();
   double GetStrength() const;
   void ChooseRandomVal();
   void SetVal (long val);
   void Refresh();
   void Reset();
-  void Draw();
   void DrawParticles();
   void RandomizeParticlesPos(); // Put particles randomly on the screen
 };

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,25 +23,28 @@
 #define OPTIONS_MENU_H
 
 #include "menu.h"
-#include "../include/base.h"
-#include "../graphic/font.h"
+#include "include/base.h"
+#include "graphic/font.h"
 
 class OptionMenu : public Menu
 {
-  Font * normal_font;
-
 public:
-   OptionMenu(); 
+   OptionMenu();
    ~OptionMenu();
 
 private:
 
-   /* Graphic options controllers */   
+  /* If you need this, implement it (correctly)*/
+   OptionMenu(const OptionMenu&);
+   OptionMenu operator=(const OptionMenu&);
+   /********************************************/
+
+   /* Graphic options controllers */
    ListBox *lbox_video_mode;
    CheckBox *opt_display_wind_particles;
    CheckBox *opt_display_energy;
    CheckBox *opt_display_name;
-   CheckBox *full_screen; 
+   CheckBox *full_screen;
    SpinButtonBig *opt_max_fps;
 
    /* Sound options controllers */
@@ -50,11 +53,12 @@ private:
    CheckBox *opt_sound_effects;
 
    void SaveOptions();
-   void OnClic(const Point2i &mousePosition, int button);
+   void OnClick(const Point2i &mousePosition, int button);
+   void OnClickUp(const Point2i &mousePosition, int button);
    void Draw(const Point2i &mousePosition);
 
-   void __sig_ok();
-   void __sig_cancel();
+   bool signal_ok();
+   bool signal_cancel();
 };
 
 #endif

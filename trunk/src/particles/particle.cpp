@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,15 +22,15 @@
 #include "particle.h"
 #include <SDL.h>
 #include <map>
-#include "../game/time.h"
-#include "../graphic/sprite.h"
-#include "../include/app.h"
-#include "../object/objects_list.h"
-#include "../tool/resource_manager.h"
-#include "../tool/random.h"
-#include "../tool/point.h"
-#include "../weapon/explosion.h"
-#include "../map/map.h"
+#include "game/time.h"
+#include "graphic/sprite.h"
+#include "include/app.h"
+#include "object/objects_list.h"
+#include "tool/resource_manager.h"
+#include "tool/random.h"
+#include "tool/point.h"
+#include "weapon/explosion.h"
+#include "map/map.h"
 
 #include "body_member.h"
 #include "teleport_member.h"
@@ -45,16 +45,17 @@
 #include "smoke.h"
 #include "star.h"
 
-ParticleEngine global_particle_engine;
-
 Particle::Particle(const std::string &name) :
-  PhysicalObj(name)
+  PhysicalObj(name),
+  on_top(true), // if true displayed on top of characters and weapons
+  m_initial_time_to_live(20),
+  m_left_time_to_live(0),
+  m_check_move_on_end_turn(false),
+  m_time_between_scale(0),
+  m_last_refresh(Time::GetInstance()->Read()),
+  image(NULL)
 {
   SetCollisionModel(true, false, false);
-  m_initial_time_to_live = 20;
-  m_check_move_on_end_turn = false;
-  m_left_time_to_live = 0;
-  m_last_refresh = Time::GetInstance()->Read();
 }
 
 Particle::~Particle()
@@ -64,8 +65,9 @@ Particle::~Particle()
 
 void Particle::Draw()
 {
-  if (m_left_time_to_live > 0)
+  if (m_left_time_to_live > 0) {
     image->Draw(GetPosition());
+  }
 }
 
 void Particle::Refresh()
@@ -111,11 +113,10 @@ bool Particle::StillUseful()
 
 // ==============================================
 
-ParticleEngine::ParticleEngine(uint time)
-{
-  m_time_between_add = time ;
-  m_last_refresh = Time::GetInstance()->Read();
-}
+ParticleEngine::ParticleEngine(uint time):
+  m_last_refresh(Time::GetInstance()->Read()),
+  m_time_between_add(time)
+{}
 
 
 void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
@@ -135,11 +136,11 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
 
 //-----------------------------------------------------------------------------
 // Static methods
-
+bool ParticleEngine::sprites_loaded = false;
 std::list<Particle*> ParticleEngine::lst_particles;
 Sprite* ParticleEngine::particle_sprite[particle_spr_nbr];
 
-void ParticleEngine::Init()
+void ParticleEngine::Load()
 {
   // Pre-load the sprite of each particle
   Profile *res = resource_manager.LoadXMLProfile( "weapons.xml", false);
@@ -147,7 +148,6 @@ void ParticleEngine::Init()
   particle_sprite[EXPLOSION_SMOKE_spr] = resource_manager.LoadSprite(res,"smoke_explosion");
   particle_sprite[ILL_BUBBLE_spr] = resource_manager.LoadSprite(res,"ill_bubble");
   particle_sprite[FIRE_spr]  = resource_manager.LoadSprite(res,"fire_particle");
-  particle_sprite[FIRE_spr]->EnableRotationCache(32);
   particle_sprite[STAR_spr]  = resource_manager.LoadSprite(res,"star_particle");
   particle_sprite[DARK_SMOKE_spr]  = resource_manager.LoadSprite(res,"dark_smoke");
   particle_sprite[MAGIC_STAR_R_spr] = resource_manager.LoadSprite(res,"pink_star_particle");
@@ -159,20 +159,26 @@ void ParticleEngine::Init()
   particle_sprite[BULLET_spr] = resource_manager.LoadSprite(res,"bullet_particle");
   particle_sprite[BULLET_spr]->EnableRotationCache(6);
   particle_sprite[POLECAT_FART_spr] = resource_manager.LoadSprite(res,"polecat_fart");
-  particle_sprite[POLECAT_FART_spr]->EnableRotationCache(6);
   resource_manager.UnLoadXMLProfile(res);
+
+  sprites_loaded = true;
 }
 
 void ParticleEngine::FreeMem()
 {
+  sprites_loaded = false;
+
   for(int i=0; i<particle_spr_nbr ; i++)
-    delete global_particle_engine.particle_sprite[i];
+    delete particle_sprite[i];
 }
 
 Sprite* ParticleEngine::GetSprite(particle_spr type)
 {
   assert(type < particle_spr_nbr);
-  return new Sprite(*(global_particle_engine.particle_sprite[type]));
+  if (!sprites_loaded)
+    return NULL;
+
+  return new Sprite(*(particle_sprite[type]));
 }
 
 void ParticleEngine::AddNow(const Point2i &position,
@@ -180,49 +186,53 @@ void ParticleEngine::AddNow(const Point2i &position,
 			    bool upper,
 			    double angle, double norme)
 {
+  if (!sprites_loaded)
+    return;
+
   Particle *particle = NULL;
   double tmp_angle, tmp_norme;
 
   for (uint i=0 ; i < nb_particles ; i++) {
     switch (type) {
-      case particle_SMOKE : particle = new Smoke();
-                            break;
-      case particle_ILL_BUBBLE : particle = new IllBubble();
-                            break;
-      case particle_DARK_SMOKE : particle = new DarkSmoke();
-                            break;
-      case particle_FIRE : particle = new FireParticle();
-                           break;
-      case particle_STAR : particle = new StarParticle();
-                           break;
-      case particle_BULLET : particle = new BulletParticle();
-                           break;
-      case particle_POLECAT_FART : particle = new PolecatFart();
-                           break;
-      case particle_GROUND : particle = new GroundParticle(Point2i(10,10), position);
-                           break;
-      case particle_AIR_HAMMER : particle = new GroundParticle(Point2i(21,18), position); 
-	// Half the size of the airhammer impact
-	// Dirty, but we have no way to read the
-	// impact size from here ...
-                           break;
-      case particle_MAGIC_STAR : particle = new MagicStarParticle();
-                                 break;
-      default : particle = NULL;
-                assert(0);
-                break;
+    case particle_SMOKE : particle = new Smoke();
+      break;
+    case particle_ILL_BUBBLE : particle = new IllBubble();
+      break;
+    case particle_DARK_SMOKE : particle = new DarkSmoke();
+      break;
+    case particle_FIRE : particle = new FireParticle();
+      break;
+    case particle_STAR : particle = new StarParticle();
+      break;
+    case particle_BULLET : particle = new BulletParticle();
+      break;
+    case particle_POLECAT_FART : particle = new PolecatFart();
+      break;
+    case particle_GROUND : particle = new GroundParticle(Point2i(10,10), position);
+      break;
+    case particle_AIR_HAMMER : particle = new GroundParticle(Point2i(21,18), position);
+      // Half the size of the airhammer impact
+      // Dirty, but we have no way to read the
+      // impact size from here ...
+      break;
+    case particle_MAGIC_STAR : particle = new MagicStarParticle();
+      break;
+    default : particle = NULL;
+      assert(0);
+      break;
     }
 
     if (particle != NULL) {
+
       if( norme == -1 )
-		  tmp_norme = double(randomObj.GetLong(0, 5000))/100;
+	tmp_norme = double(randomObj.GetLong(0, 5000))/100;
       else
-		  tmp_norme = norme;
+	tmp_norme = norme;
 
       if( angle == -1 )
-		  tmp_angle = - double(randomObj.GetLong(0, 3000))/1000;
+	tmp_angle = - double(randomObj.GetLong(0, 3000))/1000;
       else
-		  tmp_angle = angle;
+	tmp_angle = angle;
 
       particle->SetXY(position);
       particle->SetOnTop(upper);
@@ -234,11 +244,17 @@ void ParticleEngine::AddNow(const Point2i &position,
 
 void ParticleEngine::AddNow(Particle* particle)
 {
+  if (!sprites_loaded || !particle)
+    return;
+
   lst_particles.push_back(particle);
 }
 
 void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
 {
+  if (!sprites_loaded)
+    return;
+
   //Add many little smoke particles
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
@@ -270,6 +286,9 @@ void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
 
 void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius)
 {
+  if (!sprites_loaded)
+    return;
+
   //Add a few big smoke particles
   const uint big_partic_nbr = 5;
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
@@ -300,6 +319,9 @@ void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius
 
 void ParticleEngine::AddExplosionSmoke(const Point2i &position, const uint &radius, ESmokeStyle &style)
 {
+  if (!sprites_loaded)
+    return;
+
   if(style == NoESmoke) return;
   AddLittleESmoke (position, radius);
   if(style == BigESmoke) AddBigESmoke (position, radius);

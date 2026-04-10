@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,12 +24,12 @@
 
 #include <SDL.h>
 #include "weapon.h"
-#include "../graphic/surface.h"
-#include "../include/base.h"
-#include "../object/physical_obj.h"
-#include "../particles/particle.h"
-#include "../tool/point.h"
-#include "../tool/resource_manager.h"
+#include "graphic/surface.h"
+#include "include/base.h"
+#include "object/physical_obj.h"
+#include "particles/particle.h"
+#include "tool/point.h"
+#include "tool/resource_manager.h"
 
 void ApplyExplosion (const Point2i &pos,
 		     const ExplosiveWeaponConfig &config,

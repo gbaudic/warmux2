@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ TeleportMemberParticle::TeleportMemberParticle(Sprite* spr, const Point2i& posit
 
   sin_x_max = randomObj.GetDouble(M_PI_4, 3.0 * M_PI_4);
   sin_y_max = randomObj.GetDouble(M_PI_4, 3.0 * M_PI_4);
-  camera.ChangeObjSuivi(this, true, true);
+  camera.FollowObject(this, true, true);
 }
 
 TeleportMemberParticle::~TeleportMemberParticle()

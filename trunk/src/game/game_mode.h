@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,17 +20,18 @@
  * per team, etc.
  *****************************************************************************/
 
-#ifndef MODE_JEU_H
-#define MODE_JEU_H
+#ifndef GAME_MODE_H
+#define GAME_MODE_H
 
 #include <string>
-#include "../include/base.h"
-#include "../tool/xml_document.h"
+#include "include/base.h"
+#include "tool/xml_document.h"
+#include "weapon/weapon_cfg.h"
 
-class GameMode 
+class GameMode
 {
 public:
-  uint max_characters;
+  uint nb_characters;
   uint max_teams;
   uint duration_turn;
   uint duration_move_player;
@@ -40,6 +41,9 @@ public:
   double gravity;
   double safe_fall ;
   double damage_per_fall_unit ;
+  ExplosiveWeaponConfig death_explosion_cfg;
+  ExplosiveWeaponConfig barrel_explosion_cfg;
+  ExplosiveWeaponConfig bonus_box_explosion_cfg;
 
   struct s_character
   {
@@ -48,36 +52,57 @@ public:
     uint mass;
     double air_resist_factor;
     uint jump_strength;
-    int jump_angle;
+    double jump_angle;
     uint super_jump_strength;
-    int super_jump_angle;
+    double super_jump_angle;
     uint back_jump_strength;
-    int back_jump_angle;
+    double back_jump_angle;
   } character;
 
   int allow_character_selection;
 
-  static const int ALWAYS = 0;
-  static const int BEFORE_FIRST_ACTION = 1;
-  static const int BEFORE_FIRST_ACTION_AND_END_TURN = 2;
-  static const int CHANGE_ON_END_TURN = 3;
-  static const int NEVER = 4;
- 
+  enum {
+    ALWAYS = 0,
+    BEFORE_FIRST_ACTION,
+    BEFORE_FIRST_ACTION_AND_END_TURN,
+    CHANGE_ON_END_TURN,
+    NEVER
+  };
 private:
   std::string m_current;
-  static GameMode * singleton;
-    
+
+  XmlReader doc_objects;
+
+  bool LoadXml (xmlpp::Element *xml);
+  bool ExportFileToString(const std::string& filename, std::string& contents) const;
+
+  std::string GetFilename() const;
+  std::string GetObjectsFilename() const;
+
 public:
   static GameMode * GetInstance();
 
-  bool Load(const std::string &mode);
+  const std::string& GetName() const;
+
+  bool Load(void);
+
+  // mode: xml text of data/game_mode/<mode>.xml
+  // mode_objects: xml text of data/game_mode/<mode>_objects.xml
+  bool LoadFromString(const std::string& game_mode_name,
+		      const std::string& mode,
+		      const std::string& mode_objects);
+
+  bool ExportToString(std::string& mode,
+		      std::string& mode_objects) const;
+
+  XmlReader& GetXmlObjects(); // for object_cfg
+
   bool AllowCharacterSelection() const;
 
 private:
-  GameMode();  
+  static GameMode * singleton;
+  GameMode();
 
-protected:
-  bool LoadXml (xmlpp::Element *xml);
 };
 
-#endif
+#endif /* GAME_MODE_H */

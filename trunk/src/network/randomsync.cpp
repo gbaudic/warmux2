@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,10 +22,9 @@
 #include <time.h>
 #include <math.h>
 #include <stdlib.h>
-#include <assert.h>
 #include "randomsync.h"
 #include "network.h"
-#include "../include/action_handler.h"
+#include "include/action_handler.h"
 
 const uint table_size = 128; //Number of pregerated numbers
 
@@ -36,12 +35,17 @@ RandomSync::RandomSync(){
 
 void RandomSync::Init(){
   //If we are a client on the network, we don't generate any random number
-  if(network.IsClient()) return;
+  if (Network::GetInstance()->IsClient()) return;
 
   srand( time(NULL) );
 
   rnd_table.clear();
 
+  if  (Network::GetInstance()->IsServer()) {
+    Action a(Action::ACTION_NETWORK_RANDOM_CLEAR);
+    Network::GetInstance()->SendAction(&a);
+  }
+  
   //Fill the pregenerated tables:
   for(uint i=0; i < table_size; i++)
     GenerateTable();
@@ -49,10 +53,15 @@ void RandomSync::Init(){
 
 void RandomSync::GenerateTable()
 {
-  //Add a random number to the table, send it over network if needed
+  //Add a random number to the table
   double nbr = rand();
   AddToTable(nbr);
-  if(network.IsServer()) ActionHandler::GetInstance()->NewAction(new Action(ACTION_SEND_RANDOM,nbr));
+
+  // send it over network if needed
+  if (Network::GetInstance()->IsServer()) {
+    Action a(Action::ACTION_NETWORK_RANDOM_ADD,nbr);
+    Network::GetInstance()->SendAction(&a);
+  }
 }
 
 void RandomSync::AddToTable(double nbr)
@@ -60,12 +69,21 @@ void RandomSync::AddToTable(double nbr)
   rnd_table.push_back(nbr);
 }
 
+void RandomSync::ClearTable()
+{
+  rnd_table.clear();
+}
+
 double RandomSync::GetRand()
 {
-  if(network.IsServer() || network.IsLocal()) GenerateTable();
+  if(Network::GetInstance()->IsServer() || Network::GetInstance()->IsLocal()) GenerateTable();
 
   // If the table is empty freeze until the server have sent something
-  while(rnd_table.size() == 0);
+  while(rnd_table.size() == 0)
+  {
+    SDL_Delay(100);
+    ActionHandler::GetInstance()->ExecActions();
+  }
 
   double nbr = rnd_table.front();
   rnd_table.pop_front();
@@ -94,7 +112,7 @@ double RandomSync::GetDouble(double max){
 
 /**
  * Get a random number between 0.0 and 1.0
- * 
+ *
  * @return A number between 0.0 and 1.0
  */
 double RandomSync::GetDouble(){
@@ -110,8 +128,8 @@ double RandomSync::GetDouble(){
 Point2i RandomSync::GetPoint(const Rectanglei &rect){
 	Point2i topPoint = rect.GetPosition();
 	Point2i bottomPoint = rect.GetBottomRightPoint();
-	
-	return Point2i( GetLong(topPoint.x, bottomPoint.x), 
+
+	return Point2i( GetLong(topPoint.x, bottomPoint.x),
 			GetLong(topPoint.y, bottomPoint.y) );
 }
 

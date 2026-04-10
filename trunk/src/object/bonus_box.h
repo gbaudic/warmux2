@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2004 Lawrence Azzoug.
+ *  Copyright (C) 2001-2007 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,54 +23,32 @@
 #define BONUS_BOX_H
 //-----------------------------------------------------------------------------
 #include <SDL.h>
-#include "../include/base.h"
-#include "../object/physical_obj.h"
-#include "../team/team.h"
+#include "include/base.h"
+#include "objbox.h"
+#include "object/physical_obj.h"
+#include "team/team.h"
+#include "weapon/weapons_list.h"
 //-----------------------------------------------------------------------------
 
-class BonusBox : public PhysicalObj
+class BonusBox : public ObjBox
 {
   private:
-    static bool enable;
-    static uint time;
+    uint nbr_ammo;
 
-    bool parachute; 
-    Sprite *anim;
-
-    enum
-    {
-      // If you modify this enum, modify also nbr_bonus_diff
-      bonusDYNAMITE=1,
-      bonusTELEPORTATION,
-      bonusENERGY,
-      bonusTRAP,
-      bonusAIR_ATTACK,
-      bonusBASEBALL,
-      bonusLOWGRAV,
-      bonusAUTO_BAZOOKA,
-      bonusRIOT_BOMB,
-      bonusANVIL,
-      bonusHOLLY_GRENADE
-    } bonus_weapons;
-    static const uint nb_bonus = bonusHOLLY_GRENADE;
+    Weapon::Weapon_type contents;
+    static uint weapon_count;
+    static std::map<int,std::pair<Weapon*,int> > weapon_map;
+    static std::map<int,std::pair<Weapon*,int> > weapon_map_no_infinite;
 
   private:
-    static bool PlaceBonusBox (BonusBox& bonus_box);
     void ApplyBonus (Team &team, Character &character);
+    void PickRandomWeapon();
   public:
     BonusBox();
-    ~BonusBox();
-
-    // Activate bonus box ?
-    static void Enable (bool _enable);
-    static bool NewBonusBox();
+    static void LoadXml(xmlpp::Element * object);
 
     void Draw();
     void Refresh();
-
-  protected:
-    // Signal Fall ending
-    virtual void SignalCollision();
 };
 
 //-----------------------------------------------------------------------------
