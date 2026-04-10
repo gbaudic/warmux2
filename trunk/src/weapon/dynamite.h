@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,9 +16,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon dynamite : lorqu'on "tire", un baton de dynamite est lâché. Celui
- * explos après un laps de temps. La baton fait alors un gros trou dans la
- * carte, souffle les vers qui sont autour en leur faisant perdre de l'énergie.
+ * Weapon dynamite : When fired, explode after a short laps of time. Then make a
+ * big hole, eject character and made them lost energy.
+ * Like a dynamite after all :)
  *****************************************************************************/
 
 #ifndef DYNAMITE_H
@@ -27,36 +27,37 @@
 #include "launcher.h"
 #include "../graphic/sprite.h"
 #include "../include/base.h"
-#include "../team/character.h"
+#include "../character/character.h"
 
 class Dynamite;
 
-// La représentation d'une dynamite
-class BatonDynamite : public WeaponProjectile
+class DynamiteStick : public WeaponProjectile
 {
   int channel;
 
-public:
-  BatonDynamite(ExplosiveWeaponConfig& cfg);
-  void Reset();
-  void Draw();
-  void Refresh();
-  void Explosion();
+  public:
+    DynamiteStick(ExplosiveWeaponConfig& cfg,
+                  WeaponLauncher * p_launcher);
 
-protected:
-  void SignalCollision();
-  void ShootSound();
+    void Shoot(double strength);
+    void Refresh();
+
+  protected:
+    void ShootSound();
+    void SignalExplosion();
+    void SignalOutOfMap();
+    void SignalDrowning();
 };
 
 
 // L'arme dynamite
 class Dynamite : public WeaponLauncher
 {
-private:
-  bool p_Shoot();
-
-public:
-  Dynamite();
-  void p_Select();
+  protected:
+    bool p_Shoot();
+  protected:
+    WeaponProjectile * GetProjectileInstance();
+  public:
+    Dynamite();
 };
-#endif
+#endif /* DYNAMITE_H */

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,15 +16,13 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Refresh des différentes équipes.
+ * Team handling
  *****************************************************************************/
 
 #include "teams_list.h"
 //-----------------------------------------------------------------------------
+#include "../character/body_list.h"
 #include "../include/action_handler.h"
-#ifdef CL
-#include "../network/network.h"
-#endif
 #include "../game/config.h"
 #include "../tool/file_tools.h"
 #include "../tool/i18n.h"
@@ -39,37 +37,40 @@
 //-----------------------------------------------------------------------------
 TeamsList teams_list;
 //-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 TeamsList::TeamsList()
 {}
 
+TeamsList::~TeamsList()
+{
+  Clear();
+  full_list.clear();
+}
+
 //-----------------------------------------------------------------------------
 
-void TeamsList::NextTeam (bool debut_jeu)
+void TeamsList::NextTeam (bool begin_game)
 {
-  // Fin du tour pour l'équipe active
-  if (debut_jeu) return;
-#ifdef CL
-  if (network.is_client()) return;
-  ActiveTeam().FinTurn();
-#endif
-   
-  // Passe à l'équipe suivante
-  std::vector<Team*>::iterator it=m_equipe_active;
+  // End of turn for active team
+  if (begin_game) return;
+
+  // Next team
+  std::vector<Team*>::iterator it=active_team;
   do
-    {
-      ++it;
-      if (it == playing_list.end()) it = playing_list.begin();
-    } while ((**it).NbAliveCharacter() == 0);
-  ActionHandler::GetInstance()->NewAction(ActionString(ACTION_CHANGE_TEAM, (**it).GetId()));
+  {
+    ++it;
+    if (it == playing_list.end()) it = playing_list.begin();
+  } while ((**it).NbAliveCharacter() == 0);
+  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHANGE_TEAM, (**it).GetId()));
 }
 
 //-----------------------------------------------------------------------------
 
 Team& TeamsList::ActiveTeam()
 {
-  assert (m_equipe_active != playing_list.end());
-  return **m_equipe_active;
+  assert (active_team != playing_list.end());
+  return **active_team;
 }
 
 //-----------------------------------------------------------------------------
@@ -78,7 +79,7 @@ void TeamsList::LoadOneTeam(const std::string &dir, const std::string &team)
 {
   // Skip '.', '..' and hidden files
   if (team[0] == '.') return;
-  
+
 #if !defined(WIN32) || defined(__MINGW32__)
   // Is it a directory ?
   struct stat stat_file;
@@ -86,32 +87,24 @@ void TeamsList::LoadOneTeam(const std::string &dir, const std::string &team)
   if (stat(filename.c_str(), &stat_file) != 0) return;
   if (!S_ISDIR(stat_file.st_mode)) return;
 #endif
-	
-  // Add a new empty team
-  Team nv_equipe;
-  full_list.push_back(nv_equipe);
 
-  // Try to load team 
-  bool ok = full_list.back().Init (dir, team);
-
-  // If fails, remove the team
-  if (!ok)
-  {
-    full_list.pop_back();
-	return;
+  // Add the team
+  Team * tmp = Team::CreateTeam (dir, team);
+  if (tmp != NULL) {
+    full_list.push_back(*tmp);
+    std::cout << ((1<full_list.size())?", ":" ") << team;
+    std::cout.flush();
   }
-  std::cout << ((1<full_list.size())?", ":" ") << team;
-  std::cout.flush();
 }
 
 //-----------------------------------------------------------------------------
 
 void TeamsList::LoadList()
-{  
+{
   playing_list.clear() ;
-   
+
   std::cout << "o " << _("Load teams:");
-  
+
   // Load Wormux teams
   std::string dirname = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "team" + PATH_SEPARATOR;
 #if !defined(WIN32) || defined(__MINGW32__)
@@ -121,7 +114,7 @@ void TeamsList::LoadList()
     while ((file = readdir(dir)) != NULL)  LoadOneTeam (dirname, file->d_name);
     closedir (dir);
   } else {
-	Error (Format(_("Cannot open teams directory (%s)!"), dirname.c_str()));
+    Error (Format(_("Cannot open teams directory (%s)!"), dirname.c_str()));
   }
 #else
   std::string pattern = dirname + "*.*";
@@ -131,19 +124,19 @@ void TeamsList::LoadList()
   if(file_search != INVALID_HANDLE_VALUE)
   {
     while (FindNextFile(file_search,&file))
-	{
-	  if(file.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
-	    LoadOneTeam(dirname,file.cFileName);
-	}
+    {
+      if(file.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
+        LoadOneTeam(dirname,file.cFileName);
+    }
   } else {
-	Error (Format(_("Cannot open teams directory (%s)!"), dirname.c_str()));
+    Error (Format(_("Cannot open teams directory (%s)!"), dirname.c_str()));
   }
   FindClose(file_search);
 #endif
 
   // Load personal teams
 #if !defined(WIN32) || defined(__MINGW32__)
-  dirname = Config::GetInstance()->GetPersonalDir() + PATH_SEPARATOR 
+  dirname = Config::GetInstance()->GetPersonalDir() + PATH_SEPARATOR
     + "team" + PATH_SEPARATOR;
   dir = opendir(dirname.c_str());
   if (dir != NULL) {
@@ -154,11 +147,11 @@ void TeamsList::LoadList()
 
   teams_list.full_list.sort(compareTeams);
 
-  // On a au moins deux équipes ?
+  // We need at least 2 teams
   if (full_list.size() < 2)
     Error(_("You need at least two valid teams !"));
 
-  // Sélection bidon
+  // Default selection
   std::list<uint> nv_selection;
   nv_selection.push_back (0);
   nv_selection.push_back (1);
@@ -169,21 +162,25 @@ void TeamsList::LoadList()
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::Reset()
+void TeamsList::LoadGamingData(uint how_many_characters)
 {
-  m_equipe_active = playing_list.begin();
+  active_team = playing_list.begin();
 
-  // Commence par désactiver tous les vers
-  iterator it=playing_list.begin(), fin=playing_list.end();
-/*  for (; it != fin; ++it) 
-  {
-	Team &team = **it;
-    Team::iterator ver=team.begin(), dernier_ver=team.end();
-    for (; ver != dernier_ver; ++ver) (*ver).StopPlaying();
-  } 
-*/
-  // Reset de toutes les équipes
-  for (it=playing_list.begin(); it != fin; ++it) (**it).Reset();
+  iterator it=playing_list.begin(), end=playing_list.end();
+
+  // Load the data of all teams
+  for (; it != end; ++it) (**it).LoadGamingData(how_many_characters);
+}
+
+//-----------------------------------------------------------------------------
+
+void TeamsList::UnloadGamingData()
+{
+  body_list.FreeMem();
+  iterator it=playing_list.begin(), end=playing_list.end();
+
+  // Unload the data of all teams
+  for (; it != end; ++it) (**it).UnloadGamingData();
 }
 
 //-----------------------------------------------------------------------------
@@ -192,9 +189,9 @@ Team *TeamsList::FindById (const std::string &id, int &pos)
 {
   full_iterator it=full_list.begin(), fin=full_list.end();
   int i=0;
-  for (; it != fin; ++it, ++i) 
+  for (; it != fin; ++it, ++i)
   {
-    if (it -> GetId() == id) 
+    if (it -> GetId() == id)
     {
       pos = i;
       return &(*it);
@@ -210,7 +207,7 @@ Team *TeamsList::FindByIndex (uint index)
 {
   full_iterator it=full_list.begin(), fin=full_list.end();
   uint i=0;
-  for (; it != fin; ++it, ++i) 
+  for (; it != fin; ++it, ++i)
   {
     if (i == index) return &(*it);
   }
@@ -220,29 +217,54 @@ Team *TeamsList::FindByIndex (uint index)
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::InitList (const std::list<std::string> &liste_nom)
+Team *TeamsList::FindPlayingByIndex (uint index)
 {
-  Clear();
-  std::list<std::string>::const_iterator it=liste_nom.begin(), fin=liste_nom.end();
-  for (; it != fin; ++it) AddTeam (*it, false);
-  m_equipe_active = playing_list.begin();
+  assert(index < playing_list.size());
+  return playing_list[index];
 }
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::InitEnergy ()
+Team* TeamsList::FindPlayingById(const std::string &id, uint &index)
 {
-  //On cherche l'équipe avec le plus d'énergie pour fixer le niveau max
-  //(arrive dans le cas d'équipe n'ayant pas le même nombre de vers)
+  iterator it = playing_list.begin(), end = playing_list.end();
+  index=0;
+  for (; it != end; ++it, ++index)
+  {
+    if ((*it) -> GetId() == id)
+      return *it;
+  }
+  assert(false);
+  return NULL;
+}
+
+//-----------------------------------------------------------------------------
+
+void TeamsList::InitList (const std::list<ConfigTeam> &lst)
+{
+  Clear();
+  std::list<ConfigTeam>::const_iterator it=lst.begin(), end=lst.end();
+  for (; it != end; ++it) {
+    AddTeam (*it, false);
+  }
+  active_team = playing_list.begin();
+}
+
+//-----------------------------------------------------------------------------
+
+void TeamsList::InitEnergy()
+{
+  // Looking at team with the greatest energy
+  // (in case teams does not have same amount of character)
   iterator it=playing_list.begin(), fin=playing_list.end();
   uint max = 0;
   for (; it != fin; ++it)
   {
-    if( (**it).LitEnergie() > max)
-      max = (**it).LitEnergie();
+    if( (**it).ReadEnergy() > max)
+      max = (**it).ReadEnergy();
   }
 
-  //Initialisation de la barre d'énergie de chaque équipe
+  // Init each team's energy bar
   it=playing_list.begin();
   uint i = 0;
   for (; it != fin; ++it)
@@ -251,99 +273,95 @@ void TeamsList::InitEnergy ()
     ++i;
   }
 
-  //Calcul du classement initial
+  // Initial ranking
   it=playing_list.begin();
   for (; it != fin; ++it)
   {
-    uint classement = 0;
+    uint rank = 0;
     iterator it2=playing_list.begin();
     for (; it2 != fin; ++it2)
     {
       if((it != it2)
-      && (**it2).LitEnergie() > (**it).LitEnergie() )
-        ++classement;
+          && (**it2).ReadEnergy() > (**it).ReadEnergy() )
+        ++rank;
     }
-    (**it).energie.classement_tmp = classement;
+    (**it).energy.rank_tmp = rank;
   }
   it=playing_list.begin();
   for (; it != fin; ++it)
   {
-    uint classement = (**it).energie.classement_tmp;
+    uint rank = (**it).energy.rank_tmp;
     iterator it2=playing_list.begin();
     for (it2 = it; it2 != fin; ++it2)
     {
       if((it != it2)
-      && (**it2).LitEnergie() == (**it).LitEnergie() )
-        ++classement;
+          && (**it2).ReadEnergy() == (**it).ReadEnergy() )
+        ++rank;
     }
-    (**it).energie.FixeClassement(classement);
+    (**it).energy.SetRanking(rank);
   }
 }
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::RefreshEnergy ()
+void TeamsList::RefreshEnergy()
 {
-  //Dans l'ordre des priorités :
-  // - Terminer l'opération en cours
-  // - On change la valeur de l'énergie
-  // - On change le classement
-  // - On prépare les jauges à l'évenement suivant
-  
-  iterator it=playing_list.begin(), fin=playing_list.end();
-  uint status;
+  // In the order of the priorit :
+  // - finish current action
+  // - change a teams energy
+  // - change ranking
+  // - prepare energy bar for next event
 
-  bool en_attente = true; // Toute les jauges sont en attente
+  iterator it=playing_list.begin(), fin=playing_list.end();
+  energy_t status;
+
+  bool waiting = true; // every energy bar are waiting
 
   for (; it != fin; ++it) {
-    if( (**it).energie.status != EnergieStatusAttend)
-    {
-      en_attente = false;
+    if( (**it).energy.status != EnergyStatusWait) {
+      waiting = false;
       break;
     }
   }
 
-  //Une des jauge éxécute un ordre?
-  if(!en_attente)
-  {
-    status = EnergieStatusOK;
+  // one of the energy bar is changing ?
+  if(!waiting) {
+    status = EnergyStatusOK;
 
-    //Une des jauges change de valeur?
+    // change an energy bar value ?
     for (it=playing_list.begin(); it != fin; ++it) {
-      if( (**it).energie.status == EnergieStatusValeurChange) {
-        status = EnergieStatusValeurChange;
+      if( (**it).energy.status == EnergyStatusValueChange) {
+        status = EnergyStatusValueChange;
         break;
       }
     }
-  
-    //Une des jauges change de classement?
+
+    // change a ranking ?
     for (it=playing_list.begin(); it != fin; ++it) {
-      if( (**it).energie.status == EnergieStatusClassementChange
-      && ((**it).energie.EstEnMouvement() || status == EnergieStatusOK)) {
-        status = EnergieStatusClassementChange;
+      if( (**it).energy.status == EnergyStatusRankChange
+             && ((**it).energy.IsMoving() || status == EnergyStatusOK)) {
+        status = EnergyStatusRankChange;
         break;
       }
     }
   }
   else {
-    //Les jauges sont toutes en attente
-    //->on les met OK pour un nouvel ordre
-    status = EnergieStatusOK;
+    // every energy bar are waiting
+    // -> set state ready for a new event
+    status = EnergyStatusOK;
   }
 
-  // On recopie l'ordre a donner aux jauges
-  if(status != EnergieStatusOK || en_attente)
-  {
+  // Setting event to process in every energy bar
+  if(status != EnergyStatusOK || waiting) {
     it=playing_list.begin();
     for (; it != fin; ++it) {
-      (**it).energie.status = status;
+      (**it).energy.status = status;
     }
   }
 
   // Actualisation des valeurs (pas d'actualisation de l'affichage)
-  for (it=playing_list.begin(); it != fin; ++it)
-  {
-    (**it).ActualiseBarreEnergie();
+  for (it=playing_list.begin(); it != fin; ++it) {
+    (**it).UpdateEnergyBar();
     RefreshSort();
   }
 }
@@ -352,36 +370,36 @@ void TeamsList::RefreshEnergy ()
 void TeamsList::RefreshSort ()
 {
   iterator it=playing_list.begin(), fin=playing_list.end();
-  uint classement;
-  
-  //Cherche le classement sans tenir comte des égalités
+  uint rank;
+
+  // Find a ranking without taking acount of the equalities
   it=playing_list.begin();
   for (; it != fin; ++it)
   {
-    classement = 0;
+    rank = 0;
     iterator it2=playing_list.begin();
     for (; it2 != fin; ++it2)
     {
       if((it != it2)
-      && (**it2).LitEnergie() > (**it).LitEnergie() )
-        ++classement;
+          && (**it2).ReadEnergy() > (**it).ReadEnergy() )
+        ++rank;
     }
-    (**it).energie.classement_tmp = classement;
+    (**it).energy.rank_tmp = rank;
   }
 
-  //Réglage des égalités
+  // Fix equalities
   it=playing_list.begin();
   for (; it != fin; ++it)
   {
-    classement = (**it).energie.classement_tmp;
+    rank = (**it).energy.rank_tmp;
     iterator it2=playing_list.begin();
     for (it2 = it; it2 != fin; ++it2)
     {
       if((it != it2)
-      && (**it2).LitEnergie() == (**it).LitEnergie() )
-        ++classement;
+          && (**it2).ReadEnergy() == (**it).ReadEnergy() )
+        ++rank;
     }
-    (**it).energie.NouveauClassement(classement);
+    (**it).energy.NewRanking(rank);
   }
 }
 
@@ -394,7 +412,7 @@ void TeamsList::ChangeSelection (const std::list<uint>& nv_selection)
   selection_iterator it=selection.begin(), fin=selection.end();
   playing_list.clear();
   for (; it != fin; ++it) playing_list.push_back (FindByIndex(*it));
-  m_equipe_active = playing_list.begin();
+  active_team = playing_list.begin();
 }
 
 //-----------------------------------------------------------------------------
@@ -410,54 +428,99 @@ void TeamsList::Clear()
   selection.clear();
   playing_list.clear();
 }
-  
+
 //-----------------------------------------------------------------------------
 
-void TeamsList::AddTeam (const std::string &id, bool generate_error)
+void TeamsList::AddTeam (const ConfigTeam &the_team_cfg, bool generate_error)
 {
-    int pos;
-    Team *equipe = FindById (id, pos);
-    if (equipe != NULL) {
-      selection.push_back (pos);
-      playing_list.push_back (equipe);
-    } else {
-		std::string msg = Format(_("Can't find team %s!"), id.c_str());
-		if (generate_error)
-		  Error (msg);
-		else
-		  std::cout << "! " << msg << std::endl;
-    }
-	m_equipe_active = playing_list.begin();
+  int pos;
+  Team *the_team = FindById (the_team_cfg.id, pos);
+  if (the_team != NULL) {
+
+    // set the player name and number of characters
+    the_team->SetPlayerName(the_team_cfg.player_name);
+    the_team->SetNbCharacters(the_team_cfg.nb_characters);
+
+    selection.push_back (pos);
+    playing_list.push_back (the_team);
+
+  } else {
+    std::string msg = Format(_("Can't find team %s!"), the_team_cfg.id.c_str());
+    if (generate_error)
+      Error (msg);
+    else
+      std::cout << "! " << msg << std::endl;
+  }
+  active_team = playing_list.begin();
 }
-  
+
+//-----------------------------------------------------------------------------
+
+void TeamsList::UpdateTeam (const ConfigTeam &the_team_cfg, bool generate_error)
+{
+  int pos;
+  Team *the_team = FindById (the_team_cfg.id, pos);
+  if (the_team != NULL) {
+
+    // set the player name and number of characters
+    the_team->SetPlayerName(the_team_cfg.player_name);
+    the_team->SetNbCharacters(the_team_cfg.nb_characters);
+
+  } else {
+    std::string msg = Format(_("Can't find team %s!"), the_team_cfg.id.c_str());
+    if (generate_error)
+      Error (msg);
+    else
+      std::cout << "! " << msg << std::endl;
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+void TeamsList::DelTeam (const std::string &id)
+{
+  int pos;
+  Team *equipe = FindById (id, pos);
+  assert(equipe != NULL);
+
+  selection.erase(find(selection.begin(),selection.end(),(uint)pos));
+  playing_list.erase(find(playing_list.begin(),playing_list.end(),equipe));
+
+  active_team = playing_list.begin();
+}
+
 //-----------------------------------------------------------------------------
 
 void TeamsList::SetActive(const std::string &id)
 {
-	iterator
-		it = playing_list.begin(),
-		end = playing_list.end();
-	for (; it != end; ++it)
-	{
-		Team &team = **it;
-		if (team.GetId() == id)
-		{
-			m_equipe_active = it;
-			return;
-		}
-	}
-	Error (Format(_("Can't find team %s!"), id.c_str()));
+  iterator
+      it = playing_list.begin(),
+  end = playing_list.end();
+  for (; it != end; ++it)
+  {
+    Team &team = **it;
+    if (team.GetId() == id)
+    {
+      active_team = it;
+      return;
+    }
+  }
+  Error (Format(_("Can't find team %s!"), id.c_str()));
 }
-  
+
 //-----------------------------------------------------------------------------
 
 Team& ActiveTeam()
-{ return teams_list.ActiveTeam(); }
+{
+  return teams_list.ActiveTeam();
+}
 
 //-----------------------------------------------------------------------------
 
 Character& ActiveCharacter()
-{ return ActiveTeam().ActiveCharacter(); }
+{
+  return ActiveTeam().ActiveCharacter();
+}
 
 //-----------------------------------------------------------------------------
 

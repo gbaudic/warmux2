@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,7 +28,6 @@
 class Random{
 public:
 	Random();
-	void Init();
 
 	bool GetBool();
 	long GetLong(long min, long max);

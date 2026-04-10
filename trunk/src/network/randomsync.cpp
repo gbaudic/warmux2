@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -27,7 +27,7 @@
 #include "network.h"
 #include "../include/action_handler.h"
 
-const uint table_size = 40; //Number of pregerated numbers
+const uint table_size = 128; //Number of pregerated numbers
 
 RandomSync randomSync;
 
@@ -36,7 +36,7 @@ RandomSync::RandomSync(){
 
 void RandomSync::Init(){
   //If we are a client on the network, we don't generate any random number
-  if(network.is_client()) return;
+  if(network.IsClient()) return;
 
   srand( time(NULL) );
 
@@ -52,7 +52,7 @@ void RandomSync::GenerateTable()
   //Add a random number to the table, send it over network if needed
   double nbr = rand();
   AddToTable(nbr);
-  if(network.is_server()) ActionHandler::GetInstance()->NewAction(ActionDouble(ACTION_SEND_RANDOM,nbr));
+  if(network.IsServer()) ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_SEND_RANDOM,nbr));
 }
 
 void RandomSync::AddToTable(double nbr)
@@ -62,7 +62,14 @@ void RandomSync::AddToTable(double nbr)
 
 double RandomSync::GetRand()
 {
-  if(network.is_server() || network.is_local()) GenerateTable();
+  if(network.IsServer() || network.IsLocal()) GenerateTable();
+
+  // If the table is empty freeze until the server have sent something
+  while(rnd_table.size() == 0)
+  {
+    SDL_Delay(100);
+    ActionHandler::GetInstance()->ExecActions();
+  }
 
   double nbr = rnd_table.front();
   rnd_table.pop_front();
@@ -91,7 +98,7 @@ double RandomSync::GetDouble(double max){
 
 /**
  * Get a random number between 0.0 and 1.0
- * 
+ *
  * @return A number between 0.0 and 1.0
  */
 double RandomSync::GetDouble(){
@@ -107,8 +114,8 @@ double RandomSync::GetDouble(){
 Point2i RandomSync::GetPoint(const Rectanglei &rect){
 	Point2i topPoint = rect.GetPosition();
 	Point2i bottomPoint = rect.GetBottomRightPoint();
-	
-	return Point2i( GetLong(topPoint.x, bottomPoint.x), 
+
+	return Point2i( GetLong(topPoint.x, bottomPoint.x),
 			GetLong(topPoint.y, bottomPoint.y) );
 }
 

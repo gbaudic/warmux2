@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -27,54 +27,62 @@
 #include <SDL.h>
 #include "widget.h"
 #include "button.h"
+#include "label.h"
 #include "../include/base.h"
 
-typedef struct s_list_box_item_t{
-    std::string label;
-    std::string value;
-} list_box_item_t;
+class ListBoxItem : public Label
+{
+private:
+  std::string value;
+
+public:
+  ListBoxItem(const std::string& _label, Font& _font, const std::string& value,
+	      const Color& color = white_color);
+
+  const std::string& GetLabel() const;
+  const std::string& GetValue() const;
+};
 
 class ListBox : public Widget
-{ 
-public:
-  bool always_one_selected;
-  
+{
 private:
-  // for the placement
-  uint nb_visible_items, nb_visible_items_max;
-  uint height_item;
-  
+  bool always_one_selected;
+
+protected:
   // what are the items ?
   uint first_visible_item;
-  int selected_item; 
-  std::vector<list_box_item_t> m_items;
+  int selected_item;
+  std::vector<ListBoxItem*> m_items;
 
   // Buttons
   Button *m_up, *m_down;
 
 public:
-  ListBox (const Rectanglei &rect);
+  ListBox (const Rectanglei &rect, bool always_one_selected_b = true);
   ~ListBox();
 
-  void Draw(const Point2i &mousePosition);
-  bool Clic(const Point2i &mousePosition, uint button);
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  Widget* Clic(const Point2i &mousePosition, uint button);
   void SetSizePosition(const Rectanglei &rect);
 
   void AddItem(bool selected, const std::string &label,
-		const std::string &value);
+	       const std::string &value,
+	       Font& font = *Font::GetInstance(Font::FONT_SMALL),
+	       const Color& color = white_color);
   void Sort();
 
-  int MouseIsOnWhichItem(const Point2i &mousePosition);
+  int MouseIsOnWhichItem(const Point2i &mousePosition) const;
 
   void Select(uint index);
-  int GetSelectedItem();
+  void Select(const std::string& val);
+  int GetSelectedItem() const;
   void Deselect();
   void RemoveSelected();
   const std::string& ReadLabel() const;
   const std::string& ReadValue() const;
   const std::string& ReadValue(int index) const;
 
-  std::vector<list_box_item_t> *GetItemsList();
+  uint Size() const;
 };
 
 #endif

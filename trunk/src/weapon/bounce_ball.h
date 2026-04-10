@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -32,19 +32,21 @@
 
 class BounceBall : public WeaponProjectile
 {
-public:
-  BounceBall(ExplosiveWeaponConfig& cfg);
-  void Refresh();
-protected:
-  void SignalCollision();
+  public:
+    BounceBall(ExplosiveWeaponConfig& cfg,
+               WeaponLauncher * p_launcher);
+    void Refresh();
+  protected:
+    void SignalOutOfMap();
 };
 
 class BounceBallLauncher : public WeaponLauncher
 {
- private:
-  bool p_Shoot ();
- public:
-  BounceBallLauncher();
+  protected:
+    bool p_Shoot ();
+    WeaponProjectile * GetProjectileInstance();
+  public:
+    BounceBallLauncher();
 };
 
-#endif
+#endif /* BOUNCE_BALL_H */

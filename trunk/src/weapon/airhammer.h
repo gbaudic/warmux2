@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -21,26 +21,41 @@
 
 #ifndef AIRHAMMER_H
 #define AIRHAMMER_H
-
+//-----------------------------------------------------------------------------
 #include <SDL.h>
 #include "../include/base.h"
 #include "weapon.h"
+//-----------------------------------------------------------------------------
+
+class AirhammerConfig : public WeaponConfig
+{
+  public:
+    uint range;
+    uint damage;
+  public:
+    AirhammerConfig();
+    void LoadXml(xmlpp::Element *elem);
+};
+
+//-----------------------------------------------------------------------------
 
 class Airhammer : public Weapon
 {
- private:
-  uint m_last_jolt;
-  Surface impact;
+  private:
+    uint m_last_jolt;
+    Surface impact;
+    void RepeatShoot();
 
-  void p_Deselect();
-  bool p_Shoot();
-  void RepeatShoot();
+  protected:
+    void p_Deselect();
+    bool p_Shoot();
+    void Refresh();
 
- public:
-  Airhammer();
-  void Refresh();  
-
-  void HandleKeyEvent(int action, int event_type);
+  public:
+    Airhammer();
+    void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+    AirhammerConfig &cfg();
 };
 
-#endif
+//-----------------------------------------------------------------------------
+#endif /* AIRHAMMER_H */

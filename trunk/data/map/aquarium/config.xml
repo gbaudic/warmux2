@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE resources SYSTEM "../map.dtd" []>
 <resources>
 	<author>
 		<name>Olivier Boyer</name>
@@ -7,7 +8,7 @@
 		<country>France</country>
 	</author>
 
-	<surface name="sky" file="sky.png" />
+	<surface name="sky" file="sky.jpg" />
 	<surface name="map" file="background.png" />
 	<surface name="preview" file="preview.jpg" />
 
@@ -16,5 +17,4 @@
 	<water>0</water>
 	<nb_mine>10</nb_mine>
 	<is_open>0</is_open>
-  <infinite_background>0</infinite_background>
 </resources>

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon Supertux : and now the flying magic pinguin !
+ * Arme Supertux : Look ! it's the famous flying magic pinguin !
  *****************************************************************************/
 
 #ifndef SUPERTUX_H
@@ -32,43 +32,48 @@ class TuxLauncher;
 
 class SuperTuxWeaponConfig : public ExplosiveWeaponConfig
 {
-public:
-  uint speed;
-  SuperTuxWeaponConfig();
-  virtual void LoadXml(xmlpp::Element *elem);
+  public:
+    uint speed;
+    SuperTuxWeaponConfig();
+    virtual void LoadXml(xmlpp::Element *elem);
 };
 
 class SuperTux : public WeaponProjectile
 {
- private:
-  ParticleEngine particle_engine;
+  private:
+    ParticleEngine particle_engine;
+    double angle_rad;
 
-public:
-  double angle;
-  uint speed;
-  uint time_now;
-  uint time_next_action;
-  uint last_move;
+  public:
+    uint speed;
+    uint time_now;
+    uint time_next_action;
+    uint last_move;
 
-  SuperTux(SuperTuxWeaponConfig& cfg);
-  void Refresh();
+    SuperTux(SuperTuxWeaponConfig& cfg,
+             WeaponLauncher * p_launcher);
+    void Refresh();
 
-  void turn_left();
-  void turn_right();
-  void Shoot(double strength);
-protected:
-  void SignalCollision();
+    inline void SetAngle(double angle) {angle_rad = angle;}
+    void turn_left();
+    void turn_right();
+    void Shoot(double strength);
+  protected:
+    void SignalOutOfMap();
 };
 
 class TuxLauncher : public WeaponLauncher
 {
-
-public:
-  TuxLauncher();
-  void HandleKeyEvent(int action, int event_type);
-
- private:  
-  SuperTuxWeaponConfig& cfg();
+  private:
+    SuperTux * current_tux;
+  public:
+    TuxLauncher();
+    void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+  protected:
+    WeaponProjectile * GetProjectileInstance();
+    bool p_Shoot();
+  private:
+    SuperTuxWeaponConfig& cfg();
 };
 
 #endif

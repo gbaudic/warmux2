@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -32,120 +32,109 @@
 #include "../tool/string_tools.h"
 #include <sstream>
 
-const uint GAME_X = 20;
-const uint GAME_Y = 20;
-const uint GAME_W = 230;
+const uint SOUND_X = 30;
+const uint SOUND_Y = 30;
+const uint SOUND_W = 530;
+const uint SOUND_H = 170;
 
-const uint SOUND_X = GAME_X+GAME_W+30;
-const uint SOUND_Y = GAME_Y;
-const uint SOUND_W = 230;
-
-const uint GRAPHIC_X = SOUND_X+SOUND_W+30;
-const uint GRAPHIC_Y = GAME_Y;
-const uint GRAPHIC_W = 230;
-
-const uint NBR_VER_MIN = 1;
-const uint NBR_VER_MAX = 6;
-const uint TPS_TOUR_MIN = 10;
-const uint TPS_TOUR_MAX = 120;
-const uint TPS_FIN_TOUR_MIN = 1;
-const uint TPS_FIN_TOUR_MAX = 10;
+const uint GRAPHIC_X = 30;
+const uint GRAPHIC_Y = SOUND_Y + SOUND_H + 30;
+const uint GRAPHIC_W = 530;
+const uint GRAPHIC_H = 240;
 
 OptionMenu::OptionMenu() :
   Menu("menu/bg_option")
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  Rectanglei zeroRect (0, 0, 0, 0);
+  Rectanglei stdRect (0, 0, 140, 30);
 
   normal_font = Font::GetInstance(Font::FONT_NORMAL);
 
   /* Grapic options */
-  graphic_options = new VBox( Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, 1));
-  graphic_options->AddWidget(new Label(_("Graphic options"), zeroRect, *normal_font));
+  Box * graphic_options = new HBox( Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H));
 
-  lbox_video_mode = new ListBox( Rectanglei(0, 0, 0, 80) );
-  graphic_options->AddWidget(lbox_video_mode);
+  graphic_options->AddWidget(new PictureWidget(Rectanglei(0,0,40,136), "menu/video_label"));
 
-  opt_max_fps = new SpinButton(_("Maximum number of FPS:"), zeroRect,
+  Box * top_n_bottom_graphic_options = new VBox( Rectanglei(0, 0, GRAPHIC_W-40, GRAPHIC_H),false);
+
+  Box * top_graphic_options = new HBox ( Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H/2 - 20), false);
+  Box * bottom_graphic_options = new HBox ( Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H/2 - 20), false);
+  top_graphic_options->SetMargin(25);
+  bottom_graphic_options->SetMargin(25);
+
+  opt_display_wind_particles = new PictureTextCBox(_("Wind particles?"), "menu/display_wind_particles", stdRect);
+  top_graphic_options->AddWidget(opt_display_wind_particles);
+
+  opt_display_energy = new PictureTextCBox(_("Player energy?"), "menu/display_energy", stdRect);
+  top_graphic_options->AddWidget(opt_display_energy);
+
+  opt_display_name = new PictureTextCBox(_("Player's name?"), "menu/display_name", stdRect);
+  top_graphic_options->AddWidget(opt_display_name);
+
+  full_screen = new PictureTextCBox(_("Fullscreen?"), "menu/fullscreen", stdRect);
+  bottom_graphic_options->AddWidget(full_screen);
+
+  opt_max_fps = new SpinButtonBig(_("Maximum FPS"), stdRect,
 			       50, 5,
 			       20, 120);
-  graphic_options->AddWidget(opt_max_fps);
+  bottom_graphic_options->AddWidget(opt_max_fps);
 
-  full_screen = new CheckBox(_("Fullscreen?"), zeroRect);
-  graphic_options->AddWidget(full_screen);
+  lbox_video_mode = new ListBoxWithLabel(_("Resolution"), stdRect );
+  bottom_graphic_options->AddWidget(lbox_video_mode);
 
-  opt_display_wind_particles = new CheckBox(_("Display wind particles?"), zeroRect);
-  graphic_options->AddWidget(opt_display_wind_particles);
+  top_n_bottom_graphic_options->AddWidget(top_graphic_options);
+  top_n_bottom_graphic_options->AddWidget(bottom_graphic_options);
+  graphic_options->AddWidget(top_n_bottom_graphic_options);
 
-  opt_display_energy = new CheckBox(_("Display player energy?"), zeroRect);
-  graphic_options->AddWidget(opt_display_energy);
-
-  opt_display_name = new CheckBox(_("Display player's name?"), zeroRect);
-  graphic_options->AddWidget(opt_display_name);
+  widgets.AddWidget(graphic_options);
 
   /* Sound options */
-  sound_options = new VBox( Rectanglei(SOUND_X, SOUND_Y, SOUND_W, 1));
-  sound_options->AddWidget(new Label(_("Sound options"), zeroRect, *normal_font));
+  Box * sound_options = new HBox( Rectanglei(SOUND_X, SOUND_Y, SOUND_W, SOUND_H));
+  sound_options->AddWidget(new PictureWidget(Rectanglei(0,0,40,138), "menu/audio_label"));
 
-  lbox_sound_freq = new ListBox( Rectanglei(0, 0, 0, 80) );
-  sound_options->AddWidget(lbox_sound_freq);
+  Box * all_sound_options = new HBox( Rectanglei(SOUND_X, SOUND_Y, SOUND_W, SOUND_H-20),false);
+  all_sound_options->SetMargin(25);
+  all_sound_options->SetBorder(Point2i(10,10));
 
-  opt_music = new CheckBox(_("Music?"), zeroRect);
-  sound_options->AddWidget(opt_music);
+  opt_music = new PictureTextCBox(_("Music?"), "menu/music_enable", stdRect);
+  all_sound_options->AddWidget(opt_music);
 
-  opt_sound_effects = new CheckBox(_("Sound effects?"), zeroRect);
-  sound_options->AddWidget(opt_sound_effects);
+  opt_sound_effects = new PictureTextCBox(_("Sound effects?"), "menu/sound_effects_enable", stdRect);
+  all_sound_options->AddWidget(opt_sound_effects);
 
-  /* Game options */
-  game_options = new VBox( Rectanglei(GAME_X, GAME_Y, GAME_W, 1) );
-  game_options->AddWidget(new Label(_("Game options"), zeroRect, *normal_font));
+  lbox_sound_freq = new ListBoxWithLabel(_("Sound frequency"), stdRect );
+  all_sound_options->AddWidget(lbox_sound_freq);
 
-  opt_duration_turn = new SpinButton(_("Duration of a turn:"), zeroRect,
-				     TPS_TOUR_MIN, 5,
-				     TPS_TOUR_MIN, TPS_TOUR_MAX);
-  game_options->AddWidget(opt_duration_turn);
+  sound_options->AddWidget(all_sound_options);
+  widgets.AddWidget(sound_options);
 
-  opt_duration_end_turn = new SpinButton(_("Duration of the end of a turn:"), zeroRect,
-					 TPS_FIN_TOUR_MIN, 1,
-					 TPS_FIN_TOUR_MIN, TPS_FIN_TOUR_MAX);
-  game_options->AddWidget(opt_duration_end_turn);
+  /* Center the widgets */
+  AppWormux * app = AppWormux::GetInstance();
+  uint center_x = app->video.window.GetWidth()/2;
 
-  opt_nb_characters = new SpinButton(_("Number of players per team:"), zeroRect,
-				 4, 1,
-				 NBR_VER_MIN, NBR_VER_MAX);
-  game_options->AddWidget(opt_nb_characters);
-
-  opt_energy_ini = new SpinButton(_("Initial energy:"), zeroRect,
-				      100, 5,
-				      50, 200);
-
-  game_options->AddWidget(opt_energy_ini);
+  graphic_options->SetXY(center_x - graphic_options->GetSizeX()/2, graphic_options->GetPositionY());
+  sound_options->SetXY(center_x - sound_options->GetSizeX()/2, sound_options->GetPositionY());
 
   // Values initialization
 
-  //Generate video mode list
-  SDL_Rect **modes;
+  // Get available video resolution
+  std::list<Point2i>& video_res = app->video.GetAvailableConfigs();
+  std::list<Point2i>::iterator mode;
 
-  /* Get available fullscreen/hardware modes */
-  modes=SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_HWSURFACE);
-
-  /* Check is there are any modes available */
-  AppWormux * app = AppWormux::GetInstance();
-
-  if(modes == (SDL_Rect **)0){
-    std::ostringstream ss;
-    ss << app->video.window.GetWidth() << "x" << app->video.window.GetHeight();
-    lbox_video_mode->AddItem(false, "No modes available!", ss.str());
-  } else {
-    for(int i=0;modes[i];++i) {
-      if (modes[i]->w < 800 || modes[i]->h < 600) break;
+  for(mode=video_res.begin(); mode!=video_res.end(); ++mode) {
       std::ostringstream ss;
-      ss << modes[i]->w << "x" << modes[i]->h ;
-      if (modes[i]->w == app->video.window.GetWidth() && modes[i]->h == app->video.window.GetHeight())
-	lbox_video_mode->AddItem(true, ss.str(), ss.str());
-      else
-	lbox_video_mode->AddItem(false, ss.str(), ss.str());
-    }
+      bool is_current;
+      std::string text;
+      ss << mode->GetX() << "x" << mode->GetY() ;
+      text = ss.str();
+      if (app->video.window.GetWidth() == mode->GetX() && app->video.window.GetHeight() == mode->GetY())
+      {
+          ss << " " << _("(current)");
+          is_current = true;
+      } else {
+          is_current = false;
+      }
+      lbox_video_mode->AddItem(is_current, ss.str(), text);
   }
 
   // Generate sound mode list
@@ -157,17 +146,13 @@ OptionMenu::OptionMenu() :
   resource_manager.UnLoadXMLProfile( res);
 
   Config * config = Config::GetInstance();
-  GameMode * game_mode = GameMode::GetInstance();
 
   opt_max_fps->SetValue (app->video.GetMaxFps());
   opt_display_wind_particles->SetValue (config->GetDisplayWindParticles());
   opt_display_energy->SetValue (config->GetDisplayEnergyCharacter());
   opt_display_name->SetValue (config->GetDisplayNameCharacter());
   full_screen->SetValue (app->video.IsFullScreen());
-  opt_duration_turn->SetValue(game_mode->duration_turn);
-  opt_duration_end_turn->SetValue(game_mode->duration_move_player);
-  opt_nb_characters->SetValue(game_mode->max_characters);
-  opt_energy_ini->SetValue(game_mode->character.init_energy);
+
 
   opt_music->SetValue( jukebox.UseMusic() );
   opt_sound_effects->SetValue( jukebox.UseEffects() );
@@ -179,10 +164,7 @@ OptionMenu::~OptionMenu()
 
 void OptionMenu::OnClic(const Point2i &mousePosition, int button)
 {
-  if( graphic_options->Clic(mousePosition, button) ){
-  } else if( sound_options->Clic(mousePosition, button) ){
-  } else if( game_options->Clic(mousePosition, button) ){
-  }
+  widgets.Clic(mousePosition, button);
 }
 
 void OptionMenu::SaveOptions()
@@ -192,13 +174,6 @@ void OptionMenu::SaveOptions()
   config->SetDisplayWindParticles(opt_display_wind_particles->GetValue());
   config->SetDisplayEnergyCharacter(opt_display_energy->GetValue());
   config->SetDisplayNameCharacter(opt_display_name->GetValue());
-
-  GameMode * game_mode = GameMode::GetInstance();
-  game_mode->duration_turn = opt_duration_turn->GetValue() ;
-  game_mode->duration_move_player = opt_duration_end_turn->GetValue() ;
-  game_mode->max_characters = opt_nb_characters->GetValue() ;
-
-  game_mode->character.init_energy = opt_energy_ini->GetValue() ;
 
   AppWormux * app = AppWormux::GetInstance();
   app->video.SetMaxFps(opt_max_fps->GetValue());
@@ -238,8 +213,5 @@ void OptionMenu::__sig_cancel()
 
 void OptionMenu::Draw(const Point2i &mousePosition)
 {
-  graphic_options->Draw(mousePosition);
-  sound_options->Draw(mousePosition);
-  game_options->Draw(mousePosition);
 }
 

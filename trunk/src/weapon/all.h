@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -24,25 +24,33 @@
 
 #include "airhammer.h"
 #include "air_attack.h"
+#include "anvil.h"
 #include "auto_bazooka.h"
 #include "baseball.h"
 #include "bazooka.h"
+#include "blowtorch.h"
 #include "bounce_ball.h"
 #include "cluster_bomb.h"
+#include "construct.h"
 #include "dynamite.h"
+#include "gnu.h"
 #include "grenade.h"
 #include "gun.h"
-#include "gnu.h"
-#include "holly_grenade.h"
+#include "disco_grenade.h"
 #include "jetpack.h"
 #include "lowgrav.h"
 #include "mine.h"
 #include "ninja_rope.h"
 #include "parachute.h"
+#include "polecat.h"
+#include "riot_bomb.h"
+#include "shotgun.h"
 #include "skip_turn.h"
+#include "snipe_rifle.h"
+#include "submachine_gun.h"
 #include "suicide.h"
 #include "supertux.h"
 #include "teleportation.h"
-#include "uzi.h"
+#include "syringe.h"
 
 #endif

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Interface affichant différentes informations sur la jeu.
+ * Graphical interface showing various information about the game.
  *****************************************************************************/
 
 #ifndef INTERFACE_H
@@ -27,7 +27,7 @@
 #include "../graphic/sprite.h"
 #include "../gui/progress_bar.h"
 #include "../include/base.h"
-#include "../team/character.h"
+#include "../character/character.h"
 #include "../team/team.h"
 
 #ifdef WIN32
@@ -41,60 +41,80 @@ public:
   Character *character_under_cursor;
   Weapon* weapon_under_cursor;
   WeaponsMenu weapons_menu;
-  Surface weapon_box_button;
+  Team * tmp_team;
 
  private:
    // Timers
    Text * global_timer;
    Text * timer;
-   
+   uint remaining_turn_time;
+
    // Character information
-   Text * t_NAME;
    Text * t_character_name;
-   
-   Text * t_ENERGY;
+   Text * t_team_name;
+   Text * t_player_name;
+
    Text * t_character_energy;
-   
+
    // Weapon information
-   Text * t_WEAPON;
    Text * t_weapon_name;
-   Text * t_STOCK;
    Text * t_weapon_stock;
-   
+
    bool display;
+   int start_hide_display;
+   int start_show_display;
    bool display_timer;
-   void DisplayCharacterInfo ();
-   void DisplayWeaponInfo ();
-   BarreProg barre_energie;
+   EnergyBar energy_bar;
+   ProgressBar wind_bar;
 
    Surface game_menu;
-   Surface bg_time;
+   Surface clock_background;
+   Surface small_background_interface;
+   Sprite * clock;
+   Surface wind_icon;
+   Surface wind_indicator;
    Point2i bottom_bar_pos;
 
    static Interface * singleton;
 
  private:
    Interface();
-   ~Interface();   
-   
+   ~Interface();
+
  public:
    static Interface * GetInstance();
+   WeaponsMenu & GetWeaponsMenu() { return weapons_menu; };
 
-   void Init();
    void Reset();
    void Draw();
-   
+
+   void DrawCharacterInfo();
+   void DrawTeamEnergy() const;
+   void DrawWeaponInfo() const;
+   void DrawWindIndicator(const Point2i &wind_bar_pos, const bool draw_icon) const;
+   void DrawWindInfo() const;
+   void DrawClock(const Point2i &time_pos) const;
+   void DrawTimeInfo() const;
+   void DrawSmallInterface() const;
+
    bool IsDisplayed () const { return display; };
-   void EnableDisplay (bool _display);
-   
+   void EnableDisplay(bool _display);
+   void Show();
+   void Hide();
+   bool IsVisible() const;
+
    int GetWidth() const;
    int GetHeight() const;
+   int GetMenuHeight() const;
    Point2i GetSize() const;
-   
+
    void UpdateTimer(uint utimer);
+   void UpdateWindIndicator(int wind_value);
    void EnableDisplayTimer (bool _display) {display_timer = _display;};
 };
 
-void AbsoluteDraw(Surface& s, Point2i pos);
+void AbsoluteDraw(const Surface& s, Point2i pos);
+void HideGameInterface();
+void ShowGameInterface();
 
 #endif

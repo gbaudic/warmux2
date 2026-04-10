@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Liste des terrains.
+ * Maps List
  *****************************************************************************/
 
 #ifndef LST_TERRAINS_H
@@ -29,17 +29,27 @@
 #include "../tool/resource_manager.h"
 #include "../tool/xml_document.h"
 
-class InfoTerrain{
-public:
+class InfoMap{
+
+private:
   std::string name;
-  uint nb_mine;
-  bool use_water;
-  bool is_opened;
-  bool infinite_bg;
-  Surface preview;
-  Surface img_terrain, img_ciel;
-  Profile *res_profile;
   std::string author_info;
+  Surface img_ground, img_sky;
+  Surface preview;
+
+  uint nb_mine;
+  uint nb_barrel;
+
+  bool is_opened;
+  bool use_water;
+  bool is_data_loaded;
+
+  Profile *res_profile;
+
+  bool ProcessXmlData(xmlpp::Element *xml);
+  void LoadData();
+
+public:
   std::string m_directory;
   struct s_wind
   {
@@ -48,46 +58,55 @@ public:
     bool need_flip; //do we need to flip the sprite when it changes direction?
   } wind;
 
-private:
-  bool m_donnees_chargees;
-  void LoadData();
-  bool TraiteXml (xmlpp::Element *xml);
-
 public:
-  InfoTerrain ();
-  Surface LitImgTerrain();
-  Surface LitImgCiel();
+  InfoMap ();
   bool Init(const std::string &nom, const std::string &repertoire);
-  bool DonneesChargees() const;
   void FreeData();
+
+  const std::string& ReadName() const { return name; }
+  const std::string& ReadAuthorInfo() const { return author_info; }
+
+  Surface ReadImgGround();
+  Surface ReadImgSky();
+  const Surface& ReadPreview() const { return preview; }
+
+  uint GetNbBarrel() const { return nb_barrel; }
+  uint GetNbMine() const { return nb_mine; }
+  const Profile * const ResProfile() const { return res_profile; }
+
+  bool IsOpened() const { return is_opened; }
+  bool UseWater() const { return use_water; }
+
 };
 
 
-class ListeTerrain
+class MapsList
 {
 public:
-  std::vector<InfoTerrain> liste;
-  typedef std::vector<InfoTerrain>::iterator iterator;
+  std::vector<InfoMap> lst;
+  typedef std::vector<InfoMap>::iterator iterator;
 
 private:
   int terrain_actif;
   bool m_init;
+  static MapsList * singleton;
+
   void LoadOneMap (const std::string &dir, const std::string &file);
+  MapsList();
 
 public:
-  ListeTerrain();
-  void Init();
+  static MapsList * GetInstance();
 
   // Return -1 if fails
   int FindMapById (const std::string &id);
-  void ChangeTerrainNom (const std::string &nom);
-  void ChangeTerrain (uint index);
-  InfoTerrain& TerrainActif();
+  void SelectMapByName (const std::string &nom);
+  void SelectMapByIndex (uint index);
+  int GetActiveMapIndex ();
+  InfoMap& ActiveMap();
 };
 
-InfoTerrain& TerrainActif();
-extern ListeTerrain lst_terrain;
+InfoMap& ActiveMap();
 
-bool compareMaps(const InfoTerrain& a, const InfoTerrain& b) ;
+bool compareMaps(const InfoMap& a, const InfoMap& b) ;
 
 #endif

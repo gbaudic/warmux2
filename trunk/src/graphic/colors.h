@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -29,6 +29,7 @@
 const Color white_color (255, 255, 255, SDL_ALPHA_OPAQUE);
 const Color lightgray_color (169, 169, 169, SDL_ALPHA_OPAQUE);
 const Color gray_color (128, 128, 128, SDL_ALPHA_OPAQUE);
+const Color dark_gray_color (64, 64, 64, SDL_ALPHA_OPAQUE);
 const Color black_color (0, 0, 0, SDL_ALPHA_OPAQUE);
 
 const Color c_white  (0xFF, 0xFF, 0xFF, 0x70);
@@ -47,7 +48,12 @@ const Color primary_red_color(255, 0, 0, SDL_ALPHA_OPAQUE);
 const Color defaultColorBox(80, 80, 159, 206);
 const Color defaultColorRect(49, 32, 122, 255);
 
-const Color defaultOptionColorBox(34, 133, 175, 206);
+const Color defaultOptionColorBox(255,255,255,160);
+//const Color defaultOptionColorBox(34, 133, 175, 206);
+const Color highlightOptionColorBox(200, 100, 100, 206);
+//const Color defaultOptionColorBox(34, 133, 175, 206);
+
+const Color defaultDisabledColorBox(0,0,0,127);
 const Color defaultOptionColorRect(59,88,129,206);
 
 //const Color defaultListColor1(255, 255, 255, 255*3/10);
@@ -55,9 +61,4 @@ const Color defaultListColor1(75, 163, 200, 255*3/10);
 const Color defaultListColor2(0, 0, 255*6/10, 255*8/10);
 const Color defaultListColor3(0, 0, 255*6/10, 255*4/10);
 
-const Color WeaponStrengthBarValue(255, 255, 255, 127);
-const Color WeaponStrengthBarBorder(0, 0, 0, 127);
-const Color WeaponStrengthBarBackground(255*6/10, 255*6/10, 255*6/10, 96);
-
-
-#endif
+#endif /* COLORS_H */

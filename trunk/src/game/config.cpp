@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,12 +16,14 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Configuration de Wormux : toutes les variables qui sont intéressantes à
- * modifier se retrouvent ici. Les variables ont une valeur par défaut qui
- * peut être modifiée avec le fichier de configuration.
+ * Wormux configuration : all variables interesting to tweak should be here.
+ * A default value is affected for each variable, the value can be changed by
+ * the configuration file.
  *****************************************************************************/
 
 #include "config.h"
+
+#define USE_AUTOPACKAGE
 
 #include <sstream>
 #include <string>
@@ -41,13 +43,16 @@
 #include "../map/maps_list.h"
 #include "../sound/jukebox.h"
 #include "../team/teams_list.h"
-#include "../team/skin.h"
 #include "../tool/file_tools.h"
 #include "../tool/string_tools.h"
 #include "../tool/i18n.h"
 #include "../weapon/weapons_list.h"
+#ifdef USE_AUTOPACKAGE
+#  include "../include/binreloc.h"
+#endif
 
-const std::string NOMFICH="config.xml";
+
+const std::string FILENAME="config.xml";
 Config * Config::singleton = NULL;
 
 Config * Config::GetInstance() {
@@ -59,12 +64,25 @@ Config * Config::GetInstance() {
 
 Config::Config()
 {
+
+#ifdef USE_AUTOPACKAGE
+  BrInitError error;
+  std::string filename;
+
+  if (br_init (&error) == 0 && error != BR_INIT_ERROR_DISABLED) {
+    std::cout << "Warning: BinReloc failed to initialize (error code "
+              << error << ")" << std::endl;
+    std::cout << "Will fallback to hardcoded default path." << std::endl;
+  }
+#endif
+
   // Default values
-  exterieur_monde_vide = true;
   m_game_mode = "classic";
   display_energy_character = true;
   display_name_character = true;
   display_wind_particles = true;
+  default_mouse_cursor = false;
+  scroll_on_border = true;
   transparency = ALPHA;
 
   // video
@@ -72,55 +90,56 @@ Config::Config()
   tmp.video.height = 600;
   tmp.video.fullscreen = false;
 
+  // sound
   tmp.sound.music = true;
   tmp.sound.effects = true;
   tmp.sound.frequency = 44100;
-}
 
-void Config::Init()
-{
+  // network
+  tmp.network.enable_network = false;
+
   Constants::GetInstance();
 
   // directories
-#ifndef WIN32
-  data_dir = GetEnv(Constants::ENV_DATADIR, Constants::DEFAULT_DATADIR);
-  locale_dir = GetEnv(Constants::ENV_LOCALEDIR, Constants::DEFAULT_LOCALEDIR);
+#ifdef USE_AUTOPACKAGE
+  data_dir     = GetEnv(Constants::ENV_DATADIR, br_find_data_dir(INSTALL_DATADIR));
+  locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, br_find_locale_dir(INSTALL_LOCALEDIR));
+  filename     = data_dir + PATH_SEPARATOR + "font" + PATH_SEPARATOR + "DejaVuSans.ttf";
+  ttf_filename = GetEnv(Constants::ENV_FONT_PATH, br_find_locale_dir(filename.c_str()));
 #else
-  data_dir = "data\\";
-  locale_dir = "locale\\";
+  data_dir     = GetEnv(Constants::ENV_DATADIR, INSTALL_DATADIR);
+  locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, INSTALL_LOCALEDIR);
+  ttf_filename = GetEnv(Constants::ENV_FONT_PATH, FONT_FILE);
 #endif
-  ttf_filename = GetEnv(Constants::ENV_FONT_PATH, Constants::DEFAULT_FONT_PATH);
 
 #ifndef WIN32
-  personal_dir = GetHome()+"/.wormux/";
+  personal_dir = GetHome() + "/.wormux/";
 #else
-  personal_dir = GetHome()+"\\Wormux\\";
+  personal_dir = GetHome() + "\\Wormux\\";
 #endif
-}
+  InitI18N(locale_dir.c_str());
 
-bool Config::Load()
-{
-  bool result = ChargeVraiment();
-  std::string dir;
-  dir = TranslateDirectory(locale_dir);
+  DoLoading();
+  std::string dir = TranslateDirectory(locale_dir);
   I18N_SetDir (dir + PATH_SEPARATOR);
 
   dir = TranslateDirectory(data_dir);
   resource_manager.AddDataPath(dir + PATH_SEPARATOR);
-  return result;
 }
 
-bool Config::ChargeVraiment()
+bool Config::DoLoading(void)
 {
-  m_xml_charge=false;
+  m_xml_loaded = false;
   try
   {
-    // Charge la configuration XML
-    LitDocXml doc;
-    m_nomfich = personal_dir+NOMFICH;
-    if (!doc.Charge (m_nomfich)) return false;
-    if (!ChargeXml (doc.racine())) return false;
-    m_xml_charge = true;
+    // Load XML conf
+    XmlReader doc;
+    m_filename = personal_dir + FILENAME;
+    if (!doc.Load(m_filename))
+      return false;
+    if (!LoadXml(doc.GetRoot()))
+      return false;
+    m_xml_loaded = true;
   }
   catch (const xmlpp::exception &e)
   {
@@ -129,80 +148,116 @@ bool Config::ChargeVraiment()
         << e.what() << std::endl;
     return false;
   }
-
   return true;
 }
 
-// Lit les données sur une équipe
-bool Config::ChargeXml(xmlpp::Element *xml)
+// Read personal config file
+bool Config::LoadXml(xmlpp::Element *xml)
 {
+  std::cout << "o " << _("Reading personal config file") << std::endl;
+
   xmlpp::Element *elem;
 
   //=== Map ===
-  LitDocXml::LitString  (xml, "map", tmp.map_name);
+  XmlReader::ReadString(xml, "map", tmp.map_name);
 
-  //=== Equipes ===
-  elem = LitDocXml::AccesBalise (xml, "teams");
-  if (elem != NULL)
+  //=== Teams ===
+  elem = XmlReader::GetMarker(xml, "teams");
+  int i = 0;
+
+  xmlpp::Element *team;
+
+  while ((team = XmlReader::GetMarker(elem, "team_" + ulong2str(i))) != NULL)
   {
-    LitDocXml::LitListeString (elem, "team", tmp.teams);
+    ConfigTeam one_team;
+    XmlReader::ReadString(team, "id", one_team.id);
+    XmlReader::ReadString(team, "player_name", one_team.player_name);
+
+    int tmp_nb_characters;
+    XmlReader::ReadInt(team, "nb_characters", tmp_nb_characters);
+    one_team.nb_characters = (uint)tmp_nb_characters;
+
+    tmp.teams.push_back(one_team);
+
+    // get next team
+    i++;
   }
 
-  //=== Vidéo ===
-  elem = LitDocXml::AccesBalise (xml, "video");
-  if (elem != NULL)
+  //=== Video ===
+  if ((elem = XmlReader::GetMarker(xml, "video")) != NULL)
   {
     uint max_fps;
-    if (LitDocXml::LitUint (elem, "max_fps", max_fps))
+    if (XmlReader::ReadUint(elem, "max_fps", max_fps))
       AppWormux::GetInstance()->video.SetMaxFps(max_fps);
 
-    LitDocXml::LitBool (elem, "display_wind_particles", display_wind_particles);
-    LitDocXml::LitBool (elem, "display_energy_character", display_energy_character);
-    LitDocXml::LitBool (elem, "display_name_character", display_name_character);
-    LitDocXml::LitInt (elem, "width", tmp.video.width);
-    LitDocXml::LitInt (elem, "height", tmp.video.height);
-    LitDocXml::LitBool (elem, "full_screen", tmp.video.fullscreen);
+    XmlReader::ReadBool(elem, "display_wind_particles", display_wind_particles);
+    XmlReader::ReadBool(elem, "display_energy_character", display_energy_character);
+    XmlReader::ReadBool(elem, "display_name_character", display_name_character);
+    XmlReader::ReadBool(elem, "default_mouse_cursor", default_mouse_cursor);
+    XmlReader::ReadBool(elem, "scroll_on_border", scroll_on_border);
+    XmlReader::ReadInt(elem, "width", tmp.video.width);
+    XmlReader::ReadInt(elem, "height", tmp.video.height);
+    XmlReader::ReadBool(elem, "full_screen", tmp.video.fullscreen);
   }
 
-  //=== Son ===
-  elem = LitDocXml::AccesBalise (xml, "sound");
-  if (elem != NULL)
+  //=== Sound ===
+  if ((elem = XmlReader::GetMarker(xml, "sound")) != NULL)
   {
-    LitDocXml::LitBool (elem, "music", tmp.sound.music);
-    LitDocXml::LitBool (elem, "effects", tmp.sound.effects);
-    LitDocXml::LitUint (elem, "frequency", tmp.sound.frequency);
+    XmlReader::ReadBool(elem, "music", tmp.sound.music);
+    XmlReader::ReadBool(elem, "effects", tmp.sound.effects);
+    XmlReader::ReadUint(elem, "frequency", tmp.sound.frequency);
   }
 
-  //=== Mode de jeu ===
-  LitDocXml::LitString (xml, "game_mode", m_game_mode);
+  //=== network ===
+  if ((elem = XmlReader::GetMarker(xml, "network")) != NULL)
+  {
+    XmlReader::ReadBool(elem, "enable_network", tmp.network.enable_network);
+  }
+
+  //=== game mode ===
+  XmlReader::ReadString(xml, "game_mode", m_game_mode);
   return true;
 }
 
 void Config::SetKeyboardConfig()
 {
-  Clavier * clavier = Clavier::GetInstance();
+  my_keyboard = new Keyboard();
 
-  clavier->SetKeyAction(SDLK_LEFT,		ACTION_MOVE_LEFT);
-  clavier->SetKeyAction(SDLK_RIGHT,	ACTION_MOVE_RIGHT);
-  clavier->SetKeyAction(SDLK_UP,			ACTION_UP);
-  clavier->SetKeyAction(SDLK_DOWN,	ACTION_DOWN);
-  clavier->SetKeyAction(SDLK_RETURN,	ACTION_JUMP);
-  clavier->SetKeyAction(SDLK_BACKSPACE, ACTION_HIGH_JUMP);
-  clavier->SetKeyAction(SDLK_SPACE, ACTION_SHOOT);
-  clavier->SetKeyAction(SDLK_TAB, ACTION_CHANGE_CHARACTER);
-  clavier->SetKeyAction(SDLK_ESCAPE, ACTION_QUIT);
-  clavier->SetKeyAction(SDLK_p, ACTION_PAUSE);
-  clavier->SetKeyAction(SDLK_F10, ACTION_FULLSCREEN);
-  clavier->SetKeyAction(SDLK_F9, ACTION_TOGGLE_INTERFACE);
-  clavier->SetKeyAction(SDLK_F1, ACTION_WEAPONS1);
-  clavier->SetKeyAction(SDLK_F2, ACTION_WEAPONS2);
-  clavier->SetKeyAction(SDLK_F3, ACTION_WEAPONS3);
-  clavier->SetKeyAction(SDLK_F4, ACTION_WEAPONS4);
-  clavier->SetKeyAction(SDLK_F5, ACTION_WEAPONS5);
-  clavier->SetKeyAction(SDLK_F6, ACTION_WEAPONS6);
-  clavier->SetKeyAction(SDLK_F7, ACTION_WEAPONS7);
-  clavier->SetKeyAction(SDLK_F8, ACTION_WEAPONS8);
-  clavier->SetKeyAction(SDLK_c, ACTION_CENTER);
+  my_keyboard->SetKeyAction(SDLK_LEFT,      Action::ACTION_MOVE_LEFT);
+  my_keyboard->SetKeyAction(SDLK_RIGHT,     Action::ACTION_MOVE_RIGHT);
+  my_keyboard->SetKeyAction(SDLK_UP,        Action::ACTION_UP);
+  my_keyboard->SetKeyAction(SDLK_DOWN,      Action::ACTION_DOWN);
+  my_keyboard->SetKeyAction(SDLK_RETURN,    Action::ACTION_JUMP);
+  my_keyboard->SetKeyAction(SDLK_BACKSPACE, Action::ACTION_HIGH_JUMP);
+  my_keyboard->SetKeyAction(SDLK_b,         Action::ACTION_BACK_JUMP);
+  my_keyboard->SetKeyAction(SDLK_SPACE,     Action::ACTION_SHOOT);
+  my_keyboard->SetKeyAction(SDLK_TAB,       Action::ACTION_NEXT_CHARACTER);
+  my_keyboard->SetKeyAction(SDLK_ESCAPE,    Action::ACTION_QUIT);
+  my_keyboard->SetKeyAction(SDLK_p,         Action::ACTION_PAUSE);
+  my_keyboard->SetKeyAction(SDLK_F10,       Action::ACTION_FULLSCREEN);
+  my_keyboard->SetKeyAction(SDLK_F9,        Action::ACTION_TOGGLE_INTERFACE);
+  my_keyboard->SetKeyAction(SDLK_F1,        Action::ACTION_WEAPONS1);
+  my_keyboard->SetKeyAction(SDLK_F2,        Action::ACTION_WEAPONS2);
+  my_keyboard->SetKeyAction(SDLK_F3,        Action::ACTION_WEAPONS3);
+  my_keyboard->SetKeyAction(SDLK_F4,        Action::ACTION_WEAPONS4);
+  my_keyboard->SetKeyAction(SDLK_F5,        Action::ACTION_WEAPONS5);
+  my_keyboard->SetKeyAction(SDLK_F6,        Action::ACTION_WEAPONS6);
+  my_keyboard->SetKeyAction(SDLK_F7,        Action::ACTION_WEAPONS7);
+  my_keyboard->SetKeyAction(SDLK_F8,        Action::ACTION_WEAPONS8);
+  my_keyboard->SetKeyAction(SDLK_c,         Action::ACTION_CENTER);
+  my_keyboard->SetKeyAction(SDLK_1,         Action::ACTION_WEAPON_1);
+  my_keyboard->SetKeyAction(SDLK_2,         Action::ACTION_WEAPON_2);
+  my_keyboard->SetKeyAction(SDLK_3,         Action::ACTION_WEAPON_3);
+  my_keyboard->SetKeyAction(SDLK_4,         Action::ACTION_WEAPON_4);
+  my_keyboard->SetKeyAction(SDLK_5,         Action::ACTION_WEAPON_5);
+  my_keyboard->SetKeyAction(SDLK_6,         Action::ACTION_WEAPON_6);
+  my_keyboard->SetKeyAction(SDLK_7,         Action::ACTION_WEAPON_7);
+  my_keyboard->SetKeyAction(SDLK_8,         Action::ACTION_WEAPON_8);
+  my_keyboard->SetKeyAction(SDLK_9,         Action::ACTION_WEAPON_9);
+  my_keyboard->SetKeyAction(SDLK_PAGEUP,    Action::ACTION_WEAPON_MORE);
+  my_keyboard->SetKeyAction(SDLK_PAGEDOWN,  Action::ACTION_WEAPON_LESS);
+  my_keyboard->SetKeyAction(SDLK_s,         Action::ACTION_CHAT);
+
 }
 
 void Config::Apply()
@@ -210,7 +265,7 @@ void Config::Apply()
   SetKeyboardConfig();
 
   // Charge le mode jeu
-  weapons_list.Init();
+  my_weapons_list = new WeaponsList();
 
   GameMode::GetInstance()->Load(m_game_mode);
 
@@ -219,18 +274,16 @@ void Config::Apply()
   jukebox.ActiveEffects (tmp.sound.effects);
   jukebox.SetFrequency (tmp.sound.frequency);
 
-  // Charge les équipes
-  InitSkins();
+  // load the teams
   teams_list.LoadList();
-  if (m_xml_charge)
+  if (m_xml_loaded)
     teams_list.InitList (tmp.teams);
 
-  // Charge les terrains
-  lst_terrain.Init();
-  if (m_xml_charge && !tmp.map_name.empty())
-    lst_terrain.ChangeTerrainNom (tmp.map_name);
+  // Load maps
+  if (m_xml_loaded && !tmp.map_name.empty())
+    MapsList::GetInstance()->SelectMapByName (tmp.map_name);
   else
-    lst_terrain.ChangeTerrain (0);
+    MapsList::GetInstance()->SelectMapByIndex (0);
 }
 
 bool Config::Save()
@@ -251,77 +304,80 @@ bool Config::Save()
     return false;
   }
 
-  if (!SauveXml())
-  {
-    return false;
-  }
-  return true;
+  return SaveXml();
 }
 
-bool Config::SauveXml()
+bool Config::SaveXml()
 {
-  EcritDocXml doc;
+  XmlWriter doc;
 
-  doc.Cree (m_nomfich, "config", "1.0", "iso-8859-1");
-  xmlpp::Element *racine = doc.racine();
-  doc.EcritBalise (racine, "version", Constants::VERSION);
+  doc.Create(m_filename, "config", "1.0", "utf-8");
+  xmlpp::Element *root = doc.GetRoot();
+  doc.WriteElement(root, "version", Constants::VERSION);
 
-  //=== Terrain ===
-  doc.EcritBalise (racine, "map", lst_terrain.TerrainActif().name);
+  //=== Map ===
+  doc.WriteElement(root, "map", MapsList::GetInstance()->ActiveMap().ReadName());
 
-  //=== Equipes ===
-  xmlpp::Element *balise_equipes = racine -> add_child("teams");
+  //=== Teams ===
+  xmlpp::Element *team_elements = root->add_child("teams");
+
   TeamsList::iterator
     it=teams_list.playing_list.begin(),
     fin=teams_list.playing_list.end();
-  for (; it != fin; ++it)
+  for (int i=0; it != fin; ++it, i++)
   {
-    doc.EcritBalise (balise_equipes, "team", (**it).GetId());
+    xmlpp::Element *a_team = team_elements->add_child("team_"+ulong2str(i));
+    doc.WriteElement(a_team, "id", (**it).GetId());
+    doc.WriteElement(a_team, "player_name", (**it).GetPlayerName());
+    doc.WriteElement(a_team, "nb_characters", ulong2str((**it).GetNbCharacters()));
   }
 
   //=== Video ===
   AppWormux * app = AppWormux::GetInstance();
+  xmlpp::Element *video_node = root->add_child("video");
+  doc.WriteElement(video_node, "display_wind_particles", ulong2str(display_wind_particles));
+  doc.WriteElement(video_node, "display_energy_character", ulong2str(display_energy_character));
+  doc.WriteElement(video_node, "display_name_character", ulong2str(display_name_character));
+  doc.WriteElement(video_node, "default_mouse_cursor", ulong2str(default_mouse_cursor));
+  doc.WriteElement(video_node, "scroll_on_border", ulong2str(scroll_on_border));
+  doc.WriteElement(video_node, "width", ulong2str(app->video.window.GetWidth()));
+  doc.WriteElement(video_node, "height", ulong2str(app->video.window.GetHeight()));
+  doc.WriteElement(video_node, "full_screen",
+                   ulong2str(static_cast<uint>(app->video.IsFullScreen())) );
+  doc.WriteElement(video_node, "max_fps",
+                   long2str(static_cast<int>(app->video.GetMaxFps())));
 
-  xmlpp::Element *noeud_video = racine -> add_child("video");
-  doc.EcritBalise (noeud_video, "display_wind_particles", ulong2str(display_wind_particles));
-  doc.EcritBalise (noeud_video, "display_energy_character", ulong2str(display_energy_character));
-  doc.EcritBalise (noeud_video, "display_name_character", ulong2str(display_name_character));
-  doc.EcritBalise (noeud_video, "width", ulong2str(app->video.window.GetWidth()));
-  doc.EcritBalise (noeud_video, "height", ulong2str(app->video.window.GetHeight()));
-  doc.EcritBalise (noeud_video, "full_screen",
-		   ulong2str(static_cast<uint>(app->video.IsFullScreen())) );
-  doc.EcritBalise (noeud_video, "max_fps",
-          long2str(static_cast<int>(app->video.GetMaxFps())));
+  if (transparency == ALPHA)
+    doc.WriteElement(video_node, "transparency", "alpha");
+  else if (transparency == COLORKEY)
+    doc.WriteElement(video_node, "transparency", "colorkey");
 
-  if ( transparency == ALPHA )
-    doc.EcritBalise (noeud_video, "transparency", "alpha");
-  else if ( transparency == COLORKEY )
-    doc.EcritBalise (noeud_video, "transparency", "colorkey");
+  //=== Sound ===
+  xmlpp::Element *sound_node = root->add_child("sound");
+  doc.WriteElement(sound_node, "music",  ulong2str(jukebox.UseMusic()));
+  doc.WriteElement(sound_node, "effects", ulong2str(jukebox.UseEffects()));
+  doc.WriteElement(sound_node, "frequency", ulong2str(jukebox.GetFrequency()));
 
-  //=== Son ===
-  xmlpp::Element *noeud_son = racine -> add_child("sound");
-  doc.EcritBalise (noeud_son, "music", ulong2str(jukebox.UseMusic()));
-  doc.EcritBalise (noeud_son, "effects",
-		   ulong2str(jukebox.UseEffects()));
-  doc.EcritBalise (noeud_son, "frequency",
-		   ulong2str(jukebox.GetFrequency()));
+  //=== Network ===
+  xmlpp::Element *net_node = root->add_child("network");
+  doc.WriteElement(net_node, "enable_network",  ulong2str(IsNetworkActivated()));
 
-  //=== Mode de jeu ===
-  doc.EcritBalise (racine, "game_mode", m_game_mode);
-  return doc.Sauve();
+  //=== game mode ===
+  doc.WriteElement(root, "game_mode", m_game_mode);
+  return doc.Save();
 }
 
 /*
  * Return the value of the environment variable 'name' or
- * 'dft' if not set
+ * 'default' if not set
  */
-std::string Config::GetEnv(const std::string & name, const std::string & dft) {
-  char * c_value = std::getenv(name.c_str());
-
-  if (c_value != NULL) {
-    return std::string(c_value);
+std::string Config::GetEnv(const std::string & name, const std::string &default_value)
+{
+  const char *env = std::getenv(name.c_str());
+  if (env != NULL) {
+    return env;
   } else {
-    return dft;
+    return default_value;
   }
 }
 
@@ -340,11 +396,6 @@ std::string Config::GetPersonalDir() const
   return personal_dir;
 }
 
-bool Config::GetExterieurMondeVide() const
-{
-  return exterieur_monde_vide;
-}
-
 bool Config::GetDisplayEnergyCharacter() const
 {
   return display_energy_character;
@@ -360,9 +411,24 @@ bool Config::GetDisplayWindParticles() const
   return display_wind_particles;
 }
 
+bool Config::GetDefaultMouseCursor() const
+{
+  return default_mouse_cursor;
+}
+
+bool Config::GetScrollOnBorder() const
+{
+  return scroll_on_border;
+}
+
 std::string Config::GetTtfFilename() const
 {
   return ttf_filename;
+}
+
+bool Config::IsNetworkActivated() const
+{
+  return tmp.network.enable_network;
 }
 
 void Config::SetDisplayEnergyCharacter(bool dec)
@@ -380,9 +446,14 @@ void Config::SetDisplayWindParticles(bool dwp)
   display_wind_particles = dwp;
 }
 
-void Config::SetExterieurMondeVide(bool emv)
+void Config::SetDefaultMouseCursor(bool dmc)
 {
-  exterieur_monde_vide = emv;
+  default_mouse_cursor = dmc;
+}
+
+void Config::SetScrollOnBorder(bool sob)
+{
+  scroll_on_border = sob;
 }
 
 int Config::GetTransparency() const

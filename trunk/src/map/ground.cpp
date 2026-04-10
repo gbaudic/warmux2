@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -35,23 +35,23 @@
 #include "../tool/resource_manager.h"
 
 Ground::Ground()
-{ //FIXME (a effacer) 
+{ //FIXME (a effacer)
 }
 
 void Ground::Init(){
   std::cout << "o " << _("Ground initialization...") << ' ';
   std::cout.flush();
-  
-  // Charge les données du terrain
-  Surface m_image = lst_terrain.TerrainActif().LitImgTerrain();
+
+  // Load ground data
+  Surface m_image = ActiveMap().ReadImgGround();
   LoadImage ( m_image );
 
-  // Vérifie la taille du terrain
+  // Vï¿½ifie la taille du terrain
   assert(Constants::MAP_MIN_SIZE <= GetSize());
   assert(GetSizeX()*GetSizeY() <= Constants::MAP_MAX_SIZE);
-  
-  // Vérifie si c'est un terrain ouvert ou fermé
-  ouvert = lst_terrain.TerrainActif().is_opened;
+
+  // Vï¿½ifie si c'est un terrain ouvert ou fermï¿½
+  ouvert = ActiveMap().IsOpened();
 
   std::cout << _("done") << std::endl;
 }
@@ -62,64 +62,51 @@ void Ground::Reset(){
 }
 
 // Lit la valeur alpha du pixel (x,y)
-bool Ground::IsEmpty(const Point2i &pos){ 
+bool Ground::IsEmpty(const Point2i &pos){
 	assert( !world.EstHorsMondeXY(pos.x, pos.y) );
-	if( TerrainActif().infinite_bg){
-		if( !Contains(pos) )
-			return true;
-	}
 
 	// Lit le monde
 	return GetAlpha( pos ) != 255; // IsTransparent
 }
 
-//Renvoie l'angle entre la tangeante au terrain en (x,y) et l'horizontale.
-//l'angle est toujours > 0.
-//Renvoie -1.0 s'il n'y a pas de tangeante (si le pixel(x,y) ne touche
-//aucun autre morceau de terrain)
+/*
+ * Returns the angle between the tangent at point (x,y) of the ground and
+ * horizontal
+ * the angle is always > 0.
+ * returns -1.0 if no tangent was found (pixel (x,y) does not touch any
+ * other piece of ground
+ */
 double Ground::Tangeante(int x,int y){
-  //Approxiamtion:on renvoie la corde de la courbe formée
+  //Approxiamtion : on renvoie la corde de la courbe formï¿½
   //par le terrain...
 
-  //On cherche deux points du terrain autour de (x,y), à la limite entre le terrain
-  //et le vide:
-  //(p1 = 1er point à gauche
-  // p2 = 1er point à droite
-  // p3 = 2em point à gauche
-  // p4 = 2em point à droite)
-  Point2i p1,p2,p3,p4;
+  /* We try to find 2 points on the ground on each side of (x,y)
+   * the points should be at the limit between land and vaccum
+   * (p1 =  point on the left
+   * p2 =  point on the right
+   */
+  Point2i p1,p2;
   if(!PointContigu(x,y, p1.x,p1.y, -1,-1))
-    return -1.0;
-  
+    return NAN;
+
   if(!PointContigu(x,y, p2.x,p2.y, p1.x,p1.y))
   {
     p2.x = x;
     p2.y = y;
   }
 
-  if(!PointContigu(p1.x,p1.y, p3.x,p3.y, x,y))
-  {
-    p3.x = p1.x;
-    p3.y = p1.y;
-  }
-  if(!PointContigu(p2.x,p2.y, p4.x,p4.y, x,y))
-  {
-    p4.x = p2.x;
-    p4.y = p2.y;
-  }
-
-  if(p3.x == p4.x)
+  if(p1.x == p2.x)
     return M_PI / 2.0;
-  if(p3.y == p4.y)
+  if(p1.y == p2.y)
     return M_PI;
 
-  assert (p3.x != p4.x);
-  
-  double tangeante = atan((double)(p4.y-p3.y)/(double)(p4.x-p3.x));
+  assert (p1.x != p2.x);
+
+  double tangeante = atan((double)(p2.y-p1.y)/(double)(p2.x-p1.x));
 
   while(tangeante <= 0.0)
     tangeante += M_PI;
-  while(tangeante > M_PI)
+  while(tangeante > 2 * M_PI)
     tangeante -= M_PI;
 
   return tangeante;
@@ -128,16 +115,16 @@ double Ground::Tangeante(int x,int y){
 bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
                            int pas_bon_x,int pas_bon_y)
 {
-  //Cherche un pixel autour du pixel(x,y) qui est à la limite entre
+  //Cherche un pixel autour du pixel(x,y) qui est ï¿½la limite entre
   //le terrin et le vide.
-  //renvoie true (+ p_x et p_y) si on a trouvé qqch, sinon false
+  //renvoie true (+ p_x et p_y) si on a trouvï¿½qqch, sinon false
   if(world.EstHorsMonde(Point2i(x-1,y))
   || world.EstHorsMonde(Point2i(x+1,y))
   || world.EstHorsMonde(Point2i(x,y-1))
   || world.EstHorsMonde(Point2i(x,y+1)) )
     return false;
-   
-  //regarde en haut à gauche
+
+  //regarde en haut ï¿½gauche
   if(x-1 != pas_bon_x
   || y-1 != pas_bon_y)
   if( !IsEmpty(Point2i(x-1,y-1) )
@@ -159,7 +146,7 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y-1;
     return true;
   }
-  //regarde en haut à droite
+  //regarde en haut ï¿½droite
   if(x+1 != pas_bon_x
   || y-1 != pas_bon_y)
   if(!IsEmpty(Point2i(x+1,y-1))
@@ -170,7 +157,7 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y-1;
     return true;
   }
-  //regarde à droite
+  //regarde ï¿½droite
   if(x+1 != pas_bon_x
   || y != pas_bon_y)
   if(!IsEmpty(Point2i(x+1,y))
@@ -181,7 +168,7 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y;
     return true;
   }
-  //regarde en bas à droite
+  //regarde en bas ï¿½droite
   if(x+1 != pas_bon_x
   || y+1 != pas_bon_y)
   if(!IsEmpty(Point2i(x+1,y+1))
@@ -203,7 +190,7 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y+1;
     return true;
   }
-  //regarde en bas à gauche
+  //regarde en bas ï¿½gauche
   if(x-1 != pas_bon_x
   || y+1 != pas_bon_y)
   if(!IsEmpty(Point2i(x-1,y+1))
@@ -214,7 +201,7 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
     p_y=y+1;
     return true;
   }
-  //regarde à gauche
+  //regarde ï¿½gauche
   if(x-1 == pas_bon_x
   && y == pas_bon_y)
   if(!IsEmpty(Point2i(x-1,y))
@@ -230,12 +217,13 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
 
 void Ground::Draw()
 {
+  CheckEmptyTiles();
   AppWormux * app = AppWormux::GetInstance();
 
   Point2i cPos = camera.GetPosition();
   Point2i windowSize = app->video.window.GetSize();
   Point2i margin = (windowSize - GetSize())/2;
-  
+
   if( camera.HasFixedX() ){// ground is less wide than screen !
     app->video.window.BoxColor( Rectanglei(0, 0, margin.x, windowSize.y), black_color);
     app->video.window.BoxColor( Rectanglei(windowSize.x - margin.x, 0, margin.x, windowSize.y), black_color);

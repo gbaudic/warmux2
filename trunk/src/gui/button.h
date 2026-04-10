@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -30,18 +30,21 @@
 class Button : public Widget
 {
 protected:
+  bool img_scale;
   Sprite *image;
-   
+
 public:
   Button (const Rectanglei &rect,
-	  const Profile *res_profile, const std::string& resource_id);
+	  const Profile *res_profile, const std::string& resource_id,
+	  bool img_scale = true);
   Button (const Point2i &position,
-	  const Profile *res_profile, const std::string& resource_id);
+	  const Profile *res_profile, const std::string& resource_id,
+	  bool img_scale = false);
   virtual ~Button();
 
-  virtual void Draw(const Point2i &mousePosition);
+  virtual void Draw(const Point2i &mousePosition, Surface& surf) const;
   virtual void SetSizePosition(const Rectanglei &rect);
-  
+
   Sprite* GetSprite() { return image; };
 };
 

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -21,18 +21,17 @@
 
 #include "suicide.h"
 #include <iostream>
-#include "weapon_tools.h"
+#include "explosion.h"
+#include "../character/body.h"
 #include "../game/game_loop.h"
 #include "../team/teams_list.h"
 #include "../tool/i18n.h"
-
-// Espace entre l'espace en l'image
-const uint ESPACE = 5;
+#include "../include/action_handler.h"
 
 Suicide::Suicide() : Weapon(WEAPON_SUICIDE, "suicide", new ExplosiveWeaponConfig())
-{  
-  m_name = _("Commit suicide");
-  sound_channel = -1;  
+{
+  m_name = _("Commit Suicide");
+  sound_channel = -1;
 }
 
 void Suicide::p_Select()
@@ -41,7 +40,7 @@ void Suicide::p_Select()
 }
 
 bool Suicide::p_Shoot()
-{ 
+{
   sound_channel = jukebox.Play ("share", "weapon/suicide");
 
   GameLoop::GetInstance()->interaction_enabled=false;
@@ -56,9 +55,17 @@ void Suicide::Refresh()
 
   m_is_active = sound_channel != -1 && Mix_Playing(sound_channel);
 
-  if( !m_is_active )
-    if( !ActiveCharacter().IsDead() )
-      ActiveCharacter().Die();
+  if(!m_is_active && !ActiveCharacter().IsDead())
+  {
+    ActiveCharacter().DisableDeathExplosion();
+    ActiveCharacter().body->MakeParticles(ActiveCharacter().GetPosition());
+    Action* a = new Action(Action::ACTION_SET_CHARACTER_ENERGY);
+    a->Push((int)ActiveCharacter().GetTeamIndex());
+    a->Push((int)ActiveCharacter().GetCharacterIndex());
+    a->Push(0); // Set energy to 0 => death
+    ActionHandler::GetInstance()->NewAction(a);
+    ApplyExplosion(ActiveCharacter().GetCenter(),cfg());
+  }
 }
 
 ExplosiveWeaponConfig& Suicide::cfg()

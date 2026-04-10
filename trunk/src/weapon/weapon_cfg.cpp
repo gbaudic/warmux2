@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -33,26 +33,30 @@ WeaponConfig::WeaponConfig()
 
 void WeaponConfig::LoadXml(xmlpp::Element *elem) 
 {
-  LitDocXml::LitUint (elem, "damage", damage);  
+  XmlReader::ReadUint(elem, "damage", damage);  
 }
 
 //-----------------------------------------------------------------------------
 
 ExplosiveWeaponConfig::ExplosiveWeaponConfig()
 {
-  timeout = 0;
-  explosion_range = 50 ;
-  blast_range = 2.5 ;
-  blast_force = 2.5 ;
+  timeout = 0; 
+  allow_change_timeout = false;
+  explosion_range = 0 ;
+  particle_range = explosion_range;
+  blast_range = 0 ;
+  blast_force = 0 ;
 }
 
 void ExplosiveWeaponConfig::LoadXml(xmlpp::Element *elem) 
 {
   WeaponConfig::LoadXml (elem);
-  LitDocXml::LitUint (elem, "timeout", timeout);
-  LitDocXml::LitUint (elem, "explosion_range", explosion_range);
-  LitDocXml::LitDouble (elem, "blast_range", blast_range);
-  LitDocXml::LitDouble (elem, "blast_force", blast_force);
+  XmlReader::ReadUint(elem, "timeout", timeout);
+  XmlReader::ReadBool(elem, "allow_change_timeout", allow_change_timeout);
+  XmlReader::ReadUint(elem, "explosion_range", explosion_range);
+  XmlReader::ReadUint(elem, "particle_range", particle_range);
+  XmlReader::ReadDouble(elem, "blast_range", blast_range);
+  XmlReader::ReadDouble(elem, "blast_force", blast_force);
 }
 
 //-----------------------------------------------------------------------------

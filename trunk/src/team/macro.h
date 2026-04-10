@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@
        fin_pour_chaque_ver = (*(equipe)).end(); \
        ver != fin_pour_chaque_ver; \
        ++ver) \
-  if (ver -> IsActive())
+  if (!ver -> IsGhost())
 
 // Boucle pour chaque ver vivant d'une equipe
 #define FOR_EACH_LIVING_CHARACTER(equipe,ver) \
@@ -56,6 +56,11 @@
 // Boucle pour tous les vers vivants
 #define FOR_ALL_LIVING_CHARACTERS(equipe,ver) \
   FOR_EACH_TEAM(equipe) \
+  FOR_EACH_LIVING_CHARACTER(*equipe,ver) 
+
+#define FOR_ALL_LIVING_ENEMIES(shooter,equipe,ver)	\
+  FOR_EACH_TEAM(equipe) \
+  if (!(*equipe)->IsSameAs(shooter.GetTeam()))	\
   FOR_EACH_LIVING_CHARACTER(*equipe,ver) 
 
 //-----------------------------------------------------------------------------

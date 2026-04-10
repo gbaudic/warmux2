@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,18 +16,19 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Mode de jeu : temps d'un tour, configuration des armes, nombre de ver
- * maximum par équipe, etc.
+ * Game mode : duration of a turn, weapons configurations, max number of character
+ * per team, etc.
  *****************************************************************************/
 
-#ifndef MODE_JEU_H
-#define MODE_JEU_H
+#ifndef GAME_MODE_H
+#define GAME_MODE_H
 
 #include <string>
 #include "../include/base.h"
 #include "../tool/xml_document.h"
+#include "../weapon/weapon_cfg.h"
 
-class GameMode 
+class GameMode
 {
 public:
   uint max_characters;
@@ -35,9 +36,14 @@ public:
   uint duration_turn;
   uint duration_move_player;
   uint duration_exchange_player;
+  uint duration_before_death_mode;
+  uint damage_per_turn_during_death_mode;
   double gravity;
   double safe_fall ;
   double damage_per_fall_unit ;
+  ExplosiveWeaponConfig death_explosion_cfg;
+  ExplosiveWeaponConfig barrel_explosion_cfg;
+  ExplosiveWeaponConfig bonus_box_explosion_cfg;
 
   struct s_character
   {
@@ -46,9 +52,11 @@ public:
     uint mass;
     double air_resist_factor;
     uint jump_strength;
-    int jump_angle;
+    double jump_angle;
     uint super_jump_strength;
-    int super_jump_angle;
+    double super_jump_angle;
+    uint back_jump_strength;
+    double back_jump_angle;
   } character;
 
   int allow_character_selection;
@@ -58,11 +66,11 @@ public:
   static const int BEFORE_FIRST_ACTION_AND_END_TURN = 2;
   static const int CHANGE_ON_END_TURN = 3;
   static const int NEVER = 4;
- 
+
 private:
   std::string m_current;
   static GameMode * singleton;
-    
+
 public:
   static GameMode * GetInstance();
 
@@ -70,10 +78,10 @@ public:
   bool AllowCharacterSelection() const;
 
 private:
-  GameMode();  
+  GameMode();
 
 protected:
   bool LoadXml (xmlpp::Element *xml);
 };
 
-#endif
+#endif /* GAME_MODE_H */

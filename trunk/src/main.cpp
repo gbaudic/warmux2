@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -32,11 +32,12 @@
 #include "game/time.h"
 #include "graphic/font.h"
 #include "graphic/video.h"
+#include "menu/credits_menu.h"
 #include "menu/game_menu.h"
-#include "menu/infos_menu.h"
 #include "menu/main_menu.h"
+#include "menu/network_connection_menu.h"
+#include "menu/network_menu.h"
 #include "menu/options_menu.h"
-#include "network/network.h"
 #include "include/action_handler.h"
 #include "include/constant.h"
 #include "sound/jukebox.h"
@@ -44,6 +45,8 @@
 #include "tool/i18n.h"
 #include "tool/random.h"
 #include "tool/stats.h"
+
+#include "network/download.h"
 
 AppWormux * AppWormux::singleton = NULL;
 
@@ -78,12 +81,24 @@ int AppWormux::main (int argc, char **argv){
 	    game_menu.Run();
 	    break;
 	  }
+        case menuNETWORK:
+	  {
+	    NetworkConnectionMenu network_connection_menu;
+	    network_connection_menu.Run();
+	    break;
+	  }
         case menuOPTIONS:
           {
             OptionMenu options_menu;
             options_menu.Run();
             break;
           }
+	case menuCREDITS:
+	  {
+	    CreditsMenu credits_menu;
+	    credits_menu.Run();
+	    break;
+	  }
         case menuQUIT:
           quit = true;
         default:
@@ -102,7 +117,7 @@ int AppWormux::main (int argc, char **argv){
   }
   catch (...){
     std::cerr << std::endl
-	      << _("Unexcepted exception caught...") << std::endl
+	      << _("Unexpected exception caught...") << std::endl
 	      << std::endl;
     WakeUpDebugger();
   }
@@ -112,16 +127,10 @@ int AppWormux::main (int argc, char **argv){
 
 void AppWormux::Init(int argc, char **argv){
   Config * config = Config::GetInstance();
-  config->Init();
 
-  InitI18N();
   DisplayWelcomeMessage();
   InitDebugModes(argc, argv);
 
-  ActionHandler::GetInstance()->Init();
-  config->Load();
-
-  InitNetwork(argc, argv);
   video.InitWindow();
   InitFonts();
 
@@ -129,18 +138,6 @@ void AppWormux::Init(int argc, char **argv){
   config->Apply();
 
   jukebox.Init();
-}
-
-void AppWormux::InitNetwork(int argc, char **argv){
-  if (argc >= 3 && strcmp(argv[1],"server")==0) {
-	// wormux server <port>
-	network.Init();
-	network.server_start (argv[2]);
-  } else if (argc >= 3 && strcmp(argv[1], "--add-debug-mode") != 0) {
-	// wormux <server_ip> <server_port>
-	network.Init();
-	network.client_connect(argv[1], argv[2]);
-  }
 }
 
 void AppWormux::DisplayLoadingPicture(){
@@ -192,7 +189,7 @@ void AppWormux::End(){
   SaveStatToXML("stats.xml");
 #endif
   std::cout << "o "
-            << _("Please tell us your opinion of Wormux via email:") << " " << Constants::EMAIL
+            << _("If you found a bug or have a feature request send us a email (in english, please):") << " " << Constants::EMAIL
             << std::endl;
 }
 
@@ -214,7 +211,7 @@ void AppWormux::DisplayWelcomeMessage(){
 
   // Affiche l'absence de garantie sur le jeu
   std::cout << "Wormux version " << Constants::VERSION
-	    << ", Copyright (C) 2001-2006 Wormux team"
+	    << ", Copyright (C) 2001-2006 Wormux Team"
 	    << std::endl
 	    << "Wormux comes with ABSOLUTELY NO WARRANTY." << std::endl
             << "This is free software, and you are welcome to redistribute it" << std::endl

@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources SYSTEM "../map.dtd" []>
 <resources>
   <author>
     <name>Michael PRAGER</name>
@@ -11,7 +12,7 @@
   <surface name="preview" file="preview.jpg" />
 
   <name>Pirates</name>
-  <water>0</water>
-  <nb_mine>3</nb_mine>
+  <water>1</water>
+  <nb_mine>10</nb_mine>
   <is_open>1</is_open>
 </resources>

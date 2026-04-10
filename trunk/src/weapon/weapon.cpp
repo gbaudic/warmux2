@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,11 +16,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Classes virtuelles permettant de définir une arme et un projectile. Les
- * armes ont un nom, une image, un état actif/inactif et une icône (affichée
- * dans l'interface). Les projectiles sont des objets physiques qui ont un
- * comportement spécial lorsqu'ils entrent en collision ou qu'ils sortent du
- * terrain.
+ * Virtual class to handle weapon in wormux.
+ * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
  *****************************************************************************/
 
 #include "weapon.h"
@@ -29,7 +26,8 @@
 #include <SDL_gfxPrimitives.h>
 #include <iostream>
 #include <sstream>
-#include "weapon_tools.h"
+#include "explosion.h"
+#include "../character/move.h"
 #include "../game/time.h"
 #include "../game/game_loop.h"
 #include "../graphic/video.h"
@@ -65,10 +63,10 @@ const uint ANIM_DISPLAY_TIME = 400;
 extern WeaponStrengthBar weapon_strength_bar;
 
 
-Weapon::Weapon(Weapon_type type, 
+Weapon::Weapon(Weapon_type type,
 	       const std::string &id,
 	       EmptyWeaponConfig * params,
-	       uint visibility)
+	       weapon_visibility_t visibility)
 {
   m_type = type;
   m_id = id;
@@ -83,71 +81,83 @@ Weapon::Weapon(Weapon_type type,
 
   m_strength = 0;
   m_first_time_loading = 0;
-
+  m_last_fire_time = 0;
+  m_fire_remanence_time = 100;
   max_strength = min_angle = max_angle = 0;
   use_flipping = true;
 
   override_keys = false ;
+  force_override_keys = false;
 
-  position.origin = weapon_origin_HAND;
-  position.dx = 0;
-  position.dy = 0;
+  origin = weapon_origin_HAND;
 
   m_can_change_weapon = false;
 
   m_visibility = visibility;
   m_unit_visibility = ALWAYS_VISIBLE;
-  extra_params = NULL;
-   
+
   m_image = NULL;
+  m_weapon_fire = NULL;
 
   channel_load = -1;
 
-  if (!use_flipping and (min_angle != max_angle))
+  if (!use_flipping and !EgalZero(min_angle - max_angle))
     use_flipping = true;
-  
+
   extra_params = params;
 
   if (m_visibility != NEVER_VISIBLE)
   {
     m_image = new Sprite( resource_manager.LoadImage(weapons_res_profile, m_id));
-    if(min_angle != max_angle)
+    if(!EgalZero(min_angle - max_angle))
       m_image->cache.EnableLastFrameCache();
   }
-     
-  icone = resource_manager.LoadImage(weapons_res_profile,m_id+"_ico");
+
+  icon = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_ico"));
+
+  mouse_character_selection = true;
 }
 
-void Weapon::p_Select () {}
-void Weapon::p_Deselect () {}
-void Weapon::HandleKeyEvent(int key, int event_type) {}
+Weapon::~Weapon()
+{
+  if(extra_params) delete extra_params;
+  if(icon) delete icon;
+}
 
-void Weapon::Select() 
-{  
+void Weapon::p_Select ()
+{
+  m_last_fire_time = 0;
+}
+void Weapon::p_Deselect () {}
+void Weapon::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type) {}
+
+void Weapon::Select()
+{
   MSG_DEBUG("weapon", "Select %s", m_name.c_str());
-  
+
   m_time_anim_begin = Time::GetInstance()->Read();
   m_is_active = false;
   m_strength = 0;
   ActiveTeam().ResetNbUnits();
-  ActiveCharacter().SetSkin("weapon-" + m_id);
+
+  ActiveCharacter().SetWeaponClothe();
 
   // is there a crosshair ?
-  if (min_angle != max_angle) 
-    ActiveTeam().crosshair.enable = true; 
-     
+  if (!EgalZero(min_angle - max_angle))
+    ActiveTeam().crosshair.enable = true;
+
   p_Select();
 
   if (max_strength == 0) return ;
-  
+
   // prepare the strength bar
   weapon_strength_bar.InitVal (0, 0, uint(max_strength*100));
 
   // init stamp on the stength_bar
   double val = ActiveCharacter().previous_strength;
-  weapon_strength_bar.Reset_Marqueur();
+  weapon_strength_bar.ResetTag();
   if (0 < val && val < max_strength)
-  weapon_strength_bar.AjouteMarqueur (uint(val*100), primary_red_color);
+  weapon_strength_bar.AddTag (uint(val*100), primary_red_color);
 }
 
 void Weapon::Deselect()
@@ -182,6 +192,9 @@ void Weapon::Manage()
 
 bool Weapon::CanChangeWeapon() const
 {
+  if ( !ActiveTeam().IsLocal() )
+    return false;
+
   if ( (ActiveTeam().ReadNbUnits() != m_initial_nb_unit_per_ammo) &&
        (m_can_change_weapon == false))
     return false;
@@ -191,19 +204,32 @@ bool Weapon::CanChangeWeapon() const
 
 void Weapon::NewActionShoot() const
 {
-  ActionHandler::GetInstance()->NewAction (ActionDoubleInt(
-				       ACTION_SHOOT,
-				       m_strength,	
-				       ActiveTeam().crosshair.GetAngleVal()));
+  assert(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
+  Action a_begin_sync(Action::ACTION_SYNC_BEGIN);
+  network.SendAction(&a_begin_sync);
+  SendCharacterPosition();
+  Action * shoot = new Action(Action::ACTION_SHOOT,
+                              m_strength,
+                              ActiveCharacter().GetAbsFiringAngle());
+  shoot->StoreActiveCharacter();
+  ActionHandler::GetInstance()->NewAction(shoot);
+  Action a_end_sync(Action::ACTION_SYNC_END);
+  network.SendAction(&a_end_sync);
+
 }
 
-bool Weapon::Shoot(double strength, int angle)
+void Weapon::PrepareShoot(double strength, double angle)
 {
   MSG_DEBUG("weapon_shoot", "Try to shoot");
-
-  ActiveTeam().crosshair.ChangeAngleVal(angle);
+  ActiveCharacter().SetFiringAngle(angle);
   m_strength = strength;
+  StopLoading();
 
+  ActiveCharacter().PrepareShoot();
+}
+
+bool Weapon::Shoot()
+{
   MSG_DEBUG("weapon_shoot", "Enough ammo ? %d", EnoughAmmo() );
   MSG_DEBUG("weapon_shoot", "Enough ammo unit ? %d", EnoughAmmoUnit() );
   MSG_DEBUG("weapon_shoot", "Use unit on 1st shoot ? %d", use_unit_on_first_shoot );
@@ -211,8 +237,8 @@ bool Weapon::Shoot(double strength, int angle)
 
   {
     // WARNING: The following commented code is wrong! Please see explanation following
-    //   if (!EnoughAmmo() 
-    //       || (use_unit_on_first_shoot && !EnoughAmmoUnit())) 
+    //   if (!EnoughAmmo()
+    //       || (use_unit_on_first_shoot && !EnoughAmmoUnit()))
     //     return false;
 
 
@@ -222,17 +248,18 @@ bool Weapon::Shoot(double strength, int angle)
 
     if (use_unit_on_first_shoot && !EnoughAmmoUnit())
       return false;
-    
+
     if (!EnoughAmmo())
-      if ( ! (ActiveTeam().ReadNbAmmos() == 0 
+      if ( ! (ActiveTeam().ReadNbAmmos() == 0
 	      && use_unit_on_first_shoot && EnoughAmmoUnit()) )
 	return false;
   }
-	     
+
   MSG_DEBUG("weapon_shoot", "Enough ammo");
-  
+
   if (!p_Shoot()) return false;
-  
+  m_last_fire_time = Time::GetInstance()->Read();
+
   MSG_DEBUG("weapon_shoot", "shoot!");
 
   // Is this the first shoot for this ammo use ?
@@ -256,35 +283,36 @@ bool Weapon::Shoot(double strength, int angle)
 // Calcule la position de l'image de l'arme
 void Weapon::PosXY (int &x, int &y) const
 {
-  if(position.origin == weapon_origin_HAND)
+  if(origin == weapon_origin_HAND)
   {
     Point2i handPos = ActiveCharacter().GetHandPosition();
-    y = handPos.y + position.dy;
+    y = handPos.y + position.y;
     if (ActiveCharacter().GetDirection() == 1)
-      x = handPos.x + position.dx;
-    else {
-      x = handPos.x - position.dx;
-    }
+      x = handPos.x + position.x;
+    else
+      x = handPos.x - position.x;
 
     if(ActiveCharacter().GetDirection()==-1)
       x -= m_image->GetWidth();
   }
   else
-  if(position.origin == weapon_origin_OVER)
+  if(origin == weapon_origin_OVER)
   {
-    x = ActiveCharacter().GetCenterX()-m_image->GetWidth()/2+position.dx;
-    y = ActiveCharacter().GetY()-m_image->GetHeight()+position.dy;
+    x = ActiveCharacter().GetCenterX() - m_image->GetWidth() / 2 + position.x;
+    y = ActiveCharacter().GetY()       - m_image->GetHeight()    + position.y;
   }
   else
     assert(false);
 }
 
-// Return the absolute rotation point of the weapon
-void Weapon::RotationPointXY (int &x, int &y) const
+const Point2i Weapon::GetGunHolePosition()
 {
-  Point2i handPos = ActiveCharacter().GetHandPosition();
-  x = handPos.x;
-  y = handPos.y;
+  const Point2i &pos = ActiveCharacter().GetHandPosition();
+  Point2i hole(pos +  hole_delta);
+  double dst = pos.Distance(hole);
+  double angle = pos.ComputeAngle(hole);
+  return pos + Point2i(static_cast<int>(dst * cos(angle + ActiveCharacter().GetFiringAngle())),
+                       static_cast<int>(dst * sin(angle + ActiveCharacter().GetFiringAngle())));
 }
 
 bool Weapon::EnoughAmmo() const
@@ -329,30 +357,30 @@ bool Weapon::CanBeUsedOnClosedMap() const{
   return can_be_used_on_closed_map;
 }
 
-const std::string& Weapon::GetName() const { 
+const std::string& Weapon::GetName() const {
   assert (!m_name.empty());
   return m_name;
 }
 
-const std::string& Weapon::GetID() const { 
+const std::string& Weapon::GetID() const {
   assert (!m_name.empty());
   return m_id;
 }
 
-Weapon_type Weapon::GetType() const { 
+Weapon::Weapon_type Weapon::GetType() const {
   return m_type;
 }
 
 void Weapon::UpdateStrength(){
   if( max_strength == 0 || m_first_time_loading == 0 )
     return ;
-  
+
   uint time = Time::GetInstance()->Read() - m_first_time_loading;
   double val = (max_strength * time) / MAX_TIME_LOADING;
 
   m_strength = BorneDouble (val, 0.0, max_strength);
 
-  weapon_strength_bar.Actu ((int)(m_strength*100));
+  weapon_strength_bar.UpdateValue ((int)(m_strength*100));
 }
 
 bool Weapon::IsReady() const{
@@ -365,9 +393,9 @@ void Weapon::InitLoading(){
     return ;
 
   channel_load = jukebox.Play("share","weapon/load");
-   
+
   m_first_time_loading = Time::GetInstance()->Read();
-  
+
   m_strength = 0;
 
   GameLoop::GetInstance()->character_already_chosen = true;
@@ -379,26 +407,13 @@ void Weapon::StopLoading(){
   jukebox.Stop(channel_load);
 }
 
-void Weapon::DrawWeaponBox(){
-  int c_x;
-  int c_y;
-
-  c_x =  + BUTTON_ICO_WIDTH / 2 + WEAPON_BOX_BUTTON_DX;
-  c_y =  + BUTTON_ICO_HEIGHT / 2 + WEAPON_BOX_BUTTON_DY;
-
-  AppWormux * app = AppWormux::GetInstance();
-
-  Point2i dest( (int)(c_x - 0.5 * BUTTON_ICO_WIDTH), (int)(c_y - 0.5 * BUTTON_ICO_HEIGHT));
-  app->video.window.Blit( Interface::GetInstance()->weapon_box_button, dest);
-
-  Point2i  dr2( (int)(c_x - 0.5 * WEAPON_ICO_WIDTH), (int)(c_y - 0.5 * WEAPON_ICO_HEIGHT));
-  app->video.window.Blit( icone, dr2);
-}
-
 void Weapon::Draw(){
-  if(GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING)
+  if(GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING &&
+     m_last_fire_time + 100 < Time::GetInstance()->Read())
     return;
 
+  if (m_last_fire_time + m_fire_remanence_time > Time::GetInstance()->Read())
+    DrawWeaponFire();
   weapon_strength_bar.visible = false;
 
   switch (m_unit_visibility)
@@ -420,15 +435,15 @@ void Weapon::Draw(){
     {
       case ALWAYS_VISIBLE:
 	break ;
-	
+
       case NEVER_VISIBLE:
 	return ;
-	
+
       case VISIBLE_ONLY_WHEN_ACTIVE:
 	if (!m_is_active)
 	  return ;
 	break;
-	
+
       case VISIBLE_ONLY_WHEN_INACTIVE:
 	if (m_is_active)
 	  return ;
@@ -445,16 +460,16 @@ void Weapon::Draw(){
     return;
 
   // Reset the Sprite:
-  m_image->SetRotation_deg(0.0);
+  m_image->SetRotation_rad(0.0);
   m_image->Scale(1.0,1.0);
 
   // rotate weapon if needed
-  if (min_angle != max_angle)
+  if (!EgalZero(min_angle - max_angle))
   {
     if(ActiveCharacter().GetDirection() == 1)
-      m_image->SetRotation_deg (ActiveTeam().crosshair.GetAngle());
+      m_image->SetRotation_rad (ActiveCharacter().GetFiringAngle());
     else
-      m_image->SetRotation_deg (ActiveTeam().crosshair.GetAngle() - 180.0);
+      m_image->SetRotation_rad (ActiveCharacter().GetFiringAngle() - M_PI);
   }
 
   // flip image if needed
@@ -470,18 +485,18 @@ void Weapon::Draw(){
   // Animate the display of the weapon:
   if( m_time_anim_begin + ANIM_DISPLAY_TIME > Time::GetInstance()->Read())
   {
-    if (min_angle != max_angle)
+    if (!EgalZero(min_angle - max_angle))
     {
-      float angle = m_image->GetRotation_deg();
-      angle += sin( M_PI_2 * double(Time::GetInstance()->Read() - m_time_anim_begin) /(double) ANIM_DISPLAY_TIME) * 360.0;
-      m_image->SetRotation_deg (angle);
+      double angle = m_image->GetRotation_rad();
+      angle += sin( M_PI_2 * double(Time::GetInstance()->Read() - m_time_anim_begin) /(double) ANIM_DISPLAY_TIME) * 2 * M_PI;
+      m_image->SetRotation_rad (angle);
     }
     else
     {
       float scale = sin( 1.5 * M_PI_2 * double(Time::GetInstance()->Read() - m_time_anim_begin) /(double) ANIM_DISPLAY_TIME) / sin(1.5 * M_PI_2);
       m_image->Scale(ActiveCharacter().GetDirection() * scale,scale);
 
-      if(position.origin == weapon_origin_OVER) PosXY(x,y); //Recompute position to get the icon centered over the skin
+      if(origin == weapon_origin_OVER) PosXY(x,y); //Recompute position to get the icon centered over the skin
     }
   }
 
@@ -489,22 +504,40 @@ void Weapon::Draw(){
     m_image->Blit( AppWormux::GetInstance()->video.window, Point2i(x, y) - camera.GetPosition());
 }
 
-void Weapon::DrawUnit(int unit){
+// Draw the weapon fire when firing
+void Weapon::DrawWeaponFire()
+{
+  if (m_weapon_fire == NULL) return;
+  Point2i size = m_weapon_fire->GetSize();
+  size.x = (ActiveCharacter().GetDirection() == Body::DIRECTION_RIGHT ? 0 : size.x);
+  size.y /= 2;
+  m_weapon_fire->SetRotation_rad (ActiveCharacter().GetFiringAngle());
+  m_weapon_fire->Draw( GetGunHolePosition() - size );
+}
+
+void Weapon::DrawUnit(int unit) const
+{
   Rectanglei rect;
 
   std::ostringstream ss;
 
   ss << unit;
- 
+
   DrawTmpBoxText(*Font::GetInstance(Font::FONT_SMALL),
-		 Point2i( ActiveCharacter().GetCenterX(), ActiveCharacter().GetY() - UNIT_BOX_HEIGHT / 2 - UNIT_BOX_GAP )
+		 Point2i( ActiveCharacter().GetCenterX(), 
+			  ActiveCharacter().GetY() - UNIT_BOX_HEIGHT / 2 - UNIT_BOX_GAP )
 		 - camera.GetPosition(),
 		 ss.str());
 }
 
-bool Weapon::LoadXml(xmlpp::Element * weapon) 
+Sprite & Weapon::GetIcon() const
 {
-  xmlpp::Element *elem = LitDocXml::AccesBalise (weapon, m_id);
+  return *icon;
+}
+
+bool Weapon::LoadXml(xmlpp::Element * weapon)
+{
+  xmlpp::Element *elem = XmlReader::GetMarker(weapon, m_id);
   if (elem == NULL)
   {
       std::cout << Format(_("No element <%s> found in the xml config file!"),
@@ -513,40 +546,50 @@ bool Weapon::LoadXml(xmlpp::Element * weapon)
     return false;
   }
 
-  xmlpp::Element *pos_elem = LitDocXml::AccesBalise (elem, "position");
+  xmlpp::Element *pos_elem = XmlReader::GetMarker(elem, "position");
   if (pos_elem != NULL) {
     // E.g. <position origin="hand" x="-1" y="0" />
-    std::string origin;
-    LitDocXml::LitAttrInt (pos_elem, "x", position.dx);
-    LitDocXml::LitAttrInt (pos_elem, "y", position.dy);
-    LitDocXml::LitAttrString (pos_elem, "origin", origin);
-    if (origin == "over")
-      position.origin = weapon_origin_OVER;
+    std::string origin_xml;
+    XmlReader::ReadIntAttr (pos_elem, "x", position.x);
+    XmlReader::ReadIntAttr (pos_elem, "y", position.y);
+    XmlReader::ReadStringAttr (pos_elem, "origin", origin_xml);
+    if (origin_xml == "over")
+      origin = weapon_origin_OVER;
     else
-      position.origin = weapon_origin_HAND;
+      origin = weapon_origin_HAND;
   }
 
-  LitDocXml::LitInt (elem, "nb_ammo", m_initial_nb_ammo);       
-  LitDocXml::LitInt (elem, "unit_per_ammo", m_initial_nb_unit_per_ammo);
+  pos_elem = XmlReader::GetMarker(elem, "hole");
+  if (pos_elem != NULL) {
+    // E.g. <hole dx="-1" dy="0" />
+    XmlReader::ReadIntAttr(pos_elem, "dx", hole_delta.x);
+    XmlReader::ReadIntAttr(pos_elem, "dy", hole_delta.y);
+  }
+
+  XmlReader::ReadInt(elem, "nb_ammo", m_initial_nb_ammo);
+  XmlReader::ReadInt(elem, "unit_per_ammo", m_initial_nb_unit_per_ammo);
 
   // max strength
   // if max_strength = 0, no strength_bar !
-  LitDocXml::LitDouble (elem, "max_strength", max_strength);
+  XmlReader::ReadDouble(elem, "max_strength", max_strength);
 
   // change weapon after ? (for the ninja cord = true)
-  LitDocXml::LitBool (elem, "change_weapon", m_can_change_weapon);
-      
+  XmlReader::ReadBool(elem, "change_weapon", m_can_change_weapon);
+
   // angle of weapon when drawing
   // if (min_angle == max_angle) no cross_hair !
   // between -90 to 90 degrees
-  LitDocXml::LitInt (elem, "min_angle", min_angle);
-  LitDocXml::LitInt (elem, "max_angle", max_angle);
+  int min_angle_deg = 0, max_angle_deg = 0;
+  XmlReader::ReadInt(elem, "min_angle", min_angle_deg);
+  XmlReader::ReadInt(elem, "max_angle", max_angle_deg);
+  min_angle = static_cast<double>(min_angle_deg) * M_PI / 180.0;
+  max_angle = static_cast<double>(max_angle_deg) * M_PI / 180.0;
 
   // Load extra parameters if existing
   if (extra_params != NULL) extra_params->LoadXml(elem);
 
-  if (m_visibility != NEVER_VISIBLE && position.origin == weapon_origin_HAND)
-    m_image->SetRotation_HotSpot(Point2i(-position.dx,-position.dy));
+  if (m_visibility != NEVER_VISIBLE && origin == weapon_origin_HAND)
+    m_image->SetRotation_HotSpot(-position);
 
   return true;
 }
@@ -563,9 +606,20 @@ bool Weapon::IsLoading() const{
   return m_first_time_loading;
 }
 
-void Weapon::ChooseTarget(){
+void Weapon::ChooseTarget(Point2i mouse_pos){
 }
 
 void Weapon::SignalTurnEnd(){
 }
 
+void Weapon::ActionUp(){ //called by mousse.cpp when mousewhellup
+}
+
+
+void Weapon::ActionDown(){//called by mousse.cpp when mousewhelldown
+}
+
+void Weapon::ActionStopUse()
+{
+  assert(false);
+}

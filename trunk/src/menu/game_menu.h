@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,29 +23,24 @@
 #define GAME_MENU_H
 
 #include "menu.h"
+#include "map_selection_box.h"
+#include "teams_selection_box.h"
 #include "../include/base.h"
 #include "../graphic/font.h"
 
 class GameMenu : public Menu
 {
-   Font * normal_font;
-   bool terrain_init;
-
    /* Team controllers */
-   ListBox *lbox_all_teams;   
-   ListBox *lbox_selected_teams;
-   Button *bt_add_team;
-   Button *bt_remove_team;
-   NullWidget *space_for_logo;
-   VBox *team_box;
+   TeamsSelectionBox * team_box;
 
    /* Map controllers */
-   ListBox *lbox_maps;
-   Sprite *map_preview;  
-   VBox *map_box;
+   MapSelectionBox * map_box;
 
-   void ChangeMap();   
-   void MoveTeams(ListBox * from, ListBox * to, bool sort);
+   /* Game options controllers */
+   Box * game_options;
+   SpinButtonWithPicture *opt_duration_turn;
+   SpinButtonWithPicture *opt_energy_ini;
+   CheckBox *opt_scroll_on_border;
 
    void SaveOptions();
    void OnClic(const Point2i &mousePosition, int button);

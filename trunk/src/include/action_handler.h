@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -36,13 +36,13 @@ private:
   SDL_mutex* mutex;
 
   // Handler for each action
-  typedef void (*callback_t) (const Action *a);
-  std::map<Action_t, callback_t> handler;
-  typedef std::map<Action_t, callback_t>::const_iterator handler_it;
+  typedef void (*callback_t) (Action *a);
+  std::map<Action::Action_t, callback_t> handler;
+  typedef std::map<Action::Action_t, callback_t>::const_iterator handler_it;
 
   // Action strings
-  std::map<Action_t, std::string> action_name;
-  typedef std::map<Action_t, std::string>::const_iterator name_it;
+  std::map<Action::Action_t, std::string> action_name;
+  typedef std::map<Action::Action_t, std::string>::const_iterator name_it;
 
   // Action queue
   std::list<Action*> queue;
@@ -52,17 +52,20 @@ private:
 public:
   static ActionHandler * GetInstance();
 
-  void NewAction (const Action &a, bool repeat_to_network=true);
+  void NewAction (Action* a, bool repeat_to_network=true);
   void ExecActions ();
-  void Init();
-  std::string GetActionName(Action_t action);
-	
+  std::string GetActionName(Action::Action_t action);
+
 private:
   ActionHandler();
 
-  void Exec (const Action *a);
-  void Register (Action_t action, const std::string &name, callback_t fct);
+  void Exec (Action *a);
+  void Register (Action::Action_t action, const std::string &name, callback_t fct);
 };
+
+Action* BuildActionSendCharacterPhysics(int team_no, int char_no);
+void SendGameMode();
+void SyncCharacters();
 
 //-----------------------------------------------------------------------------
 #endif

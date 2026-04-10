@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,171 +20,134 @@
  *****************************************************************************/
 
 #include "game_menu.h"
+#include "map_selection_box.h"
+#include "teams_selection_box.h"
 
 #include "../game/game.h"
 #include "../game/config.h"
 #include "../game/game_mode.h"
 #include "../graphic/video.h"
 #include "../graphic/font.h"
-#include "../map/maps_list.h"
 #include "../include/app.h"
-#include "../team/teams_list.h"
 #include "../tool/i18n.h"
 #include "../tool/string_tools.h"
 
-const uint TEAMS_Y = 20;
-const uint TEAMS_W = 160;
-const uint TEAMS_H = 160;
-const uint TEAM_LOGO_Y = 290;
-const uint TEAM_LOGO_H = 48;
+#include <iostream>
+const uint MARGIN_TOP    = 5;
+const uint MARGIN_SIDE   = 5;
+const uint MARGIN_BOTTOM = 70;
 
-const uint MAPS_X = 20;
-const uint MAPS_W = 160;
+const uint TEAMS_BOX_H = 170;
+const uint OPTIONS_BOX_H = 150;
 
-const uint MAP_PREVIEW_W = 300;
+const uint NBR_VER_MIN = 1;
+const uint NBR_VER_MAX = 10;
+const uint TPS_TOUR_MIN = 10;
+const uint TPS_TOUR_MAX = 120;
+const uint TPS_FIN_TOUR_MIN = 1;
+const uint TPS_FIN_TOUR_MAX = 10;
 
+
+
+// ################################################
+// ##  GAME MENU CLASS
+// ################################################
 GameMenu::GameMenu() :
   Menu("menu/bg_play")
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml",false);
   Rectanglei rectZero(0, 0, 0, 0);
+  Rectanglei stdRect (0, 0, 130, 30);
 
-  normal_font = Font::GetInstance(Font::FONT_NORMAL);
+  Surface window = AppWormux::GetInstance()->video.window;
 
-  // Center the boxes!
-  uint x = 30;
+  // Calculate main box size
+  uint mainBoxWidth = window.GetWidth() - 2*MARGIN_SIDE;
+  uint mapBoxHeight = (window.GetHeight() - MARGIN_TOP - MARGIN_BOTTOM - 2*MARGIN_SIDE) 
+    - TEAMS_BOX_H - OPTIONS_BOX_H;
 
-  /* Choose the teams !! */
-  team_box = new VBox(Rectanglei( x, TEAMS_Y, 475, 1));
-  team_box->AddWidget(new Label(_("Select the teams:"), rectZero, *normal_font));
+  // ################################################
+  // ##  TEAM SELECTION
+  // ################################################
+  team_box = new TeamsSelectionBox(Rectanglei(MARGIN_SIDE, MARGIN_TOP,
+					      mainBoxWidth, TEAMS_BOX_H));
 
-  Box * tmp_box = new HBox( Rectanglei(0,0, 1, TEAMS_H), false);
-  tmp_box->SetMargin(10);
-  tmp_box->SetBorder( Point2i(0,0) );
+  widgets.AddWidget(team_box);
 
-  lbox_all_teams = new ListBox( Rectanglei( 0, 0, TEAMS_W, TEAMS_H - TEAM_LOGO_H - 5 ));
-  lbox_all_teams->always_one_selected = false;
-  tmp_box->AddWidget(lbox_all_teams);
+  // ################################################
+  // ##  MAP SELECTION
+  // ################################################
+  map_box = new MapSelectionBox( Rectanglei(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE,
+					    mainBoxWidth, mapBoxHeight),
+				 false);
 
-  Box * buttons_tmp_box = new VBox(Rectanglei(0, 0, 68, 1), false);
+  widgets.AddWidget(map_box);
 
-  bt_add_team = new Button( Rectanglei(0, 0, 48, 48) ,res,"menu/arrow-right");
-  buttons_tmp_box->AddWidget(bt_add_team);
+  // ################################################
+  // ##  GAME OPTIONS
+  // ################################################
+  game_options = new HBox( Rectanglei(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE,
+					    mainBoxWidth/2, OPTIONS_BOX_H), true);
+  game_options->AddWidget(new PictureWidget(Rectanglei(0,0,39,128), "menu/mode_label"));
 
-  bt_remove_team = new Button( Rectanglei( 0, 0, 48, 48 ),res,"menu/arrow-left");
-  buttons_tmp_box->AddWidget(bt_remove_team);
+  game_options->SetMargin(50);
 
-  space_for_logo = new NullWidget( Rectanglei(0,0,48,48) );
-  buttons_tmp_box->AddWidget(space_for_logo);
+  opt_duration_turn = new SpinButtonWithPicture(_("Duration of a turn"), "menu/timing_turn",
+						stdRect,
+						TPS_TOUR_MIN, 5,
+						TPS_TOUR_MIN, TPS_TOUR_MAX);
+  game_options->AddWidget(opt_duration_turn);
 
-  tmp_box->AddWidget(buttons_tmp_box);
-  lbox_selected_teams = new ListBox( Rectanglei(0, 0, TEAMS_W, TEAMS_H - TEAM_LOGO_H - 5 ));
-  lbox_selected_teams->always_one_selected = false;
-  tmp_box->AddWidget(lbox_selected_teams);
+  opt_energy_ini = new SpinButtonWithPicture(_("Initial energy"), "menu/energy",
+					     stdRect,
+					     100, 5,
+					     50, 200);
+  game_options->AddWidget(opt_energy_ini);
 
-  team_box->AddWidget(tmp_box);
+  opt_scroll_on_border = new PictureTextCBox(_("Scroll on border"), "menu/scroll_on_border", stdRect);
+  game_options->AddWidget(opt_scroll_on_border);
+
+  game_options->AddWidget(new NullWidget(Rectanglei(0,0,50,10)));
+
+  widgets.AddWidget(game_options);
 
 
-
-  /* Choose the map !! */
-  tmp_box = new HBox( Rectanglei(0, 0, 1, MAP_PREVIEW_W - 25 ), false);
-  tmp_box->SetMargin(0);
-  tmp_box->SetBorder( Point2i(0,0) );
-
-  lbox_maps = new ListBox( Rectanglei(0, 0, MAPS_W, MAP_PREVIEW_W-25 ));
-  tmp_box->AddWidget(lbox_maps);
-  tmp_box->AddWidget(new NullWidget( Rectanglei(0, 0, MAP_PREVIEW_W+5, MAP_PREVIEW_W)));
-
-  map_box = new VBox( Rectanglei(x, team_box->GetPositionY()+team_box->GetSizeY()+20, 475, 1) );
-  map_box->AddWidget(new Label(_("Select the world:"), rectZero, *normal_font));
-  map_box->AddWidget(tmp_box);
   // Values initialization
 
-  // Load Maps' list
-  std::sort(lst_terrain.liste.begin(), lst_terrain.liste.end(), compareMaps);
+  // Load game options
+  GameMode * game_mode = GameMode::GetInstance();
+  opt_duration_turn->SetValue(game_mode->duration_turn);
+  opt_energy_ini->SetValue(game_mode->character.init_energy);
+  opt_scroll_on_border->SetValue(Config::GetInstance()->GetScrollOnBorder());
 
-  ListeTerrain::iterator
-    terrain=lst_terrain.liste.begin(),
-    fin_terrain=lst_terrain.liste.end();
-  for (; terrain != fin_terrain; ++terrain)
-  {
-    bool choisi = terrain -> name == lst_terrain.TerrainActif().name;
-    lbox_maps->AddItem (choisi, terrain -> name, terrain -> name);
-  }
-
-  // Load Teams' list
-  teams_list.full_list.sort(compareTeams);
-
-  TeamsList::full_iterator
-    it=teams_list.full_list.begin(),
-    end=teams_list.full_list.end();
-
-  uint i=0;
-  for (; it != end; ++it)
-  {
-    bool choix = teams_list.IsSelected (i);
-    if (choix)
-      lbox_selected_teams->AddItem (false, (*it).GetName(), (*it).GetId());
-    else
-      lbox_all_teams->AddItem (false, (*it).GetName(), (*it).GetId());
-    ++i;
-  }
-
-  terrain_init = false;
+  resource_manager.UnLoadXMLProfile(res);
 }
 
 GameMenu::~GameMenu()
 {
-  delete map_preview;
-  delete map_box;
-  delete team_box;
 }
 
 void GameMenu::OnClic(const Point2i &mousePosition, int button)
 {
-  if (lbox_maps->Clic(mousePosition, button)) {
-    ChangeMap();
-  } else if (lbox_all_teams->Clic(mousePosition, button)) {
-
-  } else if (lbox_selected_teams->Clic(mousePosition, button)) {
-
-  } else if ( bt_add_team->Contains(mousePosition)) {
-    if (lbox_selected_teams->GetItemsList()->size() < GameMode::GetInstance()->max_teams)
-      MoveTeams(lbox_all_teams, lbox_selected_teams, false);
-  } else if ( bt_remove_team->Contains(mousePosition)) {
-    MoveTeams(lbox_selected_teams, lbox_all_teams, true);
-  }
+  widgets.Clic(mousePosition, button);
 }
 
 void GameMenu::SaveOptions()
 {
-  // Save values
-  std::string map_id = lbox_maps->ReadLabel();
-  lst_terrain.ChangeTerrainNom (map_id);
+  // Map
+  map_box->ValidMapSelection();
 
   // teams
-  std::vector<list_box_item_t> *
-    selected_teams = lbox_selected_teams->GetItemsList();
-
-  if (selected_teams->size() > 1) {
-    std::list<uint> selection;
-
-    std::vector<list_box_item_t>::iterator
-      it = selected_teams->begin(),
-      end = selected_teams->end();
-
-    int index = -1;
-    for (; it != end; ++it) {
-      teams_list.FindById(it->value, index);
-      if (index > -1)
-	selection.push_back(uint(index));
-    }
-    teams_list.ChangeSelection (selection);
-
-  }
+  team_box->ValidTeamsSelection();
 
   //Save options in XML
+  Config::GetInstance()->SetScrollOnBorder(opt_scroll_on_border->GetValue());
   Config::GetInstance()->Save();
+
+  GameMode * game_mode = GameMode::GetInstance();
+  game_mode->duration_turn = opt_duration_turn->GetValue() ;
+  game_mode->character.init_energy = opt_energy_ini->GetValue() ;
+
 }
 
 void GameMenu::__sig_ok()
@@ -198,63 +161,8 @@ void GameMenu::__sig_cancel()
   // Nothing to do
 }
 
-void GameMenu::ChangeMap()
-{
-  std::string map_id = lbox_maps->ReadLabel();
-  uint map = lst_terrain.FindMapById(map_id);
-  if(terrain_init)
-    delete map_preview;
-  map_preview = new Sprite(lst_terrain.liste[map].preview);
-  float scale = std::min( float(MAP_PREVIEW_W)/map_preview->GetHeight(),
-                          float(MAP_PREVIEW_W)/map_preview->GetWidth() ) ;
-
-  map_preview->Scale (scale, scale);
-}
-
-void GameMenu::MoveTeams(ListBox * from, ListBox * to, bool sort)
-{
-  if (from->GetSelectedItem() != -1) {
-    to->AddItem (false,
-		 from->ReadLabel(),
-		 from->ReadValue());
-    to->Deselect();
-    if (sort) to->Sort();
-
-    from->RemoveSelected();
-  }
-}
-
 void GameMenu::Draw(const Point2i &mousePosition)
 {
-  Team* last_team = teams_list.FindByIndex(0);
 
-  map_box->Draw(mousePosition);
-  team_box->Draw(mousePosition);
-
-  int t = lbox_all_teams->MouseIsOnWhichItem(mousePosition);
-  if (t != -1) {
-    int index = -1;
-    Team * new_team = teams_list.FindById(lbox_all_teams->ReadValue(t), index);
-    if (new_team!=NULL) last_team = new_team;
-  } else {
-    t = lbox_selected_teams->MouseIsOnWhichItem(mousePosition);
-    if (t != -1) {
-      int index = -1;
-      Team * new_team = teams_list.FindById(lbox_selected_teams->ReadValue(t), index);
-      if (new_team!=NULL) last_team = new_team;
-    }
-  }
-
-  AppWormux * app = AppWormux::GetInstance();
-  app->video.window.Blit( last_team->ecusson, space_for_logo->GetPosition() );
-
-  if (!terrain_init){
-      ChangeMap();
-      terrain_init = true;
-  }
-
-  map_preview->Blit ( app->video.window,
-		      map_box->GetPositionX()+MAPS_W+10,
-		      map_box->GetPositionY()+map_box->GetSizeY()/2-map_preview->GetHeight()/2);
 }
 

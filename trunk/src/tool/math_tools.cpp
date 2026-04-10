@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -26,8 +26,12 @@
 const double EPS_ZERO = 0.05;
 
 // Conversion degré en radian
-double Deg2Rad (int degre){ 
-  return ((double)degre)*M_PI/180; 
+double Deg2Rad (int degre){
+  return ((double)degre)*M_PI/180;
+}
+
+int Rad2Deg(double rad) {
+  return int(rad*180/M_PI);
 }
 
 // Modèle pour borner une valeur entre min et max
@@ -45,12 +49,20 @@ long BorneLong (const long &valeur, const long &min, const long &max){
 	return BorneTpl (valeur, min, max);
 }
 
-double BorneDouble (const double &valeur, const double &min, const double &max){ 
+double BorneDouble (const double &valeur, const double &min, const double &max){
 	return BorneTpl (valeur, min, max);
 }
 
 // Inverse un angle par rapport à l'axe vertical
 double InverseAngle (const double &angle){
+  if (angle < 0)
+    return -M_PI - angle;
+  else
+    return M_PI - angle;
+}
+
+// Inverse un angle par rapport à l'axe vertical
+double InverseAngleRad (const double &angle){
   if (angle < 0)
     return -M_PI - angle;
   else

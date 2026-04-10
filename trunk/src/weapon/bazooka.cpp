@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,11 +16,11 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Arme bazooka : projette une roquette avec un angle et une force donnée.
+ * Arme bazooka : projette une roquette avec un angle et une force donnï¿½.
  *****************************************************************************/
 
 #include "bazooka.h"
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/config.h"
 #include "../game/time.h"
 #include "../graphic/video.h"
@@ -31,35 +31,51 @@
 #include "../tool/math_tools.h"
 #include "../tool/i18n.h"
 
-RoquetteBazooka::RoquetteBazooka(ExplosiveWeaponConfig& cfg) :
-  WeaponProjectile ("rocket", cfg)
-{  
-  touche_ver_objet = true;
+BazookaRocket::BazookaRocket(ExplosiveWeaponConfig& cfg,
+                                 WeaponLauncher * p_launcher) :
+  WeaponProjectile ("rocket", cfg,p_launcher), smoke_engine(20)
+{
   explode_colliding_character = true;
 }
 
-void RoquetteBazooka::Refresh()
+void BazookaRocket::Refresh()
 {
   WeaponProjectile::Refresh();
-
-  double angle = GetSpeedAngle() *180/M_PI;
-  image->SetRotation_deg( angle);
+  if(!IsDrowned())
+  {
+    image->SetRotation_rad(GetSpeedAngle());
+    smoke_engine.AddPeriodic(Point2i(GetX() + GetWidth() / 2,
+                                     GetY() + GetHeight()/ 2), particle_DARK_SMOKE, false, -1, 2.0);
+  }
+  else
+  {
+    image->SetRotation_rad(M_PI_2);
+  }
 }
 
-void RoquetteBazooka::SignalCollision()
-{ 
-  if (IsGhost())
-  {
-    GameMessages::GetInstance()->Add (_("The rocket left the battlefield..."));
-  }
-  is_active = false;
+void BazookaRocket::SignalOutOfMap()
+{
+  GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
+  WeaponProjectile::SignalOutOfMap();
+}
+
+void BazookaRocket::SignalDrowning()
+{
+  smoke_engine.Stop();
+  WeaponProjectile::SignalDrowning();
 }
 
 //-----------------------------------------------------------------------------
 
 Bazooka::Bazooka() :
   WeaponLauncher(WEAPON_BAZOOKA, "bazooka", new ExplosiveWeaponConfig())
-{  
+{
   m_name = _("Bazooka");
-  projectile = new RoquetteBazooka(cfg());
+  ReloadLauncher();
+}
+
+WeaponProjectile * Bazooka::GetProjectileInstance()
+{
+  return dynamic_cast<WeaponProjectile *>
+      (new BazookaRocket(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }

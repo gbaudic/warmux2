@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #include <vector>
 #include "tileitem.h"
 #include "../graphic/surface.h"
+#include "../graphic/sprite.h"
 #include "../tool/rectangle.h"
 
 const uint EXPLOSION_BORDER_SIZE = 10;
@@ -39,6 +40,11 @@ public:
   // Dig a circle hole
   void Dig(const Point2i &center, const uint radius);
 
+  // Insert a sprite into the ground
+  void PutSprite(const Point2i pos, Sprite* spr);
+  // Merge a sprite into map (using alpha information)
+  void MergeSprite(const Point2i &position, Surface & provider);
+
   // Load an image
   void LoadImage (Surface& ground_surface);
 
@@ -46,13 +52,18 @@ public:
   unsigned char GetAlpha(const Point2i &pos) const;
 
   // Draw it (on the entire visible part) 
-  void DrawTile() const;
+  void DrawTile();
 
   // Draw a part that is inside the given clipping rectangle
   // Clipping rectangle is in World corrdinate not screen coordinates
   // usefull to redraw only a part that is under a sprite that has moved,... 
   void DrawTile_Clipped(Rectanglei clip_rectangle) const;
 
+  // Return a surface of the ground inside the rect
+  Surface GetPart(Rectanglei& rec);
+
+  // Check if a title is empty, so we can delete it
+  void CheckEmptyTiles();
 protected:
   void InitTile(const Point2i &pSize);
 

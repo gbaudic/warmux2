@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,24 +22,68 @@
 #include "widget.h"
 #include "../tool/point.h"
 
-Widget::Widget(){
+Widget::Widget()
+{
+  have_focus = false;
+  ct = NULL;
 
+  need_redrawing = true;
 }
 
-Widget::Widget(const Rectanglei &rect){
-	position = rect.GetPosition();
-	size = rect.GetSize();
+Widget::Widget(const Rectanglei &rect)
+{
+  position = rect.GetPosition();
+  size = rect.GetSize();
+  have_focus = false;
+  ct = NULL;
+  
+  need_redrawing = true;
 }
 
-Widget::~Widget(){
+Widget::~Widget()
+{
 }
 
-bool Widget::Clic(const Point2i &mousePosition, uint button){
-  return false;
+void Widget::SendKey(SDL_keysym key)
+{
 }
 
-void Widget::StdSetSizePosition(const Rectanglei &rect){
-	position = rect.GetPosition();
-	size = rect.GetSize();
+Widget* Widget::Clic(const Point2i &mousePosition, uint button)
+{
+  need_redrawing = true;
+
+  return this;
 }
 
+void Widget::StdSetSizePosition(const Rectanglei &rect)
+{
+  position = rect.GetPosition();
+  size = rect.GetSize();
+}
+
+void Widget::SetContainer( Container * _ct)
+{
+  ct = _ct;
+}
+ 
+void Widget::Update(const Point2i &mousePosition, 
+		    const Point2i &lastMousePosition,
+		    Surface& surf)
+{
+  if ( 
+      need_redrawing 
+      || (Contains(mousePosition) && mousePosition != lastMousePosition) 
+      || (Contains(lastMousePosition) && !Contains(mousePosition))
+      ) 
+    {
+      if (ct != NULL) ct->Redraw(*this, surf);
+      
+      Draw(mousePosition, surf);
+    }
+  need_redrawing = false;
+}
+
+void Widget::ForceRedraw()
+{
+  need_redrawing = true;
+}

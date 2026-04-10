@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -42,21 +42,12 @@ private:
    CheckBox *opt_display_energy;
    CheckBox *opt_display_name;
    CheckBox *full_screen; 
-   SpinButton *opt_max_fps;
-   VBox *graphic_options;
+   SpinButtonBig *opt_max_fps;
 
    /* Sound options controllers */
    ListBox *lbox_sound_freq;
    CheckBox *opt_music;
    CheckBox *opt_sound_effects;
-   VBox *sound_options;
-
-   /* Game options controllers */
-   SpinButton *opt_duration_turn;
-   SpinButton *opt_duration_end_turn;
-   SpinButton *opt_nb_characters;
-   SpinButton *opt_energy_ini;
-   VBox *game_options;
 
    void SaveOptions();
    void OnClic(const Point2i &mousePosition, int button);

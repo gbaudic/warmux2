@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -51,13 +51,17 @@ class ExplosiveWeaponConfig : public WeaponConfig
 {
 public:
   uint timeout;
+  bool allow_change_timeout;
   double blast_range ;
   double blast_force ;  
   uint explosion_range;
+  uint particle_range;
 public:
   ExplosiveWeaponConfig();
   virtual ~ExplosiveWeaponConfig() {};
    virtual void LoadXml(xmlpp::Element *elem);
+   
+   
 };
 
 //-----------------------------------------------------------------------------

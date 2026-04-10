@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,9 +16,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Arme gun : la balle part tout droit dans la direction donnée par
- * le viseur. Si la balle ne touche pas un ver, elle va faire un trou dans
- * le terrain. La balle peut également toucher les objets du plateau du jeu.
+ * gun Weapon : The bullet made a great hole if we hit the ground or made damage
+ * if we hit a character.
  *****************************************************************************/
 
 #include "../weapon/gun.h"
@@ -31,14 +30,15 @@
 #include "../interface/game_msg.h"
 #include "../interface/game_msg.h"
 #include "../weapon/gun.h"
-#include "../weapon/weapon_tools.h"
+#include "../tool/math_tools.h"
+#include "../weapon/explosion.h"
 
-const uint BULLET_SPEED = 20;
+const uint GUN_BULLET_SPEED = 20;
 
-GunBullet::GunBullet(ExplosiveWeaponConfig& cfg) :
-  WeaponBullet("gun_bullet", cfg)
+GunBullet::GunBullet(ExplosiveWeaponConfig& cfg,
+                     WeaponLauncher * p_launcher) :
+  WeaponBullet("gun_bullet", cfg, p_launcher)
 {
-  cfg.explosion_range = 5;
 }
 
 void GunBullet::ShootSound()
@@ -51,20 +51,26 @@ void GunBullet::ShootSound()
 Gun::Gun() : WeaponLauncher(WEAPON_GUN, "gun", new ExplosiveWeaponConfig())
 {
   m_name = _("Gun");
-
-  projectile = new GunBullet(cfg());
+  m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
+  m_weapon_fire->EnableRotationCache(32);
+  ReloadLauncher();
 }
 
-bool Gun::p_Shoot ()
-{  
+WeaponProjectile * Gun::GetProjectileInstance()
+{
+  return dynamic_cast<WeaponProjectile *>
+      (new GunBullet(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+}
+
+bool Gun::p_Shoot()
+{
   if (m_is_active)
     return false;  
 
   m_is_active = true;
-  projectile->Shoot (20);
-
+  projectile->Shoot (GUN_BULLET_SPEED);
+  projectile = NULL;
+  ReloadLauncher();
   return true;
 }
-
-
 

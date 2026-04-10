@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -34,17 +34,16 @@ class WeaponsList
 public:
   typedef std::list<Weapon*> weapons_list_type;
   typedef std::list<Weapon*>::iterator weapons_list_it;
-  
+
 private:
   weapons_list_type m_weapons_list;
-  // **EVIL HACK**
-  weapons_list_type todelete;
-  // **EVIL HACK**
 
   // The int is used to classify weapon by sort
   std::multimap<uint, Weapon*> m_weapons_map;
   typedef std::multimap<uint, Weapon*>::value_type keybind;
+  typedef std::multimap<uint, Weapon*>::iterator weapons_map_it;
   void AddToList(Weapon* arme, uint num_sort);
+  Weapon* GetNextWeapon(uint sort, uint index);
 
 public:
   WeaponsList();
@@ -57,11 +56,9 @@ public:
 
   // Return a list of  weapons
   weapons_list_type& GetList();
-  Weapon* GetWeapon(Weapon_type type);
-  bool GetWeaponBySort(uint num_sort, Weapon_type &type);
+  Weapon* GetWeapon(Weapon::Weapon_type type);
+  bool GetWeaponBySort(uint num_sort, Weapon::Weapon_type &type);
 };
-
-extern WeaponsList weapons_list;
 
 //-----------------------------------------------------------------------------
 #endif

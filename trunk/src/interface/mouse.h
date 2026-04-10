@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,55 +28,90 @@
 #include "../include/base.h"
 #include "../tool/point.h"
 
-typedef enum {
-  POINTER_STANDARD,
-  POINTER_SELECT,
-  POINTER_MOVE,
-  POINTER_AIM
-} pointer_t;
-
 class Mouse
 {
+public:
+  typedef enum {
+    POINTER_STANDARD,
+    POINTER_SELECT,
+    POINTER_MOVE,
+    POINTER_ARROW_UP,
+    POINTER_ARROW_UP_RIGHT,
+    POINTER_ARROW_UP_LEFT,
+    POINTER_ARROW_DOWN,
+    POINTER_ARROW_DOWN_RIGHT,
+    POINTER_ARROW_DOWN_LEFT,
+    POINTER_ARROW_RIGHT,
+    POINTER_ARROW_LEFT,
+    POINTER_AIM,
+    POINTER_FIRE_LEFT,
+    POINTER_FIRE_RIGHT
+  } pointer_t;
+
 private:
   bool scroll_actif;
+  bool hide;
   pointer_t current_pointer;
 
   Point2i savedPos;
+  Point2i lastPos;
 
   static Mouse * singleton;
 
-  Surface pointer_select, pointer_move, pointer_aim;
+  Surface pointer_select, 
+    pointer_move, 
+    pointer_arrow_up,
+    pointer_arrow_up_right,
+    pointer_arrow_up_left,
+    pointer_arrow_down,
+    pointer_arrow_down_right,
+    pointer_arrow_down_left,
+    pointer_arrow_right,
+    pointer_arrow_left,
+    pointer_fire_left,
+    pointer_fire_right,
+    pointer_aim;
 
   Mouse();
-  bool ScrollPointer();
+  pointer_t ScrollPointer() const;
   bool DrawMovePointer();
-  
+  void ScrollCamera() const;
+  void DrawSelectPointer();
+
+  const Surface& GetSurfaceFromPointer(pointer_t pointer) const;
 public:
-  
+
   static Mouse * GetInstance();
 
-  void TraiteClic (const SDL_Event *event); 
+  void TraiteClic (const SDL_Event *event);
 
   void Reset();
 
-  // Refresh de la souris à chaque boucle du jeu
   void Refresh();
   void TestCamera();
   bool ActionClicG();
   bool ActionClicD();
+  bool ActionWhellDown();
+  bool ActionWhellUp();
   void ChoixVerPointe();
 
-  // Lit la position dans le monde
   Point2i GetPosition() const;
   Point2i GetWorldPosition() const;
   bool ClicG() const;
   bool ClicD() const;
   bool ClicM() const;
-  void ScrollCamera();
 
   // Choose the pointer
-  void SetPointer(pointer_t pointer);
+  pointer_t SetPointer(pointer_t pointer);
   void Draw();
+
+  // Hide/show mouse pointer
+  void Show();
+  void Hide();
+  bool IsVisible() const;
+
+  // Center the pointer on the screen
+  void CenterPointer();
 };
 
 #endif

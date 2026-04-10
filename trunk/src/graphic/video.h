@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,15 +22,22 @@
 
 #include <SDL.h>
 #include <string>
+#include <list>
 #include "surface.h"
 #include "../include/base.h"
 
 class Video{
+ private:
   uint m_max_fps;     // If equals to zero, it means no limit
   uint m_sleep_max_fps;
   bool SDLReady;
   bool fullscreen;
+
+  std::list<Point2i> available_configs;
+  void ComputeAvailableConfigs();
+
   void SetWindowIcon(std::string icon);
+  void InitSDL(void);
 
 public:
   Surface window;
@@ -43,12 +50,13 @@ public:
   Video();
   ~Video();
 
-  bool IsFullScreen(void) const;
+  bool IsFullScreen() const;
 
+  std::list<Point2i>& GetAvailableConfigs();
   bool SetConfig(int width, int height, bool fullscreen);
+  void ToggleFullscreen();
 
   void InitWindow(void);
-  void InitSDL(void);
 
   void Flip(void);
 }; 

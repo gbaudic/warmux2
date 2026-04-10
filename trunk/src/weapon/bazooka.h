@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,27 +16,30 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * 
+ * Bazooka : launch a rocket with a given angle and strength
  *****************************************************************************/
 
 #ifndef BAZOOKA_H
 #define BAZOOKA_H
 #include "launcher.h"
 
-// Roquette du bazooka
-class RoquetteBazooka : public WeaponProjectile
+class BazookaRocket : public WeaponProjectile
 {
+  ParticleEngine smoke_engine;
 public:
-  RoquetteBazooka(ExplosiveWeaponConfig& cfg);
+  BazookaRocket(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
   void Refresh();
 protected:
-  void SignalCollision();
+  void SignalOutOfMap();
+  void SignalDrowning();
 };
 
 class Bazooka : public WeaponLauncher
 {
  public:
   Bazooka();
+ protected:
+  WeaponProjectile * GetProjectileInstance();
 };
 
 #endif

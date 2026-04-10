@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Téléportation : déplacement d'un ver n'importe où sur le terrain.
+ * Teleportation.
  *****************************************************************************/
 
 #ifndef TELEPORTATION_H
@@ -27,24 +27,20 @@
 
 class Teleportation : public Weapon
 {
-private:
-  bool retour; // on est dans le retour ?
-  uint temps;
-  Point2i src, dst;
-  int m_x,m_y;
-  float m_zoom;
-  int m_direction;
-
-  Sprite* skin;
-
-  bool p_Shoot();
-
-public:
-  Teleportation();
-  void Refresh();
-  void Draw();
-  virtual void ChooseTarget();
-  WeaponConfig& cfg();
+  private:
+    bool target_chosen;
+    uint time;
+    Point2i src, dst;
+  protected:
+    bool p_Shoot();
+    void p_Select();
+    void p_Deselect();
+    void Refresh();
+  public:
+    Teleportation();
+    void Draw();
+    void ChooseTarget(Point2i mouse_pos);
+    WeaponConfig& cfg();
 };
 
-#endif
+#endif /* TELEPORTATION_H */

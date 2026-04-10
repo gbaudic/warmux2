@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -30,20 +30,23 @@
 
 class CheckBox : public Widget
 {
- private:
+ protected:
   Text *txt_label;
   bool m_value;
-  Sprite *m_image;
+  Sprite *m_checked_image;
+  bool hidden;
    
  public:
   CheckBox(const std::string &label, const Rectanglei &rect, bool value = true);
   ~CheckBox();
-  void Draw(const Point2i &mousePosition) ;
-  bool Clic(const Point2i &mousePosition, uint button) ;
+  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  Widget* Clic(const Point2i &mousePosition, uint button) ;
   void SetSizePosition(const Rectanglei &rect);
 
   bool GetValue() const;
   void SetValue(bool value);
+
+  void SetVisible(bool visible);
 };
 
 #endif

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,37 +23,41 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "../gui/question.h"
 #include "../include/base.h"
+#include "../gui/question.h"
 
 class Game
 {
 private:
   bool isGameLaunched;
   bool endOfGameStatus;
-  Question question;
+  bool isGamePaused;
 
-  int NbrRemainingTeams();
+  int NbrRemainingTeams() const;
 
   Game();
   static Game * singleton;
   
+  int AskQuestion (Question &question, bool draw=true);
+  void DisplayPause();
+  bool DisplayQuit();
+
 public:
   static Game * GetInstance();
 
   void Start();
-  
-  bool IsGameFinished();
+  void UnloadDatas();
+
+  bool IsGameFinished() const;
+  bool IsGamePaused() const;
   bool IsGameLaunched() const;
 
-  void MessageLoading();
-  void MessageEndOfGame();
+  void MessageLoading() const;
+  void MessageEndOfGame() const;
 
-  int AskQuestion (bool draw=true);
-  
   void Pause();
 
-  bool GetEndOfGameStatus();
+  bool GetEndOfGameStatus() const;
   void SetEndOfGameStatus(bool status);
 };
 #endif

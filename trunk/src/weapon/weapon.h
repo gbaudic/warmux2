@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,11 +16,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Classes virtuelles permettant de définir une arme et un projectile. Les
- * armes ont un nom, une image, un état actif/inactif et une icône (affichée
- * dans l'interface). Les projectiles sont des objets physiques qui ont un
- * comportement spécial lorsqu'ils entrent en collision ou qu'ils sortent du
- * terrain.
+ * Virtual class to handle weapon in wormux.
+ * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
  *****************************************************************************/
 
 #ifndef WEAPON_H
@@ -31,14 +28,14 @@
 #include "../graphic/sprite.h"
 #include "../gui/progress_bar.h"
 #include "../include/base.h"
-#include "../include/enum.h"
-#include "../object/particle.h"
+#include "../particles/particle.h"
 #include "../object/physical_obj.h"
 #include "../sound/jukebox.h"
-#include "../team/character.h"
+#include "../interface/keyboard.h"
+
 class Character;
 
-// Constante munitions illimitées
+// Infinite ammos constant
 extern const int INFINITE_AMMO;
 
 extern const uint BUTTON_ICO_WIDTH;
@@ -47,14 +44,7 @@ extern const uint BUTTON_ICO_HEIGHT;
 extern const uint WEAPON_ICO_WIDTH;
 extern const uint WEAPON_ICO_HEIGHT;
 
-enum weapon_visibility {
-  ALWAYS_VISIBLE,
-  NEVER_VISIBLE,
-  VISIBLE_ONLY_WHEN_ACTIVE,
-  VISIBLE_ONLY_WHEN_INACTIVE
-};
-
-class WeaponStrengthBar : public BarreProg
+class WeaponStrengthBar : public ProgressBar
 {
  public:
   bool visible ;
@@ -62,23 +52,42 @@ class WeaponStrengthBar : public BarreProg
 
 //-----------------------------------------------------------------------------
 
-class Weapon 
+class Weapon
 {
+public:
+  typedef enum
+  {
+    WEAPON_BAZOOKA,        WEAPON_AUTOMATIC_BAZOOKA, WEAPON_RIOT_BOMB, WEAPON_GRENADE,
+    WEAPON_DISCO_GRENADE,  WEAPON_CLUSTER_BOMB,      WEAPON_GUN,       WEAPON_SHOTGUN,
+    WEAPON_SUBMACHINE_GUN, WEAPON_BASEBALL,
+
+    WEAPON_DYNAMITE,      WEAPON_MINE,
+
+    WEAPON_SUPERTUX,      WEAPON_AIR_ATTACK,  WEAPON_ANVIL, WEAPON_GNU,
+    WEAPON_POLECAT,       WEAPON_BOUNCE_BALL,
+
+    WEAPON_TELEPORTATION, WEAPON_NINJA_ROPE,  WEAPON_LOWGRAV,   WEAPON_SUICIDE,
+    WEAPON_SKIP_TURN,     WEAPON_JETPACK,     WEAPON_PARACHUTE, WEAPON_AIR_HAMMER,
+    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_BLOWTORCH, WEAPON_SYRINGE
+  } Weapon_type;
+
 protected:
-  typedef enum {
-    weapon_origin_HAND,
-    weapon_origin_OVER
-  } weapon_origin_t;
-  Weapon_type m_type;
+  Weapon::Weapon_type m_type;
   std::string m_id;
   std::string m_name;
   bool m_is_active;
   Sprite *m_image;
+  Sprite *m_weapon_fire;
+  uint m_fire_remanence_time;
 
-  struct s_position{
-    int dx, dy;
-    weapon_origin_t origin;
-  } position;
+  typedef enum {
+    weapon_origin_HAND,
+    weapon_origin_OVER
+  } weapon_origin_t;
+  weapon_origin_t origin;
+
+  Point2i hole_delta; // relative position of the hole of the weapon
+  Point2i position;   // Position of the weapon
 
   // Time when the weapon is selected for the animation
   uint m_time_anim_begin;
@@ -89,15 +98,25 @@ protected:
   // time of beginning to load (for choosing the strength)
   uint m_first_time_loading;
 
+  // time of the last fire
+  uint m_last_fire_time;
+
   // change weapon after ? (for the ninja cord = true)
   bool m_can_change_weapon;
 
   // Extra parameters
   EmptyWeaponConfig *extra_params;
 
-  // Visibility
-  uint m_visibility;
-  uint m_unit_visibility;
+  typedef enum weapon_visibility {
+    ALWAYS_VISIBLE,
+    NEVER_VISIBLE,
+    VISIBLE_ONLY_WHEN_ACTIVE,
+    VISIBLE_ONLY_WHEN_INACTIVE
+  } weapon_visibility_t;
+
+ // Visibility
+  weapon_visibility_t m_visibility;
+  weapon_visibility_t m_unit_visibility;
 
   // how many times can we use this weapon (since the beginning of the game) ?
   int m_initial_nb_ammo;
@@ -109,8 +128,8 @@ protected:
   int channel_load;
 
 public:
-  // Icone de l'arme dans l'interface
-  Surface icone;
+  // weapon's icon
+  Sprite * icon;
 
   // if max_strength != 0, display the strength bar
   double max_strength;
@@ -118,8 +137,9 @@ public:
   // True if the weapon uses keys when activated.
   bool override_keys ;
 
-  // Angle in degrees between -90 to 90
-  int min_angle, max_angle;
+  //Force weapons to use keys when true
+  bool force_override_keys ;
+
   bool use_flipping;
 
 protected:
@@ -129,15 +149,15 @@ protected:
   virtual bool p_Shoot() = 0;
 
 public:
-  Weapon(Weapon_type type, 
+  Weapon(Weapon_type type,
 	 const std::string &id,
 	 EmptyWeaponConfig * params,
-	 uint visibility = ALWAYS_VISIBLE);
-  virtual ~Weapon() {}
+	 weapon_visibility_t visibility = ALWAYS_VISIBLE);
+  virtual ~Weapon();
 
   // Select or deselect the weapon
-  void Select(); 
-  void Deselect(); 
+  void Select();
+  void Deselect();
 
   // Gestion de l'arme
   void Manage();
@@ -145,10 +165,11 @@ public:
 
   // Draw the weapon
   virtual void Draw();
-  void DrawWeaponBox();
+  virtual void DrawWeaponFire();
 
-  void DrawUnit(int unit);
+  void DrawUnit(int unit) const;
 
+  Sprite & GetIcon() const;
   // Manage the numbers of ammunitions
   bool EnoughAmmo() const;
   void UseAmmo();
@@ -158,20 +179,25 @@ public:
   int ReadInitialNbUnit() const;
 
   bool CanBeUsedOnClosedMap() const;
+  bool UseCrossHair() const { return min_angle != max_angle; };
 
   // Calculate weapon position
   virtual void PosXY (int &x, int &y) const;
-  
+
   // Create a new action "shoot" in action handler
   void NewActionShoot() const;
 
-  // Tire avec l'arme
-  // Renvoie true si l'arme a pu être enclanchée
-  bool Shoot(double strength, int angle);
+  // Prepare the shoot : set the angle and strenght of the weapon
+  // Begin the shooting animation of the character
+  void PrepareShoot(double strength, double angle);
+
+  // Shot with the weapon
+  // Return true if we have been able to trigger the weapon
+  bool Shoot();
 
   // L'arme est encore active (animation par ex.) ?
   bool IsActive() const;
-  
+
   // the weapon is ready to use ? (is there bullets left ?)
   virtual bool IsReady() const ;
 
@@ -187,31 +213,48 @@ public:
   // update strength (so the strength bar can be updated)
   virtual void UpdateStrength();
 
-  // Get the rotation point of the weapon
-  // This is used for drawing the crosshair
-  virtual void RotationPointXY (int &x, int &y) const;
+  const Point2i GetGunHolePosition();
 
   // Choose a target.
-  // Return false if it not fire directly after
-  virtual void ChooseTarget ();
+  virtual void ChooseTarget (Point2i mouse_pos);
+
+  //Misc actions.
+  virtual void ActionUp ();//called by mousse.cpp when mousewhellup
+  virtual void ActionDown ();//called by mousse.cpp when mousewhelldown
 
   // Handle a keyboard event.
-  virtual void HandleKeyEvent(int key, int event_type) ;
+  virtual void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type) ;
 
   // Get informed that the turn is over.
   virtual void SignalTurnEnd();
 
+  // Stop using this weapon (only used with lowgrav and jetpack)
+  virtual void ActionStopUse();
+
   // Load parameters from the xml config file
   // Return true if xml has been succesfully load
-  bool LoadXml(xmlpp::Element * weapon);  
+  bool LoadXml(xmlpp::Element * weapon);
 
   // return the strength of the weapon
   const double ReadStrength() const;
 
-  // Accès aux données
+  // Accï¿½ aux donnï¿½s
   const std::string& GetName() const;
   const std::string& GetID() const;
   Weapon_type GetType() const;
+
+  // Allows or not the character selection with mouse click (tab is allowed)
+  // This is used in weapons like the automated bazooka, where it's required
+  // a target. Default is true.
+  bool mouse_character_selection;
+
+  inline void SetMinAngle(double min) {min_angle = min;}
+  inline const double &GetMinAngle() const {return min_angle;}
+  inline void SetMaxAngle(double max) {max_angle = max;}
+  inline const double &GetMaxAngle() const {return max_angle;}
+private:
+  // Angle in radian between -PI to PI
+  double min_angle, max_angle;
 };
 
 //-----------------------------------------------------------------------------

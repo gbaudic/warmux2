@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -31,74 +31,123 @@ class WeaponLauncher;
 
 class WeaponProjectile : public PhysicalObj
 {
- public:
-  bool is_active;
+  protected:
+    Sprite *image;
+    bool camera_follow_closely;
+    bool explode_colliding_character; // before timeout.
+    bool explode_with_timeout;
+    bool explode_with_collision;
+    double begin_time;
 
- protected:
-  Sprite *image;  
+    ExplosiveWeaponConfig& cfg;
 
-  // Peut toucher les vers et les objets ? (test de collision)
-  bool touche_ver_objet;
-  bool explode_colliding_character; // before timeout. touche_ver_objet must be true
-  double begin_time;
+  public:
+    Character* dernier_ver_touche;
+    PhysicalObj* dernier_obj_touche;
+    WeaponLauncher * launcher;
+    int m_timeout_modifier;
 
-  ExplosiveWeaponConfig& cfg;
+  public:
+    WeaponProjectile(const std::string &nom,
+                     ExplosiveWeaponConfig& cfg,
+                     WeaponLauncher * p_launcher);
+    virtual ~WeaponProjectile();
 
- public:
-  Character* dernier_ver_touche;
-  PhysicalObj* dernier_obj_touche;
+    virtual void Draw();
+    virtual void Refresh();
+    virtual void Shoot(double strength);
+    virtual bool IsImmobile() const;
 
- public:
-  WeaponProjectile(const std::string &nom, 
-		   ExplosiveWeaponConfig& cfg);
-  virtual ~WeaponProjectile();
+    void IncrementTimeOut();
+    void DecrementTimeOut();
+    void SetTimeOut(int timeout);
+    int GetTotalTimeout() const;
+    void ResetTimeOut();
+    bool change_timeout_allowed();
+  protected:
+    virtual void SignalObjectCollision(PhysicalObj * obj);
+    virtual void SignalGroundCollision();
+    virtual void SignalCollision();
+    virtual void SignalOutOfMap();
+    virtual void SignalTimeout();
+    virtual void SignalExplosion();
+    void SignalDrowning();
+    void SignalGhostState (bool was_dead);
 
-  virtual void Draw();
-  virtual void Refresh();
-  virtual void Shoot(double strength);
-  virtual void Explosion();
-
-  virtual bool CollisionTest (const Point2i &position); // public only for uzi...
- protected:
-  virtual void SignalCollision() = 0; 
-  bool TestImpact ();
-  virtual void ShootSound();
- private:
-  void SignalGhostState (bool was_dead);
-  void SignalFallEnding();
+    virtual void ShootSound();
+    virtual void Explosion();
+    virtual void RandomizeShoot(double &angle,double &strength);
+    virtual void DoExplosion();
 };
 
 class WeaponBullet : public WeaponProjectile
 {
-public:
-  WeaponBullet(const std::string &name, ExplosiveWeaponConfig& cfg);
-  virtual ~WeaponBullet(){};
-  virtual void Refresh();
-protected:
-  void SignalCollision();
-  void Explosion(); 
+  public:
+    WeaponBullet(const std::string &name,
+                 ExplosiveWeaponConfig& cfg,
+                 WeaponLauncher * p_launcher);
+    virtual ~WeaponBullet(){};
+    virtual void Refresh();
+  protected:
+    virtual void SignalGroundCollision();
+    virtual void SignalOutOfMap();
+    virtual void SignalObjectCollision(PhysicalObj * obj);
+    void DoExplosion();
 };
 
 
 class WeaponLauncher : public Weapon
 {
- protected:
-  WeaponProjectile * projectile;
+  public:
+    bool ignore_timeout_signal;
+    bool ignore_collision_signal;
+    bool ignore_explosion_signal;
+    bool ignore_ghost_state_signal;
+    bool ignore_drowning_signal;
+  protected:
+    WeaponProjectile * projectile;
+    uint nb_active_projectile;
+    bool m_allow_change_timeout;
+    int missed_shots;
+    bool announce_missed_shots;
+  protected:
+    virtual bool p_Shoot();
+    virtual void p_Select();
+    virtual void p_Deselect();
+    virtual WeaponProjectile * GetProjectileInstance() = 0;
+    virtual bool ReloadLauncher();
+    void Refresh();
+  private:
+    void DirectExplosion();
 
- private:
-  bool p_Shoot();
-  void DirectExplosion();
-  void Explosion();
-  
- public:
-  WeaponLauncher(Weapon_type type, 
-		 const std::string &id,
-		 EmptyWeaponConfig * params,
-		 uint visibility = ALWAYS_VISIBLE);
-  virtual ~WeaponLauncher();
+  public:
+    WeaponLauncher(Weapon_type type,
+                   const std::string &id,
+                   EmptyWeaponConfig * params,
+                   weapon_visibility_t visibility = ALWAYS_VISIBLE);
+    virtual ~WeaponLauncher();
 
-  void Refresh();
-  ExplosiveWeaponConfig& cfg();
+    virtual void Draw();
+    virtual void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+
+  // Handle of projectile events
+    virtual void SignalProjectileExplosion();
+    virtual void SignalProjectileCollision();
+    virtual void SignalProjectileDrowning();
+    virtual void SignalProjectileGhostState();
+    virtual void SignalProjectileTimeout();
+
+    void IncActiveProjectile();
+    void DecActiveProjectile();
+
+    virtual void IncMissedShots();
+
+  //Misc actions
+    virtual void ActionUp ();    // called by mouse.cpp when mouse wheel up
+    virtual void ActionDown ();  // called by mouse.cpp when mouse wheel down
+
+    WeaponProjectile* GetProjectile() { return projectile; };
+    ExplosiveWeaponConfig& cfg();
 };
 
-#endif
+#endif /* WEAPON_LAUNCHER_H */

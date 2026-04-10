@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -21,223 +21,342 @@
 
 #include "action.h"
 //-----------------------------------------------------------------------------
-#include <SDL.h>
+#include <SDL_net.h>
 #include "action_handler.h"
-//-----------------------------------------------------------------------------
-
-// Copy b(unknown type, 32bits) to a(Uint32), bit for bit
-#define TO_UINT32(a, b) a=*((Uint32*)(&(b)))
-// Copy b(Uint32) to a(unknown type,32bits), bit for bit
-#define FROM_UINT32(a, b) *((Uint32*)(&(a)))=b
-
-// Copy b(unknown type, 64bits) to a(Uint32), bit for bit
-#define TO_2UINT32(a, b) a=*((Uint32*)(&(b))); \
-                         *((&a)+1)=*(((Uint32*)(&(b)))+1)
-
-// Copy b(Uint32) to a(unknown type,64bits), bit for bit
-#define FROM_2UINT32(a, b) *((Uint32*)(&(a)))=b; \
-                           *(((Uint32*)(&(a)))+1)=*((&b)+1); \
-
-Action::Action (Action_t type) 
-{ 
-  m_type = type; 
-}
-
-Action::~Action () {}
-
-Action_t Action::GetType() const 
-{ 
-  return m_type; 
-}
-
-void Action::Write(Uint32* os) const 
-{ 
-  TO_UINT32(os[0],m_type);
-}
-
-Action* Action::clone() const 
-{ 
-  return new Action(*this); 
-}
-
-std::ostream& Action::out(std::ostream &os) const
-{
-  os << ActionHandler::GetInstance()->GetActionName(m_type);
-  return os;
-}
+#include "../tool/debug.h"
+#include "../game/time.h"
+#include "../character/character.h"
+#include "../team/teams_list.h"
 
 //-----------------------------------------------------------------------------
-
-ActionInt2::ActionInt2 (Action_t type, int v1, int v2) : Action(type) 
-{ 
-  m_value1 = v1; m_value2 = v2; 
-}
-
-ActionInt2::ActionInt2(Action_t type, Uint32* is) : Action(type)
-{ 
-  FROM_UINT32(m_value1, is[0]);
-  FROM_UINT32(m_value2, is[1]);
-}
-
-int ActionInt2::GetValue1() const 
-{ 
-  return m_value1; 
-}
-
-int ActionInt2::GetValue2() const 
-{ 
-  return m_value2; 
-}
-
-void ActionInt2::Write(Uint32* os) const 
-{ 
-  Action::Write(os);
-  TO_UINT32(os[1], m_value1);
-  TO_UINT32(os[2], m_value2);
-}
-
-Action* ActionInt2::clone() const { return new ActionInt2(*this); }
-std::ostream& ActionInt2::out(std::ostream &os) const
+// Action without parameter
+Action::Action (Action_t type)
 {
-  Action::out (os);
-  os <<  " (2x int) = " << m_value1 << ", " << m_value2;
-  return os;
+  var.clear();
+  m_type = type;
+  m_timestamp = Time::GetInstance()->Read();
 }
 
-//-----------------------------------------------------------------------------
-
-ActionInt::ActionInt (Action_t type, int value) : Action(type) 
-{ m_value = value; }
-ActionInt::ActionInt (Action_t type, Uint32* is) : Action(type)
-{ 
-  FROM_UINT32(m_value, is[0]);
-}
-int ActionInt::GetValue() const { return m_value; }
-void ActionInt::Write(Uint32* os) const 
-{ 
-  Action::Write(os);
-  TO_UINT32(os[1], m_value);
-}
-Action* ActionInt::clone() const { return new ActionInt(*this); }
-std::ostream& ActionInt::out(std::ostream &os) const
+// Action with various parameters
+Action::Action (Action_t type, int value) : m_type(type)
 {
-  Action::out (os);
-  os << " (int) = " << m_value;
-  return os;
+  var.clear();
+  Push(value);
+  m_timestamp = Time::GetInstance()->Read();
 }
 
-//-----------------------------------------------------------------------------
-
-ActionDouble::ActionDouble (Action_t type, double value) : Action(type) 
-{ m_value = value; }
-ActionDouble::ActionDouble (Action_t type, Uint32* is) : Action(type)
-{ 
-  FROM_2UINT32(m_value, is[0]);
-}
-double ActionDouble::GetValue() const { return m_value; }
-void ActionDouble::Write(Uint32* os) const 
-{ 
-  Action::Write(os);
-  TO_2UINT32(os[1], m_value);
-}
-Action* ActionDouble::clone() const { return new ActionDouble(*this); }
-std::ostream& ActionDouble::out(std::ostream &os) const
+Action::Action (Action_t type, double value) : m_type(type)
 {
-  Action::out (os);
-  os << " (double) = " << m_value;
-  return os;
+  var.clear();
+  Push(value);
+  m_timestamp = Time::GetInstance()->Read();
 }
 
-//-----------------------------------------------------------------------------
-
-ActionDoubleInt::ActionDoubleInt (Action_t type, double v1, int v2) : Action(type) 
-{ 
-  m_value1 = v1; 
-  m_value2 = v2; 
-}
-
-ActionDoubleInt::ActionDoubleInt(Action_t type, Uint32* is) : Action(type)
+Action::Action (Action_t type, const std::string& value) : m_type(type)
 {
-  assert( sizeof(m_value1) == 8);
-//  ((Uint32*)&m_value1)[0] = is[0];
-//  ((Uint32*)&m_value1)[1] = is[1];
-  FROM_2UINT32(m_value1, is[0]);
-  FROM_UINT32(m_value2, is[2]);
+  var.clear();
+  Push(value);
+  m_timestamp = Time::GetInstance()->Read();
 }
 
-double ActionDoubleInt::GetValue1() const 
-{ 
-  return m_value1; 
-}
-
-int ActionDoubleInt::GetValue2() const 
-{ 
-  return m_value2; 
-}
-
-void ActionDoubleInt::Write(Uint32* os) const
-{ 
-  Action::Write(os);
-//  os[1] = ((Uint32*)&m_value1)[0];
-//  os[2] = ((Uint32*)&m_value1)[1];
-  TO_2UINT32(os[1], m_value1);
-  TO_UINT32(os[3], m_value2);
-}
-
-Action* ActionDoubleInt::clone() const 
-{ 
-  return new ActionDoubleInt(*this); 
-}
-
-std::ostream& ActionDoubleInt::out(std::ostream &os) const
+Action::Action (Action_t type, double value1, double value2) : m_type(type)
 {
-  Action::out (os);
-  os << " (double, int) = " << m_value1 << ", " << m_value2;
-  return os;
+  var.clear();
+  Push(value1);
+  Push(value2);
+  m_timestamp = Time::GetInstance()->Read();
 }
 
-//-----------------------------------------------------------------------------
-
-ActionString::ActionString (Action_t type, const std::string &value) : Action(type)
+Action::Action (Action_t type, double value1, int value2) : m_type(type)
 {
-  m_length = strlen(value.c_str())+1;
-  m_value = new char[m_length];
-  strcpy(m_value, value.c_str());
+  var.clear();
+  Push(value1);
+  Push(value2);
+  m_timestamp = Time::GetInstance()->Read();
 }
 
-ActionString::ActionString (Action_t type, Uint32 *is) : Action(type)
+// Build an action from a network packet
+Action::Action (const char *is)
 {
-  m_length = is[0];
-  m_value = new char[m_length];
-  strcpy(m_value,(char*)(&is[1]));
+  var.clear();
+  m_type = (Action_t)SDLNet_Read32(is);
+  is += 4;
+  m_timestamp = (Action_t)SDLNet_Read32(is);
+  is += 4;
+  int m_lenght = SDLNet_Read32(is);
+  is += 4;
+
+  for(int i=0; i < m_lenght; i++)
+  {
+    Uint32 val = SDLNet_Read32(is);
+    var.push_back(val);
+    is += 4;
+  }
 }
 
-ActionString::~ActionString ()
+Action::~Action ()
 {
-  delete []m_value;
 }
 
-char* ActionString::GetValue() const { return m_value; }
-void ActionString::Write(Uint32 *os) const 
-{ 
-  Action::Write(os);
-  os[1] = m_length;
-  strcpy((char*)(&os[2]),m_value);
-}
-
-Action* ActionString::clone() const { return new ActionString(m_type, std::string(m_value)); }
-std::ostream& ActionString::out(std::ostream &os) const
+Action::Action_t Action::GetType() const
 {
-  Action::out (os);
-  os << " (string) = " << m_value;
-  return os;
+  return m_type;
 }
 
-//-----------------------------------------------------------------------------
-std::ostream& operator<<(std::ostream &os, const Action &a)
+bool Action::IsEmpty() const
 {
-  a.out(os);
-  return os;
+  return var.empty();
 }
+
+void Action::SetTimestamp(uint timestamp)
+{
+  m_timestamp = timestamp;
+}
+
+uint Action::GetTimestamp()
+{
+  return m_timestamp;
+}
+
+// Convert the action to a packet
+void Action::WritePacket(char* &packet, int & size)
+{
+  size = 4  //Size of the type;
+        + 4 //Size of the timestamp
+        + 4 //Size of the number of variable
+        + int(var.size()) * 4;
+
+  packet = (char*)malloc(size);
+  char* os = packet;
+
+  SDLNet_Write32(m_type, os);
+  os += 4;
+  SDLNet_Write32(m_timestamp, os);
+  os += 4;
+  Uint32 param_size = (Uint32)var.size();
+  SDLNet_Write32(param_size, os);
+  os += 4;
+
+  for(std::list<Uint32>::iterator val = var.begin(); val!=var.end(); val++)
+  {
+    SDLNet_Write32(*val, os);
+    os += 4;
+  }
+}
+
+//-------------  Add datas to the action  ----------------
+void Action::Push(int val)
+{
+  Uint32 tmp;
+  memcpy(&tmp, &val, 4);
+  var.push_back(tmp);
+  MSG_DEBUG( "action", " (%s) Pushing int : %i",
+        ActionHandler::GetInstance()->GetActionName(m_type).c_str(), val);
+
+}
+
+void Action::Push(double val)
+{
+  Uint32 tmp[2];
+  memcpy(&tmp, &val, 8);
+#if (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+  var.push_back(tmp[0]);
+  var.push_back(tmp[1]);
+#else
+  var.push_back(tmp[1]);
+  var.push_back(tmp[0]);
+#endif
+
+  MSG_DEBUG( "action", " (%s) Pushing double : %f",
+        ActionHandler::GetInstance()->GetActionName(m_type).c_str(), val);
+}
+
+void Action::Push(const Point2i& val)
+{
+  Push(val.x);
+  Push(val.y);
+}
+
+void Action::Push(const Point2d& val)
+{
+  Push(val.x);
+  Push(val.y);
+}
+
+void Action::Push(std::string val)
+{
+  //Cut the string into 32bit values
+  //But first, we write the size of the string:
+  Push((int)val.size());
+  char* ch = (char*)val.c_str();
+
+  int count = val.size();
+  while(count > 0)
+  {
+    Uint32 tmp = 0;
+    // Fix-me : We are reading out of the c_str() buffer there :
+#if (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+    strncpy((char*)&tmp, ch, 4);
+    var.push_back(tmp);
+    ch += 4;
+    count -= 4;
+#else
+    char* c_tmp = (char*)&tmp;
+    c_tmp +=3;
+    for(int i=0; i < 4; i++)
+      *(c_tmp--) = *(ch++);
+
+    var.push_back(tmp);
+    count -= 4;
+#endif
+  }
+  MSG_DEBUG( "action", " (%s) Pushing string : %s",
+  ActionHandler::GetInstance()->GetActionName(m_type).c_str(), val.c_str());
+}
+
+//-------------  Retrieve datas from the action  ----------------
+int Action::PopInt()
+{
+  assert(var.size() > 0);
+  if(var.size() <= 0)
+	return 0;
+  int val;
+  Uint32 tmp = var.front();
+  memcpy(&val, &tmp, 4);
+  var.pop_front();
+  MSG_DEBUG( "action", " (%s) Poping int : %i",
+        ActionHandler::GetInstance()->GetActionName(m_type).c_str(), val);
+  return val;
+}
+
+double Action::PopDouble()
+{
+  assert(var.size() > 0);
+  if(var.size() <= 0)
+    return 0.0;
+  double val;
+  Uint32 tmp[2];
+#if (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+  tmp[0] = var.front();
+  var.pop_front();
+  tmp[1] = var.front();
+  var.pop_front();
+  memcpy(&val, &tmp, 8);
+#else
+  tmp[1] = var.front();
+  var.pop_front();
+  tmp[0] = var.front();
+  var.pop_front();
+  memcpy(&val, &tmp, 8);
+#endif
+
+  MSG_DEBUG( "action", " (%s) Poping double : %f",
+        ActionHandler::GetInstance()->GetActionName(m_type).c_str(), val);
+  return val;
+}
+
+std::string Action::PopString()
+{
+  assert(var.size() > 1);
+  if(var.size() <= 1)
+    return "";
+  int lenght = PopInt();
+
+  std::string str="";
+
+  assert((int)var.size() >= lenght/4);
+  if((int)var.size() < lenght/4)
+    return "";
+
+  while(lenght > 0)
+  {
+    Uint32 tmp = var.front();
+    var.pop_front();
+    char tmp_str[5] = {0, 0, 0, 0, 0};
+#if (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+    memcpy(tmp_str, &tmp, 4);
+    str += tmp_str;
+    lenght -= 4;
+#else
+    char* c_tmp_str = (char*)(&tmp_str) + 3;
+    char* c_tmp = (char*)&tmp;
+    for(int i=0; i < 4; i++)
+      *(c_tmp_str--) = *(c_tmp++);
+
+    str += tmp_str;
+    lenght -= 4;
+#endif
+    }
+  MSG_DEBUG( "action", " (%s) Poping string : %s",
+        ActionHandler::GetInstance()->GetActionName(m_type).c_str(), str.c_str());
+  return str;
+}
+
+Point2i Action::PopPoint2i()
+{
+  int x, y;
+  x = PopInt();
+  y = PopInt();
+  return Point2i(x, y);
+}
+
+Point2d Action::PopPoint2d()
+{
+  double x, y;
+  x = PopDouble();
+  y = PopDouble();
+  return Point2d(x, y);
+}
+
+
+void Action::StoreActiveCharacter()
+{
+  StoreCharacter(ActiveCharacter().GetTeamIndex() ,ActiveCharacter().GetCharacterIndex());
+}
+
+void Action::StoreCharacter(uint team_no, uint char_no)
+{
+  Push((int)team_no);
+  Push((int)char_no);
+  Character * c = teams_list.FindPlayingByIndex(team_no)->FindByIndex(char_no);
+  Push(c->GetPosition());
+  Push((int)c->GetDirection());
+  Push(c->GetAbsFiringAngle());
+  Push(c->GetEnergy());
+  Push((int)c->GetDiseaseDamage());
+  Push((int)c->GetDiseaseDuration());
+  Push(c->GetSpeed());
+  if(c->IsActiveCharacter()) { // If active character, store step animation
+    Push((int)true);
+    Push(ActiveTeam().ActiveCharacter().GetBody()->GetClothe());
+    Push(ActiveTeam().ActiveCharacter().GetBody()->GetMovement());
+    Push((int)ActiveTeam().ActiveCharacter().GetBody()->GetFrame());
+  } else {
+    Push((int)false);
+  }
+}
+
+void Action::RetrieveCharacter()
+{
+  int team_no = PopInt();
+  int char_no = PopInt();
+  Character * c = teams_list.FindPlayingByIndex(team_no)->FindByIndex(char_no);
+  c->SetXY(PopPoint2i());
+  c->SetDirection((Body::Direction_t)PopInt());
+  c->SetFiringAngle(PopDouble());
+  c->SetEnergy(PopInt());
+  int disease_damage_per_turn = PopInt();
+  int disease_duration = PopInt();
+  c->SetDiseaseDamage(disease_damage_per_turn, disease_duration);
+  c->SetSpeedXY(PopPoint2d());
+  if((bool)PopInt()) { // If active characters, retrieve stored animation
+    if(c->GetTeam().IsActiveTeam())
+      ActiveTeam().SelectCharacter(char_no);
+    c->SetClothe(PopString());
+    c->SetMovement(PopString());
+    c->GetBody()->SetFrame((uint)PopInt());
+  }
+}
+
 
 //-----------------------------------------------------------------------------

@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE resources SYSTEM "../map.dtd" []>
 <resources>
   <author>
     <name>Toon VERSTRAELEN</name>
@@ -23,15 +24,15 @@
     <animation speed="100"/>
   </sprite>
   <wind>
-    <nbr_sprite>40</nbr_sprite>
+    <nbr_sprite>30</nbr_sprite>
     <need_flip>0</need_flip>
 
-    <mass>0.3</mass>
-    <wind_factor>2.0</wind_factor>
-    <air_resist_factor>1.0</air_resist_factor>
-    <gravity_factor>1.0</gravity_factor>
+    <mass>2.0</mass>
+    <wind_factor>4.0</wind_factor>
+    <air_resist_factor>0.3</air_resist_factor>
+    <gravity_factor>0.2</gravity_factor>
     <rebounding>false</rebounding>
-    <rebound_factor>1.0</rebound_factor>
+    <rebound_factor>2.1</rebound_factor>
   </wind>
 
 </resources>

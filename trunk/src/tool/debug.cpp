@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,6 +22,8 @@
 #include <string>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "../include/base.h"
 
 /**
@@ -52,8 +54,9 @@ void PrintDebug (const char *filename, const char *function, unsigned long line,
 				continue;
 	        
 			va_list argp;
-			
-			fprintf(stderr, "DEBUG (%s:%s:%ld) %s : ", filename, function, line, level);
+			int pid = (int)getpid();
+
+			fprintf(stderr, "%i|%s:%s:%ld| %s : ", pid, filename, function, line, level);
 	        va_start(argp, message);
 	        vfprintf(stderr, message, argp);
 	        va_end(argp);
@@ -80,10 +83,10 @@ void InitDebugModes( int argc, char **argv ){
 	int i;
 
 	for( i=0; i<argc; i++ ){
-		if( strcmp(argv[i], "--add-debug-mode") == 0 ){
+		if( strcmp(argv[i], "-d") == 0 ){
 			i = i + 1;
 			if( i == argc )
-				Error( "Usage : --add-debug-mode mode.truc" );
+				Error( "Usage : -d mode.truc" );
 			AddDebugMode( argv[i] );
 		}
 	}

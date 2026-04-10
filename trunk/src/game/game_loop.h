@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Boucle de jeu : dessin et gestion des données.
+ * Game loop : drawing and data handling
  *****************************************************************************/
 
 #ifndef GAME_LOOP_H
@@ -24,7 +24,9 @@
 
 #include "../graphic/fps.h"
 #include "../include/base.h"
-#include "../team/character.h"
+#include "../character/character.h"
+#include "../network/chat.h"
+#include "../object/bonus_box.h"
 
 class GameLoop
 {
@@ -32,6 +34,7 @@ private:
   int state;
   uint pause_seconde;
   uint duration;
+  BonusBox * current_bonus_box;
 
 public:
   static const int PLAYING = 0;
@@ -39,25 +42,30 @@ public:
   static const int END_TURN = 2;
 
   FramePerSecond fps;
-  
+  Chat chatsession;
+
   static GameLoop * singleton;
+  GameLoop();
 
 public:
   static GameLoop * GetInstance();
 
   void Init();
-  
+
   bool character_already_chosen;
   bool interaction_enabled;
 
-  // Dessin du jeu au complet.
+  // Draw to screen
   void Draw();
 
-  // La boucle principale du jeu
+  // Main loop
   void Run();
 
-  // Refresh du jeu en entier !
-  void Refresh();
+  // Refresh all objects (position, state ...)
+  void RefreshObject();
+  void RefreshInput();
+  void RefreshClock();
+  void PingClient();
 
   // Read/Set State
   int ReadState() const { return state; }
@@ -66,21 +74,24 @@ public:
   // Signal death of a player
   void SignalCharacterDeath (Character *character);
 
-  // Signal fall of a player
-  void SignalCharacterDamageFalling (Character *character);
+  // Signal character damage
+  void SignalCharacterDamage(Character *character);
+
+  void SetCurrentBonusBox(BonusBox * current_box);
+  BonusBox * GetCurrentBonusBox() const;
 
 private:
-  GameLoop();
 
   void InitGameData_NetServer();
   void InitGameData_NetClient();
   void InitData_Local();
   void InitData();
-    
-  void RefreshClock();
+
   void CallDraw();
 
   PhysicalObj* GetMovingObject();
   bool IsAnythingMoving();
+  void ApplyDiseaseDamage();
+  void ApplyDeathMode();
 };
 #endif

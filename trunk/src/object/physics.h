@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -45,10 +45,10 @@ class Physics : private ObjectConfig
 {
 private:
   MotionType_t m_motion_type ;
-
-protected:
   EulerVector m_pos_x;          // x0 = pos, x1 = speed, x2 = acc on the X axys
   EulerVector m_pos_y;          // x0 = pos, x1 = speed, x2 = acc on the Y axys
+
+protected:
   Point2d m_extern_force;  // External strength applyed to the object
   uint m_last_move;             // Time since last move
   double m_phys_width, m_phys_height;
@@ -106,12 +106,13 @@ public:
   // Add a initial speed to the current speed.
   void AddSpeed (double norme, double angle);
   void AddSpeedXY (Point2d vector);
- 
+
   // Get current object speed
-  void GetSpeed (double &norm, double &angle);
-  void GetSpeedXY (Point2d &vector);
-  double GetAngularSpeed();
-  double GetSpeedAngle();
+  void GetSpeed (double &norm, double &angle) const;
+  void GetSpeedXY (Point2d &vector) const;
+  Point2d GetSpeed() const;
+  double GetAngularSpeed() const;
+  double GetSpeedAngle() const;
 
   // Add new strength
   void SetExternForce (double length, double angle);
@@ -129,14 +130,13 @@ public:
   void RunPhysicalEngine();
 
   // Notify the son class that the object has moved.
-  virtual bool NotifyMove(Point2d oldPos, Point2d newPos, Point2d &contactPos,
-			  double &contact_angle) = 0 ;
+  virtual void NotifyMove(Point2d oldPos, Point2d newPos) = 0 ;
 
   // Start moving
   void StartMoving();
 
-  // Stop moving : signal it if the object was falling
-  void StopMoving ();
+  // Stop moving
+  void StopMoving();
 
   // The object is moving ?
   bool IsMoving() const;
@@ -145,26 +145,21 @@ public:
   bool IsFalling() const;
 
 protected:
-  // Get Object / Air contact surface.
-  double GetContactSurface(double angle) ;
-
   // Compute current (x,y) position
   Point2d ComputeNextXY(double delta_t);
 
   virtual void SignalDeath();
   virtual void SignalGhostState (bool was_already_dead);
-  virtual void SignalFallEnding();
   virtual void SignalDrowning();
   virtual void SignalRebound();
 
+  // Make the object rebound
+  void Rebound(Point2d contactPos, double contact_angle);
 private:
 
   void ComputeFallNextXY (double delta_t);
 
   void ComputePendulumNextXY (double delta_t);
-
-  // Make the object rebound
-  void Rebound(Point2d contactPos, double contact_angle);
 };
 
 #endif

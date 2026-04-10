@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -41,16 +41,17 @@ const float t = (GO_UP_OSCILLATION_TIME*1000.0);
 const float a = GO_UP_STEP/t;
 const float b = 1.0;
 
-void Water::Init(){ 
+void Water::Init(){
    Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
    surface = resource_manager.LoadImage(res, "gfx/water");
    surface.SetAlpha(0, 0);
    pattern.NewSurface( Point2i(180, surface.GetHeight() + 40), SDL_SWSURFACE|SDL_SRCALPHA, true);
    shift1 = 0;
+   resource_manager.UnLoadXMLProfile(res);
 }
 
 void Water::Reset(){
-  actif = lst_terrain.TerrainActif().use_water;
+  actif = ActiveMap().UseWater();
   if(!actif) return;
   Init();
   hauteur_eau = WATER_INITIAL_HEIGHT;
@@ -107,11 +108,11 @@ void Water::Refresh(){
 
   double angle1 = 0;
   double angle2 = shift1;
-  do 
+  do
   {
     int offset=0;
     double y_pos = y + sin(angle1)*10 + sin(angle2)*10;
-	
+
     if (0<=x+offset)
 	 height.at(x+offset) = (int)y_pos;
 

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -30,61 +30,61 @@ class AirAttack;
 
 class AirAttackConfig : public ExplosiveWeaponConfig
 { 
-public:
-  double speed;
-  uint nbr_obus; 
-public:
-  AirAttackConfig();
-  virtual void LoadXml(xmlpp::Element *elem);
+  public:
+    double speed;
+    uint nbr_obus; 
+  public:
+    AirAttackConfig();
+    virtual void LoadXml(xmlpp::Element *elem);
 };
 
 class Obus : public WeaponProjectile
 {
-public:
-  Obus(AirAttackConfig& cfg);
-
-protected:
-  void SignalCollision();
+  public:
+    Obus(AirAttackConfig& cfg);
 };
 
 class Plane : public PhysicalObj
 {
-private:
-  uint nb_dropped_bombs;
-  Obus * last_dropped_bomb;
+  private:
+    uint nb_dropped_bombs;
+    Obus * last_dropped_bomb;
 
-  int obus_dx, obus_dy;
-  Sprite *image;
+    int obus_dx, obus_dy;
+    Sprite *image;
 
-  int cible_x;
-  AirAttackConfig &cfg;
+    int cible_x;
+    int distance_to_release;
+    AirAttackConfig &cfg;
 
-  bool OnTopOfTarget() const;
-  int GetDirection() const;
-  void DropBomb();
+    bool OnTopOfTarget() const;
+    int GetDirection() const;
+    void DropBomb();
 
-public:
-  Plane(AirAttackConfig& cfg);
-  void Shoot(double speed);
-  void Draw();
-  void Refresh();
-
-  void SignalGhostState (bool was_dead);
+  public:
+    Plane(AirAttackConfig& cfg);
+    void Shoot(double speed, Point2i& target);
+    void Draw();
+    void Refresh();
 };
 
 class AirAttack : public Weapon
 {
-private:
-  bool p_Shoot();
-  Plane plane;
+  private:
+    Point2i target;
+    bool target_chosen;
+    //Plane plane;
+  protected:
+    bool p_Shoot();
+    void p_Select();
+    void p_Deselect();
+    void Refresh();
+  public:
+    AirAttack();
+    virtual void ChooseTarget (Point2i mouse_pos);
 
-public:
-  AirAttack();
-  void Refresh();
-  virtual void ChooseTarget ();
-
- private:
-  AirAttackConfig& cfg();
+  private:
+    AirAttackConfig& cfg();
 };
 
-#endif
+#endif /* AIR_ATTACK_H */

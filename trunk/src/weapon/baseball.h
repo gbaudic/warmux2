@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,26 +28,26 @@
 
 class BaseballConfig : public WeaponConfig
 {
-public:
-  uint range;
-  uint strength;
-public:
-  BaseballConfig();
-  void LoadXml(xmlpp::Element *elem);
+  public:
+    uint range;
+    uint strength;
+  public:
+    BaseballConfig();
+    void LoadXml(xmlpp::Element *elem);
 };
 
 //-----------------------------------------------------------------------------
 
 class Baseball : public Weapon
 {
- private:
-  bool p_Shoot();
+  protected:
+    bool p_Shoot();
+    void Refresh();
 
- public:
-  Baseball();
-  void Refresh();
-  BaseballConfig &cfg();
+  public:
+    Baseball();
+    BaseballConfig &cfg();
 };
 
 //-----------------------------------------------------------------------------
-#endif
+#endif /* BASEBALL_H */

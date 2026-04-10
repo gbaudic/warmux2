@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,43 +25,64 @@
 #include "../graphic/sprite.h"
 #include "../gui/button.h"
 #include "../gui/list_box.h"
+#include "../gui/list_box_w_label.h"
 #include "../gui/check_box.h"
 #include "../gui/spin_button.h"
+#include "../gui/spin_button_big.h"
+#include "../gui/spin_button_picture.h"
 #include "../gui/box.h"
 #include "../gui/question.h"
 #include "../gui/label.h"
 #include "../gui/null_widget.h"
+#include "../gui/picture_widget.h"
+#include "../gui/picture_text_cbox.h"
+#include "../gui/container.h"
+#include "../gui/text_box.h"
 
-class Menu
+typedef enum {
+  vOkCancel,
+  vOk,
+  vCancel,
+  vNo
+} t_action;
+
+class Menu : public Container
 {
 public:
-   Menu(char* bg); 
+   WidgetList widgets;
+   const t_action actions;
+
+   Menu(char* bg, t_action actions = vOkCancel); 
    virtual ~Menu();
 
    void Run ();
+   virtual void Redraw(const Rectanglei& rect, Surface& surf);
 
 private:
    Sprite *background;
-   bool close_menu;
 
    /* Actions buttons  */
-   Button *b_ok;
-   Button *b_cancel;
    HBox *actions_buttons;
 
-   void BasicDraw(const Point2i &mousePosition);
    bool BasicOnClic(const Point2i &mousePosition);
 
 protected:
-   void sig_ok();
-   void sig_cancel();
+   Button *b_cancel;
+   Button *b_ok;
+   bool close_menu;
 
+   virtual void sig_ok();
+   virtual void sig_cancel();
+   virtual void DrawBackground();
+
+   virtual void key_ok() {};
+   virtual void key_cancel() {};
    virtual void __sig_ok() = 0;
    virtual void __sig_cancel() = 0;
-
    virtual void Draw(const Point2i &mousePosition) = 0;   
    virtual void OnClic(const Point2i &mousePosition, int button) = 0;
    void SetActionButtonsXY(int x, int y);
+   void Display(const Point2i& mousePosition);
 };
 
 #endif

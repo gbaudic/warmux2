@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,23 +20,62 @@
  *****************************************************************************/
 
 #include "label.h"
-#include "../include/app.h"
 
-Label::Label (const std::string &label, const Rectanglei &rect, Font& _font){
+Label::Label (const std::string &label, const Rectanglei &rect, Font& _font,
+	      const Color& color, bool _center, bool _shadowed) 
+  : font_color(color)
+{
   position = rect.GetPosition();
   size = rect.GetSize();
-  size.y = _font.GetHeight();
-  txt_label = new Text(label, white_color, &_font);
+  font = &_font;
+  center = _center;
+  shadowed = _shadowed;
+  hidden = false;
+  txt_label = new Text(label, font_color, &_font, shadowed);
+  txt_label->SetMaxWidth(GetSizeX());
+  size.y = txt_label->GetHeight();
 }
 
-Label::~Label(){
+Label::~Label()
+{
   delete txt_label;
 }
 
-void Label::Draw(const Point2i &mousePosition){
-  txt_label->DrawTopLeft(position);
+void Label::Draw(const Point2i &mousePosition, Surface& surf) const
+{
+  if (!hidden) 
+    {
+      if (!center)
+	txt_label->DrawTopLeft(position);
+      else
+	txt_label->DrawCenterTop(position.x + size.x/2, position.y);
+    }
 }
 
-void Label::SetSizePosition(const Rectanglei &rect){
+void Label::SetSizePosition(const Rectanglei &rect)
+{
   StdSetSizePosition(rect);
+  txt_label->SetMaxWidth(GetSizeX());
+  size.y = txt_label->GetHeight();
+}
+
+void Label::SetText(const std::string &new_txt)
+{
+  need_redrawing = true;
+  delete txt_label;
+  txt_label = new Text(new_txt, font_color, font, shadowed);
+  txt_label->SetMaxWidth(GetSizeX());
+}
+
+const std::string& Label::GetText() const
+{
+  return txt_label->GetText();
+}
+
+void Label::SetVisible(bool visible)
+{
+  if (hidden == visible) {
+    hidden = !visible;
+    need_redrawing = true;
+  }
 }

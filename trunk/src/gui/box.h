@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -22,14 +22,13 @@
 #ifndef GUI_BOX_H
 #define GUI_BOX_H
 
-#include "widget.h"
+#include "widget_list.h"
 #include <list>
 #include "../tool/point.h"
 
-class Box : public Widget
+class Box : public WidgetList
 {
  protected:
-  std::list<Widget *> widgets;
   bool visible;
   uint margin;
   Point2i border;
@@ -38,8 +37,15 @@ class Box : public Widget
   Box(const Rectanglei &rect, bool _visible=true);
   virtual ~Box();
 
-  void Draw(const Point2i &mousePosition);
-  bool Clic(const Point2i &mousePosition, uint button);
+  void Update(const Point2i &mousePosition,
+	      const Point2i &lastMousePosition,
+	      Surface& surf);
+  void Draw(const Point2i &mousePosition,
+	    Surface& surf) const;
+  void Redraw(const Rectanglei& rect,
+	      Surface& surf);
+  Widget* Clic(const Point2i &mousePosition, uint button);
+
   void SetMargin(uint _margin);
   void SetBorder(const Point2i &newBorder);
 
@@ -50,16 +56,17 @@ class VBox : public Box
 {
  public:
   VBox(const Rectanglei &rect, bool _visible=true);
-  void AddWidget(Widget *a_widget);
+  void DelFirstWidget();
   void SetSizePosition(const Rectanglei &rect);
+  void AddWidget(Widget *a_widget);
 };
 
 class HBox : public Box
 {
  public:
   HBox(const Rectanglei &rect, bool _visible=true);
-  void AddWidget(Widget *a_widget);  
   void SetSizePosition(const Rectanglei &rect);
+  void AddWidget(Widget *a_widget);
 };
 
 #endif

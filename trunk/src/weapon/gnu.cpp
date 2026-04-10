@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 
 #include "gnu.h"
 #include <sstream>
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/config.h"
 #include "../game/time.h"
 #include "../graphic/video.h"
@@ -34,9 +34,11 @@
 #include "../tool/i18n.h"
 #include "../network/randomsync.h"
 
-Gnu::Gnu(ExplosiveWeaponConfig& cfg) : 
-  WeaponProjectile("gnu", cfg)
+Gnu::Gnu(ExplosiveWeaponConfig& cfg,
+         WeaponLauncher * p_launcher) :
+  WeaponProjectile("gnu", cfg, p_launcher)
 {
+  explode_with_collision = false;
 }
 
 void Gnu::Shoot (double strength)
@@ -46,7 +48,7 @@ void Gnu::Shoot (double strength)
   save_x=GetX();
   save_y=GetY();
 
-  double angle = ActiveTeam().crosshair.GetAngleRad();
+  double angle = ActiveCharacter().GetFiringAngle();
 
   if(angle<M_PI/2 && angle>-M_PI/2)
     m_sens = 1;
@@ -80,22 +82,24 @@ void Gnu::Refresh()
   //sometimes, angle==infinite (according to gdb) ??
   GetSpeed(norme, angle);
 
-  while(angle < -M_PI) angle += M_PI;
-  while(angle > M_PI) angle -= M_PI;
+  while(angle < -M_PI)
+    angle += M_PI;
+  while(angle > M_PI)
+    angle -= M_PI;
 
-  angle *= 180.0 / M_PI;
   angle /= 2.0;
   if(m_sens == -1)
   {
     if(angle > 0)
-      angle -= 90.0;
+      angle -= M_PI_2;
     else
-      angle += 90.0;
+      angle += M_PI_2;
   }
 
-  if(angle > 720) angle = 0;
+  if(angle > 4 * M_PI)
+    angle = 0;
 
-  image->SetRotation_deg(angle);
+  image->SetRotation_rad(angle);
   image->Scale((double)m_sens,1.0);
   image->Update();
   // Fixe le rectangle de test  ??
@@ -105,21 +109,22 @@ void Gnu::Refresh()
                 image->GetHeight()/2-1);
 }
 
-void Gnu::SignalCollision()
-{   
-  if (IsGhost())
-  {
-    GameMessages::GetInstance()->Add ("The Gnu left the battlefield before exploding");
-    is_active = false ;
-  }
+void Gnu::SignalOutOfMap()
+{
+  GameMessages::GetInstance()->Add (_("The Gnu left the battlefield before exploding"));
+  WeaponProjectile::SignalOutOfMap();
 }
 //-----------------------------------------------------------------------------
 
-GnuLauncher::GnuLauncher() : 
+GnuLauncher::GnuLauncher() :
   WeaponLauncher(WEAPON_GNU, "gnulauncher", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
-  m_name = _("GnuLauncher");
-
-  projectile = new Gnu(cfg());
+  m_name = _("Gnu Launcher");
+  ReloadLauncher();
 }
 
+WeaponProjectile * GnuLauncher::GetProjectileInstance()
+{
+  return dynamic_cast<WeaponProjectile *>
+      (new Gnu(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+}

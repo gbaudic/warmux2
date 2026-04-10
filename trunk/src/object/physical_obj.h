@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -40,45 +40,38 @@ typedef enum
   DROWNED
 } alive_t;
 
-// Object type
-typedef enum
-{
-  // Unbreakable object : detected by collision test, but isn't touch by
-  // explosion
-  objUNBREAKABLE,
-
-  // Regular object : detected by collision test, suffers from explosions blast.
-  objCLASSIC
-} type_objet_t;
-
 extern const double PIXEL_PER_METER;
 
 double MeterDistance (const Point2i &p1, const Point2i &p2);
 
 class PhysicalObj : public Physics
 {
-public:
-  type_objet_t m_type;
-
 private:
+  // collision management
+  bool m_goes_through_wall;
+  bool m_collides_with_characters;
+  bool m_collides_with_objects;
+  Point2i m_rebound_position;  
+protected:
+  PhysicalObj* m_overlapping_object;
+  bool m_ignore_movements;
+
+  virtual void CheckOverlapping();
+
+protected:
   std::string m_name;
-  // Object size and position.
-  uint m_width, m_height;
-  int m_posx, m_posy;
 
   // Rectangle used for collision tests
   uint m_test_left, m_test_right, m_test_top, m_test_bottom;
 
-  bool exterieur_monde_vide;
-
-protected:
-  // Used by the sons of this class to allow modification of READY/BUSY state
-  // (Unused by PhysicalObj)
-  bool m_ready;
+  // Object size and position.
+  uint m_width, m_height;
 
   std::string m_rebound_sound;
 
   alive_t m_alive;
+  int life_points; // Only used by petrol barrel and bonus box (character use their own damage system for now..)
+
   bool m_allow_negative_y;
 
 public:
@@ -93,8 +86,8 @@ public:
   void SetXY(const Point2i &position);
   int GetX() const;
   int GetY() const;
-  const Point2i GetPosition() const; 
-     
+  const Point2i GetPosition() const;
+
   // Set/Get size
   void SetSize(const Point2i &newSize);
   int GetWidth() const;
@@ -113,7 +106,7 @@ public:
   int GetCenterY() const;
   const Point2i GetCenter() const;
   const Rectanglei GetRect() const;
-  type_objet_t GetObjectType() const { return m_type; }
+  bool GoesThroughWall() const { return m_goes_through_wall; }
 
   //----------- Physics related function ----------
 
@@ -125,21 +118,27 @@ public:
   bool PutOutOfGround(double direction); //Where direction is the angle of the direction
                                          // where the object is moved
 
-  bool NotifyMove(Point2d oldPos, Point2d newPos, Point2d &contactPos,
-		  double &contact_angle);
+  // Collision management
+  void SetCollisionModel(bool goes_through_wall,
+			 bool collides_with_characters,
+			 bool collides_with_objects);
+  void SetOverlappingObject(PhysicalObj* obj);
+  virtual bool IsOverlapping(const PhysicalObj* obj) const;
 
-  bool IsInVacuumXY(const Point2i &position) const;
-  bool IsInVacuum(const Point2i &offset) const; // relative to current position
+  bool IsInVacuumXY(const Point2i &position, bool check_objects = true) const;
+  bool IsInVacuum(const Point2i &offset, bool check_objects = true) const; // Relative to current position
+  PhysicalObj* CollidedObjectXY(const Point2i & position) const;
+  PhysicalObj* CollidedObject(const Point2i & offset = Point2i(0,0)) const; // Relative to current position
+  bool FootsInVacuumXY(const Point2i & position) const;
   bool FootsInVacuum() const;
-  bool FootsInVacuumXY(const Point2i &position) const;
-  
+
   bool FootsOnFloor(int y) const;
 
   bool IsInWater() const;
 
   // The object is outside of the world
   bool IsOutsideWorldXY(Point2i position) const;
-  bool IsOutsideWorld(const Point2i &offset) const;
+  bool IsOutsideWorld(const Point2i &offset = Point2i(0,0)) const; // Relative to current position
 
   // Refresh datas
   virtual void Refresh() = 0;
@@ -147,13 +146,16 @@ public:
   // Draw the object
   virtual void Draw() = 0;
 
+  // Damage handling
+  virtual void AddDamage(uint damage_points);
+
   //-------- state ----
-  void Ready();
-  void Die();
+  void Init();
   void Ghost();
   void Drown();
-  
-  bool IsReady() const;
+  void GoOutOfWater(); // usefull for supertux.
+
+  virtual bool IsImmobile() const;
   bool IsDead() const;
   bool IsGhost() const;
   bool IsDrowned() const;
@@ -166,18 +168,25 @@ public:
 
   bool PutRandomly(bool on_top_of_world, double min_dst_with_characters);
 
+protected:
+  virtual void SignalRebound();
+  virtual void SignalObjectCollision(PhysicalObj * obj);
+  virtual void SignalGroundCollision();
+  virtual void SignalCollision();
+  virtual void SignalOutOfMap();
+
 private:
   //Renvoie la position du point de contact entre
   //l'obj et le terrain
   bool ContactPoint (int &x, int &y);
 
-  // Collision test for point (x,y)
-  virtual bool CollisionTest(const Point2i &position);
+  void NotifyMove(Point2d oldPos, Point2d newPos);
 
-  void SignalRebound();
-  
   // The object fall directly to the ground (or become a ghost)
   void DirectFall();
+
+  // Directly after a rebound, if we are stuck in a wall, we stop moving
+  void CheckRebound();
 };
 
 #endif

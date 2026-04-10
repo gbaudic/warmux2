@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,12 +25,14 @@
 #include "../game/game.h"
 #include "../game/game_loop.h"
 #include "../game/time.h"
+#include "../include/action_handler.h"
 #include "../map/map.h"
 #include "../object/objects_list.h"
 #include "../team/teams_list.h"
+#include "../team/macro.h"
 #include "../tool/i18n.h"
 #include "../interface/game_msg.h"
-#include "../weapon/weapon_tools.h"
+#include "../weapon/explosion.h"
 
 //-----------------------------------------------------------------------------
 
@@ -39,7 +41,7 @@ const uint MIN_TIME_BETWEEN_JOLT = 100; // in milliseconds
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
-Airhammer::Airhammer() : Weapon(WEAPON_AIR_HAMMER,"airhammer",new WeaponConfig())
+Airhammer::Airhammer() : Weapon(WEAPON_AIR_HAMMER,"airhammer",new AirhammerConfig())
 {
   m_name = _("Airhammer");
   override_keys = true ;
@@ -59,15 +61,53 @@ void Airhammer::p_Deselect()
 
 bool Airhammer::p_Shoot()
 {
-  //jukebox.Play("weapon/airhammer");
+  jukebox.Play("share","weapon/airhammer");
 
   // initiate movement ;-)
+  ActiveCharacter().SetRebounding(false);
+
+  // Little hack, so the character notices he is in the vaccum and begins to fall in the hole
   ActiveCharacter().SetXY( ActiveCharacter().GetPosition() );
 
-  world.Dig(
-		  Point2i(	ActiveCharacter().GetX() + ActiveCharacter().GetWidth()/2 - impact.GetWidth()/2,
-            		ActiveCharacter().GetY() + ActiveCharacter().GetHeight() -15) ,
-		  impact);
+  Point2i pos = Point2i(ActiveCharacter().GetX() + ActiveCharacter().GetWidth()/2 - impact.GetWidth()/2,
+                        ActiveCharacter().GetTestRect().GetPositionY() +
+                        ActiveCharacter().GetHeight()  -15);
+
+  ParticleEngine::AddNow(pos + Point2i(impact.GetWidth()/4,9), 1, particle_AIR_HAMMER,
+                         true, -3.0 * M_PI_4, 5.0 + Time::GetInstance()->Read() % 5);
+  ParticleEngine::AddNow(pos + Point2i(3*impact.GetWidth()/4,9), 1, particle_AIR_HAMMER,
+                         true, -M_PI_4, 5.0 + Time::GetInstance()->Read() % 5);
+  world.Dig( pos, impact );
+
+  uint range = 0;
+  int x,y; // Testing coordinates
+  bool end = false;
+  do
+  {
+    // Did we have finished the computation
+    range += 1;
+    if (range > cfg().range)
+    {
+      range = cfg().range;
+      end = true;
+    }
+
+    // Compute point coordinates
+    y = ActiveCharacter().GetHandPosition().y + range;
+    x = ActiveCharacter().GetHandPosition().x;
+
+    FOR_ALL_LIVING_CHARACTERS(team, character)
+    if (&(*character) != &ActiveCharacter())
+    {
+      // Did we touch somebody ?
+      if( character->ObjTouche(Point2i(x, y)) )
+      {
+        // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
+        character->SetEnergyDelta(-cfg().damage);
+        end = true;
+      }
+    }
+  } while (!end);
 
   return true;
 }
@@ -75,16 +115,16 @@ bool Airhammer::p_Shoot()
 //-----------------------------------------------------------------------------
 
 void Airhammer::RepeatShoot()
-{  
-  uint time = Time::GetInstance()->Read() - m_last_jolt; 
+{
+  uint time = Time::GetInstance()->Read() - m_last_jolt;
   uint tmp = Time::GetInstance()->Read();
 
-  if (time >= MIN_TIME_BETWEEN_JOLT) 
+  if (time >= MIN_TIME_BETWEEN_JOLT)
   {
     m_is_active = false;
     NewActionShoot();
     m_last_jolt = tmp;
-  }    
+  }
 
 }
 
@@ -96,28 +136,46 @@ void Airhammer::Refresh()
 
 //-----------------------------------------------------------------------------
 
-void Airhammer::HandleKeyEvent(int action, int event_type)
+void Airhammer::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
 {
-  switch (action) {    
+  switch (action) {
 
-  case ACTION_SHOOT:
-    
-    if (event_type == KEY_REFRESH)
-      RepeatShoot();
-    
-    if (event_type == KEY_RELEASED) {
-      // stop when key is released
-      ActiveTeam().AccessNbUnits() = 0;
-      m_is_active = false;
-      GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
-    }
+    case Action::ACTION_SHOOT:
 
-    break ;
-    
-  default:
-    break ;
-  } ;
-      
+      if (event_type == Keyboard::KEY_RELEASED || ActiveCharacter().GotInjured()) {
+        // stop when key is released or character got injured
+        ActiveTeam().AccessNbUnits() = 0;
+        m_is_active = false;
+        GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
+      }
+
+      if (event_type == Keyboard::KEY_REFRESH)
+        RepeatShoot();
+
+      break ;
+
+    default:
+      break ;
+  }
+
 }
 //-----------------------------------------------------------------------------
 
+AirhammerConfig& Airhammer::cfg() {
+  return static_cast<AirhammerConfig&>(*extra_params);
+}
+
+//-----------------------------------------------------------------------------
+
+AirhammerConfig::AirhammerConfig(){
+  range =  30;
+  damage = 3;
+}
+
+//-----------------------------------------------------------------------------
+
+void AirhammerConfig::LoadXml(xmlpp::Element *elem){
+  WeaponConfig::LoadXml(elem);
+  XmlReader::ReadUint(elem, "range", range);
+  XmlReader::ReadUint(elem, "damage", damage);
+}

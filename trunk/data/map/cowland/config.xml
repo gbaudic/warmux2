@@ -1,10 +1,11 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE resources SYSTEM "../map.dtd" []>
 <resources>
   <author>
     <name>Alexandre NORMAN</name>
     <nickname>Xael</nickname>
-    <country>France</country>
     <email>norman AT xael.org</email>
+    <country>France</country>
   </author>
 
   <surface name="sky" file="cowland_bg.jpg" />
@@ -14,6 +15,7 @@
   <name>Cowland</name>
   <water>0</water>
   <nb_mine>3</nb_mine>
+  <nb_barrel>1</nb_barrel>
   <is_open>1</is_open>
 
   <sprite name="wind_particle">

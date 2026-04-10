@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 
 #include "ninja_rope.h"
 #include <math.h>
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/config.h"
 #include "../game/game.h"
 #include "../game/game_loop.h"
@@ -36,18 +36,16 @@
 
 const int DT_MVT  = 15 ; //delta_t bitween 2 up/down/left/right mvt
 const int DST_MIN = 6 ;  //dst_minimal bitween 2 nodes
-const uint MAX_ROPE_LEN = 700 ; // Max rope length in pixels
+const uint MAX_ROPE_LEN = 450 ; // Max rope length in pixels
 const uint ROPE_DRAW_SPEED = 12 ; // Pixel per 1/100 second.
 const int ROPE_PUSH_FORCE = 10;
-
-const uint SKIN_ROTATION_TIME = 300; //Time the skin takes to get to the correct position, when the rope is launched
 
 bool find_first_contact_point (int x1, int y1, double angle, int length,
 			       int skip, int &cx, int &cy)
 {
   double x, y, x_step, y_step ;
   int x2, y2 ;
-  
+
   x_step = cos(angle) ;
   y_step = sin(angle) ;
 
@@ -82,10 +80,9 @@ bool find_first_contact_point (int x1, int y1, double angle, int length,
 
 NinjaRope::NinjaRope() : Weapon(WEAPON_NINJA_ROPE, "ninjarope", new WeaponConfig())
 {
-  m_name = _("NinjaRope");
+  m_name = _("Ninjarope");
   override_keys = true ;
   use_unit_on_first_shoot = false;
-  skin = NULL;  
 
   m_hook_sprite = resource_manager.LoadSprite(weapons_res_profile,"ninjahook");
   m_hook_sprite->EnableRotationCache(32);
@@ -106,30 +103,9 @@ bool NinjaRope::p_Shoot()
   last_node = 0 ;
   m_attaching = true;
   m_launch_time = Time::GetInstance()->Read() ;
-  m_initial_angle = ActiveTeam().crosshair.GetAngleRad();
-  m_initial_direction = ActiveCharacter().GetDirection(); 
+  m_initial_angle = ActiveCharacter().GetFiringAngle();
   last_mvt=Time::GetInstance()->Read();
   return true ;
-}
-
-void NinjaRope::InitSkinSprite()
-{
-  //Copy skins surface
-  Surface new_surf = Surface(ActiveCharacter().GetSize(), SDL_SWSURFACE|SDL_SRCALPHA, true);
-  // Disable per pixel alpha on the source surface
-  // in order to properly copy the alpha chanel to the destination suface
-  // see the SDL_SetAlpha man page for more infos (RGBA->RGBA without SDL_SRCALPHA)
-  Surface current_skin;
-  current_skin = ActiveCharacter().image->GetSurface();
-
-  current_skin.SetAlpha(0, 0);
-  new_surf.Blit(current_skin);
-  // re-enable the per pixel alpha in the
-  current_skin.SetAlpha(SDL_SRCALPHA, 0);
-
-  skin=new Sprite(new_surf);
-  skin->EnableRotationCache(64);
-  ActiveCharacter().Hide();
 }
 
 void NinjaRope::TryAttachRope()
@@ -145,7 +121,7 @@ void NinjaRope::TryAttachRope()
   Point2i handPos = ActiveCharacter().GetHandPosition();
   x = handPos.x;
   y = handPos.y;
-    
+
   length = ROPE_DRAW_SPEED * delta_time / 10;
   if (length > MAX_ROPE_LEN)
     {
@@ -154,33 +130,36 @@ void NinjaRope::TryAttachRope()
       m_is_active = false;
       return ;
     }
-  
+
   angle = m_initial_angle;
-  
+
   if (find_first_contact_point(x, y, angle, length, 4,
 			       m_fixation_x, m_fixation_y))
     {
       m_attaching = false;
-      
+
       int dx, dy;
-      
+
       // The rope reaches the fixation point. Let's fix it !
-      
+
       dx = x - ActiveCharacter().GetX() ;
       dy = y - ActiveCharacter().GetY() ;
-      
+
       ActiveCharacter().SetPhysFixationPointXY(
 					       m_fixation_x / PIXEL_PER_METER,
 					       m_fixation_y / PIXEL_PER_METER,
 					       (double)dx / PIXEL_PER_METER,
 					       (double)dy / PIXEL_PER_METER);
-      
+
       rope_node[0].x = m_fixation_x ;
       rope_node[0].y = m_fixation_y ;
-      
+
       ActiveCharacter().ChangePhysRopeSize (-10.0 / PIXEL_PER_METER);
       m_hooked_time = Time::GetInstance()->Read();
-      InitSkinSprite();
+      ActiveCharacter().SetMovement("ninja-rope");
+
+     ActiveCharacter().SetFiringAngle(-M_PI / 3);
+
     }
   else
     {
@@ -219,7 +198,7 @@ bool NinjaRope::TryAddNode(int CurrentSense)
   if (find_first_contact_point(m_fixation_x, m_fixation_y, angle, lg, 4,cx,cy))
     {
       rope_angle = ActiveCharacter().GetRopeAngle() ;
-      
+
       if ( (last_broken_node_sense * CurrentSense > 0) &&
 	   (fabs(last_broken_node_angle - rope_angle) < 0.1))
 	return false ;
@@ -278,7 +257,7 @@ bool NinjaRope::TryBreakNode(int CurrentSense)
 	   (CurrentAngle < NodeAngle))
 	BreakNode = true ;
 
-      if ( (CurrentAngle < 0) && 
+      if ( (CurrentAngle < 0) &&
 	   (AngularSpeed > 0) &&
 	   (CurrentAngle > NodeAngle))
 	BreakNode = true ;
@@ -372,7 +351,7 @@ void NinjaRope::GoUp()
   delta_len = -0.1 ;
   ActiveCharacter().ChangePhysRopeSize (delta_len);
   ActiveCharacter().UpdatePosition();
-  delta_len = 0 ;  
+  delta_len = 0 ;
 }
 
 void NinjaRope::GoDown()
@@ -387,14 +366,14 @@ void NinjaRope::GoDown()
   delta_len = 0.1 ;
   ActiveCharacter().ChangePhysRopeSize (delta_len) ;
   ActiveCharacter().UpdatePosition() ;
-  delta_len = 0 ;  
+  delta_len = 0 ;
 }
 
 void NinjaRope::GoRight()
 {
   go_right = true ;
   ActiveCharacter().SetExternForce(ROPE_PUSH_FORCE,0);
-  ActiveCharacter().SetDirection(1); 
+  ActiveCharacter().SetDirection(Body::DIRECTION_RIGHT);
 }
 
 void NinjaRope::StopRight()
@@ -411,7 +390,7 @@ void NinjaRope::GoLeft()
 {
   go_left = true ;
   ActiveCharacter().SetExternForce(-ROPE_PUSH_FORCE,0);
-  ActiveCharacter().SetDirection(-1); 
+  ActiveCharacter().SetDirection(Body::DIRECTION_LEFT);
 }
 
 void NinjaRope::StopLeft()
@@ -452,28 +431,6 @@ void NinjaRope::Draw()
   prev_angle = angle;
 
 
-  if(!m_attaching)
-  {
-    float skin_angle;
-    if(ActiveCharacter().GetDirection() == 1)
-      skin_angle = prev_angle;
-    else
-      skin_angle = prev_angle - M_PI;
-    //Skin display:
-    if( Time::GetInstance()->Read() >= m_hooked_time + SKIN_ROTATION_TIME )
-    {
-      skin->SetRotation_deg((- skin_angle * 180 / M_PI) - 90);
-    }
-    else
-    {
-      uint dt = Time::GetInstance()->Read() - m_hooked_time;
-      float angle = sin( dt * M_PI_2 / SKIN_ROTATION_TIME ) * (-skin_angle - M_PI_2);
-      skin->SetRotation_deg(angle * 180 / M_PI);
-    }
-    skin->Scale(m_initial_direction*ActiveCharacter().GetDirection(),1);
-    skin->Draw(ActiveCharacter().GetPosition());
-  }
-
   // Draw the rope.
 
   Point2i handPos = ActiveCharacter().GetHandPosition();
@@ -491,7 +448,7 @@ void NinjaRope::Draw()
       quad.y3 = (int)round((double)rope_node[i].y - 2 * sin(angle));
       quad.x4 = (int)round((double)rope_node[i].x - 2 * cos(angle));
       quad.y4 = (int)round((double)rope_node[i].y + 2 * sin(angle));
-      
+
       float dx = sin(angle) * (float)m_node_sprite->GetHeight();
       float dy = cos(angle) * (float)m_node_sprite->GetHeight();
       int step = 0;
@@ -520,7 +477,7 @@ void NinjaRope::Draw()
 
     }
 
-  m_hook_sprite->SetRotation_deg(-prev_angle * 180.0 / M_PI);
+  m_hook_sprite->SetRotation_rad(-prev_angle);
   m_hook_sprite->Draw( Point2i(rope_node[0].x, rope_node[0].y)
 		  - m_hook_sprite->GetSize()/2);
 }
@@ -531,44 +488,39 @@ void NinjaRope::p_Deselect()
   ActiveCharacter().Show();
   ActiveCharacter().SetExternForce(0,0);
   ActiveCharacter().UnsetPhysFixationPoint() ;
-  if (skin)
-  {
-    delete skin;
-    skin = NULL;
-  }
 }
 
-void NinjaRope::HandleKeyEvent(int action, int event_type)
+void NinjaRope::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
 {
   switch (action) {
-    case ACTION_UP:
-      if (event_type != KEY_RELEASED)
+    case Action::ACTION_UP:
+      if (event_type != Keyboard::KEY_RELEASED)
 	GoUp();
       break ;
 
-    case ACTION_DOWN:
-      if (event_type != KEY_RELEASED)
+    case Action::ACTION_DOWN:
+      if (event_type != Keyboard::KEY_RELEASED)
 	GoDown();
       break ;
 
-    case ACTION_MOVE_LEFT:
-      if (event_type == KEY_PRESSED)
+    case Action::ACTION_MOVE_LEFT:
+      if (event_type == Keyboard::KEY_PRESSED)
 	GoLeft();
       else
-	if (event_type == KEY_RELEASED)
+	if (event_type == Keyboard::KEY_RELEASED)
 	  StopLeft();
       break ;
 
-    case ACTION_MOVE_RIGHT:
-      if (event_type == KEY_PRESSED)
+    case Action::ACTION_MOVE_RIGHT:
+      if (event_type == Keyboard::KEY_PRESSED)
 	GoRight();
       else
-	if (event_type == KEY_RELEASED)
+	if (event_type == Keyboard::KEY_RELEASED)
 	  StopRight();
       break ;
 
-    case ACTION_SHOOT:
-      if (event_type == KEY_PRESSED)
+    case Action::ACTION_SHOOT:
+      if (event_type == Keyboard::KEY_PRESSED)
 	UseAmmoUnit();
       break ;
 

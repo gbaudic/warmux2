@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,28 +23,21 @@
 //-----------------------------------------------------------------------------
 #include <algorithm>
 #include "all.h"
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/game_loop.h"
 #include "../game/time.h"
 #include "../interface/interface.h"
 #include "../object/objects_list.h"
 #include "../map/camera.h"
 #include "../team/macro.h"
+#include "../map/maps_list.h"
 //-----------------------------------------------------------------------------
-WeaponsList weapons_list;
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-
-WeaponsList::WeaponsList()
-{
-}
 
 //-----------------------------------------------------------------------------
 
 WeaponsList::~WeaponsList()
 {
-  weapons_list_it it=todelete.begin(), end=todelete.end();
+  weapons_list_it it=m_weapons_list.begin(), end=m_weapons_list.end();
   for (; it != end; ++it)
   {
     delete *it;
@@ -57,7 +50,6 @@ void WeaponsList::AddToList(Weapon* arme, uint num_sort)
 {
   // insert the pointer
   m_weapons_list.push_back(arme);
-  todelete.push_back(arme);
 
   m_weapons_map.insert(keybind(num_sort, arme));
 
@@ -66,75 +58,79 @@ void WeaponsList::AddToList(Weapon* arme, uint num_sort)
 
 //-----------------------------------------------------------------------------
 
-void WeaponsList::Init()
+WeaponsList::WeaponsList()
 {
   weapons_res_profile = resource_manager.LoadXMLProfile( "weapons.xml", false);
-  
   Bazooka* bazooka = new Bazooka;
-  AddToList(bazooka, 1);
-  
+  SubMachineGun* submachine_gun = new SubMachineGun;
+  Gun* gun = new Gun;
+  Shotgun* shotgun = new Shotgun;
+  SnipeRifle* snipe_rifle = new SnipeRifle;
+  RiotBomb* riot_bomb = new RiotBomb;
   AutomaticBazooka* auto_bazooka = new AutomaticBazooka;
+  Dynamite* dynamite = new Dynamite;
+  GrenadeLauncher* grenade_launcher = new GrenadeLauncher;
+  DiscoGrenadeLauncher* disco_grenade_launcher = new DiscoGrenadeLauncher;
+  ClusterLauncher* cluster_launcher = new ClusterLauncher;
+  Baseball* baseball = new Baseball;
+  Mine* mine = new Mine;
+  AirAttack* air_attack = new AirAttack;
+  AnvilLauncher* anvil = new AnvilLauncher;
+  TuxLauncher* tux = new TuxLauncher;
+  GnuLauncher* gnu_launcher = new GnuLauncher;
+  PolecatLauncher* polecat_launcher = new PolecatLauncher;
+  BounceBallLauncher* bounce_ball_launcher = new BounceBallLauncher;
+  Teleportation* teleportation = new Teleportation;
+  Parachute* parachute = new Parachute;
+  Suicide* suicide = new Suicide;
+  SkipTurn* skipturn = new SkipTurn;
+  JetPack* jetpack = new JetPack;
+  Airhammer* airhammer = new Airhammer;
+  Construct* construct = new Construct;
+  LowGrav* lowgrav = new LowGrav;
+  NinjaRope* ninjarope = new NinjaRope;
+  Blowtorch* blowtorch = new Blowtorch;
+  Syringe* syringe = new Syringe;
+
+  // Category 1
+  AddToList(bazooka, 1);
+  AddToList(submachine_gun, 1);
+  AddToList(snipe_rifle, 1);
+  AddToList(gun, 1);
+  AddToList(shotgun, 1);
+  AddToList(riot_bomb, 1);
   AddToList(auto_bazooka, 1);
 
-  GrenadeLauncher* grenade_launcher = new GrenadeLauncher;
-  AddToList(grenade_launcher, 1);
+  // Category 2
+  AddToList(dynamite,2);
+  AddToList(grenade_launcher, 2);
+  AddToList(cluster_launcher, 2);
+  AddToList(disco_grenade_launcher, 2);
+  AddToList(mine,2);
 
-  HollyGrenadeLauncher* holly_grenade_launcher = new HollyGrenadeLauncher;
-  AddToList(holly_grenade_launcher, 1);
+  // Category 3
+  AddToList(baseball, 3);
+  AddToList(syringe,3);
+  AddToList(tux,3);
+  AddToList(gnu_launcher,3);
+  AddToList(polecat_launcher,3);
+  AddToList(air_attack,3);
+  AddToList(anvil,3);
+  AddToList(bounce_ball_launcher,3);
 
-  ClusterLauncher* cluster_launcher = new ClusterLauncher;
-  AddToList(cluster_launcher, 1);
+  // Category 4
+  AddToList(ninjarope,4);
+  AddToList(jetpack,4);
+  AddToList(parachute,4);
+  AddToList(teleportation,4);
+  AddToList(lowgrav,4);
 
-  Gun* gun = new Gun;
-  AddToList(gun, 2);
-
-  Uzi* uzi = new Uzi;
-  AddToList(uzi, 2);
-
-  Baseball* baseball = new Baseball;
-  AddToList(baseball, 2);  
-
-  Dynamite* dynamite = new Dynamite;
-  AddToList(dynamite,3);
-
-  Mine* mine = new Mine;
-  AddToList(mine,3);
-
-  AirAttack* air_attack = new AirAttack;
-  AddToList(air_attack,4);
-
-  TuxLauncher* tux = new TuxLauncher;
-  AddToList(tux,4);  
-
-  GnuLauncher* gnu_launcher = new GnuLauncher;
-  AddToList(gnu_launcher,4); 
-
-  BounceBallLauncher* bounce_ball_launcher = new BounceBallLauncher;
-  AddToList(bounce_ball_launcher,4); 
-
-  Teleportation* teleportation = new Teleportation;
-  AddToList(teleportation,5);
-
-  Parachute* parachute = new Parachute;
-  AddToList(parachute,5);
-
-  Suicide* suicide = new Suicide;
-  AddToList(suicide,5);
-
-  SkipTurn* skipturn = new SkipTurn;
+  // Category 5
   AddToList(skipturn,5);
-
-  JetPack* jetpack = new JetPack;
-  AddToList(jetpack,5);
-
-  Airhammer* airhammer = new Airhammer;
   AddToList(airhammer,5);
-
-  LowGrav* lowgrav = new LowGrav;
-  AddToList(lowgrav,5);
-
-  NinjaRope* ninjarope = new NinjaRope;
-  AddToList(ninjarope,5);
+  AddToList(construct,5);
+  AddToList(blowtorch,5);
+  AddToList(suicide,5);
 }
 
 //-----------------------------------------------------------------------------
@@ -153,32 +149,58 @@ WeaponsList::weapons_list_type& WeaponsList::GetList()
 
 //-----------------------------------------------------------------------------
 
-bool WeaponsList::GetWeaponBySort(uint sort, Weapon_type &type)
+Weapon* WeaponsList::GetNextWeapon(uint sort, uint index)
+{
+	uint n = m_weapons_map.count(sort);
+	index = index % n;  // index can't be greater than number of weapons
+	weapons_map_it it = m_weapons_map.lower_bound(sort);
+
+	if(index + 1 < n)
+	{
+		for(uint i=0; i < index + 1; i++)
+			it++;
+	}
+
+	return it->second;
+}
+
+//-----------------------------------------------------------------------------
+
+bool WeaponsList::GetWeaponBySort(uint sort, Weapon::Weapon_type &type)
 {
   uint nb_weapons = m_weapons_map.count(sort);
   if (nb_weapons == 0) return false;
-	
+
   // One or many weapons on this key
-  std::pair<std::multimap<uint, Weapon*>::iterator, 
-    std::multimap<uint, Weapon*>::iterator> p = m_weapons_map.equal_range(sort);
-  
-  std::multimap<uint, Weapon*>::iterator 
-	it = p.first,
-    end = p.second;
-  
-  // we turn between the differents possibility
+  std::pair<weapons_map_it, weapons_map_it> p = m_weapons_map.equal_range(sort);
+  weapons_map_it it = p.first, end = p.second;
+
+  Weapon* next_weapon = it->second;
+
   if (nb_weapons > 1)
     {
-      while ( (*it).second != &(ActiveTeam().GetWeapon()) && it != end) it++ ;
-      
-      // the previous selected weapon has been founded
-      if (it != end) it++;
+    	// Find index of current weapon
+    	uint current_weapon;
+    	for(current_weapon=0; current_weapon < nb_weapons-1; current_weapon++, it++)
+	{
+		if(it->second == &(ActiveTeam().GetWeapon()))
+			break;
+	}
 
-      if (it == end) it = p.first;
-    } 
-  
-  // then we selected the "next" one
-  type = (*it).second -> GetType();
+	// Get next weapon that has enough ammo and can be used on the map
+	uint i = 0;
+	do
+	{
+		next_weapon = GetNextWeapon(sort, current_weapon++);
+	} while(i++ < nb_weapons && (ActiveTeam().ReadNbAmmos(next_weapon->GetName()) == 0 || !(next_weapon->CanBeUsedOnClosedMap() || ActiveMap().IsOpened())));
+	// this corresponds to:  while (stop-condition && (not-enoughammo || not-usable-on-map))
+
+	// no right weapon has been found
+	if(i > nb_weapons)
+		return false;
+    }
+
+  type = next_weapon->GetType();
   return true;
 }
 
@@ -186,13 +208,13 @@ bool WeaponsList::GetWeaponBySort(uint sort, Weapon_type &type)
 
 class test_weapon_type {
   private:
-	Weapon_type m_type;
+    Weapon::Weapon_type m_type;
   public:
-    test_weapon_type(Weapon_type type) { m_type = type; } 
-	bool operator() (const Weapon* w) const { return w->GetType()==m_type; }
+    test_weapon_type(Weapon::Weapon_type &type) { m_type = type; }
+	bool operator() ( Weapon* w) { return w->GetType()==m_type; }
 };
 
-Weapon* WeaponsList::GetWeapon (Weapon_type type)
+Weapon* WeaponsList::GetWeapon (Weapon::Weapon_type type)
 {
   weapons_list_it it;
   it = std::find_if(m_weapons_list.begin(), m_weapons_list.end(), test_weapon_type(type));

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -56,7 +56,7 @@ Surface::Surface(SDL_Surface *sdl_surface){
  * @param size
  * @param flags
  * @param useAlpha
- * @see NewSurface 
+ * @see NewSurface
  */
 Surface::Surface(const Point2i &size, Uint32 flags, bool useAlpha){
 	surface = NULL;
@@ -76,7 +76,7 @@ Surface::Surface(const std::string &filename){
 		Error( Format("Unable to open image file : %s", filename.c_str() ) );
 }
 
-/** 
+/**
  * Copy constructor: build a surface from an other surface.
  *
  * The two surfaces share the same graphic data.
@@ -123,7 +123,7 @@ void Surface::AutoFree(){
 		Free();
 }
 
-/** 
+/**
  * Set the auto free status of a surface.
  *
  * In general it should always be true for non-system surface.
@@ -238,7 +238,7 @@ int Surface::Blit(const Surface& src){
  */
 int Surface::Blit(const Surface& src, const Point2i &dst){
 	SDL_Rect dstRect = GetSDLRect( dst );;
-	
+
 	return Blit(src, NULL, &dstRect);
 }
 
@@ -285,39 +285,43 @@ int Surface::SetColorKey(Uint32 flag, Uint8 r, Uint8 g, Uint8 b, Uint8 a){
  * @param b
  * @param a
  */
-void Surface::GetRGBA(Uint32 color, Uint8 &r, Uint8 &g, Uint8 &b, Uint8 &a){
-	SDL_GetRGBA(color, surface->format, &r, &g, &b, &a);
+void Surface::GetRGBA(Uint32 color, Uint8 &r, Uint8 &g, Uint8 &b, Uint8 &a) const
+{
+  SDL_GetRGBA(color, surface->format, &r, &g, &b, &a);
 }
 
-/** 
+/**
  * @param r
  * @param g
  * @param b
  * @param a
  */
-Uint32 Surface::MapRGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a){
-    return SDL_MapRGBA(surface->format, r, g, b, a);
+Uint32 Surface::MapRGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a) const
+{
+  return SDL_MapRGBA(surface->format, r, g, b, a);
 }
 
 /**
  *
  * @param color
  */
-Color Surface::GetColor(Uint32 color){
-	Uint8 r, g, b, a;
-	GetRGBA(color, r, g, b, a);
-	return Color(r, g, b, a);
+Color Surface::GetColor(Uint32 color) const
+{
+  Uint8 r, g, b, a;
+  GetRGBA(color, r, g, b, a);
+  return Color(r, g, b, a);
 }
 
 /**
  *
  * @param color
  */
-Uint32 Surface::MapColor(Color color){
-	return MapRGBA(color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+Uint32 Surface::MapColor(Color color) const
+{
+  return MapRGBA(color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 }
 
-/** 
+/**
  * @param rect
  */
 void Surface::SetClipRect(const Rectanglei &rect){
@@ -338,33 +342,73 @@ int Surface::BoxColor(const Rectanglei &rect, const Color &color){
 	return boxRGBA( surface, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 }
 
-int Surface::RectangleColor(const Rectanglei &rect, const Color &color){
-    if( rect.IsSizeZero() )
-        return 0;
+int Surface::RectangleColor(const Rectanglei &rect, const Color &color, const uint &border_size)
+{
+  if( rect.IsSizeZero() )
+    return 0;
 
-	Point2i ptBR = rect.GetBottomRightPoint();
+  Point2i ptBR = rect.GetBottomRightPoint();
 
-	return rectangleRGBA( surface, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+  if (border_size == 1)
+    return rectangleRGBA( surface, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+
+  // top border
+  boxRGBA (surface,
+	   rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), rect.GetPositionY()+border_size,
+	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+
+  // bottom border
+  boxRGBA (surface,
+	   rect.GetPositionX(), ptBR.GetY() - border_size, ptBR.GetX(), ptBR.GetY(),
+	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+
+  // left border
+  boxRGBA (surface,
+	   rect.GetPositionX(), rect.GetPositionY() + border_size, rect.GetPositionX()+border_size, ptBR.GetY()-border_size,
+	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+
+  // right border
+  boxRGBA (surface,
+	   ptBR.GetX() - border_size, rect.GetPositionY() + border_size, ptBR.GetX(), ptBR.GetY()-border_size,
+	   color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+
+  return 1;
+}
+
+int Surface::VlineColor(const uint &x1, const uint &y1, const uint &y2, const Color &color){
+	return vlineRGBA( surface, x1, y1, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+}
+
+int Surface::LineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color){
+  return lineRGBA( surface, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+}
+
+int Surface::AALineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color){
+  return aalineRGBA( surface, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+}
+
+int Surface::CircleColor(const uint &x, const uint &y, const uint &rad, const Color &color){
+    return circleRGBA( surface, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
 }
 
 /**
  *
  * @param color
  */
-int Surface::Fill(Uint32 color){
+int Surface::Fill(Uint32 color) const {
     return SDL_FillRect( surface, NULL, color);
 }
 
-int Surface::Fill(const Color &color){
+int Surface::Fill(const Color &color) const{
 	return Fill( MapColor(color) );
 }
 
-/** 
+/**
  *
  * @param dstRect
  * @param color
  */
-int Surface::FillRect(const Rectanglei &dstRect, Uint32 color){
+int Surface::FillRect(const Rectanglei &dstRect, Uint32 color) const{
 	SDL_Rect sdlDstRect = GetSDLRect( dstRect );
 
 	return SDL_FillRect( surface, &sdlDstRect, color);
@@ -375,8 +419,8 @@ int Surface::FillRect(const Rectanglei &dstRect, Uint32 color){
  * @param dstRect
  * @param color
  */
-int Surface::FillRect(const Rectanglei &dstRect, const Color &color){
-	
+int Surface::FillRect(const Rectanglei &dstRect, const Color &color) const{
+
 	return FillRect( dstRect, MapColor(color) );
 }
 
@@ -393,20 +437,23 @@ int Surface::ImgLoad(std::string filename){
 
 /**
  *
- * @param angle
+ * @param angle in radian
  * @param zoomx
  * @param zoomy
  * @param smooth
- */
+* Warning rotozoomSurfaceXY uses degrees so the rotation of image use degrees here,
+* but when accessing thanks to GetSurfaceForAngle the index is using radian
+* (because we juste need an index in array, not an angle) */
+static const double ratio_deg_to_rad = 180 / M_PI;
 Surface Surface::RotoZoom(double angle, double zoomx, double zoomy, int smooth){
 	Surface newSurf;
 
-	newSurf.SetSurface( rotozoomSurfaceXY(surface, angle, zoomx, zoomy, smooth) );
+	newSurf.SetSurface( rotozoomSurfaceXY(surface, angle * ratio_deg_to_rad , zoomx, zoomy, smooth) );
 
 	if( newSurf.IsNull() )
 		Error( "Unable to make a rotozoom on the surface !" );
 
-	return newSurf;	
+	return newSurf;
 }
 
 /**
@@ -510,24 +557,26 @@ void Surface::PutPixel(int x, int y, Uint32 pixel){
     }
 }
 
-SDL_Rect Surface::GetSDLRect(const Rectanglei &r){
-	SDL_Rect sdlRect;
-
-    sdlRect.x = r.GetPositionX();
-    sdlRect.y = r.GetPositionY();
-    sdlRect.w = r.GetSizeX();
-    sdlRect.h = r.GetSizeY();
-
-	return sdlRect;	
+SDL_Rect Surface::GetSDLRect(const Rectanglei &r) const
+{
+  SDL_Rect sdlRect;
+  
+  sdlRect.x = r.GetPositionX();
+  sdlRect.y = r.GetPositionY();
+  sdlRect.w = r.GetSizeX();
+  sdlRect.h = r.GetSizeY();
+  
+  return sdlRect;
 }
 
-SDL_Rect Surface::GetSDLRect(const Point2i &pt){
-	SDL_Rect sdlRect;
-
-	sdlRect.x = pt.GetX();
-	sdlRect.y = pt.GetY();
-	sdlRect.w = 0;
-	sdlRect.h = 0;
-
-	return sdlRect;
+SDL_Rect Surface::GetSDLRect(const Point2i &pt) const
+{
+  SDL_Rect sdlRect;
+  
+  sdlRect.x = pt.GetX();
+  sdlRect.y = pt.GetY();
+  sdlRect.w = 0;
+  sdlRect.h = 0;
+  
+  return sdlRect;
 }

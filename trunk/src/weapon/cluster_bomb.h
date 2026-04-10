@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon grenade : lance une grenade avec un angle et une force donnée. Explose 
- * au bout de quelques secondes
+ * Cluster Bomb : launch a grenade will exploding, it produce new little cluster
+ * exploding bomb
  *****************************************************************************/
 
 #ifndef CLUSTER_BOMB_H
@@ -32,29 +32,27 @@
 
 class ClusterBombConfig;
 
-// Les fragments
 class Cluster : public WeaponProjectile
 {
 public:
-  Cluster(ClusterBombConfig& cfg);
+  Cluster(ClusterBombConfig& cfg,
+          WeaponLauncher * p_launcher);
   void Refresh();
   void Shoot(int n_x, int n_y);
 protected:
-  void SignalCollision();
+  void SignalOutOfMap();
+  void DoExplosion();
 };
 
-// La ClusterBomb
 class ClusterBomb : public WeaponProjectile
 {
 public:
-  std::list<Cluster> tableau_cluster;
-  typedef std::list<Cluster>::iterator iterator;
-
-  ClusterBomb(ClusterBombConfig& cfg);
+  ClusterBomb(ClusterBombConfig& cfg,
+              WeaponLauncher * p_launcher);
   void Refresh();
-  void Explosion();
 protected:
-  void SignalCollision();
+  void DoExplosion();
+  void SignalOutOfMap();
 };
 
 class ClusterBombConfig : public ExplosiveWeaponConfig
@@ -70,7 +68,8 @@ class ClusterLauncher : public WeaponLauncher
 {
  public:
   ClusterLauncher();
-
+ protected:
+  WeaponProjectile * GetProjectileInstance();
  private:
   ClusterBombConfig& cfg() ;
 };

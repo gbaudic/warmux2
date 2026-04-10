@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -33,26 +33,18 @@ public:
 
 private:
   Surface image;
-  Point2i calcul_d;
-  int angle;
+  Point2i crosshair_position;
 
 public:
   CrossHair();
 
-  void Init();
   void Reset();
 
-  // Change angle 
-  void ChangeAngle (int delta);
-  void ChangeAngleVal (int angle);
+  // Refresh crosshair angle
+  void Refresh(double angle);
 
   // Draw crosshair
   void Draw();
-
-  // Get angle 
-  int GetAngleVal() const;
-  int GetAngle() const;
-  double GetAngleRad() const;
 };
 
-#endif
+#endif /* CROSSHAIR_H */

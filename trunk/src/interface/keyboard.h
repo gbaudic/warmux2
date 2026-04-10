@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,34 +28,43 @@
 #include "../include/base.h"
 //-----------------------------------------------------------------------------
 
-class Clavier
+class Keyboard
 {
 private:
-  std::map<int, Action_t> layout;
-  bool PressedKeys[ACTION_MAX];
+  std::map<int, Action::Action_t> layout;
+  bool PressedKeys[Action::ACTION_LAST];
 
-  static Clavier * singleton;
+  static Keyboard * singleton;
 
 private:
-  // Traite une touche relachée
-  void HandleKeyPressed (const Action_t &action);
-  void HandleKeyReleased (const Action_t &action);
-  Clavier();
+  // Traite une touche relachï¿½e
+  void HandleKeyPressed (const Action::Action_t &action);
+  void HandleKeyReleased (const Action::Action_t &action);
 
- public:
-  static Clavier * GetInstance();
+
+public:
+  Keyboard();
+  typedef enum
+  {
+    KEY_PRESSED,
+    KEY_RELEASED,
+    KEY_REFRESH
+  } Key_Event_t ;
 
   void HandleKeyEvent( const SDL_Event *event) ;
   void Reset();
 
-  // On veut bouger la caméra au clavier ?
+  // On veut bouger la camï¿½ra au clavier ?
   void TestCamera();
 
   // Refresh des touches du clavier
   void Refresh();
-  
-  // Associe une touche à une action.
-  void SetKeyAction(int key, Action_t at);
+
+  // Associe une touche ï¿½ une action.
+  void SetKeyAction(int key, Action::Action_t at);
+
+  // Get the key associated to an action.
+  int GetKeyAssociatedToAction(Action::Action_t at);
 
 };
 

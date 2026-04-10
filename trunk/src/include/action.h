@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,101 +25,97 @@
 #include <SDL.h>
 #include <string>
 #include <iostream>
+#include <list>
 #include "base.h"
-#include "enum.h"
+#include "../tool/point.h"
+
 //-----------------------------------------------------------------------------
 
 class Action
 {
+private:
+  std::list<Uint32> var;
+  Action ( const Action& an_action);
+public:
+  typedef enum
+  {
+    // Game action.
+    ACTION_MOVE_LEFT,   ACTION_MOVE_RIGHT, ACTION_UP,   ACTION_DOWN, ACTION_JUMP,
+    ACTION_HIGH_JUMP,   ACTION_BACK_JUMP, ACTION_SHOOT, ACTION_CHANGE_WEAPON,
+    ACTION_WIND,        ACTION_NEXT_CHARACTER,          ACTION_CHANGE_CHARACTER,
+    ACTION_CHANGE_TEAM, ACTION_SET_SKIN,                ACTION_SYNC_BEGIN,
+    ACTION_SYNC_END,    ACTION_EXPLOSION,               ACTION_SUPERTUX_STATE,
+    ACTION_WEAPON_1,    ACTION_WEAPON_2,                ACTION_WEAPON_3,
+    ACTION_WEAPON_4,    ACTION_WEAPON_5,                ACTION_WEAPON_6,
+    ACTION_WEAPON_7,    ACTION_WEAPON_8,                ACTION_WEAPON_9,
+    ACTION_WEAPON_MORE, ACTION_WEAPON_LESS,             ACTION_SET_TARGET,
+    ACTION_SET_TIMEOUT, ACTION_CONSTRUCTION_UP,         ACTION_CONSTRUCTION_DOWN,
+    ACTION_SET_CHARACTER_ENERGY, ACTION_WEAPON_STOP_USE,
+
+    // Game initialisation
+    ACTION_PING,        ACTION_SET_GAME_MODE,           ACTION_SET_MAP,
+    ACTION_UPDATE_TEAM, ACTION_NEW_TEAM,                ACTION_DEL_TEAM,
+    ACTION_ASK_VERSION, ACTION_ASK_TEAM,                ACTION_SEND_VERSION,
+    ACTION_SEND_TEAM,   ACTION_SEND_RANDOM,             ACTION_CHAT_MESSAGE,
+    ACTION_NICKNAME,    ACTION_SET_CHARACTER_PHYSICS,   ACTION_SET_CHARACTER_DIRECTION,
+    ACTION_CHANGE_STATE,
+
+    // Out of game actions (local only).
+    ACTION_QUIT,        ACTION_WEAPONS1,                ACTION_WEAPONS2,
+    ACTION_WEAPONS3,    ACTION_WEAPONS4,                ACTION_WEAPONS5,
+    ACTION_WEAPONS6,    ACTION_WEAPONS7,                ACTION_WEAPONS8,
+    ACTION_PAUSE,       ACTION_FULLSCREEN,              ACTION_TOGGLE_INTERFACE,
+    ACTION_CENTER,      ACTION_TOGGLE_WEAPONS_MENUS,    ACTION_CHAT,
+  } Action_t;
+
+  static const Action_t ACTION_FIRST = ACTION_MOVE_LEFT; /* keep this as the first name in enum */
+  static const Action_t ACTION_LAST  = ACTION_CHAT; /* keep this as the last name in enum */
+
+  //inline Action_t &operator++() { ;}
+
+  // Action without parameter
+  Action (Action_t type);
+  // Action with various parameter
+  Action (Action_t type, int value);
+  Action (Action_t type, double value);
+  Action (Action_t type, double value1, int value2);
+  Action (Action_t type, double value1, double value2);
+  Action (Action_t type, const std::string& value);
+
+  // Build an action from a network packet
+  Action (const char* is);
+
+  ~Action();
+
+  std::ostream& out(std::ostream &os) const;
+  // Push / Back functions to add / retreive datas
+  // Work as a FIFO container, inspiteof the name of methods !
+  void Push(int val);
+  void Push(double val);
+  void Push(std::string val);
+  void Push(const Point2i& val);
+  void Push(const Point2d& val);
+  int PopInt();
+  double PopDouble();
+  std::string PopString();
+  Point2i PopPoint2i();
+  Point2d PopPoint2d();
+  bool IsEmpty() const;
+
+  // Store character's information
+  void StoreCharacter(uint team_no, uint char_no);
+  void StoreActiveCharacter();
+  void RetrieveCharacter();
+
+  // Timestamp handling
+  void SetTimestamp(uint timestamp);
+  uint GetTimestamp();
+
+  void WritePacket(char* & packet, int & size);
+  Action_t GetType() const;
 protected:
   Action_t m_type;
-public:
-  Action (Action_t type);
-  virtual ~Action();
-  virtual Action_t GetType() const;
-  virtual void Write(Uint32 *os) const;
-  virtual Action* clone() const;
-  virtual std::ostream& out(std::ostream &os) const;
-};
-
-//-----------------------------------------------------------------------------
-
-class ActionInt : public Action
-{
-private:
-  int m_value;
-public:
-  ActionInt (Action_t type, int value);
-  ActionInt (Action_t type, Uint32* is);
-  int GetValue() const;
-  void Write(Uint32* os) const;
-  Action* clone() const;
-  std::ostream& out(std::ostream &os) const;
-};
-
-//-----------------------------------------------------------------------------
-
-class ActionInt2 : public Action
-{
-private:
-  int m_value1;
-  int m_value2;
-public:
-  ActionInt2 (Action_t type, int val1, int val2);
-  ActionInt2 (Action_t type, Uint32* is);
-  int GetValue1() const;
-  int GetValue2() const;
-  void Write(Uint32* os) const;
-  Action* clone() const;
-  std::ostream& out(std::ostream &os) const;
-};
-
-//-----------------------------------------------------------------------------
-
-class ActionDouble : public Action
-{
-private:
-  double m_value;
-public:
-  ActionDouble (Action_t type, double value);
-  ActionDouble (Action_t type, Uint32* is);
-  double GetValue() const;
-  void Write(Uint32* os) const;
-  Action* clone() const;
-  std::ostream& out(std::ostream &os) const;
-};
-//-----------------------------------------------------------------------------
-
-class ActionDoubleInt : public Action
-{
-private:
-  double m_value1;
-  int m_value2;
-public:
-  ActionDoubleInt (Action_t type, double val1, int val2);
-  ActionDoubleInt (Action_t type, Uint32* is);
-  double GetValue1() const;
-  int GetValue2() const;
-  void Write(Uint32* os) const;
-  Action* clone() const;
-  std::ostream& out(std::ostream &os) const;
-};
-
-//-----------------------------------------------------------------------------
-
-class ActionString : public Action
-{
-private:
-  char* m_value;
-  uint m_length;
-public:
-  ~ActionString();
-  ActionString (Action_t type, const std::string& value);
-  ActionString (Action_t type, Uint32* is);
-  char* GetValue() const;
-  void Write(Uint32* os) const;
-  Action* clone() const;
-  std::ostream& out(std::ostream &os) const;
+  uint m_timestamp;
 };
 
 //-----------------------------------------------------------------------------

@@ -1,10 +1,11 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE resources SYSTEM "../map.dtd" []>
 <resources>
   <author>
     <name>Lawrence AZZOUG</name>
     <nickname>Lami</nickname>
-    <country>France</country>
     <email>lawrenceazzoug AT wanadoo.fr</email>
+    <country>France</country>
   </author>
 
   <surface name="sky" file="jungle.jpg" />
@@ -15,7 +16,6 @@
   <water>1</water>
   <nb_mine>3</nb_mine>
   <is_open>1</is_open>
-  <infinite_background>1</infinite_background>
 
   <sprite name="wind_particle">
     <image file="nuage.png">
@@ -27,9 +27,9 @@
     <nbr_sprite>10</nbr_sprite>
     <need_flip>1</need_flip>
 
-    <mass>0.5</mass>
+    <mass>3.0</mass>
     <wind_factor>1.0</wind_factor>
-    <air_resist_factor>1.0</air_resist_factor>
+    <air_resist_factor>0.5</air_resist_factor>
     <gravity_factor>0.0</gravity_factor>
     <rebounding>true</rebounding>
     <rebound_factor>0.25</rebound_factor>

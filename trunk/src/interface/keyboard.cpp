@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,8 @@
 #include "cursor.h"
 #include "game_msg.h"
 #include "interface.h"
+#include "../include/action.h"
+#include "../include/app.h"
 #include "../game/config.h"
 #include "../game/game.h"
 #include "../game/game_loop.h"
@@ -35,70 +37,77 @@
 #include "../include/constant.h"
 #include "../map/camera.h"
 #include "../team/macro.h"
-#include "../team/move.h"
+#include "../character/move.h"
 #include "../tool/i18n.h"
 #include "../tool/math_tools.h"
 #include "../sound/jukebox.h"
 #include "../map/camera.h"
 #include "../weapon/weapon.h"
 #include "../weapon/weapons_list.h"
-
-// Active le mode tricheur ?
-#ifdef DEBUG
-#  define MODE_TRICHEUR
-//#  define USE_HAND_POSITION_MODIFIER
-#endif
+#include "../network/network.h"
 
 // Vitesse du definalement au clavier
 #define SCROLL_CLAVIER 20 // ms
 
-Clavier * Clavier::singleton = NULL;
-
-Clavier * Clavier::GetInstance() {
-  if (singleton == NULL) {
-    singleton = new Clavier();
-  }
-  return singleton;
-}
-
-Clavier::Clavier()
-{}
-
-void Clavier::Reset()
+Keyboard::Keyboard()
 {
   //Disable repeated events when a key is kept down
   SDL_EnableKeyRepeat(0,0);
-  for (uint i = 0; i < ACTION_MAX; i++)
+}
+
+void Keyboard::Reset()
+{
+  for (int i = Action::ACTION_FIRST; i != Action::ACTION_LAST; i++)
     PressedKeys[i] = false ;
 }
 
-void Clavier::SetKeyAction(int key, Action_t at)
+void Keyboard::SetKeyAction(int key, Action::Action_t at)
 {
   layout[key] = at;
 }
 
-void Clavier::HandleKeyEvent( const SDL_Event *event)
+// Get the key associated to an action.
+int Keyboard::GetKeyAssociatedToAction(Action::Action_t at)
 {
-  std::map<int, Action_t>::iterator it = layout.find(event->key.keysym.sym);
+  std::map<int, Action::Action_t>::iterator it;
+  for (it= layout.begin(); it != layout.end(); it++) {
+    if (it->second == at) {
+      return it->first;
+    }
+  }
+  return 0;
+}
+
+
+void Keyboard::HandleKeyEvent( const SDL_Event *event)
+{
+  //Handle input text for Chat session in Network game
+  //While player writes, it cannot control the game.
+  if(GameLoop::GetInstance()->chatsession.CheckInput()){
+    GameLoop::GetInstance()->chatsession.HandleKey(event);
+    return;
+  }
+
+  std::map<int, Action::Action_t>::iterator it = layout.find(event->key.keysym.sym);
 
   if ( it == layout.end() )
     return;
 
-  Action_t action = it->second;
+  Action::Action_t action = it->second;
 
   //We can perform the next actions, only if the player is played localy:
-  if(ActiveTeam().is_local)
+  if(ActiveTeam().IsLocal())
   {
 
-    if(action <= ACTION_CHANGE_CHARACTER)
+    if(action <= Action::ACTION_NEXT_CHARACTER)
       {
         switch (action) {
-//           case ACTION_ADD:
+//           case Action::ACTION_ADD:
 //   	  if (lance_grenade.time < 15)
 //   	    lance_grenade.time ++;
 //   	    break ;
-	  
-//           case ACTION_SUBSTRACT:
+
+//           case Action::ACTION_SUBSTRACT:
 //      if (lance_grenade.time > 1)
 //   	    lance_grenade.time --;
 //   	  break ;
@@ -107,41 +116,46 @@ void Clavier::HandleKeyEvent( const SDL_Event *event)
         }
       }
 
-     int event_type=0;
+     Key_Event_t event_type;
      switch( event->type)
        {
-        case SDL_KEYDOWN: event_type = KEY_PRESSED;break;
-        case SDL_KEYUP: event_type = KEY_RELEASED;break;
+        case SDL_KEYDOWN:
+          event_type = KEY_PRESSED;break;
+        case SDL_KEYUP:
+          event_type = KEY_RELEASED;break;
+        default:
+          return;
        }
-    if(event_type==KEY_PRESSED)
+    if(event_type == KEY_PRESSED)
       HandleKeyPressed(action);
-    if(event_type==KEY_RELEASED)
+    if(event_type == KEY_RELEASED)
       HandleKeyReleased(action);
 
-    if (ActiveTeam().GetWeapon().override_keys &&
-        ActiveTeam().GetWeapon().IsActive())
+    if ((ActiveTeam().GetWeapon().override_keys &&
+        ActiveTeam().GetWeapon().IsActive()) || ActiveTeam().GetWeapon().force_override_keys)
       {
-        ActiveTeam().AccessWeapon().HandleKeyEvent((int)action, event_type);
+        ActiveTeam().AccessWeapon().HandleKeyEvent(action, event_type);
         return ;
       }
     ActiveCharacter().HandleKeyEvent( action, event_type);
   }
   else
   {
-    int event_type=0;
+    Key_Event_t event_type;
     switch( event->type)
     {
       case SDL_KEYDOWN: event_type = KEY_PRESSED;break;
       case SDL_KEYUP: event_type = KEY_RELEASED;break;
+      default: return;
     }
     //Current player is on the network
-    if(event_type==KEY_RELEASED)
+    if(event_type == KEY_RELEASED)
       HandleKeyReleased(action);
   }
 }
 
 // Handle a pressed key
-void Clavier::HandleKeyPressed (const Action_t &action)
+void Keyboard::HandleKeyPressed (const Action::Action_t &action)
 {
   PressedKeys[action] = true ;
 
@@ -151,53 +165,57 @@ void Clavier::HandleKeyPressed (const Action_t &action)
       int weapon_sort = -1;
 
       switch(action) {
-        case ACTION_WEAPONS1:
-	  weapon_sort = 1;
-	  break;
+        case Action::ACTION_WEAPONS1:
+          weapon_sort = 1;
+          break;
 
-        case ACTION_WEAPONS2:
-	  weapon_sort = 2;
-	  break;
+        case Action::ACTION_WEAPONS2:
+          weapon_sort = 2;
+          break;
 
-        case ACTION_WEAPONS3:
-	  weapon_sort = 3;
-	  break;
+        case Action::ACTION_WEAPONS3:
+          weapon_sort = 3;
+          break;
 
-        case ACTION_WEAPONS4:
-	  weapon_sort = 4;
-	  break;
+        case Action::ACTION_WEAPONS4:
+          weapon_sort = 4;
+          break;
 
-        case ACTION_WEAPONS5:
-	  weapon_sort = 5;
-	  break;
+        case Action::ACTION_WEAPONS5:
+          weapon_sort = 5;
+          break;
 
-        case ACTION_WEAPONS6:
-	  weapon_sort = 6;
-	  break;
+        case Action::ACTION_WEAPONS6:
+          weapon_sort = 6;
+          break;
 
-        case ACTION_WEAPONS7:
-	  weapon_sort = 7;
-	  break;
+        case Action::ACTION_WEAPONS7:
+          weapon_sort = 7;
+          break;
 
-        case ACTION_WEAPONS8:
-	  weapon_sort = 8;
-	  break;
+        case Action::ACTION_WEAPONS8:
+          weapon_sort = 8;
+          break;
 
-        case ACTION_CHANGE_CHARACTER:
-	  if (GameMode::GetInstance()->AllowCharacterSelection())
-	    ActionHandler::GetInstance()->NewAction(ActionInt(action,
-					ActiveTeam().NextCharacterIndex()));
-	  return ;
+        case Action::ACTION_NEXT_CHARACTER:
+          if (GameMode::GetInstance()->AllowCharacterSelection()) {
+            Action * next_character = new Action(Action::ACTION_NEXT_CHARACTER);
+            next_character->StoreActiveCharacter();
+            ActiveTeam().NextCharacter();
+            next_character->StoreActiveCharacter();
+            ActionHandler::GetInstance()->NewAction(next_character);
+          }
+          return ;
 
         default:
-	  break ;
+          break ;
       }
 
       if ( weapon_sort > 0 )
         {
-          Weapon_type weapon;
-          if (weapons_list.GetWeaponBySort(weapon_sort, weapon))
-            ActionHandler::GetInstance()->NewAction(ActionInt(ACTION_CHANGE_WEAPON, weapon));
+          Weapon::Weapon_type weapon;
+          if (Config::GetInstance()->GetWeaponsList()->GetWeaponBySort(weapon_sort, weapon))
+            ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHANGE_WEAPON, weapon));
 
           return;
         }
@@ -205,44 +223,50 @@ void Clavier::HandleKeyPressed (const Action_t &action)
 }
 
 // Handle a released key
-void Clavier::HandleKeyReleased (const Action_t &action)
+void Keyboard::HandleKeyReleased (const Action::Action_t &action)
 {
   PressedKeys[action] = false ;
 
   // We manage here only actions which are active on KEY_RELEASED event.
   Interface * interface = Interface::GetInstance();
+  BonusBox * current_box;
 
-  switch((int)action) // Convert to int to avoid a warning
+  switch(action) // Convert to int to avoid a warning
   {
-    case ACTION_QUIT:
+    case Action::ACTION_QUIT:
       Game::GetInstance()->SetEndOfGameStatus( true );
       return;
-
-    case ACTION_PAUSE:
-      Game::GetInstance()->Pause();
+    case Action::ACTION_PAUSE:
+      ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_PAUSE));
       return;
-
-    case ACTION_FULLSCREEN:
-#ifdef TODO 
-      video.SetFullScreen( !video.IsFullScreen() );
-#endif
+    case Action::ACTION_SHOOT:
+      current_box = GameLoop::GetInstance()->GetCurrentBonusBox();
+      if(current_box != NULL)
+        current_box->DropBonusBox();
       return;
-
-    case ACTION_CENTER:
-      CurseurVer::GetInstance()->SuitVerActif();
-      camera.ChangeObjSuivi (&ActiveCharacter(), true, true, true);
+    case Action::ACTION_FULLSCREEN:
+      AppWormux::GetInstance()->video.ToggleFullscreen();
       return;
-
-    case ACTION_TOGGLE_INTERFACE:
+    case Action::ACTION_CHAT:
+      if(network.IsConnected())
+        GameLoop::GetInstance()->chatsession.ShowInput();
+      return;
+    case Action::ACTION_CENTER:
+      CharacterCursor::GetInstance()->FollowActiveCharacter();
+      camera.FollowObject (&ActiveCharacter(), true, true, true);
+      return;
+    case Action::ACTION_TOGGLE_INTERFACE:
       interface->EnableDisplay (!interface->IsDisplayed());
+      return;
+    default:
       return;
   }
 
-  if( ! ActiveTeam().is_local)
+  if( ! ActiveTeam().IsLocal())
     return;
 
   switch(action) {
-    case ACTION_TOGGLE_WEAPONS_MENUS:
+    case Action::ACTION_TOGGLE_WEAPONS_MENUS:
       interface->weapons_menu.SwitchDisplay();
       return;
 
@@ -252,25 +276,25 @@ void Clavier::HandleKeyReleased (const Action_t &action)
 }
 
 // Refresh keys which are still pressed.
-void Clavier::Refresh()
+void Keyboard::Refresh()
 {
   //Treat KEY_REFRESH events:
-  for (uint i = 0; i < ACTION_MAX; i++)
-  if(PressedKeys[i])
-  {
-    if (ActiveTeam().GetWeapon().override_keys &&
-        ActiveTeam().GetWeapon().IsActive())
-    {
-      ActiveTeam().AccessWeapon().HandleKeyEvent(i, KEY_REFRESH);
-    }
-    else
-    {
-      ActiveCharacter().HandleKeyEvent(i,KEY_REFRESH);
-    }
-  }
+  for (int i = Action::ACTION_FIRST; i < Action::ACTION_LAST; i++)
+    if(PressedKeys[i])
+      {
+        if (ActiveTeam().GetWeapon().override_keys &&
+            ActiveTeam().GetWeapon().IsActive())
+          {
+            ActiveTeam().AccessWeapon().HandleKeyEvent(static_cast<Action::Action_t>(i), KEY_REFRESH);
+          }
+        else
+          {
+            ActiveCharacter().HandleKeyEvent(static_cast<Action::Action_t>(i),KEY_REFRESH);
+          }
+      }
 }
 
-void Clavier::TestCamera()
+void Keyboard::TestCamera()
 {
 }
 

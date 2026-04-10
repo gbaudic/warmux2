@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,14 +28,14 @@
 class Time
 {
 private:
-  uint pause_start;
-  uint pause_offset;// Offset between get_time() and LitTemps()
+  uint current_time;
+  uint max_time;
+  uint delta_t;
   bool is_game_paused;
   static Time * singleton;
 
 private:
   Time();
-   
 public:
   static Time * GetInstance();
 
@@ -46,6 +46,9 @@ public:
   uint Read() const;
   uint ReadSec() const;
   uint ReadMin() const;
+  void Refresh();
+  uint GetDelta() const;
+  void RefreshMaxTime(uint updated_max_time);
 
   // Read the clock time
   uint ClockSec();  // ReadSec() % 60

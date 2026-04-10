@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Refresh du temps qui passe. Le temps du jeu peut être mise en pause.
+ *  Handle the game time. The game can be paused.
  *****************************************************************************/
 
 #include "time.h"
@@ -27,6 +27,10 @@
 #include "../graphic/video.h"
 #include "../interface/game_msg.h"
 #include "../tool/math_tools.h"
+#include "../include/app.h"
+#include "../network/network.h"
+#include "../team/teams_list.h"
+#include "../game/game_loop.h"
 
 Time * Time::singleton = NULL;
 
@@ -42,17 +46,38 @@ bool Time::IsGamePaused() const {
 }
 
 Time::Time(){
-  pause_offset = 0;
   is_game_paused = false;
+  delta_t = 20;
 }
 
 void Time::Reset(){
-  pause_offset = SDL_GetTicks();
+  current_time = 0;
   is_game_paused = false;
 }
 
 uint Time::Read() const{
-  return SDL_GetTicks() - pause_offset;
+  return current_time;
+}
+
+void Time::Refresh(){
+  /*
+  TODO : Activate this condition later.
+  Refresh time condition :
+  - active team is Local 
+  - current node is server and game loop is not in Playing state
+  - game don't use network
+  if((ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI()) ||
+     (network.IsServer() && GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING) ||
+     (!network.IsServer() && !network.IsClient()) ||
+     current_time < max_time)
+  */
+  current_time += delta_t;
+  RefreshMaxTime(current_time);
+}
+
+void Time::RefreshMaxTime(uint updated_max_time){
+  if(updated_max_time > max_time)
+    max_time = updated_max_time;
 }
 
 uint Time::ReadSec() const{
@@ -63,16 +88,18 @@ uint Time::ReadMin() const{
   return ReadSec() / 60;
 }
 
+uint Time::GetDelta() const{
+  return delta_t;
+}
+
 void Time::Pause(){
   if (is_game_paused)
     return;
-  pause_start = SDL_GetTicks();
   is_game_paused = true;
 }
 
 void Time::Continue(){
   assert (is_game_paused);
-  pause_offset += SDL_GetTicks() - pause_start;
   is_game_paused = false;
 }
 
@@ -86,7 +113,7 @@ uint Time::ClockMin(){
 
 std::string Time::GetString(){
   std::ostringstream ss;
-  
+
   ss << ClockMin() << ":" << std::setfill('0') << std::setw(2) << ClockSec();
   return ss.str();
 }

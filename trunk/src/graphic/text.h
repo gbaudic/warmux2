@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -33,41 +33,48 @@ class Text
   Font* font;
   Color color;
   bool shadowed;
-  unsigned int bg_offset;
+  uint bg_offset;
+  uint max_width;
 
   void Render();
+  void RenderMultiLines();
 public:
-  Text(const std::string &new_txt, Color new_color = white_color, Font* new_font = NULL, bool shadowed = true);
+  Text(const std::string &new_txt, const Color& new_color = white_color, 
+       Font* new_font = NULL, bool shadowed = true);
   ~Text();
 
   //Draw method using windows coordinates
-  void DrawCenter(int x, int y);
-  void DrawCenter(const Point2i &position);
-  void DrawTopLeft(int x, int y);
-  void DrawTopLeft(const Point2i &position);
-  void DrawTopRight(int x, int y);
-  void DrawCenterTop(int x, int y);
+  void DrawCenter(int x, int y) const;
+  void DrawCenter(const Point2i &position) const;
+  void DrawTopLeft(int x, int y) const;
+  void DrawTopLeft(const Point2i &position) const;
+  void DrawTopRight(int x, int y) const;
+  void DrawCenterTop(int x, int y) const;
 
   //Draw method using map coordinates
-  void DrawCenterOnMap(int x, int y);
-  void DrawTopLeftOnMap(int x, int y);
-  void DrawCenterTopOnMap(int x, int y);
+  void DrawCenterOnMap(int x, int y) const;
+  void DrawTopLeftOnMap(int x, int y) const;
+  void DrawCenterTopOnMap(int x, int y) const;
 
   void Set(const std::string &new_txt);
+  const std::string& GetText() const;
   void SetColor( const Color &new_color);
-  int GetWidth() const {return surf.GetWidth();};
-  int GetHeight() const {return surf.GetHeight();}
+  void SetMaxWidth(uint max_w);
+  int GetWidth() const;
+  int GetHeight() const;
 };
 
-void DrawTmpBoxText(Font &font, 
+void DrawTmpBoxText(Font& font, 
 		    Point2i pos,
-		    const std::string &txt, uint space=3,
-            Color boxColor = defaultColorBox,
-            Color rectColor = defaultColorRect);
-void DrawTmpBoxTextWithReturns(Font &font,
-            const Point2i &position,
-            const std::string &txt, uint space=3,
-            Color boxColor = defaultColorBox,
-            Color rectColor = defaultColorRect);
+		    const std::string& txt, uint space=3,
+		    const Color& boxColor = defaultColorBox,
+		    const Color& rectColor = defaultColorRect);
+
+/* void DrawTmpBoxTextWithReturns(Font &font, */
+/* 			       const Point2i &position, */
+/* 			       const std::string &txt, uint space=3, */
+/* 			       Color boxColor = defaultColorBox, */
+/* 			       Color rectColor = defaultColorRect); */
+
 
 #endif

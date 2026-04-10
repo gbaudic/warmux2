@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources SYSTEM "../map.dtd" []>
 <resources>
 	<author>
 		<name>Olivier Boyer</name>
@@ -15,5 +16,4 @@
 	<water>1</water>
 	<nb_mine>7</nb_mine>
 	<is_open>0</is_open>
-  <infinite_background>0</infinite_background>
 </resources>

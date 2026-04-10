@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -29,18 +29,19 @@
 #include "../graphic/video.h"
 #include "../tool/math_tools.h"
 #include "../map/camera.h"
-#include "../weapon/weapon_tools.h"
+#include "../weapon/explosion.h"
 #include "../interface/game_msg.h"
 #include "../tool/i18n.h"
 #include "../object/objects_list.h"
 //-----------------------------------------------------------------------------
 
-BounceBall::BounceBall(ExplosiveWeaponConfig& cfg) :
-  WeaponProjectile ("bounce_ball", cfg)
+BounceBall::BounceBall(ExplosiveWeaponConfig& cfg,
+                       WeaponLauncher * p_launcher) :
+  WeaponProjectile ("bounce_ball", cfg, p_launcher)
 {
   m_rebound_sound = "weapon/grenade_bounce";
-  touche_ver_objet = true;
   explode_colliding_character = true;
+  explode_with_collision = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -48,39 +49,41 @@ BounceBall::BounceBall(ExplosiveWeaponConfig& cfg) :
 void BounceBall::Refresh()
 {
   WeaponProjectile::Refresh();
-
-  // rotation de l'image de la grenade...
-  double angle = GetSpeedAngle() * 180/M_PI ;
-  image->SetRotation_deg( angle);
+  // rotation of ball image...
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
 
 //-----------------------------------------------------------------------------
 
-void BounceBall::SignalCollision()
-{   
-  if (IsGhost())
-  {
-    GameMessages::GetInstance()->Add ("The ball left the battlefield before exploding");
-    is_active = false ;
-  }
+void BounceBall::SignalOutOfMap()
+{
+  GameMessages::GetInstance()->Add (_("The ball left the battlefield before exploding"));
+  WeaponProjectile::SignalOutOfMap();
 }
 
 //-----------------------------------------------------------------------------
 
-BounceBallLauncher::BounceBallLauncher() : 
+BounceBallLauncher::BounceBallLauncher() :
   WeaponLauncher(WEAPON_BOUNCE_BALL, "bounce_ball", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
-{  
-  m_name = _("BounceBall");
-  projectile = new BounceBall(cfg());
+{
+  m_name = _("Bounce Ball");
+  ReloadLauncher();
+}
+
+WeaponProjectile * BounceBallLauncher::GetProjectileInstance()
+{
+  return dynamic_cast<WeaponProjectile *>
+      (new BounceBall(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
 
 bool BounceBallLauncher::p_Shoot ()
-{  
+{
   if (max_strength == 0)
     projectile->Shoot (10);
-  else 
+  else
     projectile->Shoot (m_strength);
-
+  projectile = NULL;
+  ReloadLauncher();
   return true;
 }

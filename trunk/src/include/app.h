@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -35,14 +35,12 @@ public:
 
 private:
   int x, y;
-  std::string titre_fenetre;
+  std::string windows_title;
 
   static AppWormux * singleton;
 
 private:
   void Init(int, char**);
-  void InitNetwork(int argc, char **argv);
-  void InitScreen();
   void InitWindow();
   void DisplayLoadingPicture();
   void InitFonts();

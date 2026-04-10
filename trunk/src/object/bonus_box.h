@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -26,50 +26,46 @@
 #include "../include/base.h"
 #include "../object/physical_obj.h"
 #include "../team/team.h"
+#include "../weapon/weapons_list.h"
 //-----------------------------------------------------------------------------
 
 class BonusBox : public PhysicalObj
 {
-private:
-  static bool enable;
-  static uint time;
+  private:
+    static bool enable;
+    uint nbr_ammo;
+    static int start_life_points;
 
-  bool parachute; 
-  Sprite *anim;
+    bool parachute; 
+    Sprite *anim;
 
-  enum
-  {
-    // Si vous touchez à cet enum, modifiez aussi nbr_bonus_diff
-    bonusDYNAMITE=1,
-    bonusTELEPORTATION,
-    bonusENERGY,
-    bonusTRAP,
-    bonusAIR_ATTACK,
-    bonusAUTO_BAZOOKA
-  } bonus_weapons;
-  static const uint nb_bonus = bonusAUTO_BAZOOKA;
+    Weapon::Weapon_type contents;
+    static uint weapon_count;
+    static std::map<int,std::pair<Weapon*,int> > weapon_map;
+    static std::map<int,std::pair<Weapon*,int> > weapon_map_no_infinite;
 
- private:
-  BonusBox();
-  static bool PlaceBonusBox (BonusBox& bonus_box);
+  private:
+    void ApplyBonus (Team &team, Character &character);
+    void PickRandomWeapon();
+  public:
+    BonusBox();
+    ~BonusBox();
 
-public:
-  ~BonusBox();
+    static void Enable (bool _enable);
+    static bool NewBonusBox();
+    void DropBonusBox();
+    static void RemoveInfiniteWeapons();
+    static void LoadXml(xmlpp::Element * object);
 
-  // Active les caisses ?
-  static void Enable (bool _enable);
-  static bool NewBonusBox();
+    void Draw();
+    void Refresh();
 
-  // Signale la fin d'une chute
-  virtual void SignalFallEnding();  
-
-  void Draw();
-  void Refresh();
-
- private:
-  void ApplyBonus (Team &team, Character &character);
-
+  protected:
+    // Signal Fall ending
+    virtual void SignalCollision();
+    virtual void SignalDrowning();
+    void SignalGhostState(bool was_already_dead);
 };
 
 //-----------------------------------------------------------------------------
-#endif
+#endif /* BONUS_BOX_H */

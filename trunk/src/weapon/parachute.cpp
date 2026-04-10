@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
  *****************************************************************************/
 
 #include "parachute.h"
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/game.h"
 #include "../game/game_mode.h"
 #include "../game/game_loop.h"
@@ -34,8 +34,8 @@ Parachute::Parachute() : Weapon(WEAPON_PARACHUTE, "parachute", new ParachuteConf
 {
   m_name = _("Parachute");
   m_initial_nb_ammo = 2 ;
-  use_unit_on_first_shoot = false;    
-  
+  use_unit_on_first_shoot = false;
+
   image = resource_manager.LoadSprite(weapons_res_profile,"parachute_sprite");
 }
 
@@ -64,59 +64,60 @@ void Parachute::Draw()
   if (open)
     {
       image->Update();
-      image->Draw(ActiveCharacter().GetPosition() - 
-			  Point2i(ActiveCharacter().GetWidth()/2,image->GetHeight()) );
+      image->Draw(ActiveCharacter().GetHandPosition() - Point2i(image->GetWidth()/2,image->GetHeight()));
     }
 }
 
 void Parachute::Refresh()
 {
-  Point2d speed;
+  double speed;
+  double angle;
 
-  ActiveCharacter().GetSpeedXY(speed);
+  ActiveCharacter().GetSpeed(speed, angle);
 
-  if (ActiveCharacter().FootsInVacuum())
+  if (ActiveCharacter().FootsInVacuum() && speed != 0.0)
     {
-      if (!open && (speed.y > cfg().open_speed_limit))
-	{
-	  if (EnoughAmmo())
-	    {
-	      UseAmmo();
-	      ActiveCharacter().SetAirResistFactor(cfg().air_resist_factor);
-	      ActiveCharacter().SetWindFactor(cfg().wind_factor);
-	      open = true ;
-	      image->animation.SetPlayBackward(false);
-	      image->Start();
-
-	    }
-	}
+      if (!open && (speed > GameMode::GetInstance()->safe_fall))
+      {
+        if (EnoughAmmo())
+        {
+          UseAmmo();
+          ActiveCharacter().SetAirResistFactor(cfg().air_resist_factor);
+          ActiveCharacter().SetWindFactor(cfg().wind_factor);
+          open = true ;
+          image->animation.SetPlayBackward(false);
+          image->Start();
+          ActiveCharacter().SetSpeedXY(Point2d(0,0));
+          ActiveCharacter().SetMovement("parachute");
+        }
+      }
     }
   else
     {
       /* We are on the ground */
       if (open)
-	{
-	  /* The parachute is opened */
-	  if (!closing)
-	    {
-	      /* We have just hit the ground. Start closing animation */
-	      image->animation.SetPlayBackward(true);
-	      image->animation.SetShowOnFinish(SpriteAnimation::show_blank);
-	      image->Start();
-	      closing = true ;
-	    }
-	  else
-	    {/* The parachute is closing */
-	      if (image->IsFinished())
-		{
-		  /* The animation is finished...
-		     We are done with the parachute */
-		  open = false ;
-		  closing = false ;
-		  UseAmmoUnit();
-		}
-	    }
-	}
+      {
+        /* The parachute is opened */
+        if (!closing)
+        {
+          /* We have just hit the ground. Start closing animation */
+          image->animation.SetPlayBackward(true);
+          image->animation.SetShowOnFinish(SpriteAnimation::show_blank);
+          image->Start();
+          closing = true ;
+        }
+        else
+        {/* The parachute is closing */
+          if (image->IsFinished())
+          {
+                  /* The animation is finished...
+            We are done with the parachute */
+            open = false ;
+            closing = false ;
+            UseAmmoUnit();
+          }
+        }
+      }
     }
 }
 
@@ -132,12 +133,10 @@ ParachuteConfig& Parachute::cfg() {
 ParachuteConfig::ParachuteConfig(){ 
   wind_factor = 10.0;
   air_resist_factor = 140.0 ;
-  open_speed_limit = 2.0 ;
 }
 
 void ParachuteConfig::LoadXml(xmlpp::Element *elem){
   WeaponConfig::LoadXml(elem);
-  LitDocXml::LitDouble (elem, "wind_factor", wind_factor);
-  LitDocXml::LitDouble (elem, "air_resist_factor", air_resist_factor);
-  LitDocXml::LitDouble (elem, "open_speed_limit", open_speed_limit);
+  XmlReader::ReadDouble(elem, "wind_factor", wind_factor);
+  XmlReader::ReadDouble(elem, "air_resist_factor", air_resist_factor);
 }

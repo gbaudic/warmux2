@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,7 @@ public:
 	      const std::string &new_text, Font *font);
   ~ButtonText();
 
-  void Draw(const Point2i &mousePosition); 
+  void Draw(const Point2i &mousePosition, Surface& surf) const; 
 };
 
 #endif

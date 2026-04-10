@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon bazooka : projette une roquette avec un angle et une force donnée.
+ * auto bazooka : launch a homing missile
  *****************************************************************************/
 
 #ifndef AUTO_BAZOOKA_H
@@ -28,46 +28,53 @@
 #include "../object/physical_obj.h"
 
 class AutomaticBazooka;
+class AutomaticBazookaConfig;
 
-// Roquette du bazooka à tête chercheuse
-class RoquetteTeteCherche : public WeaponProjectile
+class RPG : public WeaponProjectile
 {
-protected:
-  double angle_local;
-  Point2i m_cible;
-  bool m_attire;
-public:
-  RoquetteTeteCherche(ExplosiveWeaponConfig& cfg);
-  void Refresh();
-  void Shoot(double strength);
-  void SetTarget (int x,int y);
- protected:
-  void SignalCollision();
+  ParticleEngine smoke_engine;
+  protected:
+    double angle_local;
+    Point2i m_target;
+    bool m_targeted;
+    double m_force;
+    uint m_lastrefresh;
+  public:
+    RPG(AutomaticBazookaConfig& cfg,
+                        WeaponLauncher * p_launcher);
+    void Refresh();
+    void Shoot(double strength);
+    void SetTarget (int x,int y);
+
+  protected:
+    void SignalOutOfMap();
+    void SignalDrowning();
 };
 
 class AutomaticBazooka : public WeaponLauncher
 {
-private:
-  
-  struct s_cible
-  {
-    Point2i pos;
-    bool choisie;
-    Surface image;
-  } cible;
-  
-public:
+  private:
+    struct target_t
+    {
+      Point2i pos;
+      bool selected;
+      Surface image;
+    } m_target;
+  public:
+    AutomaticBazooka();
+    void Draw ();
+    bool IsReady() const;
+    virtual void ChooseTarget(Point2i mouse_pos);
+    AutomaticBazookaConfig &cfg();
+  protected:
+    void Refresh();
+    void p_Select(); 
+    void p_Deselect();
 
-  AutomaticBazooka();
+    void DrawTarget();
 
-  void Draw ();
-  void Refresh();
-  void p_Select(); 
-  void p_Deselect();
-
-  bool IsReady() const;
-  virtual void ChooseTarget();
-  void DrawTarget();
+  protected:
+    WeaponProjectile * GetProjectileInstance();
 };
 
-#endif
+#endif /* AUTO_BAZOOKA_H */

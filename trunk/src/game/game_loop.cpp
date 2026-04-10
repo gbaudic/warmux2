@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Boucle de jeu : dessin et gestion des données.
+ * Game loop : drawing and data handling
  *****************************************************************************/
 
 #include "game_loop.h"
@@ -28,6 +28,7 @@
 #include "game.h"
 #include "game_mode.h"
 #include "time.h"
+#include "../ai/ai_engine.h"
 #include "../graphic/fps.h"
 #include "../graphic/video.h"
 #include "../include/action_handler.h"
@@ -37,6 +38,7 @@
 #include "../interface/game_msg.h"
 #include "../interface/interface.h"
 #include "../interface/keyboard.h"
+#include "../interface/loading_screen.h"
 #include "../interface/mouse.h"
 #include "../map/camera.h"
 #include "../map/map.h"
@@ -46,7 +48,7 @@
 #include "../network/randomsync.h"
 #include "../object/bonus_box.h"
 #include "../object/objects_list.h"
-#include "../object/particle.h"
+#include "../particles/particle.h"
 #include "../sound/jukebox.h"
 #include "../team/macro.h"
 #include "../tool/debug.h"
@@ -57,12 +59,12 @@
 
 #define ENABLE_LIMIT_FPS
 
-bool game_initialise = false;
 bool game_fin_partie;
 
 GameLoop * GameLoop::singleton = NULL;
 
-GameLoop * GameLoop::GetInstance() {
+GameLoop * GameLoop::GetInstance()
+{
   if (singleton == NULL) {
     singleton = new GameLoop();
   }
@@ -73,102 +75,53 @@ GameLoop::GameLoop()
 {
   state = PLAYING;
   interaction_enabled = true;
+  current_bonus_box = NULL;
 }
 
 void GameLoop::InitGameData_NetServer()
 {
+  network.client_inited = 1;
   AppWormux * app = AppWormux::GetInstance();
   app->video.SetWindowCaption( std::string("Wormux ") + Constants::VERSION + " - Server mode");
 
   ActionHandler * action_handler = ActionHandler::GetInstance();
-//  action_handler.NewAction(Action(ACTION_ASK_TEAM));
-  do
-    {
-      action_handler->NewAction(Action(ACTION_ASK_VERSION));
-      std::string msg=_("Wait for clients");
-      action_handler->ExecActions();
-      std::cout << msg << std::endl;
-    } while (network.state != Network::NETWORK_SERVER_INIT_GAME);
-  std::cout << "Server init game." << std::endl;
 
-  std::cout << "o " << _("Load map") << std::endl;
-  action_handler->NewAction (ActionString(ACTION_SET_MAP, TerrainActif().name));
+  network.RejectIncoming();
+
+  Action a_change_state(Action::ACTION_CHANGE_STATE);
+  network.SendAction ( &a_change_state );
+  network.state = Network::NETWORK_INIT_GAME;
+
+  SendGameMode();
+
   world.Reset();
 
+  randomSync.Init();
+
+  lst_objects.PlaceBarrels();
+
   std::cout << "o " << _("Initialise teams") << std::endl;
-  teams_list.Reset();
+  teams_list.LoadGamingData(GameMode::GetInstance()->max_characters);
 
-  // For cliens : Create teams
-  action_handler->NewAction (Action(ACTION_CLEAR_TEAMS));
-
-  TeamsList::iterator
-    it=teams_list.playing_list.begin(),
-    end=teams_list.playing_list.end();
-
-  for (; it != end; ++it)
-    {
-      Team& team = **it;
-
-      // cliens : Create teams
-      action_handler->NewAction (ActionString(ACTION_NEW_TEAM, team.GetId()));
-
-      // cliens : Place characters
-      action_handler->NewAction (ActionString(ACTION_CHANGE_TEAM, team.GetId()));
-      Team::iterator
-        tit = team.begin(),
-        tend = team.end();
-      int i=0;
-      for (; tit != tend; ++tit, ++i)
-        {
-          Character &character = *tit;
-          action_handler->NewAction (ActionInt(
-                                              ACTION_CHANGE_CHARACTER, i));
-          action_handler->NewAction (ActionInt2(
-                                               ACTION_MOVE_CHARACTER,
-                                               character.GetX(), character.GetY()));
-          action_handler->NewAction (ActionInt(
-                                              ACTION_SET_CHARACTER_DIRECTION,
-                                              character.GetDirection()));
-          action_handler->NewAction (ActionInt(
-                                              ACTION_SET_FRAME,
-                                              (int)character.image->GetCurrentFrame()));
-        }
-
-      // Select first character
-      action_handler->NewAction (ActionInt(ACTION_CHANGE_CHARACTER, 0));
-    }
-
-  action_handler->NewAction (ActionString(ACTION_CHANGE_TEAM, ActiveTeam().GetId()));
-  action_handler->NewAction (ActionInt(ACTION_CHANGE_CHARACTER, ActiveTeam().ActiveCharacterIndex()));
-
-  // Create objects
-  lst_objects.Init();
-   // @@@ TODO : send objects ... @@@@
-
-  // Remise à zéro
+  lst_objects.PlaceMines();
   std::cout << "o " << _("Initialise data") << std::endl;
-  CurseurVer::GetInstance()->Reset();
+  CharacterCursor::GetInstance()->Reset();
   Mouse::GetInstance()->Reset();
   fps.Reset();
   Interface::GetInstance()->Reset();
   GameMessages::GetInstance()->Reset();
 
-  //Set the second team as a team played from the client
-  TeamsList::iterator team = teams_list.playing_list.begin();
-  (*team)->is_local = true;
-  team++;
-  (*team)->is_local = false;
+  // Tells all clients that the server is ready to play
+  network.SendAction ( &a_change_state );
 
-  //Signale les clients que le jeu peut dÃ©marrer
-  action_handler->NewAction (Action(ACTION_START_GAME));
-  action_handler->ExecActions();
-  network.state = Network::NETWORK_WAIT_CLIENTS;
-  //Attend que le client ait dÃ©marrÃ©
-  while (network.state != Network::NETWORK_PLAYING)
+  // Wait for all clients to be ready to play
+  while (network.state != Network::NETWORK_READY_TO_PLAY)
   {
     action_handler->ExecActions();
     SDL_Delay(200);
   }
+  network.SendAction ( &a_change_state );
+  network.state = Network::NETWORK_PLAYING;
 }
 
 void GameLoop::InitGameData_NetClient()
@@ -176,75 +129,65 @@ void GameLoop::InitGameData_NetClient()
   AppWormux * app = AppWormux::GetInstance();
   app->video.SetWindowCaption( std::string("Wormux ") + Constants::VERSION + " - Client mode");
   ActionHandler * action_handler = ActionHandler::GetInstance();
-  do
-    {
-      std::string msg=_("Wait for server informations");
-      switch(network.state)
-        {
-        case Network::NETWORK_WAIT_SERVER:
-          msg = _("Wait for server");
-          break;
-        case Network::NETWORK_WAIT_MAP:
-          msg = _("Wait for map");
-          break;
-        case Network::NETWORK_WAIT_TEAMS:
-          msg = _("Wait teams");
-          break;
-        default:
-          msg = _("Unknow action");
-          std::cout << "Unknow action for network in game_loop.cpp" << std::endl;
-          break;
-        }
-      action_handler->ExecActions();
-      std::cout << network.state << std::endl;
-      std::cout << msg << std::endl;
-      SDL_Delay(100);
-    } while (network.state != Network::NETWORK_PLAYING);
+  std::cout << "o " << _("Initialise teams") << std::endl;
+
+  world.Reset();
+
+  lst_objects.PlaceBarrels();
+  teams_list.LoadGamingData(GameMode::GetInstance()->max_characters);
+  lst_objects.PlaceMines();
+
+  Action a_change_state(Action::ACTION_CHANGE_STATE);
+
+  network.SendAction (&a_change_state);
+  while (network.state != Network::NETWORK_READY_TO_PLAY)
+  {
+    // The server is placing characters on the map
+    // We can receive new team / map selection
+    action_handler->ExecActions();
+    SDL_Delay(100);
+  }
+
+  std::cout << network.state << " : Waiting for people over the network" << std::endl;
+  while (network.state != Network::NETWORK_PLAYING)
+  {
+    // The server waits for everybody to be ready to start
+    action_handler->ExecActions();
+    SDL_Delay(100);
+  }
   std::cout << network.state << " : Run game !" << std::endl;
-
-  // @@@ TODO @@@
-  lst_objects.Init();
-
-  //Set the second team as a team played from the client
-  TeamsList::iterator team = teams_list.playing_list.begin();
-  (*team)->is_local = false;
-  team++;
-  (*team)->is_local = true;
-
-  //Signal au serveur que la partie dÃ©marre
-  action_handler->NewAction (Action(ACTION_START_GAME));
 }
 
 void GameLoop::InitData_Local()
 {
-  // Placement des vers
   std::cout << "o " << _("Find a random position for characters") << std::endl;
   world.Reset();
-  lst_terrain.TerrainActif().FreeData();
-  teams_list.Reset();
+  MapsList::GetInstance()->ActiveMap().FreeData();
+  lst_objects.PlaceBarrels();
+  teams_list.LoadGamingData(0);
 
-  // Remise à zéro
   std::cout << "o " << _("Initialise objects") << std::endl;
-  lst_objects.Init();
+  lst_objects.PlaceMines();
 }
 
 void GameLoop::InitData()
 {
   Time::GetInstance()->Reset();
 
-  if (network.is_server())
+  if (network.IsServer())
     InitGameData_NetServer();
-  else if (network.is_client())
+  else if (network.IsClient())
     InitGameData_NetClient();
   else
     InitData_Local();
 
-  randomSync.Init();
-  CurseurVer::GetInstance()->Reset();
+  CharacterCursor::GetInstance()->Reset();
   Mouse::GetInstance()->Reset();
-  Clavier::GetInstance()->Reset();
+  Config::GetInstance()->GetKeyboard()->Reset();
 
   fps.Reset();
+  if(network.IsConnected())
+     chatsession.Reset();
   Interface::GetInstance()->Reset();
   GameMessages::GetInstance()->Reset();
   ParticleEngine::Init();
@@ -252,36 +195,20 @@ void GameLoop::InitData()
 
 void GameLoop::Init ()
 {
-  // Display loading screen
-  Config * config = Config::GetInstance();
-  AppWormux * app = AppWormux::GetInstance();
-
-  Sprite * loading_image = new Sprite(Surface((
-			     config->GetDataDir() + PATH_SEPARATOR
-			     + "menu" + PATH_SEPARATOR
-			     + "img" + PATH_SEPARATOR
-			     + "loading.png").c_str()));
-  loading_image->cache.EnableLastFrameCache();
-  loading_image->ScaleSize(app->video.window.GetWidth(), app->video.window.GetHeight());
-  loading_image->Blit( app->video.window, 0, 0);
-  app->video.Flip();
-
-  delete loading_image;
+  // Display Loading screen
+  LoadingScreen::GetInstance()->DrawBackground();
 
   Game::GetInstance()->MessageLoading();
 
   // Init all needed data
-  if (!game_initialise)
-  {
-    std::cout << "o " << _("Initialisation") << std::endl;
-    Interface::GetInstance()->Init();
-    CurseurVer::GetInstance()->Init();
-    game_initialise = true;
-  }
+  std::cout << "o " << _("Initialisation") << std::endl;
 
+  // Load the map
+  LoadingScreen::GetInstance()->StartLoading(1, "map_icon", _("Maps"));
   InitData();
 
   // Init teams
+  LoadingScreen::GetInstance()->StartLoading(2, "team_icon", _("Teams"));
 
   // Teams' creation
   if (teams_list.playing_list.size() < 2)
@@ -290,9 +217,13 @@ void GameLoop::Init ()
   assert (teams_list.playing_list.size() <= GameMode::GetInstance()->max_teams);
 
   // Initialization of teams' energy
+  LoadingScreen::GetInstance()->StartLoading(3, "weapon_icon", _("Weapons"));
+
   teams_list.InitEnergy();
 
   // Load teams' sound profiles
+  LoadingScreen::GetInstance()->StartLoading(4, "sound_icon", _("Sounds"));
+
   jukebox.LoadXML("default");
   FOR_EACH_TEAM(team)
     if ( (**team).GetSoundProfile() != "default" )
@@ -304,86 +235,71 @@ void GameLoop::Init ()
 
   Game::GetInstance()->SetEndOfGameStatus( false );
 
-  Mouse::GetInstance()->SetPointer(POINTER_SELECT);
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
 
+  // First "selection" of a weapon -> fix bug 6576
   ActiveTeam().AccessWeapon().Select();
 
-  SetState (PLAYING, true);
+  SetState(PLAYING, true);
 }
 
-void GameLoop::Refresh()
+void GameLoop::RefreshInput()
 {
-  RefreshClock();
-  GameMessages::GetInstance()->Refresh();
-  camera.Refresh();
-
-  // Mise à jeu des entrées (clavier / mouse)
-  // Poll and treat events
+  // Poll and treat keyboard and mouse events
   SDL_Event event;
 
-   while( SDL_PollEvent( &event) )
-     {
-        if ( event.type == SDL_QUIT)
-          {
-             std::cout << "SDL_QUIT received ===> exit TODO" << std::endl;
-             Game::GetInstance()->SetEndOfGameStatus( true );
-             std::cout << "FIN PARTIE" << std::endl;
-             return;
-          }
-        if ( event.type == SDL_MOUSEBUTTONDOWN )
-          {
-             Mouse::GetInstance()->TraiteClic( &event);
-          }
-        if ( event.type == SDL_KEYDOWN
-        ||   event.type == SDL_KEYUP)
-          {
-             if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE)
-             {
-                  Game::GetInstance()->SetEndOfGameStatus( true );
-                  std::cout << "FIN PARTIE" << std::endl;
-                  return;
-             }
-
-             Clavier::GetInstance()->HandleKeyEvent( &event);
-          }
-     }
-
-  // How many frame by seconds ?
-  fps.Refresh();
-
-  //--- D'abord ce qui pourrait modifier les données d'un ver ---
-
-  if (!Time::GetInstance()->IsGamePaused())
-  {
-    // Keyboard and mouse refresh
-    if (
-        (interaction_enabled && state != END_TURN)
-        || (ActiveTeam().GetWeapon().IsActive() && ActiveTeam().GetWeapon().override_keys) // for driving supertux for example
-        )
-    {
-      Mouse::GetInstance()->Refresh();
-      Clavier::GetInstance()->Refresh();
+  while(SDL_PollEvent(&event)) {
+    if ( event.type == SDL_QUIT) {
+      std::cout << "SDL_QUIT received ===> exit TODO" << std::endl;
+      Game::GetInstance()->SetEndOfGameStatus( true );
+      std::cout << "FIN PARTIE" << std::endl;
+      return;
     }
-
-    ActionHandler::GetInstance()->ExecActions();
-    FOR_ALL_CHARACTERS(equipe,ver) ver -> Refresh();
-
-    // Recalcule l'energie des equipes
-    FOR_EACH_TEAM(team)
-      (**team).Refresh();
-    teams_list.RefreshEnergy();
-
-    //--- Ensuite, actualise le reste du jeu ---
-
-    ActiveTeam().AccessWeapon().Manage();
-    lst_objects.Refresh();
-    ParticleEngine::Refresh();
-    CurseurVer::GetInstance()->Refresh();
-
+    if ( event.type == SDL_MOUSEBUTTONDOWN ) {
+      Mouse::GetInstance()->TraiteClic( &event);
+    }
+    if ( event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+      if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE) {
+        Game::GetInstance()->SetEndOfGameStatus( true );
+        std::cout << "FIN PARTIE" << std::endl;
+        return;
+      }
+      Config::GetInstance()->GetKeyboard()->HandleKeyEvent( &event);
+    }
   }
 
-  // Refresh the map
-  world.Refresh();
+  // Keyboard and mouse refresh
+  if ((interaction_enabled && state != END_TURN) ||
+      (ActiveTeam().GetWeapon().IsActive() &&
+       ActiveTeam().GetWeapon().override_keys)) { // for driving supertux for example
+    Mouse::GetInstance()->Refresh();
+    Config::GetInstance()->GetKeyboard()->Refresh();
+    AIengine::GetInstance()->Refresh();
+  }
+  
+  // Execute action
+  do {
+    ActionHandler::GetInstance()->ExecActions();
+    if(network.sync_lock) SDL_Delay(SDL_TIMESLICE);
+  } while(network.sync_lock);
+
+  GameMessages::GetInstance()->Refresh();
+  camera.Refresh();
+}
+
+void GameLoop::RefreshObject()
+{
+  FOR_ALL_CHARACTERS(team,character)
+    character->Refresh();
+  // Recompute energy of each team
+  FOR_EACH_TEAM(team)
+    (**team).Refresh();
+  teams_list.RefreshEnergy();
+  
+  ActiveTeam().AccessWeapon().Manage();
+  lst_objects.Refresh();
+  ParticleEngine::Refresh();
+  CharacterCursor::GetInstance()->Refresh();
 }
 
 void GameLoop::Draw ()
@@ -400,36 +316,49 @@ void GameLoop::Draw ()
 
   // Draw the characters
   StatStart("GameDraw:characters");
-  FOR_ALL_CHARACTERS(equipe,ver) {
-    if (&(*ver) != &ActiveCharacter()) {
-      ver -> Draw();
-    }
-  }
+  FOR_ALL_CHARACTERS(team,character)
+    if (!character->IsActiveCharacter())
+      character->Draw();
 
+  StatStart("GameDraw:particles_behind_active_character");
   ParticleEngine::Draw(false);
+  StatStop("GameDraw:particles_behind_active_character");
 
+  StatStart("GameDraw:active_character");
   ActiveCharacter().Draw();
   if (!ActiveCharacter().IsDead() && state != END_TURN) {
         ActiveTeam().crosshair.Draw();
         ActiveTeam().AccessWeapon().Draw();
   }
+  StatStop("GameDraw:active_character");
   StatStop("GameDraw:characters");
 
-  StatStart("GameDraw:other");
+  // Draw objects
+  StatStart("GameDraw:objects");
   lst_objects.Draw();
   ParticleEngine::Draw(true);
-  CurseurVer::GetInstance()->Draw();
+  StatStart("GameDraw:objects");
 
+  // Draw arrow on top of character
+  StatStart("GameDraw:arrow_character");
+  CharacterCursor::GetInstance()->Draw();
+  StatStop("GameDraw:arrow_character");
+
+  // Draw waters
+  StatStart("GameDraw:water");
   world.DrawWater();
+  StatStop("GameDraw:water");
 
-  FOR_EACH_TEAM(team)
-    (**team).Draw();
-
+  // Draw game messages
+  StatStart("GameDraw::game_messages");
   GameMessages::GetInstance()->Draw();
+  StatStop("GameDraw::game_messages");
 
+  // Draw optionals
+  StatStart("GameDraw:fps_and_map_author_name");
   world.DrawAuthorName();
-
   fps.Draw();
+  StatStop("GameDraw:fps_and_map_author_name");
 
   StatStop("GameDraw:other");
 
@@ -438,17 +367,20 @@ void GameLoop::Draw ()
   Interface::GetInstance()->Draw ();
   StatStop("GameDraw:interface");
 
-  StatStart("GameDraw:end");
-
-  // Display wind bar
-  wind.Draw();
-  StatStop("GameDraw:end");
+  // Draw MsgBox for chat network
+  if(network.IsConnected()){
+    StatStart("GameDraw:chatsession");
+    chatsession.Show();
+    StatStop("GameDraw:chatsession");
+  }
 
   // Add one frame to the fps counter ;-)
   fps.AddOneFrame();
 
   // Draw the mouse pointer
+  StatStart("GameDraw:mouse_pointer");
   Mouse::GetInstance()->Draw();
+  StatStart("GameDraw:mouse_pointer");
 }
 
 void GameLoop::CallDraw()
@@ -459,50 +391,60 @@ void GameLoop::CallDraw()
   StatStop("GameDraw:flip()");
 }
 
+void GameLoop::PingClient()
+{
+  Action * a = new Action(Action::ACTION_PING);
+  ActionHandler::GetInstance()->NewAction(a);
+}
+
 void GameLoop::Run()
 {
-#ifdef ENABLE_LIMIT_FPS
-  uint sleep_fps=0;
-  uint delay=0;
-#endif
+  int delay = 0;
+  uint time_of_next_frame = SDL_GetTicks();
+  uint previous_time_frame = 0;
 
-  // boucle until game is finished
+  // loop until game is finished
   do
   {
-#ifdef ENABLE_LIMIT_FPS
-    unsigned int start = SDL_GetTicks();
-#endif
-
     Game::GetInstance()->SetEndOfGameStatus( false );
 
-    // one loop
-    StatStart("GameLoop:Refresh()");
-    Refresh();
-    StatStop("GameLoop:Refresh()");
-    StatStart("GameLoop:Draw()");
-    CallDraw ();
-    StatStop("GameLoop:Draw()");
-
+    // Refresh clock value
+    RefreshClock();
+    if(Time::GetInstance()->Read() % 1000 == 20 && network.IsServer())
+      PingClient();
+    StatStart("GameLoop:RefreshInput()");
+    RefreshInput();
+    StatStop("GameLoop:RefreshInput()");
+    if(previous_time_frame < Time::GetInstance()->Read()) {
+      StatStart("GameLoop:RefreshObject()");
+      RefreshObject();
+      StatStop("GameLoop:RefreshObject()");
+    } else {
+      previous_time_frame = Time::GetInstance()->Read();
+    }
+    // Refresh the map
+    world.Refresh();
     // try to adjust to max Frame by seconds
-#ifdef ENABLE_LIMIT_FPS
-    delay = SDL_GetTicks()-start;
-
-    if (delay < AppWormux::GetInstance()->video.GetSleepMaxFps())
-      sleep_fps = AppWormux::GetInstance()->video.GetSleepMaxFps() - delay;
-    else
-      sleep_fps = 0;
-    if(sleep_fps >= SDL_TIMESLICE)
-      SDL_Delay(sleep_fps);
-#endif
-  } while( !Game::GetInstance()->GetEndOfGameStatus() );
-
-  ParticleEngine::Stop();
+    time_of_next_frame += Time::GetInstance()->GetDelta();
+    if (time_of_next_frame > SDL_GetTicks()) {
+      StatStart("GameLoop:Draw()");
+      CallDraw();
+      // How many frame by seconds ?
+      fps.Refresh();
+      StatStop("GameLoop:Draw()");
+    }
+    delay = time_of_next_frame - SDL_GetTicks();
+    if (delay >= 0)
+      SDL_Delay(delay);
+  } while( !Game::GetInstance()->GetEndOfGameStatus() 
+	   && !Game::GetInstance()->IsGamePaused());
 }
 
 void GameLoop::RefreshClock()
 {
   Time * global_time = Time::GetInstance();
   if (global_time->IsGamePaused()) return;
+  global_time->Refresh();
 
   if (1000 < global_time->Read() - pause_seconde)
     {
@@ -513,7 +455,7 @@ void GameLoop::RefreshClock()
       case PLAYING:
         if (duration <= 1) {
            jukebox.Play("share", "end_turn");
-           SetState (END_TURN);
+           SetState(END_TURN);
         } else {
           duration--;
           Interface::GetInstance()->UpdateTimer(duration);
@@ -556,6 +498,16 @@ void GameLoop::RefreshClock()
     }// if
 }
 
+void GameLoop::SetCurrentBonusBox(BonusBox * current_box)
+{
+  current_bonus_box = current_box;
+}
+
+BonusBox * GameLoop::GetCurrentBonusBox() const
+{
+  return current_bonus_box;
+}
+
 void GameLoop::SetState(int new_state, bool begin_game)
 {
   ActionHandler * action_handler = ActionHandler::GetInstance();
@@ -565,9 +517,9 @@ void GameLoop::SetState(int new_state, bool begin_game)
 
   state = new_state;
 
-  action_handler->ExecActions();
+  if(begin_game)
+    action_handler->ExecActions();
 
-  //
   Interface::GetInstance()->weapons_menu.Hide();
 
   Time * global_time = Time::GetInstance();
@@ -575,9 +527,11 @@ void GameLoop::SetState(int new_state, bool begin_game)
 
   switch (state)
   {
-  // Début d'un tour
+  // Begining of a new turn:
   case PLAYING:
     MSG_DEBUG("game.statechange", "Playing" );
+    // Center the cursor
+    Mouse::GetInstance()->CenterPointer();
 
     // Init. le compteur
     duration = game_mode->duration_turn;
@@ -585,18 +539,19 @@ void GameLoop::SetState(int new_state, bool begin_game)
     Interface::GetInstance()->EnableDisplayTimer(true);
     pause_seconde = global_time->Read();
 
-    if (network.is_server() || network.is_local())
+    if (network.IsServer() || network.IsLocal())
      wind.ChooseRandomVal();
 
      character_already_chosen = false;
 
-    // Prépare un tour pour un ver
-    FOR_ALL_LIVING_CHARACTERS(equipe,ver) ver -> PrepareTurn();
+    // Prepare each character for a new turn
+    FOR_ALL_LIVING_CHARACTERS(team,character)
+        character->PrepareTurn();
 
-    // Changement d'équipe
+    // Select the next team
     assert (!Game::GetInstance()->IsGameFinished());
 
-    if(network.is_local() || network.is_server())
+    if(network.IsLocal() || network.IsServer())
     {
       do
       {
@@ -604,68 +559,90 @@ void GameLoop::SetState(int new_state, bool begin_game)
         action_handler->ExecActions();
       } while (ActiveTeam().NbAliveCharacter() == 0);
 
+
       if( game_mode->allow_character_selection==GameMode::CHANGE_ON_END_TURN
        || game_mode->allow_character_selection==GameMode::BEFORE_FIRST_ACTION_AND_END_TURN)
       {
-              action_handler->NewAction(ActionInt(ACTION_CHANGE_CHARACTER,
-                                       ActiveTeam().NextCharacterIndex()));
+        ActiveTeam().NextCharacter();
+      }
+
+      if( network.IsServer() )
+      {
+        // Tell to clients which character in the team is now playing
+        Action playing_char(Action::ACTION_CHANGE_CHARACTER);
+        playing_char.StoreActiveCharacter();
+        network.SendAction(&playing_char);
+
+        printf("Action_ChangeCharacter:\n");
+        printf("char_index = %i\n",ActiveCharacter().GetCharacterIndex());
+        printf("Playing character : %i %s\n", ActiveCharacter().GetCharacterIndex(), ActiveCharacter().GetName().c_str());
+        printf("Playing team : %i %s\n", ActiveCharacter().GetTeamIndex(), ActiveTeam().GetName().c_str());
+        printf("Alive characters: %i / %i\n\n",ActiveTeam().NbAliveCharacter(),ActiveTeam().GetNbCharacters());
+
       }
     }
 
     action_handler->ExecActions();
 
 //    assert (!ActiveCharacter().IsDead());
-    camera.ChangeObjSuivi (&ActiveCharacter(), true, true);
+    camera.FollowObject (&ActiveCharacter(), true, true);
     interaction_enabled = true; // Be sure that we can play !
+
+    // Applying Disease damage and Death mode.
+    ApplyDiseaseDamage();
+    ApplyDeathMode();
+
     break;
 
-  // Un ver a joué son arme, mais peut encore se déplacer
+  // The character have shooted, but can still move
   case HAS_PLAYED:
     MSG_DEBUG("game.statechange", "Has played, now can move");
     duration = game_mode->duration_move_player;
     pause_seconde = global_time->Read();
     Interface::GetInstance()->UpdateTimer(duration);
-    CurseurVer::GetInstance()->Cache();
+    CharacterCursor::GetInstance()->Hide();
     break;
 
-  // Fin du tour : petite pause
+  // Little pause at the end of the turn
   case END_TURN:
     MSG_DEBUG("game.statechange", "End of turn");
     ActiveTeam().AccessWeapon().SignalTurnEnd();
-    CurseurVer::GetInstance()->Cache();
+    CharacterCursor::GetInstance()->Hide();
     duration = game_mode->duration_exchange_player;
     Interface::GetInstance()->UpdateTimer(duration);
     Interface::GetInstance()->EnableDisplayTimer(false);
     pause_seconde = global_time->Read();
 
     interaction_enabled = false; // Be sure that we can NOT play !
+    if(network.IsServer())
+      SyncCharacters(); // Send information about energy and the position of every character
     break;
   }
 }
 
 PhysicalObj* GameLoop::GetMovingObject()
 {
-  if (!ActiveCharacter().IsReady()) return &ActiveCharacter();
+  if (!ActiveCharacter().IsImmobile()) return &ActiveCharacter();
 
-  FOR_ALL_CHARACTERS(equipe,ver)
+  FOR_ALL_CHARACTERS(team,character)
   {
-    if (!ver -> IsReady() && !ver -> IsGhost())
+    if (!character->IsImmobile() && !character->IsGhost())
     {
-      MSG_DEBUG("game.endofturn", "%s is not ready", (*ver).GetName().c_str())
-      return &(*ver);
+      MSG_DEBUG("game.endofturn", "%s is not ready", character->GetName().c_str())
+      return &(*character);
     }
   }
 
   FOR_EACH_OBJECT(object)
   {
-    if (!object -> ptr ->IsReady())
+    if (!(*object)->IsImmobile())
     {
-      MSG_DEBUG("game.endofturn", "%s is not ready", object-> ptr ->GetName().c_str())
-      return object->ptr;
+      MSG_DEBUG("game.endofturn", "%s is moving", (*object)->GetName().c_str())
+      return (*object);
     }
   }
 
-  return NULL;
+  return ParticleEngine::IsSomethingMoving();
 }
 
 bool GameLoop::IsAnythingMoving()
@@ -680,7 +657,7 @@ bool GameLoop::IsAnythingMoving()
     PhysicalObj *obj = GetMovingObject();
     if (obj != NULL)
     {
-      camera.ChangeObjSuivi (obj, true, true);
+      camera.FollowObject (obj, true, true);
       object_still_moving = true;
     }
   }
@@ -700,10 +677,10 @@ void GameLoop::SignalCharacterDeath (Character *character)
     txt = Format(_("%s has fallen in water."), character -> GetName().c_str());
 
   } else if (&ActiveCharacter() == character) { // Active Character is dead
-    CurseurVer::GetInstance()->Cache();
+    CharacterCursor::GetInstance()->Hide();
 
     // Is this a suicide ?
-    if (ActiveTeam().GetWeaponType() == WEAPON_SUICIDE) {
+    if (ActiveTeam().GetWeaponType() == Weapon::WEAPON_SUICIDE) {
       txt = Format(_("%s commits suicide !"), character -> GetName().c_str());
 
       // Dead in moving ?
@@ -712,36 +689,64 @@ void GameLoop::SignalCharacterDeath (Character *character)
                    character -> GetName().c_str());
        jukebox.Play(ActiveTeam().GetSoundProfile(), "out");
 
-      // Mort en se faisant toucher par son arme / la mort d'un ennemi ?
+      // The playing character killed hisself
     } else {
       txt = Format(_("%s is dead because he is clumsy!"),
                    character -> GetName().c_str());
     }
-  } else if ((!ActiveCharacter().IsDead())
-             && (&character -> GetTeam() == &ActiveTeam())) {
+  } else if (!ActiveCharacter().IsDead()
+             && character->GetTeam().IsSameAs(ActiveTeam()) ) {
     txt = Format(_("%s is a psychopath, he has killed a member of %s team!"),
                  ActiveCharacter().GetName().c_str(), character -> GetName().c_str());
-  } else if (ActiveTeam().GetWeaponType() == WEAPON_GUN) {
+  } else if (ActiveTeam().GetWeaponType() == Weapon::WEAPON_GUN) {
     txt = Format(_("What a shame for %s - he was killed by a simple gun!"),
                  character -> GetName().c_str());
   } else {
-    // Affiche la mort du ver
-    txt = Format(_("%s (%s team) has died."),
+    txt = Format(_("%s (%s) has died."),
                  character -> GetName().c_str(),
                  character -> GetTeam().GetName().c_str());
   }
 
   GameMessages::GetInstance()->Add (txt);
 
-  // Si c'est le ver actif qui est mort, fin du tour
-  if (character == &ActiveCharacter()) SetState (END_TURN);
+  // Turn end if the playing character is dead
+  if (character->IsActiveCharacter())
+    SetState(END_TURN);
 }
 
-// Signal falling (with damage) of a character
-void GameLoop::SignalCharacterDamageFalling (Character *character)
+// Signal falling or any kind of damage of a character
+void GameLoop::SignalCharacterDamage(Character *character)
 {
-  if (character == &ActiveCharacter())
-    {
-      SetState (END_TURN);
+  if (character->IsActiveCharacter())
+    SetState(END_TURN);
+}
+
+// Apply Disease damage
+void GameLoop::ApplyDiseaseDamage()
+{
+  FOR_ALL_LIVING_CHARACTERS(team, character) {
+    if (character->IsDiseased()) {
+      character->SetEnergyDelta(-character->GetDiseaseDamage());
+      character->DecDiseaseDuration();
     }
+  }
+}
+
+// Reduce energy of each character if we are in death mode
+void GameLoop::ApplyDeathMode ()
+{
+  if(Time::GetInstance()->Read() > GameMode::GetInstance()->duration_before_death_mode * 1000)
+  {
+    GameMessages::GetInstance()->Add (_("Hurry up, you are too slow !!"));
+    FOR_ALL_LIVING_CHARACTERS(team, character)
+    {
+      // If the character energy is lower than damage
+      // per turn we reduce the character's health to 1
+      if (static_cast<uint>(character->GetEnergy()) >
+          GameMode::GetInstance()->damage_per_turn_during_death_mode)
+        character->SetEnergyDelta(-GameMode::GetInstance()->damage_per_turn_during_death_mode);
+      else
+        character->SetEnergy(1);
+    }
+  }
 }

@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources SYSTEM "weapons.dtd" []>
 <resources>
 
 <!-- Common ressources (explosion and impact) -->
@@ -11,12 +12,22 @@
     <image file="object/smoke3.png" />
   </sprite>
   
+  <sprite name="ill_bubble">
+    <image file="object/ill_bubble.png" />
+  </sprite>
+  
   <sprite name="fire_particle">
-    <image file="object/fire.png" />
+    <image file="object/fire.png" >
+      <grid pos="0,0" size="32,35" array="6,1" />
+    </image>
   </sprite>
   
   <sprite name="star_particle">
     <image file="object/star.png" />
+  </sprite>
+
+  <sprite name="dark_smoke">
+    <image file="object/dark_smoke.png" />
   </sprite>
 
   <sprite name="yellow_star_particle">
@@ -29,6 +40,10 @@
 
   <sprite name="pink_star_particle">
     <image file="object/pink_star.png" />
+  </sprite>
+
+  <sprite name="bullet_particle">
+    <image file="weapon/gun/gun_bullet.png" />
   </sprite>
 
 <!-- Air attack ressources -->
@@ -59,6 +74,7 @@
 <!-- Baseball ressources -->
 
   <surface name="baseball_ico" file="weapon/baseball/baseball_ico.png" />
+  <surface name="baseball_fire" file="weapon/baseball/baseball_hit.png" />
   <surface name="baseball" file="weapon/baseball/baseball.png" />
 
 <!-- Bazooka ressources -->
@@ -68,6 +84,24 @@
   <surface name="baz_cible" file="weapon/bazooka/baz_cible.png" />
   <sprite name="rocket">
     <image file="weapon/bazooka/missile.png" />
+  </sprite>
+
+<!-- Riot bomb ressources -->
+
+  <surface name="riot_bomb_ico" file="weapon/riot_bomb/riot_ico.png" />
+  <surface name="riot_bomb" file="weapon/bazooka/bazooka.png" />
+  <surface name="riot_cible" file="weapon/bazooka/baz_cible.png" />
+  <sprite name="riot_rocket">
+    <image file="weapon/riot_bomb/missile.png" />
+  </sprite>
+
+  <!-- Anvil ressources -->
+
+  <surface name="anvil_launcher" file="weapon/anvil/anvil_launcher.png" />
+  <surface name="anvil_launcher_ico" file="weapon/anvil/anvil_ico.png" />
+  <surface name="anvil" file="weapon/anvil/anvil.png" />
+  <sprite name="anvil">
+    <image file="weapon/anvil/anvil.png" />
   </sprite>
 
 <!-- Bounce ball ressources -->
@@ -87,6 +121,14 @@
   </sprite>
   <sprite name="cluster">
     <image file="weapon/cluster_bomb/cluster.png" />
+  </sprite>
+
+<!-- Construct resources -->
+
+  <surface name="construct_ico" file="weapon/construct/construct_icon.png" />
+  <surface name="construct" file="weapon/construct/construct_icon_mini.png" />
+  <sprite name="construct_spr">
+    <image file="weapon/construct/construct_spr.png" />
   </sprite>
 
 <!-- Dynamite ressources -->
@@ -116,19 +158,29 @@
 
   <surface name="gun_ico" file="weapon/gun/gun_ico.png" />
   <surface name="gun" file="weapon/gun/gun.png" />
+  <surface name="gun_fire" file="weapon/gun/gun_fire.png" />
   <sprite name="gun_bullet">
     <image file="weapon/gun/gun_bullet.png" />
   </sprite>	
 
-<!-- Holly Grenade ressources -->
+  <!-- Shotgun ressources -->
+
+  <surface name="shotgun_ico" file="weapon/shotgun/shotgun_ico.png" />
+  <surface name="shotgun_fire" file="weapon/gun/gun_fire.png" />
+  <sprite name="buckshot">
+    <image file="weapon/shotgun/buckshot.png" />
+  </sprite>
+  <surface name="shotgun" file="weapon/shotgun/shotgun.png" />
+
+  <!-- Holly Grenade ressources -->
   
-  <surface name="holly_grenade_ico" file="weapon/holly_grenade/holly_grenade_ico.png" />
-   <surface name="holly_grenade" file="weapon/holly_grenade/holly_grenade.png" />
-  <sprite name="holly_grenade">
-    <image file="weapon/holly_grenade/holly_grenade.png" />
+  <surface name="disco_grenade_ico" file="weapon/disco_grenade/disco_grenade_ico.png" />
+   <surface name="disco_grenade" file="weapon/disco_grenade/disco_grenade.png" />
+  <sprite name="disco_grenade">
+    <image file="weapon/disco_grenade/disco_grenade.png" />
   </sprite>
 
-<!-- Gnu ressources -->
+  <!-- Gnu ressources -->
   
   <surface name="gnulauncher_ico" file="weapon/gnu/gnu_ico.png" />
   <surface name="gnulauncher" file="weapon/gnu/gnulauncher.png" />
@@ -138,7 +190,21 @@
     </image>
     <animation speed="35" loop_mode="pingpong" />
   </sprite>
-
+  
+  <!-- Polecat ressources -->
+  
+  <surface name="polecatlauncher_ico" file="weapon/polecat/polecat_ico.png" />
+  <surface name="polecatlauncher" file="weapon/polecat/polecatlauncher.png" />
+  <sprite name="polecat_fart">
+    <image file="weapon/polecat/polecat_fart.png" />
+  </sprite>
+  <sprite name="polecat">
+    <image file="weapon/polecat/polecat.png">
+      <grid pos="0,0" size="47,38" array="1,1" />
+    </image>
+    <animation speed="35" loop_mode="pingpong" />
+  </sprite>
+  
 <!-- JetPack ressources -->
 
   <surface name="jetpack" file="weapon/jet_pack/jet_pack.png" />
@@ -155,7 +221,7 @@
   <surface name="minelauncher" file="weapon/mine/mine.png" />
   <sprite name="mine">
     <image file="weapon/mine/mine_anim.png">
-      <grid size="16,8" array="2,1" />
+      <grid pos="0,0" size="16,8" array="2,1" />
     </image>
   </sprite>
   <surface name="mine_impact" file="weapon/mine/mine_impact.png" />
@@ -201,8 +267,8 @@
   <sprite name="supertux">
     <image file="weapon/supertux/superman.png">
       <grid pos="0,0" size="23,37" array="2,1" />
-      <animation speed="800"/>
     </image>
+    <animation speed="800"/>
   </sprite>
 
 <!-- Teleportation ressources -->
@@ -210,12 +276,35 @@
   <surface name="teleportation_ico" file="weapon/teleportation/teleportation_ico.png" />
   <surface name="teleportation" file="weapon/teleportation/teleportation.png" />
 
-<!-- Uzi ressources -->
+  <!-- M16 ressources -->
 
-  <surface name="uzi_ico" file="weapon/uzi/uzi_ico.png" />
-  <sprite name="uzi_bullet">
+  <surface name="m16_ico" file="weapon/m16/m16_ico.png" />
+  <surface name="m16_fire" file="weapon/gun/gun_fire.png" />
+  <sprite name="m16_bullet">
     <image file="weapon/gun/gun_bullet.png" />
-  </sprite>	
-  <surface name="uzi" file="weapon/uzi/uzi.png" />
+  </sprite>
+  <surface name="m16" file="weapon/m16/m16.png" />
+
+  <!-- Snipe rifle ressources -->
+
+  <surface name="snipe_rifle" file="weapon/snipe_rifle/snipe_rifle.png" />
+  <surface name="snipe_rifle_ico" file="weapon/snipe_rifle/snipe_rifle_ico.png" />
+  <color name="snipe_rifle_laser_color" r="255" g="0" b="0" a="100" />
+  <surface name="snipe_rifle_laser" file="weapon/snipe_rifle/snipe_rifle_laser.png" />
+  <surface name="snipe_rifle_fire" file="weapon/gun/gun_fire.png" />
+  <sprite name="snipe_rifle_bullet">
+    <image file="weapon/gun/gun_bullet.png" />
+  </sprite>
+
+  <!-- Blowtorch rifle ressources -->
+
+  <surface name="blowtorch" file="weapon/blowtorch/blowtorch.png" />
+  <surface name="blowtorch_ico" file="weapon/blowtorch/blowtorch_ico.png" />
+  <surface name="blowtorch_fire" file="weapon/blowtorch/fire.png" />
+
+  <!-- Syring resources -->
+
+  <surface name="syringe_ico" file="weapon/syringe/syringe_ico.png" />
+  <surface name="syringe" file="weapon/syringe/syringe.png" />
 
 </resources>

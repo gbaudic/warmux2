@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,9 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Caméra : gêre la position à l'intérieur du terrain. On peut "suivre" un
- * objet et se centrer sur un objet. Lors d'un déplacement manuel (au clavier
- * ou à la souris), le mode "suiveur" est désactivé.
+ * Camera : follow an object, center on it or follow mouse interaction.
  *****************************************************************************/
 
 #ifndef SCROLLING_H
@@ -31,24 +29,25 @@
 
 class Camera : public Rectanglei{
 public:
-  bool autorecadre;
+  bool auto_crop;
 
 private:
-  PhysicalObj* obj_suivi;
-  bool lance;
+  PhysicalObj* followed_object;
+  bool throw_camera;
+  bool follow_closely;
 
 public:
   Camera();
 
-  // Scrolle le fond en X ou Y
+  // set camera to position
   void SetXY(Point2i pos);
   void SetXYabs(int x, int y);
   void SetXYabs(const Point2i &pos);
 
-  // Recadrage automatique sur l'objet suivi
-  void ChangeObjSuivi (PhysicalObj *obj, 
-		       bool suit, bool recentre,
-		       bool force_recentrage=false);
+  // Auto crop on an object
+  void FollowObject (PhysicalObj *obj,
+                     bool follow, bool center_on,
+                     bool force_center_on_object=false);
   void StopFollowingObj (PhysicalObj* obj);
 
   bool IsVisible(const PhysicalObj &obj);
@@ -62,7 +61,10 @@ public:
 
   void CenterOn(const PhysicalObj &obj);
   void CenterOnFollowedObject();
-  void AutoRecadre();
+  void AutoCrop();
+  void SetAutoCrop(bool crop);
+  bool IsAutoCrop() const;
+  void SetCloseFollowing(bool close);
 };
 
 extern Camera camera;

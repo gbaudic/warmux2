@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -31,26 +31,27 @@
 #include "../tool/random.h"
 #include "../tool/resource_manager.h"
 #include "../tool/xml_document.h"
+#include "../interface/interface.h"
 
 const uint MAX_WIND_OBJECTS = 200;
 const uint BARRE_LARG = 80;
 const uint BARRE_HAUT = 10;
-const double force = 5; // Force maximale du vent en m/(sec*sec)
-const uint barre_speed = 20;
+const double force = 5; // Max wind strength in m/(sec*sec)
+const uint bar_speed = 20;
 
 Wind wind;
 
 WindParticle::WindParticle(std::string &xml_file) :
   PhysicalObj("wind",xml_file)
 {
-  m_type = objUNBREAKABLE;
+  SetCollisionModel(true, false, false);
 
-  sprite = resource_manager.LoadSprite( TerrainActif().res_profile, "wind_particle");
+  sprite = resource_manager.LoadSprite( ActiveMap().ResProfile(), "wind_particle");
 //  if(sprite->GetFrameCount()==1)
 //    sprite->cache.EnableLastFrameCache();
   sprite->SetCurrentFrame ( randomObj.GetLong(0, sprite->GetFrameCount()-1));
-   
-  double mass, wind_factor ; 
+
+  double mass, wind_factor ;
 
   //Mass = mass_mean + or - 25%
   mass = GetMass();
@@ -58,7 +59,7 @@ WindParticle::WindParticle(std::string &xml_file) :
   SetMass (mass);
   SetSize( sprite->GetSize() );
   wind_factor = GetWindFactor() ;
-  wind_factor *= (1.0 + randomObj.GetLong(-100, 100)/400.0);  
+  wind_factor *= (1.0 + randomObj.GetLong(-100, 100)/400.0);
   SetWindFactor(wind_factor);
   StartMoving();
   SetAirResistFactor(GetAirResistFactor() * (1.0 + randomObj.GetLong(-100, 100)/400.0));
@@ -77,7 +78,7 @@ void WindParticle::Refresh()
   UpdatePosition();
 
   // Flip the sprite if needed and if the direction of wind changed
-  if(TerrainActif().wind.need_flip)
+  if(ActiveMap().wind.need_flip)
   {
     Point2d speed;
     GetSpeedXY(speed);
@@ -132,31 +133,24 @@ void WindParticle::Resize(double size)
 
 Wind::Wind(){
   m_val = m_nv_val = 0;
-  barre.InitPos (10, 10, BARRE_LARG, BARRE_HAUT);
-  barre.InitVal (0, -100, 100);
-  barre.border_color = c_white;
-  barre.background_color = c_black;
-  barre.value_color = c_red;
-  barre.AjouteMarqueur (100, c_white);
-  barre.SetReferenceValue (true, 0);
 }
 
 void Wind::Reset(){
   m_last_move = 0;
   m_last_part_mvt = 0;
   m_val = m_nv_val = 0;
-  barre.Actu (m_val);
+  Interface::GetInstance()->UpdateWindIndicator(m_val);
 
   particles.clear();
 
   if (!Config::GetInstance()->GetDisplayWindParticles())
     return ;
 
-  uint nb = TerrainActif().wind.nb_sprite;
+  uint nb = ActiveMap().wind.nb_sprite;
 
   if(!nb) return;
 
-  std::string config_file = TerrainActif().m_directory + PATH_SEPARATOR + "config.xml";
+  std::string config_file = ActiveMap().m_directory + PATH_SEPARATOR + "config.xml";
 
   for (uint i=0; i<nb; ++i){
     WindParticle tmp = WindParticle(config_file);
@@ -172,7 +166,7 @@ double Wind::GetStrength() const{
 
 void Wind::ChooseRandomVal(){
   int val = randomObj.GetLong(-100, 100);
-  ActionHandler::GetInstance()->NewAction (ActionInt(ACTION_WIND, val));
+  ActionHandler::GetInstance()->NewAction (new Action(Action::ACTION_WIND, val));
 }
 
 void Wind::SetVal(long val){
@@ -185,22 +179,18 @@ void Wind::DrawParticles(){
 }
 
 void Wind::Refresh(){
-  if(m_last_move + barre_speed < Time::GetInstance()->Read()){
+  if(m_last_move + bar_speed < Time::GetInstance()->Read()){
     if(m_val>m_nv_val)
       --m_val;
     else
     if(m_val<m_nv_val)
       ++m_val;
     m_last_move = Time::GetInstance()->Read();
-    barre.Actu(m_val); 
+    Interface::GetInstance()->UpdateWindIndicator(m_val);
   }
 
   iterator it=particles.begin(), end=particles.end();
   for (; it != end; ++it) it -> Refresh();
-}
-
-void Wind::Draw(){
-  barre.Draw();
 }
 
 void Wind::RandomizeParticlesPos()

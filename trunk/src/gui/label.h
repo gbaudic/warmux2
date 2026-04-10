@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -28,15 +28,25 @@
 #include <string>
 
 class Label : public Widget{
- private:
+ protected:
   Text *txt_label;
-   
+  bool hidden;
+ private:
+  Font *font;
+  const Color& font_color;
+  bool center;
+  bool shadowed;
+
  public:
-  Label(const std::string &label, const Rectanglei &rect, Font& font);
+  Label(const std::string &label, const Rectanglei &rect, Font& font,
+	const Color& color = white_color, bool center = false, bool shadowed = true);
   ~Label();
-  void Draw (const Point2i &mousePosition);
+  void Draw (const Point2i &mousePosition, Surface& surf) const;
   void SetSizePosition(const Rectanglei &rect);
+  void SetText(const std::string &new_txt);
+  const std::string& GetText() const;
+
+  void SetVisible(bool visible);
 };
 
 #endif
-

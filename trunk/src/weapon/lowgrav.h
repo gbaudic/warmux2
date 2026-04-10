@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Jet Pack :-)
+ * Low gravity
  *****************************************************************************/
 
 #ifndef LOWGRAV_H
@@ -25,15 +25,17 @@
 
 class LowGrav : public Weapon
 {
-public:
-  LowGrav();
-  void Reset();
-  void Refresh();
-  void p_Deselect();
-  void HandleKeyEvent(int action, int event_type);
-  bool p_Shoot();
-  void SignalTurnEnd();
-  void Draw();
+  public:
+    LowGrav();
+    void Reset();
+    void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+    void SignalTurnEnd();
+    void Draw();
+    void ActionStopUse();
+  protected:
+    void Refresh();
+    void p_Deselect();
+    bool p_Shoot();
 };
 
-#endif
+#endif /* LOWGRAV_H */

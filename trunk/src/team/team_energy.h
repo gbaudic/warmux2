@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,68 +16,79 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Barre d'énergie de chaque équipe
+ * Energy (progress) bar of a team
  *****************************************************************************/
 
-#ifndef ENERGIE_EQUIPE_H
-#define ENERGIE_EQUIPE_H
+#ifndef TEAM_ENERGY_H
+#define TEAM_ENERGY_H
 
 #include "../graphic/text.h"
-#include "../gui/progress_bar.h"
+#include "../graphic/sprite.h"
+#include "../gui/EnergyBar.h"
 #include "../object/physical_obj.h"
 
-//Les jauges sont prêtes pour une nouvelle opération
-const uint EnergieStatusOK = 0;
+class Team;
 
-//Les jauges peuvent changer leur valeur
-const uint EnergieStatusValeurChange = 1;
+typedef enum {
+  // Energy bar are waiting for a new change
+  EnergyStatusOK,
 
-//Les jauges peuvent changer leur classement
-const uint EnergieStatusClassementChange = 2;
+  // Energy bar can change their values
+  EnergyStatusValueChange,
 
-//LA jauge attend que toutes les jauges aient fini leur opération en cour
-const uint EnergieStatusAttend = 3;
+  // Energy bar can change there ranking
+  EnergyStatusRankChange,
+
+  // Waiting for a change to be finished before moving
+  EnergyStatusWait
+} energy_t;
 
 class TeamEnergy
 {
   private :
-    BarreProg barre_energie;
-    Text* bar_text;
-    uint valeur; //Valeur affichée
-    uint nv_valeur; //Vrai valeur
-    uint valeur_max; //Valeur initiale (en début de partie)
+    EnergyBar energy_bar;
+    // displayed value
+    uint value;
+    // team value
+    uint new_value;
+    // initial energy
+    uint max_value;
+
+    Team *team;
+    Sprite *icon;
+    Text * t_team_energy;
 
     int dx;
     int dy;
 
-    uint classement; //0 = première position au classement
-    uint nv_classement;
+    uint rank;
+    uint new_rank;
 
-    std::string nom;
+    std::string team_name;
 
-    uint tps_debut_mvt;
+    uint move_start_time;
 
   public :
-    uint classement_tmp;
-    uint status;
+    uint rank_tmp;
+    energy_t status;
 
-    TeamEnergy();
+    TeamEnergy(Team * _team);
     ~TeamEnergy();
-    void Init();
-    void ChoisitNom(const std::string &nom_equipe);
+    void Config(uint _current_energy,
+                uint _max_energy);
+
     void Refresh();
-    void Draw();
-    void Reset();
+    void Draw(const Point2i& pos);
 
-    void FixeValeur(uint energie); //(sans animation)
-    void FixeMax(uint energie); //Choisit la valeur maximale de la jauge
-    void NouvelleValeur(uint nv_energie); //(avec animation)
+    void SetValue(uint nv_energie);
 
-    void FixeClassement(uint classem); //(sans animation)
-    void NouveauClassement(uint nv_classem); //(avec animation)
-
-    void Mouvement(); //Déplacement des jauges (changement dans le classement)
-    bool EstEnMouvement(); //Déplacement des jauges (changement dans le classement)
+    void SetRanking(uint classem); // no animation
+    void NewRanking(uint nv_classem);
+    // Move energy bar (change ranking)
+    void Move();
+    bool IsMoving() const;
+    // Move energy bar immediatly to there destination
+    void FinalizeMove();
 };
 
-#endif //ENERGIE_EQUIPE_H
+#endif /* TEAM_ENERGY_H */

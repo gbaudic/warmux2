@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Arme grenade : 
+ * Arme grenade :
  * Explose au bout de quelques secondes
  *****************************************************************************/
 
@@ -28,17 +28,18 @@
 #include "../graphic/video.h"
 #include "../tool/math_tools.h"
 #include "../map/camera.h"
-#include "../weapon/weapon_tools.h"
+#include "../weapon/explosion.h"
 #include "../interface/game_msg.h"
 #include "../tool/i18n.h"
 #include "../object/objects_list.h"
 //-----------------------------------------------------------------------------
 
-Grenade::Grenade(ExplosiveWeaponConfig& cfg) :
-  WeaponProjectile ("grenade", cfg)
+Grenade::Grenade(ExplosiveWeaponConfig& cfg,
+                 WeaponLauncher * p_launcher) :
+  WeaponProjectile ("grenade", cfg, p_launcher)
 {
   m_rebound_sound = "weapon/grenade_bounce";
-  touche_ver_objet = false;
+  explode_with_collision = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -46,29 +47,32 @@ Grenade::Grenade(ExplosiveWeaponConfig& cfg) :
 void Grenade::Refresh()
 {
   WeaponProjectile::Refresh();
-
-  // rotation de l'image de la grenade...
-  double angle = GetSpeedAngle() * 180/M_PI ;
-  image->SetRotation_deg( angle);
-}
-
-
-//-----------------------------------------------------------------------------
-
-void Grenade::SignalCollision()
-{   
-  if (IsGhost())
-  {
-    GameMessages::GetInstance()->Add ("The grenade left the battlefield before exploding");
-    is_active = false ;
-  }
+  image->SetRotation_rad(GetSpeedAngle());
 }
 
 //-----------------------------------------------------------------------------
 
-GrenadeLauncher::GrenadeLauncher() : 
+void Grenade::SignalOutOfMap()
+{
+  GameMessages::GetInstance()->Add (_("The grenade left the battlefield before exploding"));
+  WeaponProjectile::SignalOutOfMap();
+}
+
+//-----------------------------------------------------------------------------
+
+GrenadeLauncher::GrenadeLauncher() :
   WeaponLauncher(WEAPON_GRENADE, "grenade", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
-{  
+{
+
   m_name = _("Grenade");
-  projectile = new Grenade(cfg());
+  m_allow_change_timeout = true;
+  ReloadLauncher();
 }
+
+WeaponProjectile * GrenadeLauncher::GetProjectileInstance()
+{
+  return dynamic_cast<WeaponProjectile *>
+      (new Grenade(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+}
+
+

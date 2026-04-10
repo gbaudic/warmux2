@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon bazooka : projette une roquette avec un angle et une force donnée.
+ * Weapon gnu : a gnu jump in (more or less) random directions and explodes
  *****************************************************************************/
 
 #ifndef GNU_H
@@ -38,18 +38,21 @@ class Gnu : public WeaponProjectile
  private:
   int m_sens;
   int save_x, save_y;
-  double angle;
+ protected:
+  void SignalOutOfMap();
 public:
-  Gnu(ExplosiveWeaponConfig& cfg);
+  Gnu(ExplosiveWeaponConfig& cfg,
+      WeaponLauncher * p_launcher);
   void Shoot(double strength);
   void Refresh();
-  void SignalCollision();
 };
 
 class GnuLauncher : public WeaponLauncher
 {
 public:
   GnuLauncher();
+protected:
+  WeaponProjectile * GetProjectileInstance();
 };
 
 #endif

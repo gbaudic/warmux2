@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,106 +16,98 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Arme dynamite : lorqu'on "tire", un baton de dynamite est lâché. Celui
- * explos après un laps de temps. La baton fait alors un gros trou dans la
- * carte, souffle les vers qui sont autour en leur faisant perdre de l'énergie.
+ * Weapon dynamite : When fired, explode after a short laps of time. Then make a
+ * big hole, eject character and made them lost energy.
+ * Like a dynamite after all :)
  *****************************************************************************/
 
 #include "dynamite.h"
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/config.h"
 #include "../include/app.h"
 #include "../object/objects_list.h"
 #include "../team/teams_list.h"
 #include "../tool/i18n.h"
 #include "../tool/resource_manager.h"
+#include "../tool/debug.h"
 
 #ifdef __MINGW32__
 #undef LoadImage
 #endif
 
-BatonDynamite::BatonDynamite(ExplosiveWeaponConfig& cfg) :
-  WeaponProjectile("dynamite_bullet", cfg)
+DynamiteStick::DynamiteStick(ExplosiveWeaponConfig& cfg,
+                             WeaponLauncher * p_launcher) :
+  WeaponProjectile("dynamite_bullet", cfg, p_launcher)
 {
   channel = -1;
+  explode_with_collision = false;
 
   image->animation.SetLoopMode(false);
   SetSize(image->GetSize());
-
   SetTestRect (0, 0, 2, 3);
 }
 
-void BatonDynamite::Reset()
+void DynamiteStick::Shoot(double strength)
 {
-  Ready();
-  is_active = false;
-
-  unsigned int delay = (1000 * cfg.timeout)/image->GetFrameCount();
+  unsigned int delay = (1000 * WeaponProjectile::GetTotalTimeout())/image->GetFrameCount();
   image->SetFrameSpeed(delay);
 
   image->Scale(ActiveCharacter().GetDirection(), 1);
   image->SetCurrentFrame(0);
-  image->Start(); 
+  image->Start();
+  WeaponProjectile::Shoot(strength);
 }
 
-void BatonDynamite::Refresh()
+void DynamiteStick::Refresh()
 {
-  if (!is_active) return;
-  assert (!IsGhost());
-  image->Update(); 
-  is_active = !image->IsFinished();
+  image->Update();
+  if (image->IsFinished()) Explosion();
 }
 
-void BatonDynamite::Draw()
-{
-  if (!is_active) return;
-  assert (!IsGhost());
-  image->Draw(GetPosition());
-}
-
-void BatonDynamite::ShootSound()
+void DynamiteStick::ShootSound()
 {
   channel = jukebox.Play("share","weapon/dynamite_fuze", -1);
 }
 
-void BatonDynamite::Explosion()
+void DynamiteStick::SignalExplosion()
 {
   jukebox.Stop(channel);
-  channel = -1;
-  WeaponProjectile::Explosion();
 }
 
-void BatonDynamite::SignalCollision() 
+void DynamiteStick::SignalOutOfMap()
 {
-  if (IsGhost()) is_active = false;
+  jukebox.Stop(channel);
 }
 
+void DynamiteStick::SignalDrowning()
+{
+  jukebox.Stop(channel);
+}
 //-----------------------------------------------------------------------------
 
 Dynamite::Dynamite() :
-  WeaponLauncher(WEAPON_DYNAMITE, "dynamite", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
+    WeaponLauncher(WEAPON_DYNAMITE, "dynamite", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Dynamite");
-  
-  projectile = new BatonDynamite(cfg());
+  ReloadLauncher();
 }
 
-void Dynamite::p_Select()
+WeaponProjectile * Dynamite::GetProjectileInstance()
 {
-  dynamic_cast<BatonDynamite *>(projectile)->Reset();
+  return dynamic_cast<WeaponProjectile *>
+      (new DynamiteStick(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
 
-// Pose une dynamite
+// drop a dynamite
 bool Dynamite::p_Shoot ()
 {
-  Point2d speed_vector;
-
-  dynamic_cast<BatonDynamite *>(projectile)->Reset();
   projectile->Shoot(0);
 
-  // Ajoute la vitesse actuelle du ver
-  ActiveCharacter().GetSpeedXY (speed_vector);
-  projectile->SetSpeedXY (speed_vector);
+  // add the character speed
+  if(ActiveCharacter().GetDirection() == 1)
+    projectile->SetSpeed(3.0, -M_PI_4);
+  else
+    projectile->SetSpeed(3.0, -3.0 * M_PI_4);
 
   return true;
 }

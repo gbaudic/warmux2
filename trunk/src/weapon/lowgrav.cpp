@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
  *****************************************************************************/
 
 #include "lowgrav.h"
-#include "weapon_tools.h"
+#include "explosion.h"
 #include "../game/game.h"
 #include "../game/game_loop.h"
 #include "../object/physical_obj.h"
@@ -28,19 +28,17 @@
 #include "../interface/game_msg.h"
 #include "../team/teams_list.h"
 #include "../tool/i18n.h"
-
-// Espace entre l'espace en l'image
-const uint ESPACE = 5;
+#include "../include/action_handler.h"
 
 const double LOW_GRAVITY_FACTOR = 0.4;
 
-LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav", 
+LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav",
 			    new WeaponConfig(), NEVER_VISIBLE)
 {
   m_name = _("LowGrav");
 
   override_keys = true ;
-  use_unit_on_first_shoot = false;  
+  use_unit_on_first_shoot = false;
 }
 
 void LowGrav::Refresh()
@@ -51,14 +49,14 @@ void LowGrav::Refresh()
 void LowGrav::p_Deselect()
 {
   ActiveCharacter().ResetConstants();
-  ActiveCharacter().SetSkin("walking");
+  ActiveCharacter().SetClothe("normal");
   m_is_active = false;
 }
 
 bool LowGrav::p_Shoot()
 {
   ActiveCharacter().SetGravityFactor(LOW_GRAVITY_FACTOR);
-  ActiveCharacter().SetSkin("helmet");
+  ActiveCharacter().SetClothe("helmet");
   return true;
 }
 
@@ -66,13 +64,13 @@ void LowGrav::Draw()
 {
 }
 
-void LowGrav::HandleKeyEvent(int action, int event_type)
+void LowGrav::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
 {
   switch (action)
     {
-      case ACTION_SHOOT:
-	if (event_type == KEY_PRESSED)
-	  UseAmmoUnit();
+      case Action::ACTION_SHOOT:
+        if (event_type == Keyboard::KEY_PRESSED)
+          ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_WEAPON_STOP_USE));
 	break ;
 
       default:
@@ -86,3 +84,7 @@ void LowGrav::SignalTurnEnd()
   p_Deselect();
 }
 
+void LowGrav::ActionStopUse()
+{
+  UseAmmoUnit();
+}

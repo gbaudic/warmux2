@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,57 +16,57 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Arme "batte de baseball" : permet de donner un coup à un autre ver.
+ * baseball bat
  *****************************************************************************/
 
 #include "baseball.h"
 #include "../game/game_loop.h"
+#include "../map/camera.h"
 #include "../team/macro.h"
 #include "../tool/point.h"
 #include "../tool/i18n.h"
+#include "explosion.h"
 
 Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball", new BaseballConfig())
 {
-  m_name = _("Baseball");
+  m_name = _("Baseball Bat");
+  m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
+  m_weapon_fire->EnableRotationCache(32);
 }
 
 bool Baseball::p_Shoot (){
-  double angle = ActiveTeam().crosshair.GetAngleRad();
-  int ver_x, ver_y;
-  int x,y;
-  double dx,dy;
+
+  double angle = ActiveCharacter().GetFiringAngle();
   double rayon = 0.0;
   bool fin = false;
 
-  RotationPointXY (ver_x, ver_y);
   jukebox.Play ("share","weapon/baseball");
 
   do
   {
-    // On a fini les calculs ?
+    // Did we have finished the computation
     rayon += 1.0;
-    if (cfg().range < rayon) 
+    if (cfg().range < rayon)
     {
       rayon = cfg().range;
       fin = true;
     }
 
-    // Calcul des coordonnées du point
-    dx = (int)(rayon*cos( angle ));
-    dy = (int)(rayon*sin( angle ));
-    x = ver_x +(int)dx;
-    y = ver_y +(int)dy;
+    // Compute point coordinates
+    Point2i relative_pos(static_cast<int>(rayon * cos(angle)),
+                         static_cast<int>(rayon * sin(angle)) );
+    Point2i pos_to_check = ActiveCharacter().GetHandPosition() + relative_pos;
 
-    // Teste un ver après l'autre
     FOR_ALL_LIVING_CHARACTERS(equipe,ver)
     if (&(*ver) != &ActiveCharacter())
     {
-      // On a touché un ver ?
-      if( ver->ObjTouche(Point2i(x, y)) )
+      // Did we touch somebody ?
+      if( ver->ObjTouche(pos_to_check) )
       {
-	// Inflige les dégats au ver touché
-	(*ver).SetEnergyDelta (-cfg().damage);
-	(*ver).SetSpeed (cfg().strength, angle);
+	// Apply damage (*ver).SetEnergyDelta (-cfg().damage);
+	ver->SetSpeed (cfg().strength / ver->GetMass(), angle);
+	ver->SetMovement("fly");
+	camera.FollowObject (&(*ver), true, true);
 	return true;
       }
     }
@@ -84,13 +84,13 @@ BaseballConfig& Baseball::cfg() {
   return static_cast<BaseballConfig&>(*extra_params);
 }
 
-BaseballConfig::BaseballConfig(){ 
+BaseballConfig::BaseballConfig(){
   range =  70;
   strength = 250;
 }
 
 void BaseballConfig::LoadXml(xmlpp::Element *elem){
   WeaponConfig::LoadXml(elem);
-  LitDocXml::LitUint (elem, "range", range);
-  LitDocXml::LitUint (elem, "strength", strength);
+  XmlReader::ReadUint(elem, "range", range);
+  XmlReader::ReadUint(elem, "strength", strength);
 }

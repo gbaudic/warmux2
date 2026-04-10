@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon grenade : lance une grenade avec un angle et une force donnée. Explose 
+ * Weapon grenade : lance une grenade avec un angle et une force donnï¿½. Explose 
  * au bout de quelques secondes
  *****************************************************************************/
 
@@ -34,16 +34,19 @@
 class Grenade : public WeaponProjectile
 {
 public:
-  Grenade(ExplosiveWeaponConfig& cfg);
+  Grenade(ExplosiveWeaponConfig& cfg,
+          WeaponLauncher * p_launcher);
   void Refresh();
 protected:
-  void SignalCollision();
+  void SignalOutOfMap();
 };
 
 class GrenadeLauncher : public WeaponLauncher
 {
  public:
   GrenadeLauncher();
+ protected:
+  WeaponProjectile * GetProjectileInstance();
 };
 
 #endif

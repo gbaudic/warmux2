@@ -1,5 +1,5 @@
 dnl ========================================================================
-dnl =                   W O R M U X  -  confiure.ac                        =
+dnl =                   W O R M U X  -  configure.ac                       =
 dnl =                                                                      =
 dnl = Process this file with autoconf to produce a configure script.       =
 dnl ========================================================================
@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.7.4], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.7.9], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -24,7 +24,6 @@ AM_INIT_AUTOMAKE([foreign 1.5])
 
 AM_MAINTAINER_MODE
 AM_GNU_GETTEXT([external])
-
 
 dnl ========================================================================
 dnl === Check for tools                                                    =
@@ -49,8 +48,8 @@ AX_CFLAGS_WARN_ALL([CXXFLAGS])
 
 AC_ARG_ENABLE([debug],
 	      [  --enable-debug          Enable debug in Wormux],
-          debug=$enableval,
-          debug="")
+	      debug=$enableval,
+	      debug="")
 
 AC_ARG_ENABLE([profile],
 	      [  --enable-profile        Enable profiling],
@@ -76,14 +75,27 @@ if test "x${prefix}" = "xNONE"; then
   prefix="${ac_default_prefix}"
 fi
 
-DATADIR="${prefix}/share/wormux"
+# ========================================================================
+# == Set flags for various environments                                  =
+# ========================================================================
+case "${host}" in
+  i[[3456789]]86-*-mingw32*) WIN32="yes" ;;
+  *cygwin*) WIN32="yes" ;;
+  *) WIN32="no" ;;
+esac
+AM_CONDITIONAL([WIN32], test "$WIN32" = "yes")
+
+
+if test "${WIN32}" = "yes"; then DATADIR="data"
+else DATADIR="${prefix}/share/wormux"; fi
 AC_ARG_WITH(datadir-name,
     [  --with-datadir-name=DIR       specify where datas are installed (default: ${prefix}/share/wormux)],
     [DATADIR="$withval"])
 AC_SUBST([DATADIR])
 
 
-LOCALEDIR="${prefix}/share/locale"
+if test "${WIN32}" = "yes"; then LOCALEDIR="locale"
+else LOCALEDIR="${prefix}/share/locale"; fi
 AC_ARG_WITH(localedir-name,
     [  --with-localedir-name=DIR       specify where locales are installed (default: ${prefix}/share/locale)],
     [LOCALEDIR="$withval"])
@@ -129,18 +141,23 @@ if test "x$GCC" = "xyes"; then
     fi
 
     dnl Skip 'unused parameter' warning
+    dnl This is needed for virtual function that do not use all parameters
     GCC_FLAGS="$GCC_FLAGS -Wno-unused-parameter"
 
-    if test "${debug}" = "yes"; then
-        GCC_FLAGS="$GCC_FLAGS -O0 -g -DDEBUG -Werror"
+    if test "x${debug}" = "xyes"; then
+        GCC_FLAGS="$GCC_FLAGS -O0 -g -DDEBUG"
     else
         GCC_FLAGS="$GCC_FLAGS -O2"
     fi
 
-    CFLAGS="$CFLAGS $GCC_FLAGS"
-    CXXFLAGS="$CXXFLAGS $GCC_FLAGS"
+    dnl Ignore default options set by autoconf
+    dnl CFLAGS="$CFLAGS $GCC_FLAGS"
+    CFLAGS="$GCC_FLAGS"
+    dnl CXXFLAGS="$CXXFLAGS $GCC_FLAGS"
+    CXXFLAGS="$GCC_FLAGS"
+
 else
-    if test "${debug}" = "yes"; then
+    if test "x${debug}" = "xyes"; then
         CFLAGS="$CFLAGS -DDEBUG"
         CXXFLAGS="$CXXFLAGS -DDEBUG"
     fi
@@ -156,31 +173,13 @@ CFLAGS="$CFLAGS $SDL_CFLAGS"
 CPPFLAGS="$CPPFLAGS $SDL_CFLAGS"
 LIBS="$LIBS $SDL_LIBS"
 
-dnl === Check for SDL_image ================================================
+dnl === Check for pkg-config ===============================================
 
-AC_CHECK_LIB(SDL_image, IMG_Load,,
-	AC_MSG_ERROR([SDL_image library required]))
-LIBS="$LIBS -lSDL_image"
-
-
-dnl === Check for SDL_mixer ================================================
-
-AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,
-	AC_MSG_ERROR([SDL_mixer library required]))
-LIBS="$LIBS -lSDL_mixer"
-
-
-dnl === Check for SDL_ttf ==================================================
-
-AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,
-        AC_MSG_ERROR([SDL_ttf library is required]))
-LIBS="$LIBS -lSDL_ttf"
-
-dnl === Check for SDL_net ==================================================
-
-AC_CHECK_LIB([SDL_net], [SDLNet_Init],,
-        AC_MSG_ERROR([SDL_net library is required]))
-LIBS="$LIBS -lSDL_net"
+AC_PATH_PROGS([PACKAGE_CONFIG], [pkg-config], [none])
+if test "x$PACKAGE_CONFIG" = "xnone"; then
+	AC_MSG_ERROR([*** pkg-config, needed to check for libxml++ existence
+has not been found.])
+fi
 
 dnl === Check for SDL_gfx ==================================================
 
@@ -192,43 +191,17 @@ if test "x$SDL_GFX_PREFIX" != "x"; then
   CPPFLAGS="$CPPFLAGS -I$SDL_GFX_PREFIX/include/SDL"
   CXXFLAGS="$CXXFLAGS -I$SDL_GFX_PREFIX/include/SDL"
 fi
-AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,,
-	AC_MSG_ERROR([SDL_gfx library >= 2.0.13 required]))
-AC_CHECK_HEADERS(SDL_rotozoom.h,,
-    AC_MSG_ERROR([SDL_gfx library headers are missing]))
-LIBS="$LIBS -lSDL_gfx"
+AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,,check_sdl_gfx="no")
+AC_CHECK_HEADERS(SDL_rotozoom.h,,check_sdl_gfx="no")
 
+dnl === Check for SDL image, mixer, etc., libxml++ and libcurl ==============
 
-#dnl === Check for paragui-config  ==========================================
-
-#AC_PATH_PROGS([PGUI_CONFIG], [paragui-config], [none])
-#if test "x$PGUI_CONFIG" = "xnone"; then
-#	AC_MSG_ERROR([*** paragui-config has not been found.])
-#fi
-#AC_MSG_CHECKING(for Paragui)
-#if $PGUI_CONFIG --libs > /dev/null 2>&1; then
-#	AC_MSG_RESULT(yes)
-#else
-#	AC_MSG_RESULT(no)
-#	AC_MSG_ERROR([*** Paragui not found!])
-#fi
-#PARAGUI_CFLAGS=`$PGUI_CONFIG --cflags`
-#PARAGUI_LIBS=`$PGUI_CONFIG --libs`
-#CFLAGS="$CFLAGS $PARAGUI_CFLAGS"
-#CXXFLAGS="$CXXFLAGS $PARAGUI_CFLAGS"
-#LIBS="$LIBS $PARAGUI_LIBS"
-
-
-dnl === Check for libxml++ 2.6 =============================================
-
-dnl Check first for pkg-config
-
-AC_PATH_PROGS([PACKAGE_CONFIG], [pkg-config], [none])
-if test "x$PACKAGE_CONFIG" = "xnone"; then
-
-	AC_MSG_ERROR([*** pkg-config, needed to check for libxml++ existence
-has not been found.])
-fi
+AC_CHECK_LIB(curl, curl_easy_init,check_curl="yes",check_curl="no")
+AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
+AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
+AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
+AC_CHECK_LIB([SDL_net], [SDLNet_Init],,check_sdl_net="no")
+LIBS="$LIBS -lSDL_image -lSDL_mixer -lSDL_ttf -lSDL_net -lSDL_gfx"
 
 AC_MSG_CHECKING(for libxml++)
 
@@ -236,24 +209,61 @@ if $PACKAGE_CONFIG libxml++-2.6 --libs > /dev/null 2>&1; then
 	AC_MSG_RESULT(yes)
 else
 	AC_MSG_RESULT(no)
-	AC_MSG_ERROR([*** libxml++ version 2.6 not found!])
+	check_libxmlpp="no"
 fi
+
+AC_MSG_CHECKING(for libcurl)
+
+if test x$check_curl = xyes; then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+	check_libcurl="no"
+        AC_MSG_ERROR([*** No libCurl found. Please install a valid libcurl ***])
+fi
+
+dnl === Display error if SDL image, mixer, etc. is missing ==================
+
+if test \
+	   x${check_sdl_image} = xno \
+	-o x${check_sdl_mixer} = xno \
+	-o x${check_sdl_ttf} = xno \
+	-o x${check_sdl_gfx} = xno \
+	-o x${check_sdl_net} = xno \
+	-o x${check_libxmlpp} = xno \
+; then
+	AC_MSG_RESULT([])
+	if test x${check_sdl_image} = xno; then
+		AC_MSG_RESULT([ERROR: SDL_image library required])
+	fi
+	if test x${check_sdl_mixer} = xno; then
+		AC_MSG_RESULT([ERROR: SDL_mixer library required])
+	fi
+	if test x${check_sdl_ttf} = xno; then
+		AC_MSG_RESULT([ERROR: SDL_ttf library required])
+	fi
+	if test x${check_sdl_gfx} = xno; then
+		AC_MSG_RESULT([ERROR: SDL_gfx library version >= 2.0.13 required])
+	fi
+	if test x${check_sdl_net} = xno; then
+		AC_MSG_RESULT([ERROR: SDL_net library required])
+	fi
+	if test x${check_libxmlpp} = xno; then
+		AC_MSG_RESULT([ERROR: libxml++ version 2.6 not found!])
+	fi
+	exit 1
+fi
+
+dnl === Add libxml++ and libcurl flags =================================================
+LIBCURL_CFLAGS=`curl-config --cflags`
+LIBCURL_LIBS=`curl-config --libs`
+
 LIBXMLPP_CFLAGS=`$PACKAGE_CONFIG libxml++-2.6 --cflags`
 LIBXMLPP_LIBS=`$PACKAGE_CONFIG libxml++-2.6 --libs`
-CFLAGS="$CFLAGS $LIBXMLPP_CFLAGS"
-CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS"
-LIBS="$LIBS $LIBXMLPP_LIBS"
 
-dnl ========================================================================
-dnl == Set flags for various environments                                  =
-dnl ========================================================================
-case "${host}" in
-  i[[3456789]]86-*-mingw32*) WIN32="yes" ;;
-  *cygwin*) WIN32="yes" ;;
-  *) WIN32="no" ;;
-esac
-AM_CONDITIONAL([WIN32], test "$WIN32" = "yes")
-
+CFLAGS="$CFLAGS $LIBXMLPP_CFLAGS $LIBCURL_CFLAGGS"
+CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS $LIBCURL_CFLAGS"
+LIBS="$LIBS $LIBXMLPP_LIBS $LIBCURL_LIBS"
 
 dnl ========================================================================
 dnl == Check for header files                                              =
@@ -275,20 +285,19 @@ DATA_FILES=`echo $DATA_FILES`
 AC_SUBST([DATA_FILES])
 AC_SUBST([BUILD_ENV])
 
-AM_PO_SUBDIRS
-
 AC_CONFIG_FILES([Makefile
 		 data/Makefile
 		 src/Makefile
 		 doc/Makefile
-		 ])
-
-AC_CONFIG_FILES([po/Makefile], [AM_POSTPROCESS_PO_MAKEFILE])
+		 po/Makefile
+		 ], [AM_POSTPROCESS_PO_MAKEFILE])
 
 AM_CONFIG_HEADER(src/config.h)
 
 AC_OUTPUT
 
+if test "${WIN32}" = "yes"; then INSTALL_OP="build NSIS installer..."
+else INSTALL_OP="install..."; fi
 AC_MSG_RESULT([
 
 Configuration complete
@@ -297,6 +306,6 @@ Configuration complete
 * Game locale will be installed into $LOCALEDIR
 * Font file will be $FONTFILE
 
-Execute make to compile then execute make install to install...
+Execute make to compile then execute make install to $INSTALL_OP
 
 ])

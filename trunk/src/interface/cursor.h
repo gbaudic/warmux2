@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Curseur clignotant montrant la position d'un ver actif.
+ * Arrow on top of the active character
  *****************************************************************************/
 
 #ifndef CURSOR_H
@@ -27,7 +27,7 @@
 #include "../include/base.h"
 //-----------------------------------------------------------------------------
 
-class CurseurVer
+class CharacterCursor
 {
 public:
    Sprite *image;
@@ -40,12 +40,11 @@ private:
   bool actif;
   bool want_hide;
 
-  static CurseurVer * singleton;
+  static CharacterCursor * singleton;
 
 public:
-  static CurseurVer * GetInstance();
+  static CharacterCursor * GetInstance();
 
-  void Init();
   void Reset();
   void Draw();
   void Refresh();
@@ -54,16 +53,16 @@ public:
   void PointeObj (PhysicalObj *obj);
 
   // Pointe un objet
-  void SuitVerActif ();
+  void FollowActiveCharacter ();
 
-  // Cache le curseur
-  void Cache();
+  // Hide the cursor
+  void Hide();
 
   
 
 private:
-  CurseurVer();
-  ~CurseurVer();
+  CharacterCursor();
+  ~CharacterCursor();
 
   bool IsDisplayed() const;
 };

@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,15 +20,17 @@
  *****************************************************************************/
 
 #include "check_box.h"
-#include "../include/app.h"
 #include "../graphic/font.h"
 #include "../graphic/sprite.h"
 #include "../tool/resource_manager.h"
 
-CheckBox::CheckBox(const std::string &label, const Rectanglei &rect, bool value){
+CheckBox::CheckBox(const std::string &label, const Rectanglei &rect, bool value)
+{
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);   
-  m_image = resource_manager.LoadSprite( res, "menu/check");
-  m_image->cache.EnableLastFrameCache();
+  m_checked_image = resource_manager.LoadSprite( res, "menu/check");
+  resource_manager.UnLoadXMLProfile( res);
+  
+  m_checked_image->cache.EnableLastFrameCache();
  
   SetPosition( rect.GetPosition() );
   SetSize( rect.GetSize() );
@@ -37,41 +39,56 @@ CheckBox::CheckBox(const std::string &label, const Rectanglei &rect, bool value)
   m_value = value;
 
   txt_label = new Text(label, white_color, Font::GetInstance(Font::FONT_SMALL));
+  hidden = false;
 }
 
-CheckBox::~CheckBox(){
-  delete m_image;
+CheckBox::~CheckBox()
+{
+  delete m_checked_image;
   delete txt_label;
 }
 
-void CheckBox::Draw(const Point2i &mousePosition){
-  txt_label->DrawTopLeft( GetPosition() );
- 
-  if (m_value)
-    m_image->SetCurrentFrame(0);
-  else 
-    m_image->SetCurrentFrame(1);
-
-  m_image->Blit(AppWormux::GetInstance()->video.window, GetPositionX() + GetSizeX() - 16, GetPositionY());
+void CheckBox::Draw(const Point2i &mousePosition, Surface& surf) const
+{
+  if (!hidden)
+    {
+      txt_label->DrawTopLeft( GetPosition() );
+      
+      if (m_value)
+	m_checked_image->SetCurrentFrame(0);
+      else 
+	m_checked_image->SetCurrentFrame(1);
+      
+      m_checked_image->Blit(surf, GetPositionX() + GetSizeX() - 16, GetPositionY());
+    }
 }
 
-bool CheckBox::Clic(const Point2i &mousePosition, uint button){
-  if( !Contains(mousePosition) )
-    return false;
-
+Widget* CheckBox::Clic(const Point2i &mousePosition, uint button)
+{
+  need_redrawing = true;
   m_value = !m_value;
-  return true ;
+  return this ;
 }
 
-void CheckBox::SetSizePosition(const Rectanglei &rect){
+void CheckBox::SetSizePosition(const Rectanglei &rect)
+{
   StdSetSizePosition(rect);
 }
 
-bool CheckBox::GetValue() const{
+bool CheckBox::GetValue() const
+{
   return m_value;
 }
 
-void CheckBox::SetValue(bool value){
+void CheckBox::SetValue(bool value)
+{
   m_value = value;
 }
 
+void CheckBox::SetVisible(bool visible)
+{
+  if (hidden == visible) {
+    hidden = !visible;
+    need_redrawing = true;
+  }
+}

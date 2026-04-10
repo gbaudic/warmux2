@@ -5,9 +5,12 @@
 # Makefile configuration - processed by automake.
 #
 
-MAINTAINERCLEANFILES = Makefile.in
+#MAINTAINERCLEANFILES = Makefile.in
+MAINTAINERCLEANFILES =
 
 POTFILES = \
+	src/character/character.cpp \
+	src/character/move.cpp \
 	src/game/config.cpp \
 	src/game/game.cpp \
 	src/game/game_loop.cpp \
@@ -40,16 +43,13 @@ POTFILES = \
 	src/map/water.cpp \
 	src/map/wind.cpp \
 	src/menu/game_menu.cpp \
-	src/menu/infos_menu.cpp \
+	src/menu/credits_menu.cpp \
 	src/menu/main_menu.cpp \
 	src/menu/options_menu.cpp \
 	src/object/bonus_box.cpp \
 	src/object/objects_list.cpp \
 	src/object/physical_obj.cpp \
 	src/sound/jukebox.cpp \
-	src/team/character.cpp \
-	src/team/move.cpp \
-	src/team/skin.cpp \
 	src/team/team.cpp \
 	src/team/team_energy.cpp \
 	src/team/teams_list.cpp \
@@ -61,20 +61,38 @@ POTFILES = \
 	src/tool/string_tools.cpp \
 	src/tool/xml_document.cpp \
 	src/weapon/air_attack.cpp \
+	src/weapon/airhammer.cpp \
+	src/weapon/anvil.cpp \
 	src/weapon/auto_bazooka.cpp \
 	src/weapon/baseball.cpp \
 	src/weapon/bazooka.cpp \
+	src/weapon/blowtorch.cpp \
+	src/weapon/bounce_ball.cpp \
 	src/weapon/cluster_bomb.cpp \
+	src/weapon/construct.cpp \
 	src/weapon/crosshair.cpp \
 	src/weapon/dynamite.cpp \
+	src/weapon/gnu.cpp \
 	src/weapon/grenade.cpp \
 	src/weapon/gun.cpp \
+	src/weapon/disco_grenade.cpp \
+	src/weapon/jetpack.cpp \
 	src/weapon/launcher.cpp \
+	src/weapon/lowgrav.cpp \
 	src/weapon/mine.cpp \
+	src/weapon/ninja_rope.cpp \
+	src/weapon/parachute.cpp \
+	src/weapon/polecat.cpp \
+	src/weapon/riot_bomb.cpp \
+	src/weapon/shotgun.cpp \
+	src/weapon/skip_turn.cpp \
+	src/weapon/snipe_rifle.cpp \
+	src/weapon/submachine_gun.cpp \
 	src/weapon/suicide.cpp \
+	src/weapon/supertux.cpp \
+	src/weapon/syringe.cpp \
 	src/weapon/teleportation.cpp \
 	src/weapon/weapon.cpp \
-	src/weapon/weapon_tools.cpp \
 	src/weapon/weapons_list.cpp
 
 DOMAIN = $(PACKAGE)
@@ -185,7 +203,7 @@ $(POFILES): $(srcdir)/$(DOMAIN).pot
 	echo "Update $${lang}.po"; \
 	cd $(srcdir) && $(MSGMERGE_UPDATE) $${lang}.po $(DOMAIN).pot && \
 	sed -e '/^"POT-Creation-Date:/D' <$${lang}.po >t-$${lang}.po && \
-	mv -f t-$${lang}.po $${lang}.po 
+	mv -f t-$${lang}.po $${lang}.po
 
 
 install-data-local: install-data-local-@USE_NLS@

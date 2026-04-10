@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -24,58 +24,86 @@
 //-----------------------------------------------------------------------------
 #include <SDL_net.h>
 #include <SDL_thread.h>
-#include "../include/base.h" 
-#include <vector>
+#include <list>
 #include <string>
-#include "../include/action.h" 
+#include "distant_cpu.h"
+#include "../include/action.h"
+#include "../include/base.h" 
+#include "../menu/network_menu.h"
 //-----------------------------------------------------------------------------
+const std::string WORMUX_NETWORK_PORT = "9999";
+const uint WORMUX_NETWORK_PORT_INT = 9999;
 
 class Network
 {
-public:
-	typedef enum
-	{
-		NETWORK_NOT_CONNECTED,
-		NETWORK_SERVER_INIT_GAME,
-		NETWORK_WAIT_CLIENTS,
-		NETWORK_WAIT_SERVER,
-		NETWORK_WAIT_MAP,
-		NETWORK_WAIT_TEAMS,
-		NETWORK_PLAYING
-	} network_state_t;
-	network_state_t state;
-		
-private:
-  TCPsocket socket;
-  TCPsocket client;
-  SDL_Thread* thread;
-	
-	bool m_is_connected;
-	bool m_is_server;
-	bool m_is_client;
+  friend class DistantComputer;
 
-	// Server Connection
-	Action* make_action(Uint32* packet);
+  bool inited;
+
+#if defined(DEBUG) && not defined(WIN32)
+  int fout;
+  int fin;	
+#endif
+
+protected:
+  bool m_is_connected;
+  bool m_is_server;
+  bool m_is_client;
+
+  TCPsocket server_socket; // Wait for incoming connections on this socket
+  SDL_Thread* thread; // network thread, where we receive data from network
+  SDLNet_SocketSet socket_set;
+  IPaddress ip; // for server : store listening port
+                // for client : store server address/port
 
 public:
+  NetworkMenu* network_menu;
 
-	Network();
-	~Network();
-	void Init();
-	
-	bool is_connected();
-	bool is_local();
-	bool is_server();
-	bool is_client();
-	
-	void disconnect();
-	
-	void client_connect(const std::string &host, const std::string &port);
+  typedef enum
+    {
+      NETWORK_NOT_CONNECTED,
+      NETWORK_OPTION_SCREEN,
+      NETWORK_INIT_GAME,
+      NETWORK_READY_TO_PLAY,
+      NETWORK_PLAYING
+    } network_state_t;
+  network_state_t state;
 
-	void server_start(const std::string &port);
+  std::list<DistantComputer*> cpu; // list of the connected computer
+  uint max_player_number;
+  uint connected_player;
+  uint client_inited;
+  bool sync_lock;
+  std::string nickname; //Clients: Send to Server at connect
+                        //Server: Send in chat messages
 
-   void SendAction(const Action &action);
-   void ReceiveActions();
+  Network();
+  ~Network();
+  void Init();
+  
+  const bool IsConnected() const;
+  const bool IsLocal() const;
+  const bool IsServer() const;
+  const bool IsClient() const;
+  const uint GetPort();
+  
+  // Network functions common to client and server
+  void Disconnect();
+
+  // Action handling
+  void SendAction(Action* action);
+  void SendPacket(char* packet, int size);
+  void ReceiveActions();
+  // Client specific
+  void ClientConnect(const std::string &host, const std::string &port);
+
+  // Serveur specific methods
+  void ServerStart(const std::string &port);
+  void AcceptIncoming();
+  void RejectIncoming();
+  std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator closed);
+
+  void SendChatMessage(std::string txt);
 };
 
 extern Network network;

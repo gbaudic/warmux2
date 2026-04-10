@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -81,5 +81,6 @@ void TriggerError (const char *filename, unsigned long line,
 	    << Format(_("Error in %s:%lu"), filename, line)
 	    << ": " << txt << std::endl;
 
+  assert(false);
   throw CError (filename, line, txt);
 }

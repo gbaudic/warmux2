@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -36,8 +36,11 @@
 #include "../interface/mouse.h"
 #include "../map/camera.h"
 #include "../map/map.h"
+#include "../menu/results_menu.h"
+#include "../object/objects_list.h"
 #include "../sound/jukebox.h"
 #include "../team/macro.h"
+#include "../team/results.h"
 #include "../tool/debug.h"
 #include "../tool/i18n.h"
 #include "../tool/resource_manager.h"
@@ -45,7 +48,7 @@
 
 Game * Game::singleton = NULL;
 
-Game * Game::GetInstance() 
+Game * Game::GetInstance()
 {
   if (singleton == NULL) {
     singleton = new Game();
@@ -53,165 +56,74 @@ Game * Game::GetInstance()
   return singleton;
 }
 
+
 Game::Game()
 {
   isGameLaunched = false;
   endOfGameStatus = false;
+  isGamePaused = false;
 }
 
-bool Game::IsGameFinished()
+bool Game::IsGameFinished() const
 {
   return (NbrRemainingTeams() <= 1);
 }
 
-int Game::NbrRemainingTeams()
+int Game::NbrRemainingTeams() const
 {
   uint nbr = 0;
-  
+
   FOR_EACH_TEAM(team){
     if( (**team).NbAliveCharacter() > 0 )
       nbr++;
   }
- 
+
   return nbr;
 }
 
-void Game::MessageLoading()
+void Game::MessageLoading() const
 {
   std::cout << std::endl;
   std::cout << "[ " << _("Starting a new game") << " ]" << std::endl;
-  std::cout << "Loading game... => Splashscreen is TODO" << std::endl;
 }
 
-void Game::MessageEndOfGame()
+void Game::MessageEndOfGame() const
 {
-  const char *Nobody                    = _("Nobody");
-  const char *winner_name               = NULL;
-  int         value_all_most_violent    = 0;
-  const char *name_all_most_violent     = Nobody;
-  int         value_all_most_useless    = 0x0FFFFFFF;
-  const char *name_all_most_useless     = Nobody;
-  int         value_all_most_usefull    = 0;
-  const char *name_all_most_usefull     = Nobody;
-  int         value_all_most_traitor    = 0;
-  const char *name_all_most_traitor     = Nobody;
+  std::vector<TeamResults*>* results_list = TeamResults::createAllResults();
+  const char *winner_name = NULL;
 
-  std::string txt("");
-
-  FOR_EACH_TEAM(equipe)
+  FOR_EACH_TEAM(team)
   {
-    int         value_team_most_violent = 0;
-    const char *name_team_most_violent  = Nobody;
-    int         value_team_most_useless = 0x0FFFFFFF;
-    const char *name_team_most_useless  = Nobody;
-    int         value_team_most_usefull = 0;
-    const char *name_team_most_usefull  = Nobody;
-    int         value_team_most_traitor = 0;
-    const char *name_team_most_traitor  = Nobody;
-
-    // Search best/worst performers
-    FOR_EACH_CHARACTER(*(equipe), ver)
-    {
-      // Most damage in one shot
-      if (ver->GetMostDamage() > value_team_most_violent)
-      {
-        value_team_most_violent = ver->GetMostDamage();
-        name_team_most_violent  = ver->GetName().c_str();
-      }
-      // Most damage overall to other teams
-      if (ver->GetOtherDamage() > value_team_most_usefull)
-      {
-        value_team_most_usefull = ver->GetOtherDamage();
-        name_team_most_usefull  = ver->GetName().c_str();
-      }
-      // Least damage overall to other teams
-      if (ver->GetOtherDamage() < value_team_most_useless)
-      {
-        value_team_most_useless = ver->GetOtherDamage();
-        name_team_most_useless  = ver->GetName().c_str();
-      }
-      // Most damage overall to his own team
-      if (ver->GetOwnDamage() > value_team_most_traitor)
-      {
-        value_team_most_traitor = ver->GetOwnDamage();
-        name_team_most_traitor  = ver->GetName().c_str();
-      }
-    }
-
-    // Print out results
-    txt += Format(_("Team %s results:\n"), (**equipe).GetName().c_str());
-    txt += Format(_("  Most violent  :  %s (%i).\n"), name_team_most_violent, value_team_most_violent);
-    txt += Format(_("  Most usefull  :  %s (%i).\n"), name_team_most_usefull, value_team_most_usefull);
-    txt += Format(_("  Most useless  :  %s (%i).\n"), name_team_most_useless, value_team_most_useless);
-    txt += Format(_("  Most sold-out :  %s (%i).\n"), name_team_most_traitor, value_team_most_traitor);
-
-    // Set all team best
-    if (value_team_most_violent > value_all_most_violent)
-    {
-      value_all_most_violent = value_team_most_violent;
-      name_all_most_violent = name_team_most_violent;
-    }
-    // Most damage overall to other teams
-    if (value_team_most_usefull > value_all_most_usefull)
-    {
-      value_all_most_usefull = value_team_most_usefull;
-      name_all_most_usefull = name_team_most_usefull;
-    }
-    // Least damage overall to other teams
-    if (value_team_most_useless < value_all_most_useless)
-    {
-      value_all_most_useless = value_team_most_useless;
-      name_all_most_useless = name_team_most_useless;
-    }
-    // Most damage overall to his own team
-    if (value_team_most_traitor > value_all_most_traitor)
-    {
-      value_all_most_traitor = value_team_most_traitor;
-      name_all_most_traitor = name_team_most_traitor;
-    }
-
     // Determine winner
-    if (0 < (**equipe).NbAliveCharacter())
+    if (0 < (**team).NbAliveCharacter())
     {
-      winner_name = (**equipe).GetName().c_str();
+      winner_name = (**team).GetName().c_str();
       break;
     }
   }
- 
+
   // Print out results
-  txt += _("All-Team results:\n");
-  txt += Format(_("  Most violent  :  %s (%i).\n"), name_all_most_violent, value_all_most_violent);
-  txt += Format(_("  Most usefull  :  %s (%i).\n"), name_all_most_usefull, value_all_most_usefull);
-  txt += Format(_("  Most useless  :  %s (%i).\n"), name_all_most_useless, value_all_most_useless);
-  txt += Format(_("  Most sold-out :  %s (%i).\n"), name_all_most_traitor, value_all_most_traitor);
-
-  txt += _("End of the game!\n");
   if (winner_name)
-  {
     jukebox.Play("share","victory");
-    txt += Format(_("%s team has won.\n"), winner_name);
-  }
-  else
-  {
-    txt += _("The game has ended as a draw.\n");
-  }
-  std::cout << txt << std::endl;
 
-  question.Set (txt, true, 0);
-  AskQuestion();
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
+  ResultsMenu menu(results_list, winner_name);
+  menu.Run();
+
+  TeamResults::deleteAllResults(results_list);
 }
 
-int Game::AskQuestion (bool draw)
+int Game::AskQuestion (Question &question, bool draw)
 {
   Time * global_time = Time::GetInstance();
   global_time->Pause();
 
-  if (draw) 
+  if (draw)
     GameLoop::GetInstance()->Draw ();
 
-  int answer = question.AskQuestion ();
+  int answer = question.Ask ();
 
-  global_time->Continue(); 
+  global_time->Continue();
   return answer;
 }
 
@@ -223,44 +135,32 @@ void Game::Start()
 
   try
   {
+
+    jukebox.PlayMusic("ingame");
     GameLoop::GetInstance()->Init ();
 
     do
     {
       isGameLaunched = true;
       GameLoop::GetInstance()->fps.Reset();
-      
-      GameLoop::GetInstance()->Run();
-     
-      MSG_DEBUG( "game", "End of game_loop.Run()" ); 
-      isGameLaunched = false;
-      
-      if (!IsGameFinished()) 
-      {
-        const char *msg = _("Do you really want to quit? (Y/N)");
-        question.Set (msg, true, 0);
-	
-        {
-          /* Tiny fix by Zygmunt Krynicki <zyga@zyga.dyndns.org> */
-          /* Let's find out what the user would like to press ... */
-          char *key_x_ptr = strchr (msg, '/');
-          char key_x;
-          if (key_x_ptr && key_x_ptr > msg) /* it's there and it's not the first char */
-            key_x = tolower(key_x_ptr[-1]);
-          else
-            abort();
-          if (!isalpha(key_x)) /* sanity check */
-            abort();
 
-	  question.choices.push_back ( Question::choix_t(SDLK_a + (int)key_x - 'a', 1) );
+      GameLoop::GetInstance()->Run();
+
+      MSG_DEBUG( "game", "End of game_loop.Run()" );
+      isGameLaunched = false;
+
+      if (!IsGameFinished())
+      {
+	if (isGamePaused){
+	  DisplayPause();
+	} else {
+	  end = DisplayQuit();
 	}
-	
-        jukebox.Pause();
-        end = (AskQuestion() == 1);
-        jukebox.Resume();
-      } else {
-	end = true;
       }
+      
+      if (!end)
+	world.ToRedrawOnScreen(Rectanglei(Point2i(0,0),AppWormux::GetInstance()->video.window.GetSize()));
+
     } while (!end);
     err = false;
   }
@@ -270,47 +170,92 @@ void Game::Start()
   }
 
   if (!err)
-    if (IsGameFinished()) 
+    if (IsGameFinished())
       MessageEndOfGame();
 
-  world.FreeMem();
-  jukebox.StopAll();
-  Mouse::GetInstance()->SetPointer(POINTER_STANDARD);
+  UnloadDatas();
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
+  jukebox.PlayMusic("menu");
 
   if (err)
   {
+    Question question;
     std::string txt = Format(_("Error:\n%s"), err_msg.c_str());
     std::cout << std::endl << txt << std::endl;
     question.Set (txt, true, 0);
-    AskQuestion (false);
+    AskQuestion (question, false);
   }
+}
+
+void Game::UnloadDatas()
+{
+  world.FreeMem();
+  lst_objects.FreeMem();
+  ParticleEngine::Stop();
+  teams_list.UnloadGamingData();
+  jukebox.StopAll();
 }
 
 void Game::Pause()
 {
+  isGamePaused = true;
+}
+
+void Game::DisplayPause()
+{
+  Question question;
+  if(!network.IsLocal())
+    return;
+
   jukebox.Pause();
 
   //Pause screen
-  Profile* xml_profile = resource_manager.LoadXMLProfile("graphism.xml",false);
-  Sprite* pause_screen = new Sprite(resource_manager.LoadImage(xml_profile, "interface/pause_screen"));
-  resource_manager.UnLoadXMLProfile( xml_profile );
-  pause_screen->cache.EnableLastFrameCache();
-  AppWormux* app = AppWormux::GetInstance();
-  pause_screen->ScaleSize(app->video.window.GetSize());
-  pause_screen->Blit( app->video.window, 0, 0);
-  app->video.Flip();
-  delete pause_screen;
-
-  question.Set (_("Press a key to continue."), true, 0);
-  AskQuestion(false);
+  question.Set ("", false, 0, "interface/pause_screen");
+  question.add_choice(Config::GetInstance()->GetKeyboard()->GetKeyAssociatedToAction(Action::ACTION_PAUSE),
+		      1
+		      );
+  AskQuestion(question, false);
   jukebox.Resume();
+  isGamePaused = false;
+}
+
+bool Game::DisplayQuit()
+{
+  Question question;
+  const char *msg = _("Do you really want to quit? (Y/N)");
+  question.Set (msg, true, 0, "interface/quit_screen");
+
+  {
+    /* Tiny fix by Zygmunt Krynicki <zyga@zyga.dyndns.org> */
+    /* Let's find out what the user would like to press ... */
+    char *key_x_ptr = strchr (msg, '/');
+    char key_x;
+    if (key_x_ptr && key_x_ptr > msg) /* it's there and it's not the first char */
+      key_x = tolower(key_x_ptr[-1]);
+    else
+      abort();
+    if (!isalpha(key_x)) /* sanity check */
+      abort();
+    
+    question.add_choice(SDLK_a + (int)key_x - 'a', 1);
+  }
+  
+  jukebox.Pause();
+  bool exit = (AskQuestion(question) == 1);
+  jukebox.Resume();
+
+  return exit;
+}
+
+bool Game::IsGamePaused() const{
+  return isGamePaused;
 }
 
 bool Game::IsGameLaunched() const{
   return isGameLaunched;
 }
 
-bool Game::GetEndOfGameStatus(){
+bool Game::GetEndOfGameStatus() const{
   return endOfGameStatus;
 }
 

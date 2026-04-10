@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -26,35 +26,36 @@
 
 class JetPack : public Weapon
 {
-private:
-  double m_x_force;
-  double m_y_force;
+  private:
+    double m_x_force;
+    double m_y_force;
 
-  int channel;
+    int channel;
 
   // Jetpack fuel.
-  uint m_last_fuel_down;
+    uint m_last_fuel_down;
 
-public:
-  JetPack();
-  void Reset();
-  void Refresh();
-  void p_Select();
-  void p_Deselect();
-  void HandleKeyEvent(int key, int event_type) ;
-  bool p_Shoot();
-  void SignalTurnEnd();
+  public:
+    JetPack();
+    void Reset();
+    void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type) ;
+    void SignalTurnEnd();
+    void ActionStopUse();
 
-protected:
-  void GoUp();
-  void GoLeft();
-  void GoRight();
-  void StopUp();
-  void StopLeft();
-  void StopRight();
-  void StartUse();
-  void StopUse();
+  protected:
+    void Refresh();
+    void p_Select();
+    void p_Deselect();
+    bool p_Shoot();
 
+    void GoUp();
+    void GoLeft();
+    void GoRight();
+    void StopUp();
+    void StopLeft();
+    void StopRight();
+    void StartUse();
+    void StopUse();
 };
 
-#endif
+#endif /* JETPACK_H */

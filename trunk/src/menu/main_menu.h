@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux, a free clone of the game Worms from Team17.
+ *  Wormux is a convivial mass murder game.
  *  Copyright (C) 2001-2004 Lawrence Azzoug.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -25,8 +25,11 @@
 
 #include "../include/base.h"
 #include "../graphic/fps.h"
-#include "../graphic/sprite.h"
+#include "../graphic/surface.h"
+#include "../gui/widget_list.h"
 #include "../gui/button_text.h"
+#include "../gui/picture_widget.h"
+#include "../menu/menu.h"
 #include <SDL.h>
 #include <vector>
 
@@ -36,54 +39,44 @@ typedef enum
   menuPLAY,
   menuNETWORK,
   menuOPTIONS,
+  menuCREDITS,
   menuQUIT
 } menu_item;
 
-class Main_Menu
+class Main_Menu : public Menu
 {
-  Sprite *background, *skin_left, *skin_right, *title;
+  //PictureWidget *title;
+  //Surface s_title;
+
+  //Sprite *skin_left, *skin_right;
+
   ButtonText *play, *network, *options, *infos, *quit;
-  Text * version_text, * website_text;
-  uint start_time;
-  uint last_refresh;
-  uint button_height, button_width, title_offset, skin_offset;
-  int title_y, skinl_y, skinr_y;
-  bool anim_finished;
-  FramePerSecond fps;
-  Font *normal_font, *large_font;
-  
+
+  Text *version_text, *website_text;
+ 
+
 public:
   menu_item choice;
 
   Main_Menu();
   ~Main_Menu();
   menu_item Run ();
-private:  
-  void onClick(const Point2i &mousePosition, int button);
+
+  void Redraw(const Rectanglei& rect, Surface& surf);
+
+protected:
+   void __sig_ok();
+   void __sig_cancel();
+   void key_ok();
+   void key_cancel();
+
+private:
+   virtual void DrawBackground();
+   void OnClic(const Point2i &mousePosition, int button);
 
   // Main drawing function: refresh parts of screen 
-  void Draw(const Point2i &mousePosition);
-
-  //Draws gfx needing a refresh
-  void DrawGfx(const Point2i &mousePosition, uint dt);
-
-  //Draw gfx
-  void DrawTitle(uint dt);
-  void DrawSkins(uint dt);
-  void DrawButtons(const Point2i &mousePosition, uint dt);
-
-  // Erase gfx which have moved
-  void EraseGfx(uint dt);
-
-  // Erase the whole window
-  void EraseAll();
-
-  void button_click();
-  bool sig_play();
-  bool sig_network();
-  bool sig_options();
-  bool sig_infos();
-  bool sig_quit();
+  void Draw(const Point2i &mousePosition) {};
+  void button_clic();
 };
 
 #endif
