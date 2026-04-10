@@ -51,12 +51,12 @@ private:
   bool m_goes_through_wall;
   bool m_collides_with_characters;
   bool m_collides_with_objects;
+
   Point2i m_rebound_position;  
 protected:
   PhysicalObj* m_overlapping_object;
-  bool m_ignore_movements;
 
-  virtual void CheckOverlapping();
+  void CheckOverlapping();
 
 protected:
   std::string m_name;
@@ -128,7 +128,7 @@ public:
   bool IsInVacuumXY(const Point2i &position, bool check_objects = true) const;
   bool IsInVacuum(const Point2i &offset, bool check_objects = true) const; // Relative to current position
   PhysicalObj* CollidedObjectXY(const Point2i & position) const;
-  PhysicalObj* CollidedObject(const Point2i & offset = Point2i(0,0)) const; // Relative to current position
+  PhysicalObj* CollidedObject(const Point2i & offset) const; // Relative to current position
   bool FootsInVacuumXY(const Point2i & position) const;
   bool FootsInVacuum() const;
 
@@ -138,7 +138,7 @@ public:
 
   // The object is outside of the world
   bool IsOutsideWorldXY(Point2i position) const;
-  bool IsOutsideWorld(const Point2i &offset = Point2i(0,0)) const; // Relative to current position
+  bool IsOutsideWorld(const Point2i &offset) const;
 
   // Refresh datas
   virtual void Refresh() = 0;
@@ -147,13 +147,14 @@ public:
   virtual void Draw() = 0;
 
   // Damage handling
-  virtual void AddDamage(uint damage_points);
+  void AddDamage(uint damage_points);
 
   //-------- state ----
   void Init();
   void Ghost();
   void Drown();
   void GoOutOfWater(); // usefull for supertux.
+  void RemoveFromPhysicalEngine();
 
   virtual bool IsImmobile() const;
   bool IsDead() const;

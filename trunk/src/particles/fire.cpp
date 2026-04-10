@@ -92,15 +92,15 @@ void FireParticle::Refresh()
       fire_cfg.explosion_range = (uint)(0.5 * scale * image->GetWidth()) + 1;
       fire_cfg.particle_range = (uint)(0.6 * scale * image->GetWidth()) + 1;
     }
-    double angle = 0.0;
-    angle += cos((((now + oscil_delta) % 1000)/500.0) * M_PI) * 0.5; // 0.5 is arbirtary
+    float angle = 0.0;
+    angle += cos((((now + oscil_delta) % 1000)/500.0) * M_PI) * 30.0;
     image->SetRotation_HotSpot(Point2i(image->GetWidth()/2,image->GetHeight()));
-    image->SetRotation_rad( angle);
+    image->SetRotation_deg( angle * direction);
   }
   else
   {
-    double angle = GetSpeedAngle();
-    image->SetRotation_rad((angle - M_PI_2) * direction);
+    double angle = GetSpeedAngle() * 180/M_PI;
+    image->SetRotation_deg((angle - 90.0) * direction);
   }
 
   m_last_refresh = now;
@@ -115,9 +115,4 @@ void FireParticle::SignalDrowning()
 {
   m_left_time_to_live = 0;
   // jukebox.Play("share","fire/pschiit");
-}
-
-void FireParticle::SignalOutOfMap()
-{
-  m_left_time_to_live = 0;
 }

@@ -40,10 +40,10 @@ DistantComputer::DistantComputer(TCPsocket new_sock)
   SDLNet_TCP_AddSocket(network.socket_set, sock);
 
   // If we are the server, we have to tell this new computer
-  // what teams / maps have already been selected
+  // what teams / maps have alreayd been selected
   if( network.IsServer() )
   {
-    Action a(Action::ACTION_SET_MAP, ActiveMap().ReadName());
+    Action a(ACTION_SET_MAP, ActiveMap().ReadName());
     int size;
     char* pack;
     a.WritePacket(pack, size);
@@ -55,9 +55,7 @@ DistantComputer::DistantComputer(TCPsocket new_sock)
       team != teams_list.playing_list.end();
       ++team)
     {
-      Action b(Action::ACTION_NEW_TEAM, (*team)->GetId());
-      b.Push((*team)->GetPlayerName());
-      b.Push((int)(*team)->GetNbCharacters());
+      Action b(ACTION_NEW_TEAM, (*team)->GetId());
       b.WritePacket(pack, size);
       SendDatas(pack, size);
       free(pack);
@@ -67,27 +65,26 @@ DistantComputer::DistantComputer(TCPsocket new_sock)
   if(network.network_menu != NULL)
   {
     // Display a message in the network menu
-    network.network_menu->ReceiveMsgCallback(GetAdress() + _(" has joined the party"));
+    network.network_menu->msg_box->NewMessage( GetAdress() + _(" has joined the party"));
   }
 }
 
 DistantComputer::~DistantComputer()
 {
-  if(network.network_menu != NULL)
-  {
-    // Display a message in the network menu
-    network.network_menu->ReceiveMsgCallback( GetAdress() + _(" has left the party"));
-  }
+  // Display a message in the network menu
+  network.network_menu->msg_box->NewMessage( GetAdress() + _(" has left the party"));
 
   SDLNet_TCP_DelSocket(network.socket_set, sock);
   SDLNet_TCP_Close(sock);
 
-  if(network.IsConnected())
-  for(std::list<std::string>::iterator team = owned_teams.begin();
+  if(network.IsServer())
+  {
+    for(std::list<std::string>::iterator team = owned_teams.begin();
       team != owned_teams.end();
       ++team)
-  {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_DEL_TEAM, *team));
+    {
+      ActionHandler::GetInstance()->NewAction(new Action(ACTION_DEL_TEAM, *team));
+    }
   }
   owned_teams.clear();
 
@@ -137,7 +134,7 @@ int DistantComputer::ReceiveDatas(char* & buf)
     }
   }
   SDL_UnlockMutex(sock_lock);
-  MSG_DEBUG("network","unlocked");
+MSG_DEBUG("network","unlocked");
   return total_received;
 }
 
@@ -170,31 +167,22 @@ std::string DistantComputer::GetAdress()
 void DistantComputer::ManageTeam(Action* team)
 {
   std::string name = team->PopString();
-  if(team->GetType() == Action::ACTION_NEW_TEAM)
+  if(team->GetType() == ACTION_NEW_TEAM)
   {
     owned_teams.push_back(name);
-
-    int index = 0;
-    Team * tmp = teams_list.FindById(name, index);
-    tmp->SetRemote();
-    
-    Action* copy = new Action(Action::ACTION_NEW_TEAM, name);
-    copy->Push( team->PopString() );
-    copy->Push( team->PopInt() );
-    ActionHandler::GetInstance()->NewAction(copy, false);
   }
   else
-  if(team->GetType() == Action::ACTION_DEL_TEAM)
+  if(team->GetType() == ACTION_DEL_TEAM)
   {
     std::list<std::string>::iterator it;
     it = find(owned_teams.begin(), owned_teams.end(), name);
-    std::cout << "ManageTeam : erase " << name << std::endl;
     assert(it != owned_teams.end());
     owned_teams.erase(it);
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_DEL_TEAM, name), false);
   }
   else
     assert(false);
+
+  ActionHandler::GetInstance()->NewAction(new Action(team->GetType(), name), false);
 }
 
 void DistantComputer::SendChatMessage(Action* a)
@@ -202,10 +190,10 @@ void DistantComputer::SendChatMessage(Action* a)
   std::string txt = a->PopString();
   if(network.IsServer())
   {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, nickname + "> "+txt));
+    ActionHandler::GetInstance()->NewAction(new Action(ACTION_CHAT_MESSAGE, nickname + "> "+txt));
   }
   else
   {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, txt), false);
+    ActionHandler::GetInstance()->NewAction(new Action(ACTION_CHAT_MESSAGE, txt), false);
   }
 }

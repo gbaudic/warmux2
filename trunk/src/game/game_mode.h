@@ -20,15 +20,14 @@
  * per team, etc.
  *****************************************************************************/
 
-#ifndef GAME_MODE_H
-#define GAME_MODE_H
+#ifndef MODE_JEU_H
+#define MODE_JEU_H
 
 #include <string>
 #include "../include/base.h"
 #include "../tool/xml_document.h"
-#include "../weapon/weapon_cfg.h"
 
-class GameMode
+class GameMode 
 {
 public:
   uint max_characters;
@@ -41,9 +40,6 @@ public:
   double gravity;
   double safe_fall ;
   double damage_per_fall_unit ;
-  ExplosiveWeaponConfig death_explosion_cfg;
-  ExplosiveWeaponConfig barrel_explosion_cfg;
-  ExplosiveWeaponConfig bonus_box_explosion_cfg;
 
   struct s_character
   {
@@ -52,11 +48,11 @@ public:
     uint mass;
     double air_resist_factor;
     uint jump_strength;
-    double jump_angle;
+    int jump_angle;
     uint super_jump_strength;
-    double super_jump_angle;
+    int super_jump_angle;
     uint back_jump_strength;
-    double back_jump_angle;
+    int back_jump_angle;
   } character;
 
   int allow_character_selection;
@@ -66,11 +62,11 @@ public:
   static const int BEFORE_FIRST_ACTION_AND_END_TURN = 2;
   static const int CHANGE_ON_END_TURN = 3;
   static const int NEVER = 4;
-
+ 
 private:
   std::string m_current;
   static GameMode * singleton;
-
+    
 public:
   static GameMode * GetInstance();
 
@@ -78,10 +74,10 @@ public:
   bool AllowCharacterSelection() const;
 
 private:
-  GameMode();
+  GameMode();  
 
 protected:
   bool LoadXml (xmlpp::Element *xml);
 };
 
-#endif /* GAME_MODE_H */
+#endif

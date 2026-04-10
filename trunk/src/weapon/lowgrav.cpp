@@ -30,15 +30,18 @@
 #include "../tool/i18n.h"
 #include "../include/action_handler.h"
 
+// Espace entre l'espace en l'image
+const uint ESPACE = 5;
+
 const double LOW_GRAVITY_FACTOR = 0.4;
 
-LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav",
+LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav", 
 			    new WeaponConfig(), NEVER_VISIBLE)
 {
   m_name = _("LowGrav");
 
   override_keys = true ;
-  use_unit_on_first_shoot = false;
+  use_unit_on_first_shoot = false;  
 }
 
 void LowGrav::Refresh()
@@ -64,13 +67,13 @@ void LowGrav::Draw()
 {
 }
 
-void LowGrav::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
+void LowGrav::HandleKeyEvent(int action, int event_type)
 {
   switch (action)
     {
-      case Action::ACTION_SHOOT:
-        if (event_type == Keyboard::KEY_PRESSED)
-          ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_WEAPON_STOP_USE));
+      case ACTION_SHOOT:
+        if (event_type == KEY_PRESSED)
+          ActionHandler::GetInstance()->NewAction(new Action(ACTION_WEAPON_STOP_USE));
 	break ;
 
       default:

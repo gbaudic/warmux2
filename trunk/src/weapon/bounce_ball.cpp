@@ -49,22 +49,24 @@ BounceBall::BounceBall(ExplosiveWeaponConfig& cfg,
 void BounceBall::Refresh()
 {
   WeaponProjectile::Refresh();
-  // rotation of ball image...
-  image->SetRotation_rad(GetSpeedAngle());
+
+  // rotation de l'image de la grenade...
+  double angle = GetSpeedAngle() * 180/M_PI ;
+  image->SetRotation_deg( angle);
 }
 
 
 //-----------------------------------------------------------------------------
 
 void BounceBall::SignalOutOfMap()
-{
-  GameMessages::GetInstance()->Add (_("The ball left the battlefield before exploding"));
+{   
+  GameMessages::GetInstance()->Add ("The ball left the battlefield before exploding");
   WeaponProjectile::SignalOutOfMap();
 }
 
 //-----------------------------------------------------------------------------
 
-BounceBallLauncher::BounceBallLauncher() :
+BounceBallLauncher::BounceBallLauncher() : 
   WeaponLauncher(WEAPON_BOUNCE_BALL, "bounce_ball", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Bounce Ball");
@@ -81,7 +83,7 @@ bool BounceBallLauncher::p_Shoot ()
 {
   if (max_strength == 0)
     projectile->Shoot (10);
-  else
+  else 
     projectile->Shoot (m_strength);
   projectile = NULL;
   ReloadLauncher();

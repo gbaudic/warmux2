@@ -108,7 +108,7 @@ ResultsMenu::ResultsMenu(const std::vector<TeamResults*>* v,
   , index(0)
   , max_height(DEF_SIZE+3*DEF_BORDER)
   , team_size(360, 40)
-  , type_size(260, 40)
+  , type_size(160, 40)
   , name_size(250, 40)
   , score_size(60, 40)
 {
@@ -182,9 +182,7 @@ void ResultsMenu::SetResult(int i)
   const Character* player = NULL;
   const TeamResults* res = NULL;
   std::string name;
-
-  DrawBackground();
-  b_ok->ForceRedraw();
+  
   index = i;
   if (index < 0) index = results->size()-1;
   else if (index>(int)results->size()-1) index = 0;

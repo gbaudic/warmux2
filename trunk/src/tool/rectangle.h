@@ -33,7 +33,7 @@
  * 
  * @param T Type for position and size of the Rectangle
  */
-template<class T> class rectangle
+template<class T> class Rectangle
 {
 	protected:
 		/** Position of the rectangle. */
@@ -45,7 +45,7 @@ template<class T> class rectangle
 		/**
 		 * Default constructor
 		 */
-		inline rectangle(){
+		inline Rectangle(){
 		}
 		
 		/**
@@ -56,7 +56,7 @@ template<class T> class rectangle
 		 * @param width Width of the new rectangle.
 		 * @param height Height of the new rectangle.
 		 */
-		inline rectangle(T x, T y, T width, T height){
+		inline Rectangle(T x, T y, T width, T height){
 			position.SetValues( x, y );
 			size.SetValues( width, height );
 		}
@@ -67,7 +67,7 @@ template<class T> class rectangle
 		 * @param thePosition Position of the new rectangle.
 		 * @param theSize Size of the new rectangle.
 		 */
-		inline rectangle(Vector2<T> thePosition, Vector2<T> theSize){
+		inline Rectangle(Vector2<T> thePosition, Vector2<T> theSize){
 			position = thePosition;
 			size = theSize;
 		}
@@ -141,7 +141,7 @@ template<class T> class rectangle
 			size = newSize;
 		}
 
-		inline rectangle<T> GetRectangle() const{
+		inline Rectangle<T> GetRectangle() const{
 			return *this;
 		}
 
@@ -180,7 +180,7 @@ template<class T> class rectangle
 		 * 
 		 * @param cr The rectangle used for clipping
 		 */
-		void Clip( const rectangle &cr){
+		void Clip( const Rectangle &cr){
 			if( !Intersect(cr) ){
 				size.x = 0;
 				size.y = 0;
@@ -236,7 +236,7 @@ template<class T> class rectangle
 		 *
 		 * @param r2 The rectangle for witch the check if performed.
 		 */
-		inline bool Contains( const rectangle<T> &r2 ) const{
+		inline bool Contains( const Rectangle<T> &r2 ) const{
 			if( r2.IsSizeZero() )
 				return false;
 			
@@ -250,7 +250,7 @@ template<class T> class rectangle
 		 *
 		 * @param r2 The second rectangle.
 		 */
-		inline bool Intersect( const rectangle<T> &r2 ) const{
+		inline bool Intersect( const Rectangle<T> &r2 ) const{
 			if( IsSizeZero() || r2.IsSizeZero() )
 				return false;
 			
@@ -325,7 +325,7 @@ template<class T> class rectangle
 		}
 };
 
-typedef rectangle<int>    Rectanglei;
-typedef rectangle<float>  Rectanglef;
-typedef rectangle<double> Rectangled;
+typedef Rectangle<int>    Rectanglei;
+typedef Rectangle<float>  Rectanglef;
+typedef Rectangle<double> Rectangled;
 #endif // _RECTANGLE_H

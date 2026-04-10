@@ -23,24 +23,64 @@
 #define GAME_MENU_H
 
 #include "menu.h"
-#include "map_selection_box.h"
-#include "teams_selection_box.h"
 #include "../include/base.h"
 #include "../graphic/font.h"
+
+class Team;
+
+const uint MAX_NB_TEAMS=4;
+
+class TeamBox : public HBox
+{
+ private:
+  Team * associated_team;
+  PictureWidget *team_logo;
+  Label * team_name;
+  TextBox * player_name;
+  SpinButton * nb_characters;
+
+ public:
+  TeamBox(uint width);
+
+  void SetTeam(Team& _team);
+  void ClearTeam();
+  Team* GetTeam() const;  
+  void ValidOptions() const;
+
+  void Update(const Point2i &mousePosition,
+	      const Point2i &lastMousePosition,
+	      Surface& surf);
+  Widget* Clic(const Point2i &mousePosition, uint button);
+};
 
 class GameMenu : public Menu
 {
    /* Team controllers */
-   TeamsSelectionBox * team_box;
+   TeamBox* teams_selections[MAX_NB_TEAMS];
+   SpinButtonBig *teams_nb;
 
    /* Map controllers */
-   MapSelectionBox * map_box;
-
+   Box * map_box;
+   uint selected_map_index;
+   PictureWidget *map_preview_selected;
+   PictureWidget *map_preview_before, *map_preview_before2;
+   PictureWidget *map_preview_after, *map_preview_after2;  
+   Label *map_name_label;
+   Label *map_author_label;
+   Button *bt_map_plus, *bt_map_minus;
+   
    /* Game options controllers */
    Box * game_options;
    SpinButtonWithPicture *opt_duration_turn;
+   //SpinButtonWithPicture *opt_duration_end_turn;
+   //SpinButtonBig *opt_nb_characters;
    SpinButtonWithPicture *opt_energy_ini;
-   CheckBox *opt_scroll_on_border;
+
+
+   void ChangeMap(int delta_index);   
+
+   void SetNbTeams(uint nb_teams);
+   void NextTeam(int i);
 
    void SaveOptions();
    void OnClic(const Point2i &mousePosition, int button);

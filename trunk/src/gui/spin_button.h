@@ -31,8 +31,6 @@
 class SpinButton : public Widget
 {
  private:
-  bool shadowed;
-
   Text *txt_label, *txt_value;
 
   int m_value;
@@ -40,14 +38,13 @@ class SpinButton : public Widget
   Button *m_plus, *m_minus;
   
  public:
-  SpinButton(const std::string &label, const Rectanglei &rect, 
-	     int value=0, int step=1, int min_value=-1, int max_value=-1, 
-	     const Color& color = white_color, bool shadowed = true);
+  SpinButton(const std::string &label, const Rectanglei &rect,
+	     int value=0, int step=1, int min_value=-1, int max_value=-1);
   virtual ~SpinButton();
 
   void SetSizePosition(const Rectanglei &rect);
 
-  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  void Draw(const Point2i &mousePosition, Surface& surf);
   Widget* Clic(const Point2i &mousePosition, uint button);
   int GetValue() const;
   void SetValue(int value);

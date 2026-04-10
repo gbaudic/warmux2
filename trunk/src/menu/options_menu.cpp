@@ -34,19 +34,19 @@
 
 const uint SOUND_X = 30;
 const uint SOUND_Y = 30;
-const uint SOUND_W = 530;
+const uint SOUND_W = 500;
 const uint SOUND_H = 170;
 
 const uint GRAPHIC_X = 30;
-const uint GRAPHIC_Y = SOUND_Y + SOUND_H + 30;
-const uint GRAPHIC_W = 530;
+const uint GRAPHIC_Y = SOUND_X + SOUND_H + 30;
+const uint GRAPHIC_W = 500;
 const uint GRAPHIC_H = 240;
 
 OptionMenu::OptionMenu() :
   Menu("menu/bg_option")
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  Rectanglei stdRect (0, 0, 140, 30);
+  Rectanglei stdRect (0, 0, 130, 30);
 
   normal_font = Font::GetInstance(Font::FONT_NORMAL);
 
@@ -88,7 +88,7 @@ OptionMenu::OptionMenu() :
 
   widgets.AddWidget(graphic_options);
 
-  /* Sound options */
+  /* Sound options */  
   Box * sound_options = new HBox( Rectanglei(SOUND_X, SOUND_Y, SOUND_W, SOUND_H));
   sound_options->AddWidget(new PictureWidget(Rectanglei(0,0,40,138), "menu/audio_label"));
 
@@ -114,27 +114,20 @@ OptionMenu::OptionMenu() :
 
   graphic_options->SetXY(center_x - graphic_options->GetSizeX()/2, graphic_options->GetPositionY());
   sound_options->SetXY(center_x - sound_options->GetSizeX()/2, sound_options->GetPositionY());
-
+  
   // Values initialization
 
   // Get available video resolution
   std::list<Point2i>& video_res = app->video.GetAvailableConfigs();
-  std::list<Point2i>::iterator mode;
 
-  for(mode=video_res.begin(); mode!=video_res.end(); ++mode) {
-      std::ostringstream ss;
-      bool is_current;
-      std::string text;
-      ss << mode->GetX() << "x" << mode->GetY() ;
-      text = ss.str();
-      if (app->video.window.GetWidth() == mode->GetX() && app->video.window.GetHeight() == mode->GetY())
-      {
-          ss << " " << _("(current)");
-          is_current = true;
-      } else {
-          is_current = false;
-      }
-      lbox_video_mode->AddItem(is_current, ss.str(), text);
+  std::list<Point2i>::iterator it = video_res.begin(), end = video_res.end();
+  for (; it != end ; ++it) {
+    std::ostringstream ss;
+    ss << (*it).x << "x" << (*it).y ;
+    if ((*it).x == app->video.window.GetWidth() && (*it).y == app->video.window.GetHeight())
+      lbox_video_mode->AddItem(true, ss.str(), ss.str());
+    else
+      lbox_video_mode->AddItem(false, ss.str(), ss.str());
   }
 
   // Generate sound mode list

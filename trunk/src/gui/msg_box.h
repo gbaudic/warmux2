@@ -24,24 +24,17 @@
 
 #include "../include/base.h"
 #include "../graphic/font.h"
-#include "../graphic/text.h"
-#include "widget.h"
-#include <list>
+#include "box.h"
 
-class MsgBox : public Widget
+class MessageBox : public VBox
 {
   Font* font;
-  std::list<Text*> messages;
-  void Flush();
-
+ protected:
  public:
 
-  MsgBox(const Rectanglei& rect, Font* _font);
+  MessageBox(int message_nbr, const Rectanglei& rect, Font* _font);
 
-  void NewMessage(const std::string& msg, const Color& color = white_color);
-  
-  void Draw (const Point2i &mousePosition, Surface& surf) const;
-  void SetSizePosition(const Rectanglei &rect);
+  void NewMessage(const std::string& msg);
 };
 
 #endif

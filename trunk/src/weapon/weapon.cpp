@@ -16,8 +16,11 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Virtual class to handle weapon in wormux.
- * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
+ * Classes virtuelles permettant de d�inir une arme et un projectile. Les
+ * armes ont un nom, une image, un �at actif/inactif et une ic�e (affich�
+ * dans l'interface). Les projectiles sont des objets physiques qui ont un
+ * comportement sp�ial lorsqu'ils entrent en collision ou qu'ils sortent du
+ * terrain.
  *****************************************************************************/
 
 #include "weapon.h"
@@ -101,7 +104,7 @@ Weapon::Weapon(Weapon_type type,
 
   channel_load = -1;
 
-  if (!use_flipping and !EgalZero(min_angle - max_angle))
+  if (!use_flipping and (min_angle != max_angle))
     use_flipping = true;
 
   extra_params = params;
@@ -109,19 +112,19 @@ Weapon::Weapon(Weapon_type type,
   if (m_visibility != NEVER_VISIBLE)
   {
     m_image = new Sprite( resource_manager.LoadImage(weapons_res_profile, m_id));
-    if(!EgalZero(min_angle - max_angle))
+    if(min_angle != max_angle)
       m_image->cache.EnableLastFrameCache();
   }
 
-  icon = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_ico"));
+  icone = resource_manager.LoadImage(weapons_res_profile,m_id+"_ico");
 
   mouse_character_selection = true;
 }
 
 Weapon::~Weapon()
 {
-  if(extra_params) delete extra_params;
-  if(icon) delete icon;
+  if (extra_params)
+    delete extra_params;
 }
 
 void Weapon::p_Select ()
@@ -129,7 +132,7 @@ void Weapon::p_Select ()
   m_last_fire_time = 0;
 }
 void Weapon::p_Deselect () {}
-void Weapon::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type) {}
+void Weapon::HandleKeyEvent(int key, int event_type) {}
 
 void Weapon::Select()
 {
@@ -143,7 +146,7 @@ void Weapon::Select()
   ActiveCharacter().SetWeaponClothe();
 
   // is there a crosshair ?
-  if (!EgalZero(min_angle - max_angle))
+  if (min_angle != max_angle)
     ActiveTeam().crosshair.enable = true;
 
   p_Select();
@@ -155,9 +158,9 @@ void Weapon::Select()
 
   // init stamp on the stength_bar
   double val = ActiveCharacter().previous_strength;
-  weapon_strength_bar.ResetTag();
+  weapon_strength_bar.Reset_Marqueur();
   if (0 < val && val < max_strength)
-  weapon_strength_bar.AddTag (uint(val*100), primary_red_color);
+  weapon_strength_bar.AjouteMarqueur (uint(val*100), primary_red_color);
 }
 
 void Weapon::Deselect()
@@ -192,7 +195,7 @@ void Weapon::Manage()
 
 bool Weapon::CanChangeWeapon() const
 {
-  if ( !ActiveTeam().IsLocal() )
+  if ( !ActiveTeam().is_local )
     return false;
 
   if ( (ActiveTeam().ReadNbUnits() != m_initial_nb_unit_per_ammo) &&
@@ -204,27 +207,27 @@ bool Weapon::CanChangeWeapon() const
 
 void Weapon::NewActionShoot() const
 {
-  assert(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
-  Action a_begin_sync(Action::ACTION_SYNC_BEGIN);
+  assert(ActiveTeam().is_local);
+  Action a_begin_sync(ACTION_SYNC_BEGIN);
   network.SendAction(&a_begin_sync);
   SendCharacterPosition();
-  Action * shoot = new Action(Action::ACTION_SHOOT,
-                              m_strength,
-                              ActiveCharacter().GetAbsFiringAngle());
-  shoot->StoreActiveCharacter();
-  ActionHandler::GetInstance()->NewAction(shoot);
-  Action a_end_sync(Action::ACTION_SYNC_END);
+  ActionHandler::GetInstance()->NewAction (new Action(
+				       ACTION_SHOOT,
+				       m_strength,
+				       ActiveTeam().crosshair.GetAngleVal()));
+
+  Action a_end_sync(ACTION_SYNC_END);
   network.SendAction(&a_end_sync);
 
 }
 
-void Weapon::PrepareShoot(double strength, double angle)
+void Weapon::PrepareShoot(double strength, int angle)
 {
   MSG_DEBUG("weapon_shoot", "Try to shoot");
-  ActiveCharacter().SetFiringAngle(angle);
+
+  ActiveTeam().crosshair.ChangeAngleVal(angle);
   m_strength = strength;
   StopLoading();
-
   ActiveCharacter().PrepareShoot();
 }
 
@@ -311,9 +314,10 @@ const Point2i Weapon::GetGunHolePosition()
   Point2i hole(pos +  hole_delta);
   double dst = pos.Distance(hole);
   double angle = pos.ComputeAngle(hole);
-  return pos + Point2i(static_cast<int>(dst * cos(angle + ActiveCharacter().GetFiringAngle())),
-                       static_cast<int>(dst * sin(angle + ActiveCharacter().GetFiringAngle())));
+  return pos + Point2i(static_cast<int>(dst * cos(angle + ActiveTeam().crosshair.GetAngleRad())),
+                       static_cast<int>(dst * sin(angle + ActiveTeam().crosshair.GetAngleRad())));
 }
+
 
 bool Weapon::EnoughAmmo() const
 {
@@ -367,7 +371,7 @@ const std::string& Weapon::GetID() const {
   return m_id;
 }
 
-Weapon::Weapon_type Weapon::GetType() const {
+Weapon_type Weapon::GetType() const {
   return m_type;
 }
 
@@ -380,7 +384,7 @@ void Weapon::UpdateStrength(){
 
   m_strength = BorneDouble (val, 0.0, max_strength);
 
-  weapon_strength_bar.UpdateValue ((int)(m_strength*100));
+  weapon_strength_bar.Actu ((int)(m_strength*100));
 }
 
 bool Weapon::IsReady() const{
@@ -405,6 +409,22 @@ void Weapon::StopLoading(){
   m_first_time_loading = 0 ;
 
   jukebox.Stop(channel_load);
+}
+
+void Weapon::DrawWeaponBox(){
+  int c_x;
+  int c_y;
+
+  c_x =  + BUTTON_ICO_WIDTH / 2 + WEAPON_BOX_BUTTON_DX;
+  c_y =  + BUTTON_ICO_HEIGHT / 2 + WEAPON_BOX_BUTTON_DY;
+
+  AppWormux * app = AppWormux::GetInstance();
+
+  Point2i dest( (int)(WEAPON_BOX_BUTTON_DX), (int)(WEAPON_BOX_BUTTON_DY));
+  Point2i  dr2( (int)(c_x - 0.5 * WEAPON_ICO_WIDTH), (int)(c_y - 0.5 * WEAPON_ICO_HEIGHT));
+
+  app->video.window.Blit( Interface::GetInstance()->weapon_box_button, dest);
+  app->video.window.Blit( icone, dr2);
 }
 
 void Weapon::Draw(){
@@ -460,16 +480,16 @@ void Weapon::Draw(){
     return;
 
   // Reset the Sprite:
-  m_image->SetRotation_rad(0.0);
+  m_image->SetRotation_deg(0.0);
   m_image->Scale(1.0,1.0);
 
   // rotate weapon if needed
-  if (!EgalZero(min_angle - max_angle))
+  if (min_angle != max_angle)
   {
     if(ActiveCharacter().GetDirection() == 1)
-      m_image->SetRotation_rad (ActiveCharacter().GetFiringAngle());
+      m_image->SetRotation_deg (ActiveTeam().crosshair.GetAngle());
     else
-      m_image->SetRotation_rad (ActiveCharacter().GetFiringAngle() - M_PI);
+      m_image->SetRotation_deg (ActiveTeam().crosshair.GetAngle() - 180.0);
   }
 
   // flip image if needed
@@ -485,11 +505,11 @@ void Weapon::Draw(){
   // Animate the display of the weapon:
   if( m_time_anim_begin + ANIM_DISPLAY_TIME > Time::GetInstance()->Read())
   {
-    if (!EgalZero(min_angle - max_angle))
+    if (min_angle != max_angle)
     {
-      double angle = m_image->GetRotation_rad();
-      angle += sin( M_PI_2 * double(Time::GetInstance()->Read() - m_time_anim_begin) /(double) ANIM_DISPLAY_TIME) * 2 * M_PI;
-      m_image->SetRotation_rad (angle);
+      float angle = m_image->GetRotation_deg();
+      angle += sin( M_PI_2 * double(Time::GetInstance()->Read() - m_time_anim_begin) /(double) ANIM_DISPLAY_TIME) * 360.0;
+      m_image->SetRotation_deg (angle);
     }
     else
     {
@@ -509,14 +529,13 @@ void Weapon::DrawWeaponFire()
 {
   if (m_weapon_fire == NULL) return;
   Point2i size = m_weapon_fire->GetSize();
-  size.x = (ActiveCharacter().GetDirection() == Body::DIRECTION_RIGHT ? 0 : size.x);
+  size.x = (ActiveCharacter().GetDirection() == 1 ? 0 : size.x);
   size.y /= 2;
-  m_weapon_fire->SetRotation_rad (ActiveCharacter().GetFiringAngle());
+  m_weapon_fire->SetRotation_deg (ActiveTeam().crosshair.GetAngle());
   m_weapon_fire->Draw( GetGunHolePosition() - size );
 }
 
-void Weapon::DrawUnit(int unit) const
-{
+void Weapon::DrawUnit(int unit){
   Rectanglei rect;
 
   std::ostringstream ss;
@@ -524,20 +543,14 @@ void Weapon::DrawUnit(int unit) const
   ss << unit;
 
   DrawTmpBoxText(*Font::GetInstance(Font::FONT_SMALL),
-		 Point2i( ActiveCharacter().GetCenterX(), 
-			  ActiveCharacter().GetY() - UNIT_BOX_HEIGHT / 2 - UNIT_BOX_GAP )
+		 Point2i( ActiveCharacter().GetCenterX(), ActiveCharacter().GetY() - UNIT_BOX_HEIGHT / 2 - UNIT_BOX_GAP )
 		 - camera.GetPosition(),
 		 ss.str());
 }
 
-Sprite & Weapon::GetIcon() const
-{
-  return *icon;
-}
-
 bool Weapon::LoadXml(xmlpp::Element * weapon)
 {
-  xmlpp::Element *elem = XmlReader::GetMarker(weapon, m_id);
+  xmlpp::Element *elem = LitDocXml::AccesBalise (weapon, m_id);
   if (elem == NULL)
   {
       std::cout << Format(_("No element <%s> found in the xml config file!"),
@@ -546,44 +559,41 @@ bool Weapon::LoadXml(xmlpp::Element * weapon)
     return false;
   }
 
-  xmlpp::Element *pos_elem = XmlReader::GetMarker(elem, "position");
+  xmlpp::Element *pos_elem = LitDocXml::AccesBalise (elem, "position");
   if (pos_elem != NULL) {
     // E.g. <position origin="hand" x="-1" y="0" />
     std::string origin_xml;
-    XmlReader::ReadIntAttr (pos_elem, "x", position.x);
-    XmlReader::ReadIntAttr (pos_elem, "y", position.y);
-    XmlReader::ReadStringAttr (pos_elem, "origin", origin_xml);
+    LitDocXml::LitAttrInt (pos_elem, "x", position.x);
+    LitDocXml::LitAttrInt (pos_elem, "y", position.y);
+    LitDocXml::LitAttrString (pos_elem, "origin", origin_xml);
     if (origin_xml == "over")
       origin = weapon_origin_OVER;
     else
       origin = weapon_origin_HAND;
   }
 
-  pos_elem = XmlReader::GetMarker(elem, "hole");
+  pos_elem = LitDocXml::AccesBalise (elem, "hole");
   if (pos_elem != NULL) {
     // E.g. <hole dx="-1" dy="0" />
-    XmlReader::ReadIntAttr(pos_elem, "dx", hole_delta.x);
-    XmlReader::ReadIntAttr(pos_elem, "dy", hole_delta.y);
+    LitDocXml::LitAttrInt (pos_elem, "dx", hole_delta.x);
+    LitDocXml::LitAttrInt (pos_elem, "dy", hole_delta.y);
   }
 
-  XmlReader::ReadInt(elem, "nb_ammo", m_initial_nb_ammo);
-  XmlReader::ReadInt(elem, "unit_per_ammo", m_initial_nb_unit_per_ammo);
+  LitDocXml::LitInt (elem, "nb_ammo", m_initial_nb_ammo);
+  LitDocXml::LitInt (elem, "unit_per_ammo", m_initial_nb_unit_per_ammo);
 
   // max strength
   // if max_strength = 0, no strength_bar !
-  XmlReader::ReadDouble(elem, "max_strength", max_strength);
+  LitDocXml::LitDouble (elem, "max_strength", max_strength);
 
   // change weapon after ? (for the ninja cord = true)
-  XmlReader::ReadBool(elem, "change_weapon", m_can_change_weapon);
+  LitDocXml::LitBool (elem, "change_weapon", m_can_change_weapon);
 
   // angle of weapon when drawing
   // if (min_angle == max_angle) no cross_hair !
   // between -90 to 90 degrees
-  int min_angle_deg = 0, max_angle_deg = 0;
-  XmlReader::ReadInt(elem, "min_angle", min_angle_deg);
-  XmlReader::ReadInt(elem, "max_angle", max_angle_deg);
-  min_angle = static_cast<double>(min_angle_deg) * M_PI / 180.0;
-  max_angle = static_cast<double>(max_angle_deg) * M_PI / 180.0;
+  LitDocXml::LitInt (elem, "min_angle", min_angle);
+  LitDocXml::LitInt (elem, "max_angle", max_angle);
 
   // Load extra parameters if existing
   if (extra_params != NULL) extra_params->LoadXml(elem);

@@ -16,8 +16,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Configuration of Wormux : store game config of every tunable variable of Wormux.
- * Vars have a default value and can be change with the file configuration.
+ * Configuration de Wormux : toutes les variables qui sont intéressantes à
+ * modifier se retrouvent ici. Les variables ont une valeur par défaut qui
+ * peut être modifiée avec le fichier de configuration.
  *****************************************************************************/
 
 #ifndef CONFIG_H
@@ -26,10 +27,7 @@
 #include <list>
 #include <string>
 #include "../include/base.h"
-#include "../team/team_config.h"
 #include "../tool/xml_document.h"
-#include "../interface/keyboard.h"
-#include "../weapon/weapons_list.h"
 //-----------------------------------------------------------------------------
 #if defined(WIN32) || defined(__MINGW32__)
 #define PATH_SEPARATOR "\\"
@@ -48,6 +46,10 @@ public:
   static const int ALPHA = 0;
   static const int COLORKEY = 1;
 
+  // Divers
+  bool GetExterieurMondeVide() const;
+  void SetExterieurMondeVide(bool emv);
+
   bool GetDisplayEnergyCharacter() const;
   void SetDisplayEnergyCharacter(bool dec);
 
@@ -57,18 +59,7 @@ public:
   bool GetDisplayWindParticles() const;
   void SetDisplayWindParticles(bool dwp);
 
-  bool GetDefaultMouseCursor() const;
-  void SetDefaultMouseCursor(bool dmc);
-
-  bool GetScrollOnBorder() const;
-  void SetScrollOnBorder(bool sob);
-
-  bool IsNetworkActivated() const;
-
   int GetTransparency() const;
-
-  inline Keyboard * GetKeyboard() { return my_keyboard; }
-  inline WeaponsList * GetWeaponsList() { return my_weapons_list; }
 
   std::string GetTtfFilename() const;
 
@@ -78,9 +69,6 @@ public:
 
   // Tempory values (loaded from XML, but may change during running)
   struct tmp_xml_config{
-    struct tmp_xml_net{
-      bool enable_network;
-    } network;
     struct tmp_xml_screen{
       int width,height;
       bool fullscreen;
@@ -90,42 +78,38 @@ public:
       bool effects;
       uint frequency;
     } sound;
-    std::list<struct ConfigTeam> teams;
+    std::list<std::string> teams;
     std::string map_name;
   } tmp;
 
   static Config * GetInstance();
-// bool Load();
+  bool Load();
   void Apply();
   bool Save();
 
 protected:
-  bool LoadXml(xmlpp::Element *xml);
+  bool ChargeVraiment();
+  bool ChargeXml (xmlpp::Element *xml);
   void SetKeyboardConfig();
-  bool SaveXml();
+  bool SauveXml();
   std::string GetEnv(const std::string & name, const std::string &default_value);
 
   std::string m_game_mode;
-  bool m_xml_loaded;
-  std::string m_filename;
+  bool m_xml_charge;
+  std::string m_nomfich;
 
   std::string data_dir, locale_dir, personal_dir;
 
+  bool exterieur_monde_vide;
   bool display_energy_character;
   bool display_name_character;
   bool display_wind_particles;
-  bool default_mouse_cursor;
-  bool scroll_on_border;
   std::string ttf_filename;
 
   int transparency;
 
 private:
   Config();
-  // In french Clavier = keyboard
-  Keyboard * my_keyboard;
-  WeaponsList * my_weapons_list;
   static Config * singleton;
-  bool DoLoading(void);
 };
 #endif

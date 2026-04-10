@@ -32,51 +32,47 @@
 #include "../sound/jukebox.h"
 #include "../tool/debug.h"
 
-// Max climbing height walking
-const int MAX_CLIMBING_HEIGHT=30;
+// Hauteur qu'un character peut grimper au maximum
+#define HAUTEUR_GRIMPE_MAX 30
 
-// Max height for which we do not need to call the Physical Engine with gravity features
-const int MAX_FALLING_HEIGHT=20;
+// Hauteur qu'un character peut chute (sans appeler la fonction Gravite)
+#define HAUTEUR_CHUTE_MAX 20
 
-// Pause between changing direction
-const uint PAUSE_CHG_DIRECTION=80; // ms
+// Pause entre deux deplacement
+#define PAUSE_CHG_SENS 80 // ms
 
-// Compute the height to fall or to walk on when moving horizontally
-// Return a boolean which says if movement is possible
-bool ComputeHeightMovement(Character &character, int &height, 
-			   bool falling)
-{
+// Calcule la hauteur a chuter ou grimper lors d'un d�lacement horizontal
+// Renvoie true si le mouvement est possible
+bool CalculeHauteurBouge (Character &character, int &hauteur){
   int y_floor=character.GetY();
 
   if( character.IsInVacuum( Point2i(character.GetDirection(), 0))
   && !character.IsInVacuum( Point2i(character.GetDirection(), +1)) ){
     //Land is flat, we can move!
-    height = 0;
+    hauteur = 0;
     return true;
   }
 
   //Compute height of the step:
   if( character.IsInVacuum( Point2i(character.GetDirection(), 0)) ){
     //Try to go down:
-    for(height = 2; height <= MAX_FALLING_HEIGHT ; height++){
-      if( !character.IsInVacuum(Point2i(character.GetDirection(), height))
-      ||  character.FootsOnFloor(y_floor+height)){
-        height--;
+    for(hauteur = 2; hauteur <= HAUTEUR_CHUTE_MAX ; hauteur++){
+      if( !character.IsInVacuum(Point2i(character.GetDirection(), hauteur))
+      ||  character.FootsOnFloor(y_floor+hauteur)){
+        hauteur--;
         return true;
       }
     }
     //We can go down, but the step is to big -> the character will fall.
-    if (falling) {
-      character.SetX (character.GetX() +character.GetDirection());
-      character.UpdatePosition();
-      character.SetMovement("fall");
-    }
+    character.SetX (character.GetX() +character.GetDirection());
+    character.UpdatePosition();
+    character.SetMovement("fall");
     return false;
   }
   else{
     //Try to go up:
-    for(height = -1; height >= -MAX_CLIMBING_HEIGHT ; height--)
-      if( character.IsInVacuum( Point2i(character.GetDirection(), height) ) )
+    for(hauteur = -1; hauteur >= -HAUTEUR_GRIMPE_MAX ; hauteur--)
+      if( character.IsInVacuum( Point2i(character.GetDirection(), hauteur) ) )
         return true;
   }
   //We can't move!
@@ -84,9 +80,8 @@ bool ComputeHeightMovement(Character &character, int &height,
 }
 
 // Bouge un character characters la droite ou la gauche (selon le signe de direction)
-void MoveCharacter(Character &character)
-{
-  int height;
+void MoveCharacter(Character &character){
+  int hauteur;
   bool fantome;
 
   // On est bien dans le monde ? (sinon, pas besoin de tester !)
@@ -101,7 +96,7 @@ void MoveCharacter(Character &character)
   }
 
   // Calcule la hauteur a descendre
-  if (!ComputeHeightMovement (character, height, true)) return;
+  if (!CalculeHauteurBouge (character, hauteur)) return;
 
   do
   {
@@ -110,12 +105,12 @@ void MoveCharacter(Character &character)
     // Deplace enfin le character
 
     character.SetXY( Point2i(character.GetX() +character.GetDirection(),
-                             character.GetY() +height) );
+                             character.GetY() +hauteur) );
 
     // Gravite (s'il n'y a pas eu de collision
     character.UpdatePosition();
 
-  }while(character.CanStillMoveDG(PAUSE_MOVEMENT) && ComputeHeightMovement (character, height, true));
+  }while(character.CanStillMoveDG(PAUSE_BOUGE) && CalculeHauteurBouge (character, hauteur));
 }
 // Move a character to the left
 void MoveCharacterLeft(Character &character){
@@ -128,18 +123,17 @@ void MoveCharacterLeft(Character &character){
     MoveCharacter(character);
   }
   else{
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_SET_CHARACTER_DIRECTION,-1));
-    character.InitMouvementDG (PAUSE_CHG_DIRECTION);
+    ActionHandler::GetInstance()->NewAction(new Action(ACTION_SET_CHARACTER_DIRECTION,-1));
+    character.InitMouvementDG (PAUSE_CHG_SENS);
   }
 
   //Refresh skin position across network
-  if( !network.IsLocal() && (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI()))
+  if( !network.IsLocal() && ActiveTeam().is_local)
     SendCharacterPosition();
 }
 
 // Move a character to the right
-void MoveCharacterRight (Character &character)
-{
+void MoveCharacterRight (Character &character){ 
   // Le character est pret a bouger ?
   if (!character.MouvementDG_Autorise()) return;
 
@@ -150,25 +144,26 @@ void MoveCharacterRight (Character &character)
   }
   else
   {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_SET_CHARACTER_DIRECTION,1));
-    character.InitMouvementDG (PAUSE_CHG_DIRECTION);
+    ActionHandler::GetInstance()->NewAction(new Action(ACTION_SET_CHARACTER_DIRECTION,1));
+    character.InitMouvementDG (PAUSE_CHG_SENS);
   }
 
 
   //Refresh skin position across network
-  if( !network.IsLocal() && ActiveTeam().IsLocal())
+  if( !network.IsLocal() && ActiveTeam().is_local)
     SendCharacterPosition();
 }
 
 void SendCharacterPosition()
 {
-  assert(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI());
+  assert(ActiveTeam().is_local);
   Action* a = BuildActionSendCharacterPhysics(ActiveCharacter().GetTeamIndex(), ActiveCharacter().GetCharacterIndex());
+  Action a_set_clothe(ACTION_SET_CLOTHE,ActiveCharacter().body->GetClothe());
+  Action a_set_movement(ACTION_SET_MOVEMENT,ActiveCharacter().body->GetMovement());
+  Action a_set_frame(ACTION_SET_FRAME,(int)ActiveCharacter().body->GetFrame());
   network.SendAction(a);
   delete a;
-
-  Action a_set_skin(Action::ACTION_SET_SKIN,ActiveCharacter().body->GetClothe());
-  a_set_skin.Push(ActiveCharacter().body->GetMovement());
-  a_set_skin.Push((int)ActiveCharacter().body->GetFrame());
-  network.SendAction(&a_set_skin);
+  network.SendAction(&a_set_clothe);
+  network.SendAction(&a_set_movement);
+  network.SendAction(&a_set_frame);
 }

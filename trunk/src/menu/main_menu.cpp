@@ -34,6 +34,8 @@
 #include "../tool/file_tools.h"
 #include "../tool/resource_manager.h"
 
+#define NETWORK_BUTTON 
+
 #ifndef WIN32
 #include <dirent.h>
 #endif
@@ -45,8 +47,8 @@ const int DEFAULT_SCREEN_HEIGHT = 768 ;
 
 Main_Menu::~Main_Menu()
 {
- // delete skin_left;
- // delete skin_right;
+  delete skin_left;
+  delete skin_right;
   delete version_text;
   delete website_text;
 }
@@ -69,60 +71,62 @@ Main_Menu::Main_Menu() :
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
 
-  /* skin_left = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_1"));
-   skin_right = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_2"));
+  skin_left = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_1"));
+  skin_right = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_2"));
 
   s_title = resource_manager.LoadImage(res,"main_menu/title");
   title = new PictureWidget(Rectanglei(AppWormux::GetInstance()->video.window.GetWidth()/2  - s_title.GetWidth()/2 + 10, 0, 648, 168));
-  title->SetSurface(s_title); */
+  title->SetSurface(s_title);
 
   int y = int(290 * y_scale) ;
   const int y2 = AppWormux::GetInstance()->video.window.GetHeight() + VERSION_DY -20 - button_height;
+#ifdef NETWORK_BUTTON  
+  int dy = std::max((y2-y)/4, button_height);
+#else  
+  int dy = std::max(((y2-y)/3, button_height);
+#endif  
 
-  int dy = std::max((y2-y)/3, button_height);
-  if(Config::GetInstance()->IsNetworkActivated())
-    dy = std::max((y2-y)/4, button_height);
-
-  play = new ButtonText(Point2i(x_button, y),
-                        res, "main_menu/button",
-                        _("Play"),
-                        large_font);
+  play = new ButtonText( Point2i(x_button, y),
+			res, "main_menu/button",
+			_("Play"),
+			large_font);
   y += dy;
 
-  if(Config::GetInstance()->IsNetworkActivated()) {
-    network = new ButtonText( Point2i(x_button, y),
-                              res, "main_menu/button",
-                              _("Network Game"),
-                              large_font );
-    y += dy;
-  } else {
-    network = NULL;
-  }
-
-  options = new ButtonText(Point2i(x_button, y),
-                           res, "main_menu/button",
-                           _("Options"),
-                           large_font);
+#ifdef NETWORK_BUTTON  
+  network = new ButtonText( Point2i(x_button, y),
+			   res, "main_menu/button",
+			   _("Network Game"),
+			   large_font );
+  y += dy;
+#else
+  network = NULL;
+#endif
+  
+  options = new ButtonText( Point2i(x_button, y),
+			   res, "main_menu/button",
+			   _("Options"),
+			   large_font);  
   y += dy;
 
-  infos =  new ButtonText(Point2i(x_button, y),
-                          res, "main_menu/button",
-                          _("Credits"),
-                          large_font);
+  infos =  new ButtonText( Point2i(x_button, y),
+			  res, "main_menu/button",
+			  _("Credits"),
+			  large_font);  
   y += dy;
 
-  quit =  new ButtonText(Point2i(x_button, y),
-                         res, "main_menu/button",
-                         _("Quit"),
-                         large_font);
+  quit =  new ButtonText( Point2i(x_button, y),
+			 res, "main_menu/button",
+			 _("Quit"),
+			 large_font);  
 
   widgets.AddWidget(play);
-  if(Config::GetInstance()->IsNetworkActivated())
-    widgets.AddWidget(network);
+#ifdef NETWORK_BUTTON 
+  widgets.AddWidget(network);
+#endif
   widgets.AddWidget(options);
   widgets.AddWidget(infos);
   widgets.AddWidget(quit);
- // widgets.AddWidget(title);
+  widgets.AddWidget(title);
 
   resource_manager.UnLoadXMLProfile( res);
 
@@ -131,9 +135,6 @@ Main_Menu::Main_Menu() :
 
   std::string s2(Constants::WEB_SITE);
   website_text = new Text(s2, green_color, normal_font, false);
-
-  if(!jukebox.IsPlayingMusic())
-     jukebox.PlayMusic("menu");
 }
 
 void Main_Menu::button_clic()
@@ -150,12 +151,14 @@ void Main_Menu::OnClic(const Point2i &mousePosition, int button)
     close_menu = true;
     button_clic();
   }
-  else if(b == network && Config::GetInstance()->IsNetworkActivated())
+#ifdef NETWORK_BUTTON  
+  else if(b == network)
   {
     choice = menuNETWORK;
     close_menu = true;
     button_clic();
   }
+#endif  
   else if(b == options)
   {
     choice = menuOPTIONS;
@@ -208,15 +211,15 @@ void Main_Menu::__sig_ok()
   key_ok();
 }
 
-void Main_Menu::DrawBackground()
+void Main_Menu::DrawBackground(const Point2i &mousePosition)
 {
   Surface& window = AppWormux::GetInstance()->video.window;
 
-  Menu::DrawBackground();
-  // skin_left->Blit(window, 0, window.GetHeight() - skin_left->GetHeight());
-  // skin_right->Blit(window, window.GetWidth()  - skin_right->GetWidth(),
-  // 		   window.GetHeight() - skin_right->GetHeight());
-
+  Menu::DrawBackground(mousePosition);
+  skin_left->Blit(window, 0, window.GetHeight() - skin_left->GetHeight());
+  skin_right->Blit(window, window.GetWidth()  - skin_right->GetWidth(),
+		   window.GetHeight() - skin_right->GetHeight());
+  
   version_text->DrawCenter( window.GetWidth()/2,
                             window.GetHeight() + VERSION_DY);
   website_text->DrawCenter( window.GetWidth()/2,
@@ -231,12 +234,12 @@ void Main_Menu::Redraw(const Rectanglei& rect, Surface &window)
   // we never had to redraw texts
   // but sometimes we need to redraw the skins...
 
-  /*Rectanglei dest(0, window.GetHeight() - skin_left->GetHeight(),
+  Rectanglei dest(0, window.GetHeight() - skin_left->GetHeight(),
 		  skin_left->GetWidth(), skin_left->GetHeight());
   dest.Clip(rect);
 
-  Rectanglei src(rect.GetPositionX() - 0,
-		 rect.GetPositionY() - (window.GetHeight() - skin_left->GetHeight()),
+  Rectanglei src(rect.GetPositionX() - 0, 
+		 rect.GetPositionY() - (window.GetHeight() - skin_left->GetHeight()), 
 		 dest.GetSizeX(), dest.GetSizeY());
 
   skin_left->Blit(window, src, dest.GetPosition());
@@ -245,12 +248,12 @@ void Main_Menu::Redraw(const Rectanglei& rect, Surface &window)
 		   window.GetHeight() - skin_right->GetHeight(),
 		   skin_right->GetWidth(), skin_right->GetHeight());
   dest2.Clip(rect);
-
-  Rectanglei src2(dest2.GetPositionX() - (window.GetWidth()  - skin_right->GetWidth()),
-		  dest2.GetPositionY() - (window.GetHeight() - skin_right->GetHeight()),
+	 
+  Rectanglei src2(dest2.GetPositionX() - (window.GetWidth()  - skin_right->GetWidth()), 
+		  dest2.GetPositionY() - (window.GetHeight() - skin_right->GetHeight()), 
 		  dest2.GetSizeX(), dest2.GetSizeY());
 
-  skin_right->Blit(window, src2, dest2.GetPosition());*/
+  skin_right->Blit(window, src2, dest2.GetPosition());
 
 
 }

@@ -10,7 +10,7 @@
 template<class T> class Vector2
 {
 	private:
-		static const double EPS_ZERO = 0.05;
+		const static double EPS_ZERO = 0.05;
 
 	public:
 		T x, y;
@@ -48,21 +48,13 @@ template<class T> class Vector2
 			return y;
 		}
 
-		/**
-		 *
-		 */
-		inline bool IsZero(T val) const{
-			return (val == 0 || val <= VECTOR2_EPS_ZERO) &&
-                               (-val <= VECTOR2_EPS_ZERO);
-		}
-
 		// Comparators
 
 		/**
 		 *
 		 */
 		inline bool operator==(const Vector2<T> &p2) const{
-			return IsZero(x - p2.x) && IsZero(y - p2.y);
+			return (x == p2.x) && (y == p2.y);
 		}
 
 		/**
@@ -85,24 +77,10 @@ template<class T> class Vector2
 		 *
 		 * @param p2
 		 */
-		inline bool operator>(const Vector2<T> &p2) const{
-			return (x > p2.x) && (y > p2.y);
-		}
-		/**
-		 *
-		 * @param p2
-		 */
 		inline bool operator<=(const Vector2<T> &p2) const{
 			return (x <= p2.x) && (y <= p2.y);
 		}
 
-		/**
-		 *
-		 * @param p2
-		 */
-		inline bool operator<(const Vector2<T> &p2) const{
-			return (x < p2.x) && (y < p2.y);
-		}
 		// Vector/Vector operations
 
 		/**
@@ -325,6 +303,13 @@ template<class T> class Vector2
 		/**
 		 *
 		 */
+		inline bool IsZero(T val) const{
+			return (val <= VECTOR2_EPS_ZERO) && (-val <= VECTOR2_EPS_ZERO);
+		}
+
+		/**
+		 *
+		 */
 		inline bool IsXNull() const{
 			return IsZero( x );
 		}
@@ -353,32 +338,32 @@ template<class T> class Vector2
 		 * - M=(10,-10) -> -PI/4 (-0.78)
 		 * - M=O -> 0
 		 */
-                double ComputeAngle() const{
-                  double angle;
+		double ComputeAngle() const{
+			double angle;
 
-                  if( !IsZero( x ) )
-                    if( !IsZero( y ) ){
-                      angle = atan(double(y)/double(x));
-                      if( x < 0 )
-                        if( y > 0 )
-                          angle += M_PI;
-                        else
-                          angle -= M_PI;
-                    }
-                    else
-                      if( x > 0)
-                        angle = 0;
-                      else
-                        angle = M_PI;
-                  else
-                    if( y > 0 )
-                      angle = M_PI_2;
-                    else if(y < 0)
-                      angle = -M_PI_2;
-                    else
-                      angle = 0;
+			if( !IsZero( x ) )
+				if( !IsZero( y ) ){
+					angle = atan((double)y/x);
+					if( x < 0 )
+						if( y > 0 )
+							angle += M_PI;
+						else
+							angle -= M_PI;
+				}
+				else
+					if( x > 0)
+						angle = 0;
+					else
+						angle = M_PI;
+			else
+				if( y > 0 )
+					angle = M_PI_2;
+				else if(y < 0)
+					angle = -M_PI_2;
+				else
+					angle = 0;
 
-                  return angle;
+			return angle;
 		}
 
 		/**

@@ -37,56 +37,54 @@ const uint animation_deltat = 50;
 
 SuperTux::SuperTux(SuperTuxWeaponConfig& cfg,
                    WeaponLauncher * p_launcher) :
-  WeaponProjectile ("supertux", cfg, p_launcher),
+  WeaponProjectile ("supertux", cfg, p_launcher), 
   particle_engine(40)
 {
   explode_colliding_character = true;
-  SetSize(image->GetSize());
-  SetTestRect(1, 1, 2, 2);
 }
 
 void SuperTux::Shoot(double strength)
 {
   WeaponProjectile::Shoot(strength);
-  angle_rad = ActiveCharacter().GetFiringAngle();
+  angle = ActiveTeam().crosshair.GetAngleRad();
 
   Time * global_time = Time::GetInstance();
   time_next_action = global_time->Read();
   last_move = global_time->Read();
-  begin_time = global_time->Read();
+  begin_time = global_time->Read();  
 }
 
 void SuperTux::Refresh()
 {
   WeaponProjectile::Refresh();
 
-  image->SetRotation_rad(angle_rad + M_PI_2);
+  image->SetRotation_deg((angle+M_PI_2)*180.0/M_PI);
   if ((last_move+animation_deltat)<Time::GetInstance()->Read())
-  {
-    SetExternForce(static_cast<SuperTuxWeaponConfig&>(cfg).speed, angle_rad);
-    image->Update();
-    last_move = Time::GetInstance()->Read();
+    {
+      SetExternForce(static_cast<SuperTuxWeaponConfig&>(cfg).speed, angle);
+      image->Update();
+      last_move = Time::GetInstance()->Read();
   }
 
-  if(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
+  if(ActiveTeam().is_local)
   {
-    Action a(Action::ACTION_SUPERTUX_STATE);
-    a.Push(angle_rad);
+    Action a(ACTION_SUPERTUX_STATE);
+    a.Push(angle);
     a.Push(GetPhysX());
     a.Push(GetPhysY());
     Point2d speed;
     network.SendAction(&a);
   }
-  particle_engine.AddPeriodic(GetPosition(), particle_STAR, false, angle_rad, 0);
+  particle_engine.AddPeriodic(GetPosition(), particle_STAR, false, angle, 0);
 }
 
 void SuperTux::turn_left()
-{
+{  
   time_now = Time::GetInstance()->Read();
   if (time_next_action<time_now)
     {
       time_next_action=time_now + time_delta;
-      angle_rad = angle_rad - M_PI / 12;
+      angle = angle - 15.0/180.0*M_PI;
     }
 }
 
@@ -96,7 +94,7 @@ void SuperTux::turn_right()
   if (time_next_action<time_now)
     {
       time_next_action=time_now + time_delta;
-      angle_rad = angle_rad + M_PI / 12;
+      angle = angle + 15.0/180.0*M_PI;
     }
 }
 
@@ -113,18 +111,18 @@ SuperTuxWeaponConfig::SuperTuxWeaponConfig()
   speed = 2;
 }
 
-void SuperTuxWeaponConfig::LoadXml(xmlpp::Element *elem)
+void SuperTuxWeaponConfig::LoadXml(xmlpp::Element *elem) 
 {
   ExplosiveWeaponConfig::LoadXml (elem);
-  XmlReader::ReadUint(elem, "speed", speed);
+  LitDocXml::LitUint (elem, "speed", speed);
 }
 
 //-----------------------------------------------------------------------------
 
-TuxLauncher::TuxLauncher() :
+TuxLauncher::TuxLauncher() : 
   WeaponLauncher(WEAPON_SUPERTUX, "tux", new SuperTuxWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
-{
-  m_name = _("SuperTux");
+{ 
+  m_name = _("SuperTux");   
   override_keys = true ;
   ReloadLauncher();
 }
@@ -141,26 +139,26 @@ bool TuxLauncher::p_Shoot ()
   return WeaponLauncher::p_Shoot();
 }
 
-void TuxLauncher::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
+void TuxLauncher::HandleKeyEvent(int action, int event_type)
 {
   switch (action)
   {
-    case Action::ACTION_MOVE_LEFT:
-    if (event_type !=  Keyboard:: Keyboard::KEY_RELEASED)
+  case ACTION_MOVE_LEFT:
+    if (event_type != KEY_RELEASED)
       current_tux->turn_left();
     break ;
-
-    case Action::ACTION_MOVE_RIGHT:
-    if (event_type !=  Keyboard:: Keyboard::KEY_RELEASED)
+    
+  case ACTION_MOVE_RIGHT:
+    if (event_type != KEY_RELEASED)
       current_tux->turn_right();
     break ;
-
+    
   default:
     break ;
   } ;
 }
 
-SuperTuxWeaponConfig& TuxLauncher::cfg()
+SuperTuxWeaponConfig& TuxLauncher::cfg() 
 {
   return static_cast<SuperTuxWeaponConfig&>(*extra_params);
 }

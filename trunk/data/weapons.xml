@@ -174,10 +174,10 @@
 
   <!-- Holly Grenade ressources -->
   
-  <surface name="disco_grenade_ico" file="weapon/disco_grenade/disco_grenade_ico.png" />
-   <surface name="disco_grenade" file="weapon/disco_grenade/disco_grenade.png" />
-  <sprite name="disco_grenade">
-    <image file="weapon/disco_grenade/disco_grenade.png" />
+  <surface name="holly_grenade_ico" file="weapon/holly_grenade/holly_grenade_ico.png" />
+   <surface name="holly_grenade" file="weapon/holly_grenade/holly_grenade.png" />
+  <sprite name="holly_grenade">
+    <image file="weapon/holly_grenade/holly_grenade.png" />
   </sprite>
 
   <!-- Gnu ressources -->
@@ -289,7 +289,6 @@
 
   <surface name="snipe_rifle" file="weapon/snipe_rifle/snipe_rifle.png" />
   <surface name="snipe_rifle_ico" file="weapon/snipe_rifle/snipe_rifle_ico.png" />
-  <color name="snipe_rifle_laser_color" r="255" g="0" b="0" a="100" />
   <surface name="snipe_rifle_laser" file="weapon/snipe_rifle/snipe_rifle_laser.png" />
   <surface name="snipe_rifle_fire" file="weapon/gun/gun_fire.png" />
   <sprite name="snipe_rifle_bullet">

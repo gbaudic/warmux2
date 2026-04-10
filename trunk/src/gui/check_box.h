@@ -34,19 +34,16 @@ class CheckBox : public Widget
   Text *txt_label;
   bool m_value;
   Sprite *m_checked_image;
-  bool hidden;
    
  public:
   CheckBox(const std::string &label, const Rectanglei &rect, bool value = true);
   ~CheckBox();
-  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  void Draw(const Point2i &mousePosition, Surface& surf) ;
   Widget* Clic(const Point2i &mousePosition, uint button) ;
   void SetSizePosition(const Rectanglei &rect);
 
   bool GetValue() const;
   void SetValue(bool value);
-
-  void SetVisible(bool visible);
 };
 
 #endif

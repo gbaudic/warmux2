@@ -43,14 +43,15 @@ Cluster::Cluster(ClusterBombConfig& cfg,
 
 void Cluster::Shoot (int x, int y)
 {
-  camera.FollowObject(this, true, false);
+  camera.ChangeObjSuivi(this, true, false);
   ResetConstants();
   SetXY( Point2i(x, y) );
 }
 
 void Cluster::Refresh()
 {
-  image->SetRotation_rad(GetSpeedAngle());
+  double angle = GetSpeedAngle() * 180/M_PI ;
+  image->SetRotation_deg( angle );
 }
 
 void Cluster::SignalOutOfMap()
@@ -72,12 +73,23 @@ ClusterBomb::ClusterBomb(ClusterBombConfig& cfg,
 {
   m_rebound_sound = "weapon/grenade_bounce";
   explode_with_collision = false;
+
+  tableau_cluster.clear();
+  const uint nb = cfg.nb_fragments;
+
+  for (uint i=0; i<nb; ++i)
+  {
+    Cluster cluster(cfg, launcher);
+    tableau_cluster.push_back( cluster );
+  }
 }
 
 void ClusterBomb::Refresh()
 {
   WeaponProjectile::Refresh();
-  image->SetRotation_rad(GetSpeedAngle());
+  
+  double angle = GetSpeedAngle() * 180/M_PI ;
+  image->SetRotation_deg( angle);
 }
 
 void ClusterBomb::SignalOutOfMap()
@@ -86,26 +98,34 @@ void ClusterBomb::SignalOutOfMap()
   WeaponProjectile::SignalOutOfMap();
 }
 
-void ClusterBomb::DoExplosion()
+void ClusterBomb::Explosion()
 {
-  const uint nb = static_cast<ClusterBombConfig &>(cfg).nb_fragments;
-  Cluster * cluster;
-  for (uint i=0; i<nb; ++i) {
+  if (IsGhost())
+  {
+    WeaponProjectile::Explosion();
+    return;
+  }
+
+  iterator it=tableau_cluster.begin(), end=tableau_cluster.end();
+  for (; it != end; ++it)
+  {
+    Cluster &cluster = *it;
+
     double angle = randomSync.GetDouble(2.0 * M_PI);
     int x = GetX()+(int)(cos(angle) * (double)cfg.blast_range * 0.9);
     int y = GetY()+(int)(sin(angle) * (double)cfg.blast_range * 0.9);
-    cluster = new Cluster(static_cast<ClusterBombConfig &>(cfg), launcher);
-    cluster->Shoot(x,y);
-    lst_objects.AddObject(cluster);
+
+    cluster.Shoot(x,y);
+    lst_objects.AddObject((PhysicalObj*)&cluster);
   }
-  WeaponProjectile::DoExplosion();
+  WeaponProjectile::Explosion();
 }
 
 //-----------------------------------------------------------------------------
 
-ClusterLauncher::ClusterLauncher() :
+ClusterLauncher::ClusterLauncher() : 
   WeaponLauncher(WEAPON_CLUSTER_BOMB, "cluster_bomb", new ClusterBombConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
-{
+{  
   m_name = _("Cluster Bomb");
   ignore_collision_signal = true;
   ReloadLauncher();
@@ -117,10 +137,8 @@ WeaponProjectile * ClusterLauncher::GetProjectileInstance()
       (new ClusterBomb(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
 
-ClusterBombConfig& ClusterLauncher::cfg()
-{
-  return static_cast<ClusterBombConfig&>(*extra_params);
-}
+ClusterBombConfig& ClusterLauncher::cfg() 
+{ return static_cast<ClusterBombConfig&>(*extra_params); }
 
 //-----------------------------------------------------------------------------
 
@@ -133,5 +151,5 @@ ClusterBombConfig::ClusterBombConfig() :
 void ClusterBombConfig::LoadXml(xmlpp::Element *elem)
 {
   ExplosiveWeaponConfig::LoadXml(elem);
-  XmlReader::ReadUint(elem, "nb_fragments", nb_fragments);
+  LitDocXml::LitUint (elem, "nb_fragments", nb_fragments);
 }

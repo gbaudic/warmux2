@@ -28,23 +28,17 @@
 #include "../graphic/color.h"
 #include "../graphic/surface.h"
 
-class ProgressBar
+class BarreProg
 {
 public:
   Color border_color, value_color, background_color;
   Surface image; // in order to pemit alpha blended progressbar
-  enum orientation {
-    PROG_BAR_VERTICAL,
-    PROG_BAR_HORIZONTAL
-  };
-
 private:
   uint x, y, larg, haut; // Position
-  long val, min, max; // current, min and max values
-  bool m_use_ref_val; // use reference value ?
-  long m_ref_val; // reference value
-  uint val_barre; // current value in the progress bar
-  enum orientation orientation;
+  long val, min, max; // Valeur
+  bool m_use_ref_val; // Valeur de référence
+  long m_ref_val; // Valeur de référence
+  uint val_barre; // Valeur dans la barre
 
   uint CalculeVal (long val) const;
   uint CalculeValBarre (long val) const;
@@ -64,37 +58,36 @@ private:
   std::list<marqueur_t> marqueur;
 
 public:
-  ProgressBar();
+  BarreProg();
 
   // Actualisation de la valeur
-  void UpdateValue (long val);
+  void Actu (long val);
 
   // Initialise la position
   void InitPos (uint x, uint y, uint larg, uint haut);
 
   // Initialise les valeurs
-  void InitVal (long val, long min, long max, enum orientation orientation = PROG_BAR_HORIZONTAL);
+  void InitVal (long val, long min, long max);
 
   // Set reference value
   // Use it after InitVal !
   void SetReferenceValue (bool use, long value=0);
 
   // Draw la barre de progresssion
-  void Draw() const;
+  void Draw();
 
-  // Draw the progress bar
-  void DrawXY(const Point2i &pos) const;
+  // Change les coordonnées, puis dessine la barre de progression
+  void DrawXY(const Point2i &pos);
 
-  inline const long & GetMaxVal() const { return max; }
-  inline const long & GetVal() const { return val; }
-
+  // Lit sa taille
   int GetWidth() const { return larg; }
   int GetHeight() const { return haut; }
   Point2i GetSize() const { return Point2i(larg, haut); }
 
-  // add/remove value tag
-  marqueur_it AddTag (long val, const Color& coul);
-  void ResetTag();
+  // Ajoute/supprime un marqueur
+  marqueur_it AjouteMarqueur (long val, const Color& coul);
+  void SupprimeMarqueur (marqueur_it it);
+  void Reset_Marqueur();
 };
 
 #endif

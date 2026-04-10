@@ -56,20 +56,18 @@ Game * Game::GetInstance()
   return singleton;
 }
 
-
 Game::Game()
 {
   isGameLaunched = false;
   endOfGameStatus = false;
-  isGamePaused = false;
 }
 
-bool Game::IsGameFinished() const
+bool Game::IsGameFinished()
 {
   return (NbrRemainingTeams() <= 1);
 }
 
-int Game::NbrRemainingTeams() const
+int Game::NbrRemainingTeams()
 {
   uint nbr = 0;
 
@@ -81,13 +79,13 @@ int Game::NbrRemainingTeams() const
   return nbr;
 }
 
-void Game::MessageLoading() const
+void Game::MessageLoading()
 {
   std::cout << std::endl;
   std::cout << "[ " << _("Starting a new game") << " ]" << std::endl;
 }
 
-void Game::MessageEndOfGame() const
+void Game::MessageEndOfGame()
 {
   std::vector<TeamResults*>* results_list = TeamResults::createAllResults();
   const char *winner_name = NULL;
@@ -106,7 +104,9 @@ void Game::MessageEndOfGame() const
   if (winner_name)
     jukebox.Play("share","victory");
 
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
+  //question.Set (txt, true, 0);
+  //AskQuestion();
+  Mouse::GetInstance()->SetPointer(POINTER_STANDARD);
   ResultsMenu menu(results_list, winner_name);
   menu.Run();
 
@@ -135,8 +135,6 @@ void Game::Start()
 
   try
   {
-
-    jukebox.PlayMusic("ingame");
     GameLoop::GetInstance()->Init ();
 
     do
@@ -151,16 +149,33 @@ void Game::Start()
 
       if (!IsGameFinished())
       {
-	if (isGamePaused){
-	  DisplayPause();
-	} else {
-	  end = DisplayQuit();
-	}
-      }
-      
-      if (!end)
-	world.ToRedrawOnScreen(Rectanglei(Point2i(0,0),AppWormux::GetInstance()->video.window.GetSize()));
+        Question question;
+        const char *msg = _("Do you really want to quit? (Y/N)");
+        question.Set (msg, true, 0, "interface/quit_screen");
 
+        {
+          /* Tiny fix by Zygmunt Krynicki <zyga@zyga.dyndns.org> */
+          /* Let's find out what the user would like to press ... */
+          char *key_x_ptr = strchr (msg, '/');
+          char key_x;
+          if (key_x_ptr && key_x_ptr > msg) /* it's there and it's not the first char */
+            key_x = tolower(key_x_ptr[-1]);
+          else
+            abort();
+          if (!isalpha(key_x)) /* sanity check */
+            abort();
+
+          question.add_choice(SDLK_a + (int)key_x - 'a', 1);
+        }
+
+        jukebox.Pause();
+        end = (AskQuestion(question) == 1);
+        jukebox.Resume();
+        if(!end)
+          world.ToRedrawOnScreen(Rectanglei(Point2i(0,0),AppWormux::GetInstance()->video.window.GetSize()));
+      } else {
+        end = true;
+      }
     } while (!end);
     err = false;
   }
@@ -174,8 +189,7 @@ void Game::Start()
       MessageEndOfGame();
 
   UnloadDatas();
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
-  jukebox.PlayMusic("menu");
+  Mouse::GetInstance()->SetPointer(POINTER_STANDARD);
 
   if (err)
   {
@@ -198,11 +212,6 @@ void Game::UnloadDatas()
 
 void Game::Pause()
 {
-  isGamePaused = true;
-}
-
-void Game::DisplayPause()
-{
   Question question;
   if(!network.IsLocal())
     return;
@@ -210,52 +219,16 @@ void Game::DisplayPause()
   jukebox.Pause();
 
   //Pause screen
-  question.Set ("", false, 0, "interface/pause_screen");
-  question.add_choice(Config::GetInstance()->GetKeyboard()->GetKeyAssociatedToAction(Action::ACTION_PAUSE),
-		      1
-		      );
+  question.Set ("", true, 0, "interface/pause_screen");
   AskQuestion(question, false);
   jukebox.Resume();
-  isGamePaused = false;
-}
-
-bool Game::DisplayQuit()
-{
-  Question question;
-  const char *msg = _("Do you really want to quit? (Y/N)");
-  question.Set (msg, true, 0, "interface/quit_screen");
-
-  {
-    /* Tiny fix by Zygmunt Krynicki <zyga@zyga.dyndns.org> */
-    /* Let's find out what the user would like to press ... */
-    char *key_x_ptr = strchr (msg, '/');
-    char key_x;
-    if (key_x_ptr && key_x_ptr > msg) /* it's there and it's not the first char */
-      key_x = tolower(key_x_ptr[-1]);
-    else
-      abort();
-    if (!isalpha(key_x)) /* sanity check */
-      abort();
-    
-    question.add_choice(SDLK_a + (int)key_x - 'a', 1);
-  }
-  
-  jukebox.Pause();
-  bool exit = (AskQuestion(question) == 1);
-  jukebox.Resume();
-
-  return exit;
-}
-
-bool Game::IsGamePaused() const{
-  return isGamePaused;
 }
 
 bool Game::IsGameLaunched() const{
   return isGameLaunched;
 }
 
-bool Game::GetEndOfGameStatus() const{
+bool Game::GetEndOfGameStatus(){
   return endOfGameStatus;
 }
 

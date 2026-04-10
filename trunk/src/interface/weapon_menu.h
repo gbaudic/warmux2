@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Interface showing various informations about the game.
+ * Interface affichant différentes informations sur la jeu.
  *****************************************************************************/
 
 #ifndef WEAPON_MENU_H
@@ -75,13 +75,13 @@ private:
 
   uint motion_start_time;
 
-  uint nbr_weapon_type; // number of weapon type = number of rows
-  uint max_weapon;  // max number of weapon in a weapon type = number of lines
+  uint nbr_weapon_type; //nombre de type d'arme = nbr de colonnes
+  uint max_weapon;  //nombre max d'arme dans les differents type = nbr de lignes
 
 public:
   WeaponsMenu();
 
-  // Return true if mouse click on a button
+  // Renvoie true si un bouton a été cliqué
   bool ActionClic(const Point2i &mousePos);
 
   void Draw();
@@ -104,6 +104,7 @@ public:
 private:
   void ComputeSize();
   void Show();
+  void DrawBouton(iterator bouton);
   void ShowMotion(int nr_bottons, int button_no, iterator it, int column);
   bool HideMotion(int nr_buttons, int button_no, iterator it, int column);
 };

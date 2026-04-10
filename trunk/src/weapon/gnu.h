@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon gnu : a gnu jump in (more or less) random directions and explodes
+ * Weapon bazooka : projette une roquette avec un angle et une force donn�.
  *****************************************************************************/
 
 #ifndef GNU_H
@@ -38,6 +38,7 @@ class Gnu : public WeaponProjectile
  private:
   int m_sens;
   int save_x, save_y;
+  double angle;
  protected:
   void SignalOutOfMap();
 public:

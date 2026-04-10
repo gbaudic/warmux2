@@ -46,11 +46,10 @@ void BodyMemberParticle::Refresh()
   Point2d speed;
   GetSpeedXY(speed);
 
-  angle_rad += speed.Norm() * 20;
-  angle_rad = fmod(angle_rad, 2 *M_PI);
-  //FIXME what about negatives values ? what would happen ?
+  angle += int(speed.Norm() * 10.0);
+  angle %= 360;
   if(m_left_time_to_live < 50)
     image->SetAlpha(m_left_time_to_live / 50.0);
-  image->SetRotation_rad(angle_rad);
+  image->SetRotation_deg(angle);
   image->Update();
 }

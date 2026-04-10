@@ -18,7 +18,7 @@
  ******************************************************************************
  * Submachine gun. Don't fire bullet one by one but with burst fire (like
  * a submachine gun :)
- * The hack in order to firing multiple bullet at once consist in using a
+ * The hack in order to firing multiple bullet at once consist in using a 
  * std::list of projectile and overide the Refresh & HandleKeyEvent methods.
  *****************************************************************************/
 
@@ -35,6 +35,7 @@
 #include "../network/randomsync.h"
 
 const uint    SUBMACHINE_BULLET_SPEED       = 30;
+const uint    SUBMACHINE_EXPLOSION_RANGE    = 15;
 const double  SUBMACHINE_TIME_BETWEEN_SHOOT = 70;
 const double  SUBMACHINE_RANDOM_ANGLE       = 0.01;
 
@@ -42,7 +43,7 @@ SubMachineGunBullet::SubMachineGunBullet(ExplosiveWeaponConfig& cfg,
                                          WeaponLauncher * p_launcher) :
   WeaponBullet("m16_bullet", cfg, p_launcher)
 {
-  camera_follow_closely = false;
+  cfg.explosion_range = SUBMACHINE_EXPLOSION_RANGE;
 }
 
 void SubMachineGunBullet::RandomizeShoot(double &angle,double &strength)
@@ -89,7 +90,7 @@ void SubMachineGun::IncMissedShots()
 }
 
 bool SubMachineGun::p_Shoot ()
-{
+{  
   if (m_is_active)
     return false;
 
@@ -126,13 +127,13 @@ void SubMachineGun::RepeatShoot()
 }
 
 // Special handle to allow multiple shoot at a time
-void SubMachineGun::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
+void SubMachineGun::HandleKeyEvent(int action, int event_type)
 {
   switch (action) {
-    case Action::ACTION_SHOOT:
-      if (event_type == Keyboard::KEY_REFRESH)
+    case ACTION_SHOOT:
+      if (event_type == KEY_REFRESH)
         m_is_active = true;
-      if (event_type ==  Keyboard::KEY_RELEASED)
+      if (event_type == KEY_RELEASED)
         m_is_active = false;
       if (m_is_active) RepeatShoot();
       break;

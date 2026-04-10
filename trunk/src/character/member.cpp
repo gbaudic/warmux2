@@ -32,7 +32,7 @@ Member::Member(xmlpp::Element *xml, Profile* res)
   parent = NULL;
   if(xml == NULL) return;
   name="";
-  XmlReader::ReadStringAttr( xml, "name", name);
+  LitDocXml::LitAttrString( xml, "name", name);
   assert(name!="");
 
   // Load the sprite
@@ -43,22 +43,22 @@ Member::Member(xmlpp::Element *xml, Profile* res)
 
   // Get the various option
   type="";
-  XmlReader::ReadStringAttr( xml, "type", type);
+  LitDocXml::LitAttrString( xml, "type", type);
   assert(type!="");
 
-  xmlpp::Element *el = XmlReader::GetMarker(xml, "anchor");
+  xmlpp::Element *el = LitDocXml::AccesBalise (xml, "anchor");
   if(el != 0)
   {
     int dx,dy;
     dx = dy = 0;
-    XmlReader::ReadIntAttr(el, "dx", dx);
-    XmlReader::ReadIntAttr(el, "dy", dy);
+    LitDocXml::LitAttrInt( el, "dx", dx);
+    LitDocXml::LitAttrInt( el, "dy", dy);
     anchor = Point2f((float)dx,(float)dy);
     spr->SetRotation_HotSpot(Point2i(dx,dy));
   }
 
   go_through_ground = false;
-  XmlReader::ReadBoolAttr(xml, "go_through_ground", go_through_ground);
+  LitDocXml::LitAttrBool(xml, "go_through_ground", go_through_ground);
 
   xmlpp::Node::NodeList nodes = xml -> get_children("attached");
   xmlpp::Node::NodeList::iterator
@@ -70,7 +70,7 @@ Member::Member(xmlpp::Element *xml, Profile* res)
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
     assert (elem != NULL);
     std::string att_type;
-    if (!XmlReader::ReadStringAttr(elem, "member_type", att_type))
+    if (!LitDocXml::LitAttrString(elem, "member_type", att_type))
     {
       std::cerr << "Malformed attached member definition" << std::endl;
       continue;
@@ -78,12 +78,12 @@ Member::Member(xmlpp::Element *xml, Profile* res)
 
     int dx,dy;
     dx = dy = 0;
-    XmlReader::ReadIntAttr(elem, "dx", dx);
-    XmlReader::ReadIntAttr(elem, "dy", dy);
+    LitDocXml::LitAttrInt(elem, "dx", dx);
+    LitDocXml::LitAttrInt(elem, "dy", dy);
     Point2f d((float)dx, (float)dy);
 
     std::string frame_str;
-    XmlReader::ReadStringAttr(elem, "frame", frame_str);
+    LitDocXml::LitAttrString(elem, "frame", frame_str);
     if (frame_str == "*")
     {
       v_attached rot_spot;
@@ -107,7 +107,6 @@ Member::Member(xmlpp::Element *xml, Profile* res)
       (attached_members.find(att_type)->second)[frame] = d;
     }
   }
-  ResetMovement();
 }
 
 Member::Member(Member* m)
@@ -127,7 +126,6 @@ Member::Member(Member* m)
   {
     attached_members[it->first] = it->second;
   }
-  ResetMovement();
 }
 
 Member::~Member()
@@ -138,7 +136,7 @@ Member::~Member()
 
 void Member::RotateSprite()
 {
-  spr->SetRotation_rad(angle_rad);
+  spr->SetRotation_deg(angle);
   spr->Scale(scale.x, scale.y);
   spr->RefreshSurface();
 }
@@ -152,13 +150,13 @@ void Member::Draw(const Point2i & _pos, int flip_center, int direction)
 
   if(direction == 1)
   {
-    spr->SetRotation_rad(angle_rad);
+    spr->SetRotation_deg(angle);
     spr->Scale(scale.x,scale.y);
   }
   else
   {
     spr->Scale(-scale.x,scale.y);
-    spr->SetRotation_rad(-angle_rad);
+    spr->SetRotation_deg(-angle);
     posi.x = 2 * flip_center - posi.x - spr->GetWidth();
   }
 
@@ -177,7 +175,7 @@ void Member::ResetMovement()
 {
   pos.x = 0;
   pos.y = 0;
-  angle_rad = 0;
+  angle = 0;
   alpha = 1.0;
   scale.x = 1.0;
   scale.y = 1.0;
@@ -228,13 +226,15 @@ void Member::ApplyMovement(member_mvt &mvt, std::vector<junction>& squel_lst)
       {
         // Calculate the movement to apply to the child
         member_mvt child_mvt;
-        child_mvt.SetAngle(mvt.GetAngle());
+        child_mvt.angle = mvt.angle;
         child_mvt.pos = mvt.pos;
         float radius = anchor.Distance(child->second[frame]);
 
         if(radius != 0.0)
         {
           float angle_init;
+          float angle_r = angle * M_PI / 180.0;
+          float mvt_angle_r = mvt.angle * M_PI / 180.0;
 
           if(child->second[frame].x > anchor.x)
           {
@@ -251,8 +251,8 @@ void Member::ApplyMovement(member_mvt &mvt, std::vector<junction>& squel_lst)
               angle_init = M_PI + acos( -(child->second[frame].x - anchor.x) / radius );
           }
 
-          child_mvt.pos.x += radius * (cos(angle_init + angle_rad + mvt.GetAngle()) - cos(angle_init + angle_rad));
-          child_mvt.pos.y += radius * (sin(angle_init + angle_rad + mvt.GetAngle()) - sin(angle_init + angle_rad));
+          child_mvt.pos.x += radius * (cos(angle_init + angle_r + mvt_angle_r) - cos(angle_init + angle_r));
+          child_mvt.pos.y += radius * (sin(angle_init + angle_r + mvt_angle_r) - sin(angle_init + angle_r));
         }
         // Apply recursively to childrens:
         member->member->ApplyMovement(child_mvt, squel_lst);
@@ -261,7 +261,7 @@ void Member::ApplyMovement(member_mvt &mvt, std::vector<junction>& squel_lst)
   }
 
   // Apply the movement to the current member
-  SetAngle(angle_rad + mvt.GetAngle());
+  angle += mvt.angle;
   pos += mvt.pos;
   alpha *= mvt.alpha;
   scale = scale * mvt.scale;

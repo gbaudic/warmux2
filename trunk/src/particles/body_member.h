@@ -25,10 +25,9 @@
 
 class BodyMemberParticle : public Particle
 {
-  double angle_rad;
+  int angle;
  public:
   BodyMemberParticle(Sprite* spr, const Point2i& position);
- private:
   void Refresh();
 };
 

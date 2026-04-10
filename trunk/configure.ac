@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.7.9], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8alpha1], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -194,9 +194,8 @@ fi
 AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,,check_sdl_gfx="no")
 AC_CHECK_HEADERS(SDL_rotozoom.h,,check_sdl_gfx="no")
 
-dnl === Check for SDL image, mixer, etc., libxml++ and libcurl ==============
+dnl === Check for SDL image, mixer, etc. and libxml++ =======================
 
-AC_CHECK_LIB(curl, curl_easy_init,check_curl="yes",check_curl="no")
 AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
 AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
 AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
@@ -212,15 +211,6 @@ else
 	check_libxmlpp="no"
 fi
 
-AC_MSG_CHECKING(for libcurl)
-
-if test x$check_curl = xyes; then
-	AC_MSG_RESULT(yes)
-else
-	AC_MSG_RESULT(no)
-	check_libcurl="no"
-        AC_MSG_ERROR([*** No libCurl found. Please install a valid libcurl ***])
-fi
 
 dnl === Display error if SDL image, mixer, etc. is missing ==================
 
@@ -254,16 +244,13 @@ if test \
 	exit 1
 fi
 
-dnl === Add libxml++ and libcurl flags =================================================
-LIBCURL_CFLAGS=`curl-config --cflags`
-LIBCURL_LIBS=`curl-config --libs`
+dnl === Add libxml++ flags =================================================
 
 LIBXMLPP_CFLAGS=`$PACKAGE_CONFIG libxml++-2.6 --cflags`
 LIBXMLPP_LIBS=`$PACKAGE_CONFIG libxml++-2.6 --libs`
-
-CFLAGS="$CFLAGS $LIBXMLPP_CFLAGS $LIBCURL_CFLAGGS"
-CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS $LIBCURL_CFLAGS"
-LIBS="$LIBS $LIBXMLPP_LIBS $LIBCURL_LIBS"
+CFLAGS="$CFLAGS $LIBXMLPP_CFLAGS"
+CXXFLAGS="$CXXFLAGS $LIBXMLPP_CFLAGS"
+LIBS="$LIBS $LIBXMLPP_LIBS"
 
 dnl ========================================================================
 dnl == Check for header files                                              =
@@ -284,6 +271,8 @@ DATA_FILES=`echo $DATA_FILES`
 
 AC_SUBST([DATA_FILES])
 AC_SUBST([BUILD_ENV])
+
+AM_PO_SUBDIRS
 
 AC_CONFIG_FILES([Makefile
 		 data/Makefile

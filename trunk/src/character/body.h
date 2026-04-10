@@ -22,6 +22,7 @@
 #ifndef BODY_H
 #define BODY_H
 #include <map>
+//#include "character.h"
 #include "body_list.h"
 #include "clothe.h"
 #include "member.h"
@@ -29,6 +30,7 @@
 #include "../tool/resource_manager.h"
 #include "../tool/point.h"
 #include "../tool/xml_document.h"
+
 class Character;
 class BodyList;
 class Member;
@@ -46,13 +48,6 @@ typedef class c_junction junction;
 
 class Body
 {
-public:
-  typedef enum
-  {
-    DIRECTION_LEFT = -1,
-    DIRECTION_RIGHT = 1
-  } Direction_t;
-private:
   friend class BodyList;
   std::map<std::string, Member*> members_lst;
   std::map<std::string, Clothe*> clothes_lst;
@@ -74,13 +69,13 @@ private:
   uint current_frame;
   int walk_events;
 
-  double main_rotation_rad;
+  int main_rotation;
 
   std::vector<junction> squel_lst; // Squeleton of the body:
                                         // Order to use to build the body
                                         // First element: member to build
                                         // Secnd element: parent member
-  Body::Direction_t direction;
+  int direction;
 
   int animation_number;
   bool need_rebuild;
@@ -91,9 +86,9 @@ private:
 
   void BuildSqueleton();
   void AddChildMembers(Member* parent);
-  const Character* owner;
 
 public:
+  Character* owner;
 
   Body(xmlpp::Element *xml, Profile* res);
   Body(Body *_body);
@@ -106,17 +101,16 @@ public:
   void SetMovement(std::string name);
   void SetClotheOnce(std::string name); //use this only during one movement
   void SetMovementOnce(std::string name); //play the movement only once
-  void SetRotation(double angle);
+  void SetRotation(int angle);
   void SetFrame(uint no);
-  void SetDirection(Body::Direction_t dir);
-  inline void SetOwner(const Character* belonger) { owner = belonger; };
+  void SetDirection(int dir);
   void PlayAnimation();
   void Build();
 
   const std::string& GetMovement();
   const std::string& GetClothe();
   void GetTestRect(uint &l, uint &r, uint &t, uint &b);
-  const Direction_t &GetDirection() const;
+  const int GetDirection();
   const Point2i &GetHandPosition() const;
   uint GetMovementDuration();
   uint GetFrame() { return current_frame; };

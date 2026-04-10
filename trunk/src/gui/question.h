@@ -25,7 +25,6 @@
 //-----------------------------------------------------------------------------
 #include "../include/base.h"
 #include "../graphic/sprite.h"
-#include "../graphic/text.h"
 #include <string>
 #include <list>
 #include <SDL_events.h>
@@ -60,9 +59,9 @@ class Question
   } default_choice;
 
   int TreatsKey (SDL_Event &event);
-
+  void Draw();
   // Message to display
-  Text * text;
+  std::string message;
 
 public:
   Question();
@@ -73,8 +72,6 @@ public:
 	   int default_value,
       const std::string &bg_sprite="");
   int Ask();
-  void Draw() const;
-
   inline void add_choice(int key, int value)
   {
     return this->choices.push_back(choice_t(key,value));

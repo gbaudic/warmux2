@@ -45,7 +45,7 @@ bool find_first_contact_point (int x1, int y1, double angle, int length,
 {
   double x, y, x_step, y_step ;
   int x2, y2 ;
-
+  
   x_step = cos(angle) ;
   y_step = sin(angle) ;
 
@@ -103,7 +103,8 @@ bool NinjaRope::p_Shoot()
   last_node = 0 ;
   m_attaching = true;
   m_launch_time = Time::GetInstance()->Read() ;
-  m_initial_angle = ActiveCharacter().GetFiringAngle();
+  m_initial_angle = ActiveTeam().crosshair.GetAngleRad();
+  m_initial_direction = ActiveCharacter().GetDirection(); 
   last_mvt=Time::GetInstance()->Read();
   return true ;
 }
@@ -121,7 +122,7 @@ void NinjaRope::TryAttachRope()
   Point2i handPos = ActiveCharacter().GetHandPosition();
   x = handPos.x;
   y = handPos.y;
-
+    
   length = ROPE_DRAW_SPEED * delta_time / 10;
   if (length > MAX_ROPE_LEN)
     {
@@ -130,36 +131,36 @@ void NinjaRope::TryAttachRope()
       m_is_active = false;
       return ;
     }
-
+  
   angle = m_initial_angle;
-
+  
   if (find_first_contact_point(x, y, angle, length, 4,
 			       m_fixation_x, m_fixation_y))
     {
       m_attaching = false;
-
+      
       int dx, dy;
-
+      
       // The rope reaches the fixation point. Let's fix it !
-
+      
       dx = x - ActiveCharacter().GetX() ;
       dy = y - ActiveCharacter().GetY() ;
-
+      
       ActiveCharacter().SetPhysFixationPointXY(
 					       m_fixation_x / PIXEL_PER_METER,
 					       m_fixation_y / PIXEL_PER_METER,
 					       (double)dx / PIXEL_PER_METER,
 					       (double)dy / PIXEL_PER_METER);
-
+      
       rope_node[0].x = m_fixation_x ;
       rope_node[0].y = m_fixation_y ;
-
+      
       ActiveCharacter().ChangePhysRopeSize (-10.0 / PIXEL_PER_METER);
       m_hooked_time = Time::GetInstance()->Read();
       ActiveCharacter().SetMovement("ninja-rope");
 
-     ActiveCharacter().SetFiringAngle(-M_PI / 3);
-
+     ActiveTeam().crosshair.ChangeAngleVal(-60);
+	
     }
   else
     {
@@ -198,7 +199,7 @@ bool NinjaRope::TryAddNode(int CurrentSense)
   if (find_first_contact_point(m_fixation_x, m_fixation_y, angle, lg, 4,cx,cy))
     {
       rope_angle = ActiveCharacter().GetRopeAngle() ;
-
+      
       if ( (last_broken_node_sense * CurrentSense > 0) &&
 	   (fabs(last_broken_node_angle - rope_angle) < 0.1))
 	return false ;
@@ -257,7 +258,7 @@ bool NinjaRope::TryBreakNode(int CurrentSense)
 	   (CurrentAngle < NodeAngle))
 	BreakNode = true ;
 
-      if ( (CurrentAngle < 0) &&
+      if ( (CurrentAngle < 0) && 
 	   (AngularSpeed > 0) &&
 	   (CurrentAngle > NodeAngle))
 	BreakNode = true ;
@@ -351,7 +352,7 @@ void NinjaRope::GoUp()
   delta_len = -0.1 ;
   ActiveCharacter().ChangePhysRopeSize (delta_len);
   ActiveCharacter().UpdatePosition();
-  delta_len = 0 ;
+  delta_len = 0 ;  
 }
 
 void NinjaRope::GoDown()
@@ -366,14 +367,14 @@ void NinjaRope::GoDown()
   delta_len = 0.1 ;
   ActiveCharacter().ChangePhysRopeSize (delta_len) ;
   ActiveCharacter().UpdatePosition() ;
-  delta_len = 0 ;
+  delta_len = 0 ;  
 }
 
 void NinjaRope::GoRight()
 {
   go_right = true ;
   ActiveCharacter().SetExternForce(ROPE_PUSH_FORCE,0);
-  ActiveCharacter().SetDirection(Body::DIRECTION_RIGHT);
+  ActiveCharacter().SetDirection(1);
 }
 
 void NinjaRope::StopRight()
@@ -390,7 +391,7 @@ void NinjaRope::GoLeft()
 {
   go_left = true ;
   ActiveCharacter().SetExternForce(-ROPE_PUSH_FORCE,0);
-  ActiveCharacter().SetDirection(Body::DIRECTION_LEFT);
+  ActiveCharacter().SetDirection(-1);
 }
 
 void NinjaRope::StopLeft()
@@ -448,7 +449,7 @@ void NinjaRope::Draw()
       quad.y3 = (int)round((double)rope_node[i].y - 2 * sin(angle));
       quad.x4 = (int)round((double)rope_node[i].x - 2 * cos(angle));
       quad.y4 = (int)round((double)rope_node[i].y + 2 * sin(angle));
-
+      
       float dx = sin(angle) * (float)m_node_sprite->GetHeight();
       float dy = cos(angle) * (float)m_node_sprite->GetHeight();
       int step = 0;
@@ -477,7 +478,7 @@ void NinjaRope::Draw()
 
     }
 
-  m_hook_sprite->SetRotation_rad(-prev_angle);
+  m_hook_sprite->SetRotation_deg(-prev_angle * 180.0 / M_PI);
   m_hook_sprite->Draw( Point2i(rope_node[0].x, rope_node[0].y)
 		  - m_hook_sprite->GetSize()/2);
 }
@@ -490,37 +491,37 @@ void NinjaRope::p_Deselect()
   ActiveCharacter().UnsetPhysFixationPoint() ;
 }
 
-void NinjaRope::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
+void NinjaRope::HandleKeyEvent(int action, int event_type)
 {
   switch (action) {
-    case Action::ACTION_UP:
-      if (event_type != Keyboard::KEY_RELEASED)
+    case ACTION_UP:
+      if (event_type != KEY_RELEASED)
 	GoUp();
       break ;
 
-    case Action::ACTION_DOWN:
-      if (event_type != Keyboard::KEY_RELEASED)
+    case ACTION_DOWN:
+      if (event_type != KEY_RELEASED)
 	GoDown();
       break ;
 
-    case Action::ACTION_MOVE_LEFT:
-      if (event_type == Keyboard::KEY_PRESSED)
+    case ACTION_MOVE_LEFT:
+      if (event_type == KEY_PRESSED)
 	GoLeft();
       else
-	if (event_type == Keyboard::KEY_RELEASED)
+	if (event_type == KEY_RELEASED)
 	  StopLeft();
       break ;
 
-    case Action::ACTION_MOVE_RIGHT:
-      if (event_type == Keyboard::KEY_PRESSED)
+    case ACTION_MOVE_RIGHT:
+      if (event_type == KEY_PRESSED)
 	GoRight();
       else
-	if (event_type == Keyboard::KEY_RELEASED)
+	if (event_type == KEY_RELEASED)
 	  StopRight();
       break ;
 
-    case Action::ACTION_SHOOT:
-      if (event_type == Keyboard::KEY_PRESSED)
+    case ACTION_SHOOT:
+      if (event_type == KEY_PRESSED)
 	UseAmmoUnit();
       break ;
 

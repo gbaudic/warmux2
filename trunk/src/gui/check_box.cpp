@@ -39,7 +39,7 @@ CheckBox::CheckBox(const std::string &label, const Rectanglei &rect, bool value)
   m_value = value;
 
   txt_label = new Text(label, white_color, Font::GetInstance(Font::FONT_SMALL));
-  hidden = false;
+  
 }
 
 CheckBox::~CheckBox()
@@ -48,19 +48,16 @@ CheckBox::~CheckBox()
   delete txt_label;
 }
 
-void CheckBox::Draw(const Point2i &mousePosition, Surface& surf) const
+void CheckBox::Draw(const Point2i &mousePosition, Surface& surf)
 {
-  if (!hidden)
-    {
-      txt_label->DrawTopLeft( GetPosition() );
-      
-      if (m_value)
-	m_checked_image->SetCurrentFrame(0);
-      else 
-	m_checked_image->SetCurrentFrame(1);
-      
-      m_checked_image->Blit(surf, GetPositionX() + GetSizeX() - 16, GetPositionY());
-    }
+  txt_label->DrawTopLeft( GetPosition() );
+ 
+  if (m_value)
+    m_checked_image->SetCurrentFrame(0);
+  else 
+    m_checked_image->SetCurrentFrame(1);
+
+  m_checked_image->Blit(surf, GetPositionX() + GetSizeX() - 16, GetPositionY());
 }
 
 Widget* CheckBox::Clic(const Point2i &mousePosition, uint button)
@@ -85,10 +82,3 @@ void CheckBox::SetValue(bool value)
   m_value = value;
 }
 
-void CheckBox::SetVisible(bool visible)
-{
-  if (hidden == visible) {
-    hidden = !visible;
-    need_redrawing = true;
-  }
-}

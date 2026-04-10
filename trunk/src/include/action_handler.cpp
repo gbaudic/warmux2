@@ -26,10 +26,8 @@
 #include "../game/game_mode.h"
 #include "../game/game_loop.h"
 #include "../game/game.h"
-#include "../game/time.h"
 #include "../include/constant.h"
 #include "../network/network.h"
-#include "../map/camera.h"
 #include "../map/map.h"
 #include "../map/maps_list.h"
 #include "../map/wind.h"
@@ -48,7 +46,7 @@
 #include "../weapon/explosion.h"
 
 // Delta angle used to move the crosshair
-#define DELTA_CROSSHAIR 0.035 /* ~1 degree */
+#define DELTA_CROSSHAIR 2
 
 ActionHandler * ActionHandler::singleton = NULL;
 
@@ -65,7 +63,7 @@ void SyncCharacters()
   assert(network.IsServer());
   ActionHandler* action_handler = ActionHandler::GetInstance();
 
-  Action a_begin_sync(Action::ACTION_SYNC_BEGIN);
+  Action a_begin_sync(ACTION_SYNC_BEGIN);
   network.SendAction(&a_begin_sync);
   TeamsList::iterator
     it=teams_list.playing_list.begin(),
@@ -81,9 +79,9 @@ void SyncCharacters()
     for (int char_no = 0; tit != tend; ++tit, ++char_no)
     {
       // Sync the character's energy
-      Action* a = new Action(Action::ACTION_SET_CHARACTER_ENERGY);
-      a->Push(team_no);
-      a->Push(char_no);
+      Action* a = new Action(ACTION_SET_CHARACTER_ENERGY);
+		a->Push(team_no);
+		a->Push(char_no);
       a->Push((int)(*tit).GetEnergy());
       action_handler->NewAction(a);
       // Sync the character's position
@@ -91,7 +89,7 @@ void SyncCharacters()
       action_handler->NewAction(a);
     }
   }
-  Action a_sync_end(Action::ACTION_SYNC_END);
+  Action a_sync_end(ACTION_SYNC_END);
   network.SendAction(&a_sync_end);
 }
 
@@ -127,37 +125,44 @@ void Action_BackJump (Action *a)
 
 void Action_Up (Action *a)
 {
-  ActiveCharacter().AddFiringAngle(-DELTA_CROSSHAIR);
+  ActiveTeam().crosshair.ChangeAngle (-DELTA_CROSSHAIR);
 }
 
 void Action_Down (Action *a)
 {
-  ActiveCharacter().AddFiringAngle(DELTA_CROSSHAIR);
+  ActiveTeam().crosshair.ChangeAngle (DELTA_CROSSHAIR);
 }
 
 void Action_ChangeWeapon (Action *a)
 {
-  ActiveTeam().SetWeapon(static_cast<Weapon::Weapon_type>(a->PopInt()));
+  ActiveTeam().SetWeapon((Weapon_type)a->PopInt());
 }
 
 void Action_NextCharacter (Action *a)
 {
-  a->RetrieveCharacter();       // Retrieve current character's informations
-  a->RetrieveCharacter();       // Retrieve next character information
-  camera.FollowObject(&ActiveCharacter(), true, true);
+  ActiveTeam().NextCharacter();
 }
 
 void Action_ChangeCharacter (Action *a)
 {
-  a->RetrieveCharacter();
-  camera.FollowObject(&ActiveCharacter(), true, true);
+  int char_index = a->PopInt();
+  while( (int)ActiveCharacter().GetCharacterIndex() != char_index )
+    ActiveTeam().NextCharacter();
+
+  printf("Action_NextCharacter:\n");
+  printf("char_index = %i\n",char_index);
+  printf("Playing character : %i %s\n", ActiveCharacter().GetCharacterIndex(), ActiveCharacter().GetName().c_str());
+  printf("Playing team : %i %s\n", ActiveCharacter().GetTeamIndex(), ActiveTeam().GetName().c_str());
+  printf("Alive characters: %i / %i\n\n",ActiveTeam().NbAliveCharacter(),ActiveTeam().GetNbCharacters());
+
+  // Ok, this code is dirty, if you write a cleaner way
+  // Use it in mouse.cpp as well ;)
 }
 
 void Action_Shoot (Action *a)
 {
   double strength = a->PopDouble();
-  double angle = a->PopDouble();
-  a->RetrieveCharacter();
+  int angle = a->PopInt();
   ActiveTeam().AccessWeapon().PrepareShoot(strength, angle);
 }
 
@@ -168,15 +173,41 @@ void Action_Wind (Action *a)
 
 Action* BuildActionSendCharacterPhysics(int team_no, int char_no)
 {
-  Action* a = new Action(Action::ACTION_SET_CHARACTER_PHYSICS);
-  a->StoreCharacter(team_no, char_no);
+  Action* a = new Action(ACTION_SET_CHARACTER_PHYSICS);
+  Character* c = teams_list.FindPlayingByIndex(team_no)->FindByIndex(char_no);
+  a->Push(team_no);
+  a->Push(char_no);
+  a->Push(c->GetX());
+  a->Push(c->GetY());
+  Point2d speed;
+  c->GetSpeedXY(speed);
+  a->Push(speed.x);
+  a->Push(speed.y);
+//  printf("Sending physics of %s (%i, %i / %f, %f)\n",c->GetName().c_str(), c->GetX(), c->GetY(), speed.x, speed.y);
   return a;
 }
 
 void Action_SetCharacterPhysics (Action *a)
 {
-  while(!a->IsEmpty())
-    a->RetrieveCharacter();
+  int team_no, char_no;
+  double s_x, s_y;
+  int x, y;
+
+  team_no = a->PopInt();
+  char_no = a->PopInt();
+  Character* c = teams_list.FindPlayingByIndex(team_no)->FindByIndex(char_no);
+  assert(c != NULL);
+
+  x = a->PopInt();
+  y = a->PopInt();
+  s_x = a->PopDouble();
+  s_y = a->PopDouble();
+  c->SetXY(Point2i(x, y));
+  c->SetSpeedXY(Point2d(s_x, s_y));
+
+  Point2d speed;
+  c->GetSpeedXY(speed);
+  printf("Setting physics of %s (%i, %i / %f, %f)\n",c->GetName().c_str(), c->GetX(), c->GetY(), speed.x, speed.y);
 }
 
 void Action_SetCharacterEnergy(Action *a)
@@ -188,20 +219,34 @@ void Action_SetCharacterEnergy(Action *a)
   c->SetEnergy( a->PopInt() );
 }
 
-void Action_SetSkin (Action *a)
+void Action_SetFrame (Action *a)
 {
   //Set the frame of the walking skin, to get the position of the hand synced
-  if (!ActiveTeam().IsLocal() || network.state != Network::NETWORK_PLAYING)
+  if (!ActiveTeam().is_local || network.state != Network::NETWORK_PLAYING)
+  {
+    ActiveTeam().ActiveCharacter().body->SetFrame((uint)a->PopInt());
+  }
+}
+
+void Action_SetClothe (Action *a)
+{
+  if (!ActiveTeam().is_local || network.state != Network::NETWORK_PLAYING)
   {
     ActiveTeam().ActiveCharacter().SetClothe(a->PopString());
+  }
+}
+
+void Action_SetMovement (Action *a)
+{
+  if (!ActiveTeam().is_local || network.state != Network::NETWORK_PLAYING)
+  {
     ActiveTeam().ActiveCharacter().SetMovement(a->PopString());
-    ActiveTeam().ActiveCharacter().body->SetFrame((uint)a->PopInt());
   }
 }
 
 void Action_SetCharacterDirection (Action *a)
 {
-  ActiveCharacter().SetDirection (Body::Direction_t(a->PopInt()));
+  ActiveCharacter().SetDirection (a->PopInt());
 }
 
 void Action_SetMap (Action *a)
@@ -209,6 +254,13 @@ void Action_SetMap (Action *a)
   if (!network.IsClient()) return;
   MapsList::GetInstance()->SelectMapByName(a->PopString());
   network.network_menu->ChangeMapCallback();
+}
+
+void Action_ClearTeams (Action *a)
+{
+  MSG_DEBUG("action.handler", "ClearTeams");
+  if (!network.IsClient()) return;
+  teams_list.Clear();
 }
 
 void Action_ChangeState (Action *a)
@@ -272,17 +324,17 @@ void Action_SetGameMode (Action *a)
   GameMode::GetInstance()->character.mass = a->PopInt();
   GameMode::GetInstance()->character.air_resist_factor = a->PopDouble();
   GameMode::GetInstance()->character.jump_strength = a->PopInt();
-  GameMode::GetInstance()->character.jump_angle = a->PopDouble();
+  GameMode::GetInstance()->character.jump_angle = a->PopInt();
   GameMode::GetInstance()->character.super_jump_strength = a->PopInt();
-  GameMode::GetInstance()->character.super_jump_angle = a->PopDouble();
+  GameMode::GetInstance()->character.super_jump_angle = a->PopInt();
   GameMode::GetInstance()->character.back_jump_strength = a->PopInt();
-  GameMode::GetInstance()->character.back_jump_angle = a->PopDouble();
+  GameMode::GetInstance()->character.back_jump_angle = a->PopInt();
 }
 
 void SendGameMode()
 {
   assert(network.IsServer());
-  Action a(Action::ACTION_SET_GAME_MODE);
+  Action a(ACTION_SET_GAME_MODE);
   a.Push((int)GameMode::GetInstance()->max_characters);
   a.Push((int)GameMode::GetInstance()->max_teams);
   a.Push((int)GameMode::GetInstance()->duration_turn);
@@ -306,34 +358,13 @@ void SendGameMode()
   network.SendAction(&a);
 }
 
-// TODO: Move this into network/distant_cpu.cpp
 void Action_NewTeam (Action *a)
 {
-  ConfigTeam the_team;
-
-  the_team.id = a->PopString();
-  the_team.player_name = a->PopString();
-  the_team.nb_characters = uint(a->PopInt());
-
-  teams_list.AddTeam (the_team);
-
-  network.network_menu->AddTeamCallback(the_team.id);
+  std::string team = a->PopString();
+  teams_list.AddTeam (team);
+  network.network_menu->AddTeamCallback(team);
 }
 
-void Action_UpdateTeam (Action *a)
-{
-  ConfigTeam the_team;
-
-  the_team.id = a->PopString();
-  the_team.player_name = a->PopString();
-  the_team.nb_characters = uint(a->PopInt());
-
-  teams_list.UpdateTeam (the_team);
-
-  network.network_menu->UpdateTeamCallback(the_team.id);
-}
-
-// TODO: Move this into network/distant_cpu.cpp
 void Action_DelTeam (Action *a)
 {
   std::string team = a->PopString();
@@ -341,7 +372,6 @@ void Action_DelTeam (Action *a)
   network.network_menu->DelTeamCallback(team);
 }
 
-// TODO: Move this into network/distant_cpu.cpp
 void Action_ChatMessage (Action *a)
 {
   if(Game::GetInstance()->IsGameLaunched())
@@ -350,7 +380,7 @@ void Action_ChatMessage (Action *a)
     GameLoop::GetInstance()->chatsession.NewMessage(a->PopString());
   else
     //Network Menu
-    network.network_menu->ReceiveMsgCallback(a->PopString());
+    network.network_menu->msg_box->NewMessage(a->PopString());
 }
 
 void Action_ChangeTeam (Action *a)
@@ -363,7 +393,7 @@ void Action_ChangeTeam (Action *a)
 void Action_AskVersion (Action *a)
 {
   if (!network.IsClient()) return;
-  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_SEND_VERSION, Constants::VERSION));
+  ActionHandler::GetInstance()->NewAction(new Action(ACTION_SEND_VERSION, Constants::VERSION));
 }
 
 void Action_SendVersion (Action *a)
@@ -385,13 +415,13 @@ void Action_SendRandom (Action *a)
 
 void Action_SupertuxState (Action *a)
 {
-  assert(ActiveTeam().GetWeaponType() == Weapon::WEAPON_SUPERTUX);
+  assert(ActiveTeam().GetWeaponType() == WEAPON_SUPERTUX);
   WeaponLauncher* launcher = static_cast<WeaponLauncher*>(&(ActiveTeam().AccessWeapon()));
   SuperTux* tux = static_cast<SuperTux*>(launcher->GetProjectile());
 
   double x, y;
 
-  tux->SetAngle(a->PopDouble());
+  tux->angle = a->PopDouble();
   x = a->PopDouble();
   y = a->PopDouble();
   tux->SetPhysXY(x, y);
@@ -408,11 +438,6 @@ void Action_SyncEnd (Action *a)
 {
   assert(network.sync_lock);
   network.sync_lock = false;
-}
-
-// Nothing to do here. Just for time synchronisation
-void Action_Ping(Action *a)
-{
 }
 
 void Action_Explosion (Action *a)
@@ -473,7 +498,7 @@ void Action_WeaponStopUse(Action *a)
 
 void Action_Nickname(Action *a)
 {
-
+  
 }
 
 void Action_Pause(Action *a)
@@ -484,30 +509,15 @@ void Action_Pause(Action *a)
 
 void ActionHandler::ExecActions()
 {
-  Action * a;
-  std::list<Action*> to_remove;
-  std::list<Action*>::iterator it;
   assert(mutex!=NULL);
-  for(it = queue.begin(); it != queue.end() ; ++it)
+  while (queue.size() != 0)
   {
     SDL_LockMutex(mutex);
-    a = (*it);
-    Time::GetInstance()->RefreshMaxTime((*it)->GetTimestamp());
-    // If action is in the future, wait for next refresh
-    if((*it)->GetTimestamp() > Time::GetInstance()->Read()) {
-      SDL_UnlockMutex(mutex);
-      continue;
-    }
+    Action *action = queue.front();
+    queue.pop_front();
     SDL_UnlockMutex(mutex);
-    Exec ((*it));
-    to_remove.push_back((*it));
-  }
-  while(to_remove.size() != 0)
-  {
-    a = to_remove.front();
-    to_remove.pop_front();
-    queue.remove(a);
-    delete(a);
+    Exec (action);
+    delete action;
   }
 }
 
@@ -516,14 +526,14 @@ void ActionHandler::NewAction(Action* a, bool repeat_to_network)
   assert(mutex!=NULL);
   SDL_LockMutex(mutex);
   //  MSG_DEBUG("action.handler","New action : %s",a.out());
-  //  std::cout << "New action " << a->GetType() << std::endl ;
+  //  std::cout << "New action " << a ;
   queue.push_back(a);
   //  std::cout << "  queue_size " << queue.size() << std::endl;
   SDL_UnlockMutex(mutex);
   if (repeat_to_network) network.SendAction(a);
 }
 
-void ActionHandler::Register (Action::Action_t action,
+void ActionHandler::Register (Action_t action,
 		                      const std::string &name,callback_t fct)
 {
   handler[action] = fct;
@@ -538,7 +548,7 @@ void ActionHandler::Exec(Action *a)
   (*it->second) (a);
 }
 
-std::string ActionHandler::GetActionName (Action::Action_t action)
+std::string ActionHandler::GetActionName (Action_t action)
 {
   assert(mutex!=NULL);
   SDL_LockMutex(mutex);
@@ -552,45 +562,45 @@ ActionHandler::ActionHandler()
 {
   mutex = SDL_CreateMutex();
   SDL_LockMutex(mutex);
-  Register (Action::ACTION_MOVE_LEFT, "move_left", &Action_MoveLeft);
-  Register (Action::ACTION_MOVE_RIGHT, "move_right", &Action_MoveRight);
-  Register (Action::ACTION_UP, "up", &Action_Up);
-  Register (Action::ACTION_DOWN, "down", &Action_Down);
-  Register (Action::ACTION_JUMP, "jump", &Action_Jump);
-  Register (Action::ACTION_HIGH_JUMP, "super_jump", &Action_HighJump);
-  Register (Action::ACTION_BACK_JUMP, "back_jump", &Action_BackJump);
-  Register (Action::ACTION_SHOOT, "shoot", &Action_Shoot);
-  Register (Action::ACTION_CHANGE_WEAPON, "change_weapon", &Action_ChangeWeapon);
-  Register (Action::ACTION_WIND, "wind", &Action_Wind);
-  Register (Action::ACTION_NEXT_CHARACTER, "next_character", &Action_NextCharacter);
-  Register (Action::ACTION_CHANGE_CHARACTER, "change_character", &Action_ChangeCharacter);
-  Register (Action::ACTION_SET_GAME_MODE, "set_game_mode", &Action_SetGameMode);
-  Register (Action::ACTION_SET_MAP, "set_map", &Action_SetMap);
-  Register (Action::ACTION_UPDATE_TEAM, "update_team", &Action_UpdateTeam);
-  Register (Action::ACTION_NEW_TEAM, "new_team", &Action_NewTeam);
-  Register (Action::ACTION_DEL_TEAM, "del_team", &Action_DelTeam);
-  Register (Action::ACTION_CHANGE_TEAM, "change_team", &Action_ChangeTeam);
-  Register (Action::ACTION_SET_CHARACTER_PHYSICS, "set_character_physics", &Action_SetCharacterPhysics);
-  Register (Action::ACTION_SET_SKIN, "set_skin", &Action_SetSkin);
-  Register (Action::ACTION_SET_CHARACTER_DIRECTION, "set_character_direction", &Action_SetCharacterDirection);
-  Register (Action::ACTION_CHANGE_STATE, "change_state", &Action_ChangeState);
-  Register (Action::ACTION_ASK_VERSION, "ask_version", &Action_AskVersion);
-  Register (Action::ACTION_SEND_VERSION, "send_version", &Action_SendVersion);
-  Register (Action::ACTION_SEND_RANDOM, "send_random", &Action_SendRandom);
-  Register (Action::ACTION_PING, "ping", &Action_Ping);
-  Register (Action::ACTION_SYNC_BEGIN, "sync_begin", &Action_SyncBegin);
-  Register (Action::ACTION_SYNC_END, "sync_end", &Action_SyncEnd);
-  Register (Action::ACTION_EXPLOSION, "explosion", &Action_Explosion);
-  Register (Action::ACTION_SET_TARGET, "set_target", &Action_SetTarget);
-  Register (Action::ACTION_SUPERTUX_STATE, "supertux_state", &Action_SupertuxState);
-  Register (Action::ACTION_SET_TIMEOUT, "set_timeout", &Action_SetTimeout);
-  Register (Action::ACTION_CONSTRUCTION_UP, "construction_up", &Action_ConstructionUp);
-  Register (Action::ACTION_CONSTRUCTION_DOWN, "construction_down", &Action_ConstructionDown);
-  Register (Action::ACTION_WEAPON_STOP_USE, "weapon_stop_use", &Action_WeaponStopUse);
-  Register (Action::ACTION_SET_CHARACTER_ENERGY, "set_character_energy", &Action_SetCharacterEnergy);
-  Register (Action::ACTION_CHAT_MESSAGE, "chat_message", Action_ChatMessage);
-  Register (Action::ACTION_NICKNAME, "nickname", Action_Nickname);
-  Register (Action::ACTION_PAUSE, "pause", Action_Pause);
+  Register (ACTION_MOVE_LEFT, "move_left", &Action_MoveLeft);
+  Register (ACTION_MOVE_RIGHT, "move_right", &Action_MoveRight);
+  Register (ACTION_UP, "up", &Action_Up);
+  Register (ACTION_DOWN, "down", &Action_Down);
+  Register (ACTION_JUMP, "jump", &Action_Jump);
+  Register (ACTION_HIGH_JUMP, "super_jump", &Action_HighJump);
+  Register (ACTION_BACK_JUMP, "back_jump", &Action_BackJump);
+  Register (ACTION_SHOOT, "shoot", &Action_Shoot);
+  Register (ACTION_CHANGE_WEAPON, "change_weapon", &Action_ChangeWeapon);
+  Register (ACTION_WIND, "wind", &Action_Wind);
+  Register (ACTION_NEXT_CHARACTER, "next_character", &Action_NextCharacter);
+  Register (ACTION_CHANGE_CHARACTER, "change_character", &Action_ChangeCharacter);
+  Register (ACTION_SET_GAME_MODE, "set_game_mode", &Action_SetGameMode);
+  Register (ACTION_SET_MAP, "set_map", &Action_SetMap);
+  Register (ACTION_CLEAR_TEAMS, "clear_teams", &Action_ClearTeams);
+  Register (ACTION_NEW_TEAM, "new_team", &Action_NewTeam);
+  Register (ACTION_DEL_TEAM, "del_team", &Action_DelTeam);
+  Register (ACTION_CHANGE_TEAM, "change_team", &Action_ChangeTeam);
+  Register (ACTION_SET_CHARACTER_PHYSICS, "set_character_physics", &Action_SetCharacterPhysics);
+  Register (ACTION_SET_MOVEMENT, "set_movement", &Action_SetMovement);
+  Register (ACTION_SET_CLOTHE, "set_clothe", &Action_SetClothe);
+  Register (ACTION_SET_FRAME, "set_frame", &Action_SetFrame);
+  Register (ACTION_SET_CHARACTER_DIRECTION, "set_character_direction", &Action_SetCharacterDirection);
+  Register (ACTION_CHANGE_STATE, "change_state", &Action_ChangeState);
+  Register (ACTION_ASK_VERSION, "ask_version", &Action_AskVersion);
+  Register (ACTION_SEND_VERSION, "send_version", &Action_SendVersion);
+  Register (ACTION_SEND_RANDOM, "send_random", &Action_SendRandom);
+  Register (ACTION_SYNC_BEGIN, "sync_begin", &Action_SyncBegin);
+  Register (ACTION_SYNC_END, "sync_end", &Action_SyncEnd);
+  Register (ACTION_EXPLOSION, "explosion", &Action_Explosion);
+  Register (ACTION_SET_TARGET, "set_target", &Action_SetTarget);
+  Register (ACTION_SUPERTUX_STATE, "supertux_state", &Action_SupertuxState);
+  Register (ACTION_SET_TIMEOUT, "set_timeout", &Action_SetTimeout);
+  Register (ACTION_CONSTRUCTION_UP, "construction_up", &Action_ConstructionUp);
+  Register (ACTION_CONSTRUCTION_DOWN, "construction_down", &Action_ConstructionDown);
+  Register (ACTION_WEAPON_STOP_USE, "weapon_stop_use", &Action_WeaponStopUse);
+  Register (ACTION_SET_CHARACTER_ENERGY, "set_character_energy", &Action_SetCharacterEnergy);
+  Register (ACTION_CHAT_MESSAGE, "chat_message", Action_ChatMessage);
+  Register (ACTION_NICKNAME, "nickname", Action_Nickname);
+  Register (ACTION_PAUSE, "pause", Action_Pause);
   SDL_UnlockMutex(mutex);
 }
-

@@ -29,37 +29,73 @@
 #include "../team/teams_list.h"
 #include "../tool/math_tools.h"
 
-// Distance between crosshair and character
-#define RAY 40 // pixels
+// Distance entre le pointeur et le ver
+#define RAYON 40 // pixels
 
 CrossHair::CrossHair()
 {
   enable = false;
+  angle = 0;  
+
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   image = resource_manager.LoadImage(res, "gfx/pointeur1");
-  resource_manager.UnLoadXMLProfile(res);
+  resource_manager.UnLoadXMLProfile( res); 
 }
 
 void CrossHair::Reset()
 {
-  ActiveCharacter().SetFiringAngle(0.0);
+  ChangeAngleVal (45);
 }
 
-// Compute crosshair position
-void CrossHair::Refresh(double angle)
+void CrossHair::ChangeAngle (int delta)
 {
-  crosshair_position = Point2i(RAY, RAY) * Point2d(cos(angle), sin(angle)) - image.GetSize() / 2;
+  ChangeAngleVal (angle+delta);
+}
+
+void CrossHair::ChangeAngleVal (int val)
+{
+  angle = BorneLong(val, - (ActiveTeam().GetWeapon().max_angle),
+		    - (ActiveTeam().GetWeapon().min_angle) );
+  
+  const double angleRAD = Deg2Rad(angle);
+
+  // Calcul des coordonnées du point
+  calcul_d = Point2i(RAYON, RAYON) * Point2d(cos(angleRAD), sin(angleRAD));
 }
 
 void CrossHair::Draw()
 {
   if( !enable )
-    return;
+	return;
   if( ActiveCharacter().IsDead() )
-    return;
+	return;
   if( GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING )
-    return;
-  Point2i tmp = ActiveCharacter().GetHandPosition() + crosshair_position;
-  AppWormux::GetInstance()->video.window.Blit(image, tmp - camera.GetPosition());
-  world.ToRedrawOnMap(Rectanglei(tmp, image.GetSize()));
+	return;
+
+  Point2i pos = ActiveCharacter().GetHandPosition();
+  pos += calcul_d * Point2i(ActiveCharacter().GetDirection(), 1);
+  pos -= image.GetSize()/2;
+  
+  AppWormux::GetInstance()->video.window.Blit(image, pos - camera.GetPosition());
+  world.ToRedrawOnMap(Rectanglei(pos, image.GetSize()));
+}
+
+int CrossHair::GetAngle() const
+{ 
+	if (ActiveCharacter().GetDirection() == -1) 
+		return int( InverseAngleDeg (angle) );
+	else
+		return angle; 
+}
+
+int CrossHair::GetAngleVal() const
+{ return angle; }
+
+double CrossHair::GetAngleRad() const
+{
+  double angleR = Deg2Rad(angle);
+
+  if (ActiveCharacter().GetDirection() == -1)
+	  angleR = InverseAngle (angleR);
+  return angleR;
 }

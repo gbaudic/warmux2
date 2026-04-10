@@ -95,7 +95,7 @@ bool Menu::BasicOnClic(const Point2i &mousePosition)
   return true;
 }
 
-void Menu::DrawBackground()
+void Menu::DrawBackground(const Point2i &mousePosition)
 {
   background->ScaleSize(AppWormux::GetInstance()->video.window.GetSize());
   background->Blit(AppWormux::GetInstance()->video.window, 0, 0);
@@ -113,7 +113,7 @@ void Menu::Run ()
   close_menu = false;
 
   // Display the background
-  DrawBackground();
+  DrawBackground(Point2i(0,0));
 
   do
   {
@@ -129,20 +129,17 @@ void Menu::Run ()
       else if( event.type == SDL_KEYDOWN )
         switch( event.key.keysym.sym)
         {
-        case SDLK_ESCAPE:
+        case SDLK_ESCAPE: 
           if(b_cancel != NULL)
             sig_cancel();
           else
             key_cancel();
           break;
-        case SDLK_RETURN:
+        case SDLK_RETURN: 
           if(b_ok != NULL)
             sig_ok();
           else
             key_ok();
-          break;
-        case SDLK_F10:
-          AppWormux::GetInstance()->video.ToggleFullscreen();
           break;
         default:
           widgets.SendKey(event.key.keysym);
@@ -172,7 +169,7 @@ void Menu::Display(const Point2i& mousePosition)
   uint delay = 0;
   uint start = SDL_GetTicks();
 
-  widgets.Update(mousePosition, AppWormux::GetInstance()->video.window);
+  widgets.Draw(mousePosition, AppWormux::GetInstance()->video.window);
   Draw(mousePosition);
   AppWormux::GetInstance()->video.Flip();
 

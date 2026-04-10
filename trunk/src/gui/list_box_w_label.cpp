@@ -31,9 +31,8 @@
 
 ListBoxWithLabel::ListBoxWithLabel (const std::string &label, const Rectanglei &rect) : ListBox(rect)
 {  
-  txt_label = new Text(label, dark_gray_color, Font::GetInstance(Font::FONT_NORMAL, Font::BOLD), false);
+  txt_label = new Text(label, gray_color, Font::GetInstance(Font::FONT_NORMAL));
   SetSizePosition(rect);
-  txt_label->SetMaxWidth(GetSizeX());
 }
 
 ListBoxWithLabel::~ListBoxWithLabel()
@@ -41,62 +40,37 @@ ListBoxWithLabel::~ListBoxWithLabel()
    delete txt_label;
 }
 
-void ListBoxWithLabel::Draw(const Point2i &mousePosition, Surface& surf) const
+void ListBoxWithLabel::Draw(const Point2i &mousePosition, Surface& surf)
 {
   int item = MouseIsOnWhichItem(mousePosition);
-
-  Rectanglei rect (GetPositionX(),
-		   GetPositionY(),
-		   GetSizeX(),
-		   GetSizeY()- 2 - txt_label->GetHeight());
+  Rectanglei rect (GetPositionX(),GetPositionY(),GetSizeX(),
+		   GetSizeY()- 2 - Font::GetInstance(Font::FONT_NORMAL)->GetHeight());
 
   surf.BoxColor(rect, defaultListColor1);
   surf.RectangleColor(rect, white_color);
 
-  // Draw items
-  Point2i pos = GetPosition() + Point2i(5, 0);
-  uint local_max_visible_items = m_items.size();
-  bool draw_it = true;
-
-  for(uint i=first_visible_item; i < m_items.size(); i++){
-
-    Rectanglei rect2(GetPositionX() + 1, 
-		     pos.GetY() + 1, 
-		     GetSizeX() - 2, 
-		     m_items[i]->GetSizeY() - 2);
-
-    // no more place to add item
-    if (draw_it && rect2.GetPositionY()+rect2.GetSizeY() > GetPositionY()+ rect.GetSizeY()) {
-      local_max_visible_items = i - first_visible_item;
-      draw_it = false;
-    }
-    
-    // item is selected or mouse-overed
-    if (draw_it) {
-      if( int(i) == selected_item) {
-	surf.BoxColor(rect2, defaultListColor2);
-      } else if( i == uint(item) ) {
-	surf.BoxColor(rect2, defaultListColor3);
-      }
-    }
-
-    // Really draw items
-    Rectanglei rect3(pos.x, pos.y, 
-		     GetSizeX()-2, m_items[i]->GetSizeY() - 2);
-
-    m_items[i]->SetSizePosition(rect3);
-    if (draw_it) {
-      m_items[i]->Draw(mousePosition, surf);
-    }
-
-    pos += Point2i(0, m_items[i]->GetSizeY());
-  }
+  for(uint i=0; i < nb_visible_items; i++){
+	 Rectanglei rect(GetPositionX() + 1, GetPositionY() + i * height_item + 1, GetSizeX() - 2, height_item - 2);
+	 
+     if( int(i + first_visible_item) == selected_item)
+       surf.BoxColor(rect, defaultListColor2);
+     else
+       if( i + first_visible_item == uint(item) )
+         surf.BoxColor(rect, defaultListColor3);
+     
+     (*Font::GetInstance(Font::FONT_SMALL)).WriteLeft( 
+			  GetPosition() + Point2i(5, i*height_item),
+			  m_items[i + first_visible_item].label,
+			  white_color);
+     if(!m_items[i].enabled)
+       surf.BoxColor(rect, defaultDisabledColorBox);
+  }  
 
   // Draw the label
   txt_label->DrawTopLeft( GetPositionX(), GetPositionY() + GetSizeY() - txt_label->GetHeight() );
 
   // buttons for listbox with more items than visible
-  if (m_items.size() > local_max_visible_items){
+  if (m_items.size() > nb_visible_items_max){
     m_up->Draw(mousePosition, surf);
     m_down->Draw(mousePosition, surf);
 #ifdef SCROLLBAR
@@ -116,15 +90,13 @@ void ListBoxWithLabel::Draw(const Point2i &mousePosition, Surface& surf) const
 void ListBoxWithLabel::SetSizePosition(const Rectanglei &rect)
 {
   StdSetSizePosition(rect);
-  txt_label->SetMaxWidth(GetSizeX());
-
   m_up->SetSizePosition( Rectanglei(GetPositionX() + GetSizeX() - m_up->GetSizeX() - 2, 
 				    GetPositionY()+2, 
 				    m_up->GetSizeX(), m_up->GetSizeY()) );
-
   m_down->SetSizePosition( Rectanglei(GetPositionX() + GetSizeX() - m_down->GetSizeX() - 2, 
 				      GetPositionY() + GetSizeY() - m_down->GetSizeY() - 2 -
-				      txt_label->GetHeight() - 2,
-				      m_down->GetSizeX(), 
-				      m_down->GetSizeY()) );  
+				           Font::GetInstance(Font::FONT_NORMAL)->GetHeight() - 2, 
+				      m_down->GetSizeX(), m_down->GetSizeY()) );  
+
+  nb_visible_items_max = GetSizeY()/height_item;
 }

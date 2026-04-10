@@ -29,7 +29,6 @@
 const Color white_color (255, 255, 255, SDL_ALPHA_OPAQUE);
 const Color lightgray_color (169, 169, 169, SDL_ALPHA_OPAQUE);
 const Color gray_color (128, 128, 128, SDL_ALPHA_OPAQUE);
-const Color dark_gray_color (64, 64, 64, SDL_ALPHA_OPAQUE);
 const Color black_color (0, 0, 0, SDL_ALPHA_OPAQUE);
 
 const Color c_white  (0xFF, 0xFF, 0xFF, 0x70);
@@ -61,4 +60,9 @@ const Color defaultListColor1(75, 163, 200, 255*3/10);
 const Color defaultListColor2(0, 0, 255*6/10, 255*8/10);
 const Color defaultListColor3(0, 0, 255*6/10, 255*4/10);
 
-#endif /* COLORS_H */
+const Color WeaponStrengthBarValue(255, 255, 255, 127);
+const Color WeaponStrengthBarBorder(0, 0, 0, 127);
+const Color WeaponStrengthBarBackground(255*6/10, 255*6/10, 255*6/10, 96);
+
+
+#endif

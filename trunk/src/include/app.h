@@ -35,12 +35,13 @@ public:
 
 private:
   int x, y;
-  std::string windows_title;
+  std::string titre_fenetre;
 
   static AppWormux * singleton;
 
 private:
   void Init(int, char**);
+  void InitScreen();
   void InitWindow();
   void DisplayLoadingPicture();
   void InitFonts();

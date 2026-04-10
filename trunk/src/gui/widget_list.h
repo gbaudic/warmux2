@@ -42,12 +42,10 @@ public:
   WidgetList(const Rectanglei &rect);
   virtual ~WidgetList();
 
-  void Update(const Point2i &mousePosition, Surface& surf);
-
   // methods specialized from Widget to manage the list of widgets
   virtual void SendKey(SDL_keysym key);
   virtual Widget* Clic(const Point2i &mousePosition, uint button);
-  virtual void Draw(const Point2i &mousePosition, Surface& surf) const;
+  virtual void Draw(const Point2i &mousePosition, Surface& surf);
 
   // needed to implements Widget
   virtual void SetSizePosition(const Rectanglei &rect) {};  

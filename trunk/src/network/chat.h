@@ -35,18 +35,19 @@
 
 class Chat
 {
- private:
+ public:
   TextList* chat;
   Text* input;
   Text* msg;
 
+ private:
   int check_input;
   uint last_time;
 
  public:
   Chat();
   ~Chat();
-  void Show();
+  void Show();  
   void ShowInput();
   int CheckInput();
   void Reset();

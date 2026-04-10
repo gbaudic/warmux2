@@ -28,44 +28,38 @@
 #include "../object/physical_obj.h"
 
 class AutomaticBazooka;
-class AutomaticBazookaConfig;
 
-class RPG : public WeaponProjectile
+class RoquetteTeteCherche : public WeaponProjectile
 {
   ParticleEngine smoke_engine;
   protected:
     double angle_local;
-    Point2i m_target;
-    bool m_targeted;
-    double m_force;
-    uint m_lastrefresh;
+    Point2i m_cible;
+    bool m_attire;
   public:
-    RPG(AutomaticBazookaConfig& cfg,
+    RoquetteTeteCherche(ExplosiveWeaponConfig& cfg,
                         WeaponLauncher * p_launcher);
     void Refresh();
     void Shoot(double strength);
     void SetTarget (int x,int y);
-
   protected:
     void SignalOutOfMap();
-    void SignalDrowning();
 };
 
 class AutomaticBazooka : public WeaponLauncher
 {
   private:
-    struct target_t
+    struct s_cible
     {
       Point2i pos;
-      bool selected;
+      bool choisie;
       Surface image;
-    } m_target;
+    } cible;
   public:
     AutomaticBazooka();
     void Draw ();
     bool IsReady() const;
     virtual void ChooseTarget(Point2i mouse_pos);
-    AutomaticBazookaConfig &cfg();
   protected:
     void Refresh();
     void p_Select(); 

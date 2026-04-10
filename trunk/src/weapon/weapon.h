@@ -16,8 +16,11 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Virtual class to handle weapon in wormux.
- * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
+ * Classes virtuelles permettant de d�inir une arme et un projectile. Les
+ * armes ont un nom, une image, un �at actif/inactif et une ic�e (affich�
+ * dans l'interface). Les projectiles sont des objets physiques qui ont un
+ * comportement sp�ial lorsqu'ils entrent en collision ou qu'ils sortent du
+ * terrain.
  *****************************************************************************/
 
 #ifndef WEAPON_H
@@ -28,11 +31,11 @@
 #include "../graphic/sprite.h"
 #include "../gui/progress_bar.h"
 #include "../include/base.h"
+#include "../include/enum.h"
 #include "../particles/particle.h"
 #include "../object/physical_obj.h"
 #include "../sound/jukebox.h"
-#include "../interface/keyboard.h"
-
+//#include "../character/character.h"
 class Character;
 
 // Infinite ammos constant
@@ -44,7 +47,7 @@ extern const uint BUTTON_ICO_HEIGHT;
 extern const uint WEAPON_ICO_WIDTH;
 extern const uint WEAPON_ICO_HEIGHT;
 
-class WeaponStrengthBar : public ProgressBar
+class WeaponStrengthBar : public BarreProg
 {
  public:
   bool visible ;
@@ -54,25 +57,8 @@ class WeaponStrengthBar : public ProgressBar
 
 class Weapon
 {
-public:
-  typedef enum
-  {
-    WEAPON_BAZOOKA,        WEAPON_AUTOMATIC_BAZOOKA, WEAPON_RIOT_BOMB, WEAPON_GRENADE,
-    WEAPON_DISCO_GRENADE,  WEAPON_CLUSTER_BOMB,      WEAPON_GUN,       WEAPON_SHOTGUN,
-    WEAPON_SUBMACHINE_GUN, WEAPON_BASEBALL,
-
-    WEAPON_DYNAMITE,      WEAPON_MINE,
-
-    WEAPON_SUPERTUX,      WEAPON_AIR_ATTACK,  WEAPON_ANVIL, WEAPON_GNU,
-    WEAPON_POLECAT,       WEAPON_BOUNCE_BALL,
-
-    WEAPON_TELEPORTATION, WEAPON_NINJA_ROPE,  WEAPON_LOWGRAV,   WEAPON_SUICIDE,
-    WEAPON_SKIP_TURN,     WEAPON_JETPACK,     WEAPON_PARACHUTE, WEAPON_AIR_HAMMER,
-    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_BLOWTORCH, WEAPON_SYRINGE
-  } Weapon_type;
-
 protected:
-  Weapon::Weapon_type m_type;
+  Weapon_type m_type;
   std::string m_id;
   std::string m_name;
   bool m_is_active;
@@ -128,8 +114,8 @@ protected:
   int channel_load;
 
 public:
-  // weapon's icon
-  Sprite * icon;
+  // Icone de l'arme dans l'interface
+  Surface icone;
 
   // if max_strength != 0, display the strength bar
   double max_strength;
@@ -140,6 +126,8 @@ public:
   //Force weapons to use keys when true
   bool force_override_keys ;
 
+  // Angle in degrees between -90 to 90
+  int min_angle, max_angle;
   bool use_flipping;
 
 protected:
@@ -166,10 +154,10 @@ public:
   // Draw the weapon
   virtual void Draw();
   virtual void DrawWeaponFire();
+  void DrawWeaponBox();
 
-  void DrawUnit(int unit) const;
+  void DrawUnit(int unit);
 
-  Sprite & GetIcon() const;
   // Manage the numbers of ammunitions
   bool EnoughAmmo() const;
   void UseAmmo();
@@ -189,7 +177,7 @@ public:
 
   // Prepare the shoot : set the angle and strenght of the weapon
   // Begin the shooting animation of the character
-  void PrepareShoot(double strength, double angle);
+  void PrepareShoot(double strength, int angle);
 
   // Shot with the weapon
   // Return true if we have been able to trigger the weapon
@@ -223,7 +211,7 @@ public:
   virtual void ActionDown ();//called by mousse.cpp when mousewhelldown
 
   // Handle a keyboard event.
-  virtual void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type) ;
+  virtual void HandleKeyEvent(int key, int event_type) ;
 
   // Get informed that the turn is over.
   virtual void SignalTurnEnd();
@@ -247,14 +235,6 @@ public:
   // This is used in weapons like the automated bazooka, where it's required
   // a target. Default is true.
   bool mouse_character_selection;
-
-  inline void SetMinAngle(double min) {min_angle = min;}
-  inline const double &GetMinAngle() const {return min_angle;}
-  inline void SetMaxAngle(double max) {max_angle = max;}
-  inline const double &GetMaxAngle() const {return max_angle;}
-private:
-  // Angle in radian between -PI to PI
-  double min_angle, max_angle;
 };
 
 //-----------------------------------------------------------------------------

@@ -24,15 +24,16 @@
 
 #include <string>
 #include <SDL.h>
-#include "../gui/EnergyBar.h"
+//#include "body.h"
+//#include "../team/team.h"
+#include "../gui/progress_bar.h"
 #include "../graphic/sprite.h"
 #include "../graphic/text.h"
 #include "../include/base.h"
 #include "../object/physical_obj.h"
 #include "../particles/particle.h"
-#include "../interface/keyboard.h"
-#include "body.h"
 
+class Body;
 class Team;
 class ParticleEngine;
 
@@ -44,16 +45,17 @@ private:
   bool step_sound_played;
   bool prepare_shoot;
   bool back_jumping;
-  bool death_explosion;
-  double firing_angle;
 
+  // energy
+  uint energy;
   uint disease_damage_per_turn;
   uint disease_duration;
   int  damage_other_team;
   int  damage_own_team;
   int  max_damage;
   int  current_total_damage;
-  EnergyBar energy_bar;
+  BarreProg energy_bar;
+  int crosshair_angle;
 
   // survived games
   int survivals;
@@ -81,17 +83,16 @@ public:
   Body* body;
 
 private:
-  void DrawEnergyBar(int dy);
-  void DrawName(int dy) const;
+  void DrawEnergyBar (int dy);
+  void DrawName (int dy) const;
 
   void SignalDrowning();
-  void SignalGhostState(bool was_dead);
+  void SignalGhostState (bool was_dead);
   void SignalCollision();
-  void SetBody(Body* char_body);
 
 public:
 
-  Character (Team& my_team, const std::string &name, Body *char_body);
+  Character (Team& my_team, const std::string &name);
   Character (const Character& acharacter);
   ~Character();
 
@@ -100,35 +101,28 @@ public:
   // Energy related
   void SetEnergyDelta (int delta, bool do_report=true);
   void SetEnergy(int new_energy);
-  inline const int & GetEnergy() const { return life_points;}
-
+  uint GetEnergy() const;
   bool GotInjured() const;
   void Die();
-  void DisableDeathExplosion();
   bool IsActiveCharacter() const;
   // Disease handling
   bool IsDiseased() const;
   void SetDiseaseDamage(const uint damage_per_turn, const uint disease_duration);
   uint GetDiseaseDamage() const;
-  uint GetDiseaseDuration() const;
   void DecDiseaseDuration();
 
   void Draw();
   void Refresh();
 
-  void PrepareTurn();
+  void PrepareTurn ();
   void StartPlaying();
   void StopPlaying();
 
-  // Handle a key event on the character
-  void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+// Handle a key event on the character.
+  void HandleKeyEvent(int key, int event_type) ;
   void PrepareShoot();
   void DoShoot();
-  void HandleShoot(Keyboard::Key_Event_t event_type);
-  double GetFiringAngle() const;
-  double GetAbsFiringAngle() const;
-  void SetFiringAngle(double angle);
-  void AddFiringAngle(double angle);
+  void HandleShoot(int event_type) ;
 
   // Show hide the Character
   void Hide();
@@ -140,7 +134,7 @@ public:
   bool CanJump() const;
 
   // Jumps
-  void Jump(double strength, double angle);
+  void Jump(double strength, int angle);
   void Jump();
   void HighJump();
   void BackJump();
@@ -150,8 +144,8 @@ public:
   bool CanStillMoveDG (uint pause);
 
   // Direction of the character ( -1 == looks to the left / +1 == looks to the right)
-  void SetDirection(Body::Direction_t direction);
-  Body::Direction_t GetDirection() const;
+  void SetDirection (int direction);
+  int GetDirection() const;
 
   // Team owner
   const Team& GetTeam() const;
@@ -164,6 +158,7 @@ public:
 
   // Hand position
   const Point2i & GetHandPosition() const;
+  void GetHandPositionf (double &x, double &y);
 
   // Damage report
   void HandleMostDamage();
@@ -173,7 +168,7 @@ public:
   int  GetOtherDamage() const { return damage_other_team; }
 
   // Body handling
-  Body * GetBody() const;
+  void SetBody(Body* _body);
   void SetWeaponClothe();
   void SetClothe(std::string name);
   void SetMovement(std::string name);

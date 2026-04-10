@@ -25,13 +25,12 @@
 #include "character.h"
 #include "../object/physical_obj.h"
 
-// Pause between two movements
-const uint PAUSE_MOVEMENT=30; // ms
+// Pause entre deux deplacement
+#define PAUSE_BOUGE 30 // ms
 
-// Compute the height to fall or to walk on when moving horizontally
-// Return a boolean which says if movement is possible
-bool ComputeHeightMovement (Character &character, int &height,
-			    bool falling);
+// Calcule la hauteur a chuter ou grimper lors d'un déplacement horizontal
+// Renvoie si le mouvement est possible
+bool CalculeHauteurBouge (Character &character, int &hauteur);
 
 void MoveCharacter (Character &character);
 

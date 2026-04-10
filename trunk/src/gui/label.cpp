@@ -22,18 +22,15 @@
 #include "label.h"
 
 Label::Label (const std::string &label, const Rectanglei &rect, Font& _font,
-	      const Color& color, bool _center, bool _shadowed) 
+	      const Color& color, bool _center) 
   : font_color(color)
 {
   position = rect.GetPosition();
   size = rect.GetSize();
+  size.y = _font.GetHeight();
   font = &_font;
   center = _center;
-  shadowed = _shadowed;
-  hidden = false;
-  txt_label = new Text(label, font_color, &_font, shadowed);
-  txt_label->SetMaxWidth(GetSizeX());
-  size.y = txt_label->GetHeight();
+  txt_label = new Text(label, font_color, &_font);
 }
 
 Label::~Label()
@@ -41,41 +38,28 @@ Label::~Label()
   delete txt_label;
 }
 
-void Label::Draw(const Point2i &mousePosition, Surface& surf) const
+void Label::Draw(const Point2i &mousePosition, Surface& surf)
 {
-  if (!hidden) 
-    {
-      if (!center)
-	txt_label->DrawTopLeft(position);
-      else
-	txt_label->DrawCenterTop(position.x + size.x/2, position.y);
-    }
+  if (!center)
+    txt_label->DrawTopLeft(position);
+  else
+    txt_label->DrawCenterTop(position.x + size.x/2, position.y);
 }
 
 void Label::SetSizePosition(const Rectanglei &rect)
 {
   StdSetSizePosition(rect);
-  txt_label->SetMaxWidth(GetSizeX());
-  size.y = txt_label->GetHeight();
 }
 
 void Label::SetText(const std::string &new_txt)
 {
   need_redrawing = true;
   delete txt_label;
-  txt_label = new Text(new_txt, font_color, font, shadowed);
-  txt_label->SetMaxWidth(GetSizeX());
+  txt_label = new Text(new_txt, font_color, font);
 }
 
-const std::string& Label::GetText() const
+std::string& Label::GetText()
 {
   return txt_label->GetText();
 }
 
-void Label::SetVisible(bool visible)
-{
-  if (hidden == visible) {
-    hidden = !visible;
-    need_redrawing = true;
-  }
-}

@@ -32,35 +32,37 @@
 #include "../tool/math_tools.h"
 #include "../tool/i18n.h"
 
-RiotBombRocket::RiotBombRocket(ExplosiveWeaponConfig& cfg,
+RoquetteRiotBomb::RoquetteRiotBomb(ExplosiveWeaponConfig& cfg,
                                    WeaponLauncher * p_launcher) :
   WeaponProjectile ("riot_rocket", cfg, p_launcher)
-{
+{  
   explode_colliding_character = true;
 }
 
-void RiotBombRocket::Refresh()
+void RoquetteRiotBomb::Refresh()
 {
   WeaponProjectile::Refresh();
-  image->SetRotation_rad(GetSpeedAngle());
+
+  double angle = GetSpeedAngle() *180/M_PI;
+  image->SetRotation_deg( angle);
 }
 
-void RiotBombRocket::SignalOutOfMap()
+void RoquetteRiotBomb::SignalOutOfMap()
 {
   GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 }
 
-void RiotBombRocket::DoExplosion()
+void RoquetteRiotBomb::DoExplosion()
 {
   Point2i pos = GetCenter();
-  ApplyExplosion (pos, cfg, "weapon/riot_bomb_exp", false, ParticleEngine::LittleESmoke);
+  ApplyExplosion (pos, cfg, "weapon/explosion", false, ParticleEngine::LittleESmoke);
 }
 //-----------------------------------------------------------------------------
 
 RiotBomb::RiotBomb() :
   WeaponLauncher(WEAPON_RIOT_BOMB, "riot_bomb", new ExplosiveWeaponConfig())
-{
+{  
   m_name = _("Riot Bomb");
   ReloadLauncher();
 }
@@ -68,5 +70,5 @@ RiotBomb::RiotBomb() :
 WeaponProjectile * RiotBomb::GetProjectileInstance()
 {
   return dynamic_cast<WeaponProjectile *>
-      (new RiotBombRocket(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+      (new RoquetteRiotBomb(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }

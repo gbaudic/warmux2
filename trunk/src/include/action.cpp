@@ -24,64 +24,33 @@
 #include <SDL_net.h>
 #include "action_handler.h"
 #include "../tool/debug.h"
-#include "../game/time.h"
-#include "../character/character.h"
-#include "../team/teams_list.h"
 
 //-----------------------------------------------------------------------------
 // Action without parameter
 Action::Action (Action_t type)
 {
   var.clear();
-  m_type = type;
-  m_timestamp = Time::GetInstance()->Read();
+  m_type = type; 
 }
 
 // Action with various parameters
 Action::Action (Action_t type, int value) : m_type(type)
-{
-  var.clear();
-  Push(value);
-  m_timestamp = Time::GetInstance()->Read();
-}
+{  var.clear();  Push(value);  }
 
 Action::Action (Action_t type, double value) : m_type(type)
-{
-  var.clear();
-  Push(value);
-  m_timestamp = Time::GetInstance()->Read();
-}
+{  var.clear();  Push(value);  }
 
 Action::Action (Action_t type, const std::string& value) : m_type(type)
-{
-  var.clear();
-  Push(value);
-  m_timestamp = Time::GetInstance()->Read();
-}
-
-Action::Action (Action_t type, double value1, double value2) : m_type(type)
-{
-  var.clear();
-  Push(value1);
-  Push(value2);
-  m_timestamp = Time::GetInstance()->Read();
-}
+{  var.clear();  Push(value);  }
 
 Action::Action (Action_t type, double value1, int value2) : m_type(type)
-{
-  var.clear();
-  Push(value1);
-  Push(value2);
-  m_timestamp = Time::GetInstance()->Read();
-}
+{  var.clear();  Push(value1); Push(value2);  }
 
 // Build an action from a network packet
 Action::Action (const char *is)
 {
   var.clear();
   m_type = (Action_t)SDLNet_Read32(is);
-  is += 4;
-  m_timestamp = (Action_t)SDLNet_Read32(is);
   is += 4;
   int m_lenght = SDLNet_Read32(is);
   is += 4;
@@ -98,31 +67,15 @@ Action::~Action ()
 {
 }
 
-Action::Action_t Action::GetType() const
-{
-  return m_type;
-}
-
-bool Action::IsEmpty() const
-{
-  return var.empty();
-}
-
-void Action::SetTimestamp(uint timestamp)
-{
-  m_timestamp = timestamp;
-}
-
-uint Action::GetTimestamp()
-{
-  return m_timestamp;
+Action_t Action::GetType() const 
+{ 
+  return m_type; 
 }
 
 // Convert the action to a packet
 void Action::WritePacket(char* &packet, int & size)
 {
-  size = 4  //Size of the type;
-        + 4 //Size of the timestamp
+  size = 4 //Size of the type;
         + 4 //Size of the number of variable
         + int(var.size()) * 4;
 
@@ -130,8 +83,6 @@ void Action::WritePacket(char* &packet, int & size)
   char* os = packet;
 
   SDLNet_Write32(m_type, os);
-  os += 4;
-  SDLNet_Write32(m_timestamp, os);
   os += 4;
   Uint32 param_size = (Uint32)var.size();
   SDLNet_Write32(param_size, os);
@@ -169,18 +120,6 @@ void Action::Push(double val)
 
   MSG_DEBUG( "action", " (%s) Pushing double : %f",
         ActionHandler::GetInstance()->GetActionName(m_type).c_str(), val);
-}
-
-void Action::Push(const Point2i& val)
-{
-  Push(val.x);
-  Push(val.y);
-}
-
-void Action::Push(const Point2d& val)
-{
-  Push(val.x);
-  Push(val.y);
 }
 
 void Action::Push(std::string val)
@@ -270,7 +209,7 @@ std::string Action::PopString()
 
   while(lenght > 0)
   {
-    Uint32 tmp = var.front();
+    Uint32 tmp = var.front();  
     var.pop_front();
     char tmp_str[5] = {0, 0, 0, 0, 0};
 #if (SDL_BYTEORDER == SDL_LIL_ENDIAN)
@@ -284,79 +223,12 @@ std::string Action::PopString()
       *(c_tmp_str--) = *(c_tmp++);
 
     str += tmp_str;
-    lenght -= 4;
+    lenght -= 4;    
 #endif
     }
   MSG_DEBUG( "action", " (%s) Poping string : %s",
         ActionHandler::GetInstance()->GetActionName(m_type).c_str(), str.c_str());
   return str;
 }
-
-Point2i Action::PopPoint2i()
-{
-  int x, y;
-  x = PopInt();
-  y = PopInt();
-  return Point2i(x, y);
-}
-
-Point2d Action::PopPoint2d()
-{
-  double x, y;
-  x = PopDouble();
-  y = PopDouble();
-  return Point2d(x, y);
-}
-
-
-void Action::StoreActiveCharacter()
-{
-  StoreCharacter(ActiveCharacter().GetTeamIndex() ,ActiveCharacter().GetCharacterIndex());
-}
-
-void Action::StoreCharacter(uint team_no, uint char_no)
-{
-  Push((int)team_no);
-  Push((int)char_no);
-  Character * c = teams_list.FindPlayingByIndex(team_no)->FindByIndex(char_no);
-  Push(c->GetPosition());
-  Push((int)c->GetDirection());
-  Push(c->GetAbsFiringAngle());
-  Push(c->GetEnergy());
-  Push((int)c->GetDiseaseDamage());
-  Push((int)c->GetDiseaseDuration());
-  Push(c->GetSpeed());
-  if(c->IsActiveCharacter()) { // If active character, store step animation
-    Push((int)true);
-    Push(ActiveTeam().ActiveCharacter().GetBody()->GetClothe());
-    Push(ActiveTeam().ActiveCharacter().GetBody()->GetMovement());
-    Push((int)ActiveTeam().ActiveCharacter().GetBody()->GetFrame());
-  } else {
-    Push((int)false);
-  }
-}
-
-void Action::RetrieveCharacter()
-{
-  int team_no = PopInt();
-  int char_no = PopInt();
-  Character * c = teams_list.FindPlayingByIndex(team_no)->FindByIndex(char_no);
-  c->SetXY(PopPoint2i());
-  c->SetDirection((Body::Direction_t)PopInt());
-  c->SetFiringAngle(PopDouble());
-  c->SetEnergy(PopInt());
-  int disease_damage_per_turn = PopInt();
-  int disease_duration = PopInt();
-  c->SetDiseaseDamage(disease_damage_per_turn, disease_duration);
-  c->SetSpeedXY(PopPoint2d());
-  if((bool)PopInt()) { // If active characters, retrieve stored animation
-    if(c->GetTeam().IsActiveTeam())
-      ActiveTeam().SelectCharacter(char_no);
-    c->SetClothe(PopString());
-    c->SetMovement(PopString());
-    c->GetBody()->SetFrame((uint)PopInt());
-  }
-}
-
 
 //-----------------------------------------------------------------------------

@@ -7,10 +7,6 @@ localedir=@LOCALEDIR@
 fontfile=@FONTFILE@
 
 wormux_SOURCES = \
-	ai/ai_engine.cpp ai/ai_engine.h \
-	ai/ai_engine_stupid.cpp ai/ai_engine_stupid.h \
-	ai/ai_movement_module.cpp ai/ai_movement_module.h \
-	ai/ai_shoot_module.cpp ai/ai_shoot_module.h \
 	character/body.cpp character/body.h \
 	character/body_list.cpp character/body_list.h \
 	character/character.cpp character/character.h \
@@ -18,8 +14,7 @@ wormux_SOURCES = \
 	character/member.cpp character/member.h \
 	character/move.cpp character/move.h \
 	character/movement.cpp character/movement.h \
-	include/binreloc.h include/binreloc.c \
-	include/base.h \
+	include/base.h include/enum.h \
 	include/constant.cpp include/constant.h \
 	include/action.cpp include/action.h \
 	include/action_handler.cpp include/action_handler.h \
@@ -33,6 +28,7 @@ wormux_SOURCES = \
 	graphic/effects.cpp graphic/effects.h \
 	graphic/font.cpp graphic/font.h \
 	graphic/fps.cpp graphic/fps.h \
+	network/chat.cpp network/chat.h \
 	graphic/text_list.cpp graphic/text_list.h \
 	graphic/surface.cpp graphic/surface.h \
 	graphic/spriteframe.cpp graphic/spriteframe.h \
@@ -75,9 +71,7 @@ wormux_SOURCES = \
 	sound/jukebox.cpp sound/jukebox.h \
 	interface/weapon_menu.cpp interface/weapon_menu.h \
 	interface/loading_screen.cpp interface/loading_screen.h \
-	menu/internet_menu.cpp menu/internet_menu.h \
 	menu/main_menu.cpp menu/main_menu.h \
-	menu/map_selection_box.cpp menu/map_selection_box.h \
 	menu/menu.cpp menu/menu.h \
 	menu/network_connection_menu.cpp menu/network_connection_menu.h \
 	menu/network_menu.cpp menu/network_menu.h \
@@ -85,12 +79,8 @@ wormux_SOURCES = \
 	menu/options_menu.cpp menu/options_menu.h \
 	menu/game_menu.cpp menu/game_menu.h \
 	menu/results_menu.cpp menu/results_menu.h \
-	menu/team_box.cpp menu/team_box.h \
-	menu/teams_selection_box.cpp menu/teams_selection_box.h \
-	menu/network_teams_selection_box.cpp menu/network_teams_selection_box.h \
 	game/time.cpp game/time.h \
 	gui/progress_bar.cpp gui/progress_bar.h \
-	gui/EnergyBar.cpp gui/EnergyBar.h \
 	gui/question.cpp gui/question.h \
 	interface/interface.cpp interface/interface.h \
 	interface/cursor.cpp interface/cursor.h \
@@ -112,11 +102,7 @@ wormux_SOURCES = \
 	map/tileitem.cpp map/tileitem.h \
 	map/water.cpp map/water.h \
 	map/wind.cpp map/wind.h \
-	network/chat.cpp network/chat.h \
-	network/download.cpp network/download.h \
 	network/distant_cpu.cpp network/distant_cpu.h \
-	network/index_svr_msg.h \
-	network/index_server.cpp network/index_server.h \
 	network/network.cpp network/network.h \
 	network/randomsync.cpp network/randomsync.h \
 	particles/body_member.cpp particles/body_member.h \
@@ -134,7 +120,6 @@ wormux_SOURCES = \
 	particles/star.cpp particles/star.h \
 	team/macro.h \
 	team/team.cpp team/team.h \
-	team/team_config.h \
 	team/team_energy.cpp team/team_energy.h \
 	team/teams_list.cpp team/teams_list.h \
 	team/results.cpp team/results.h \
@@ -160,7 +145,7 @@ wormux_SOURCES = \
 	weapon/grenade.cpp weapon/grenade.h \
 	weapon/gun.cpp weapon/gun.h \
 	weapon/shotgun.cpp weapon/shotgun.h \
-	weapon/disco_grenade.cpp weapon/disco_grenade.h \
+	weapon/holly_grenade.cpp weapon/holly_grenade.h \
 	weapon/jetpack.cpp weapon/jetpack.h\
 	weapon/lowgrav.cpp weapon/lowgrav.h \
 	weapon/mine.cpp weapon/mine.h \

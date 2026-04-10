@@ -31,7 +31,7 @@ class Construct : public Weapon
 private:
   bool target_chosen;
   Sprite* construct_spr;
-  double angle;
+  int angle;
   Point2i dst;
 
 protected:
@@ -43,8 +43,8 @@ public:
   ~Construct();
   void Draw();
   void ChooseTarget(Point2i mouse_pos);
+  void HandleKeyEvent(int key, int event_type);
 
-  void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
   void ActionUp ();    // Mouse wheel up
   void ActionDown ();  // Mouse wheel down
   void Up();

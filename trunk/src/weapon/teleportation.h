@@ -33,8 +33,6 @@ class Teleportation : public Weapon
     Point2i src, dst;
   protected:
     bool p_Shoot();
-    void p_Select();
-    void p_Deselect();
     void Refresh();
   public:
     Teleportation();

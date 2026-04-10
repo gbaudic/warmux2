@@ -27,21 +27,13 @@
 #include <SDL.h>
 #include "widget.h"
 #include "button.h"
-#include "label.h"
 #include "../include/base.h"
 
-class ListBoxItem : public Label
-{
-private:
-  std::string value;
-
-public:
-  ListBoxItem(const std::string& _label, Font& _font, const std::string& value,
-	      const Color& color = white_color);
-
-  const std::string& GetLabel() const;
-  const std::string& GetValue() const;
-};
+typedef struct s_list_box_item_t{
+    std::string label;
+    std::string value;
+    bool enabled;
+} list_box_item_t;
 
 class ListBox : public Widget
 {
@@ -49,10 +41,14 @@ private:
   bool always_one_selected;
 
 protected:
+  // for the placement
+  uint nb_visible_items, nb_visible_items_max;
+  uint height_item;
+
   // what are the items ?
   uint first_visible_item;
   int selected_item;
-  std::vector<ListBoxItem*> m_items;
+  std::vector<list_box_item_t> m_items;
 
   // Buttons
   Button *m_up, *m_down;
@@ -61,28 +57,26 @@ public:
   ListBox (const Rectanglei &rect, bool always_one_selected_b = true);
   ~ListBox();
 
-  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  void Draw(const Point2i &mousePosition, Surface& surf);
   Widget* Clic(const Point2i &mousePosition, uint button);
   void SetSizePosition(const Rectanglei &rect);
 
   void AddItem(bool selected, const std::string &label,
-	       const std::string &value,
-	       Font& font = *Font::GetInstance(Font::FONT_SMALL),
-	       const Color& color = white_color);
+		const std::string &value, bool enabled = true);
   void Sort();
 
-  int MouseIsOnWhichItem(const Point2i &mousePosition) const;
+  int MouseIsOnWhichItem(const Point2i &mousePosition);
 
   void Select(uint index);
   void Select(const std::string& val);
-  int GetSelectedItem() const;
+  int GetSelectedItem();
   void Deselect();
   void RemoveSelected();
   const std::string& ReadLabel() const;
   const std::string& ReadValue() const;
   const std::string& ReadValue(int index) const;
 
-  uint Size() const;
+  std::vector<list_box_item_t> *GetItemsList();
 };
 
 #endif

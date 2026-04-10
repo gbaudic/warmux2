@@ -35,10 +35,9 @@ private:
     txt_sample;
   typedef std::map<std::string, Surface>::iterator 
     txt_iterator;
+
   static const int FONT_SIZE[];
   static Font* FONT_ARRAY[6];
-  static Font* FONT_ARRAY_BOLD[6];
-  static Font* FONT_ARRAY_ITALIC[6];
 
   std::map<std::string, Surface> surface_text_table;
   TTF_Font *m_font;
@@ -47,24 +46,20 @@ private:
   Font(int size);
 
 public:
-  // Size
   static const int FONT_HUGE;
   static const int FONT_LARGE;
   static const int FONT_BIG;
   static const int FONT_NORMAL;
   static const int FONT_SMALL;
   static const int FONT_TINY;
-  // Style
-  static const int NORMAL;
-  static const int BOLD;
-  static const int ITALIC;
 
   // type: defined as static consts above
-  static Font* GetInstance(int type, int font_style = NORMAL);
+  static Font* GetInstance(int type);
 
   ~Font();
 
   bool Load (const std::string& filename, int size);
+  TTF_Font& GetTTF();
 
   void WriteLeft(const Point2i &pos, const std::string &txt, const Color &color);
   void WriteLeftBottom(const Point2i &pos, const std::string &txt, const Color &color);
@@ -79,8 +74,6 @@ public:
 
   Surface Render(const std::string &txt, const Color &color, bool cache=false);
   Surface CreateSurface(const std::string &txt, const Color &color);
-  void SetBold();
-  void SetItalic();
 };
 
 #endif

@@ -30,19 +30,16 @@
 class Button : public Widget
 {
 protected:
-  bool img_scale;
   Sprite *image;
 
 public:
   Button (const Rectanglei &rect,
-	  const Profile *res_profile, const std::string& resource_id,
-	  bool img_scale = true);
+	  const Profile *res_profile, const std::string& resource_id);
   Button (const Point2i &position,
-	  const Profile *res_profile, const std::string& resource_id,
-	  bool img_scale = false);
+	  const Profile *res_profile, const std::string& resource_id);
   virtual ~Button();
 
-  virtual void Draw(const Point2i &mousePosition, Surface& surf) const;
+  virtual void Draw(const Point2i &mousePosition, Surface& surf);
   virtual void SetSizePosition(const Rectanglei &rect);
 
   Sprite* GetSprite() { return image; };

@@ -59,7 +59,7 @@ void Polecat::Shoot (double strength)
   save_x=GetX();
   save_y=GetY();
 
-  double angle = ActiveCharacter().GetFiringAngle();
+  double angle = ActiveTeam().crosshair.GetAngleRad();
 
   if(angle<M_PI/2 && angle>-M_PI/2)
     m_sens = 1;
@@ -98,21 +98,22 @@ void Polecat::Refresh()
   //sometimes, angle==infinite (according to gdb) ??
   GetSpeed(norme, angle);
 
-  while(angle < -M_PI)
-    angle += M_PI;
-  while(angle > M_PI)
-    angle -= M_PI;
+  while(angle < -M_PI) angle += M_PI;
+  while(angle > M_PI) angle -= M_PI;
 
+  angle *= 180.0 / M_PI;
   angle /= 2.0;
   if(m_sens == -1)
   {
     if(angle > 0)
-      angle -= M_PI_2;
+      angle -= 90.0;
     else
-      angle += M_PI_2;
+      angle += 90.0;
   }
 
-  image->SetRotation_rad(angle);
+  if(angle > 720) angle = 0;
+
+  image->SetRotation_deg(angle);
   image->Scale((double)m_sens,1.0);
   image->Update();
   // Set the test area ?
@@ -124,7 +125,7 @@ void Polecat::Refresh()
 
 void Polecat::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The Polecat left the battlefield before exploding"));
+  GameMessages::GetInstance()->Add ("The Polecat left the battlefield before exploding");
   WeaponProjectile::SignalOutOfMap();
 }
 //-----------------------------------------------------------------------------

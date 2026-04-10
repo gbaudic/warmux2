@@ -23,72 +23,63 @@
 #define TEAM_ENERGY_H
 
 #include "../graphic/text.h"
-#include "../graphic/sprite.h"
-#include "../gui/EnergyBar.h"
+#include "../gui/progress_bar.h"
 #include "../object/physical_obj.h"
 
-class Team;
-
 typedef enum {
-  // Energy bar are waiting for a new change
+  //Les jauges sont prêtes pour une nouvelle opération
   EnergyStatusOK,
 
-  // Energy bar can change their values
+  //Les jauges peuvent changer leur valeur
   EnergyStatusValueChange,
 
-  // Energy bar can change there ranking
-  EnergyStatusRankChange,
+  //Les jauges peuvent changer leur classement
+  EnergyStatusClassementChange,
 
-  // Waiting for a change to be finished before moving
+  //LA jauge attend que toutes les jauges aient fini leur opération en cour
   EnergyStatusWait
 } energy_t;
 
 class TeamEnergy
 {
   private :
-    EnergyBar energy_bar;
-    // displayed value
-    uint value;
-    // team value
-    uint new_value;
-    // initial energy
-    uint max_value;
-
-    Team *team;
-    Sprite *icon;
-    Text * t_team_energy;
+    BarreProg barre_energie;
+    Text* bar_text;
+    uint valeur; //Valeur affichée
+    uint nv_valeur; //Vrai valeur
+    uint valeur_max; //Valeur initiale (en début de partie)
 
     int dx;
     int dy;
 
-    uint rank;
-    uint new_rank;
+    uint classement; //0 = première position au classement
+    uint nv_classement;
 
     std::string team_name;
 
-    uint move_start_time;
+    uint tps_debut_mvt;
 
   public :
-    uint rank_tmp;
+    uint classement_tmp;
     energy_t status;
 
-    TeamEnergy(Team * _team);
+    TeamEnergy(const std::string& _team_name);
     ~TeamEnergy();
     void Config(uint _current_energy,
-                uint _max_energy);
+		uint _max_energy);
 
     void Refresh();
-    void Draw(const Point2i& pos);
+    void Draw();
 
-    void SetValue(uint nv_energie);
+    void SetValue(uint nv_energie); //(avec animation)
 
-    void SetRanking(uint classem); // no animation
-    void NewRanking(uint nv_classem);
-    // Move energy bar (change ranking)
-    void Move();
-    bool IsMoving() const;
-    // Move energy bar immediatly to there destination
-    void FinalizeMove();
+    void FixeClassement(uint classem); //(sans animation)
+    void NouveauClassement(uint nv_classem); //(avec animation)
+
+    void Move(); //Déplacement des jauges (changement dans le classement)
+    bool IsMoving() const; //Déplacement des jauges (changement dans le classement)
+
+    void SetTeamName(const std::string& _team_name);
 };
 
-#endif /* TEAM_ENERGY_H */
+#endif 

@@ -36,7 +36,7 @@ Baseball::Baseball() : Weapon(WEAPON_BASEBALL, "baseball", new BaseballConfig())
 
 bool Baseball::p_Shoot (){
 
-  double angle = ActiveCharacter().GetFiringAngle();
+  double angle = ActiveTeam().crosshair.GetAngleRad();
   double rayon = 0.0;
   bool fin = false;
 
@@ -66,7 +66,7 @@ bool Baseball::p_Shoot (){
 	// Apply damage (*ver).SetEnergyDelta (-cfg().damage);
 	ver->SetSpeed (cfg().strength / ver->GetMass(), angle);
 	ver->SetMovement("fly");
-	camera.FollowObject (&(*ver), true, true);
+	camera.ChangeObjSuivi (&(*ver), true, true);
 	return true;
       }
     }
@@ -91,6 +91,6 @@ BaseballConfig::BaseballConfig(){
 
 void BaseballConfig::LoadXml(xmlpp::Element *elem){
   WeaponConfig::LoadXml(elem);
-  XmlReader::ReadUint(elem, "range", range);
-  XmlReader::ReadUint(elem, "strength", strength);
+  LitDocXml::LitUint (elem, "range", range);
+  LitDocXml::LitUint (elem, "strength", strength);
 }

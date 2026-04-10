@@ -24,18 +24,11 @@
 #include <SDL_net.h>
 #include <SDL_thread.h>
 #include "../game/game_mode.h"
-#include "../game/game.h"
 #include "../gui/question.h"
 #include "../include/action_handler.h"
 #include "../tool/debug.h"
 #include "../tool/i18n.h"
 #include "distant_cpu.h"
-
-#if defined(DEBUG) && not defined(WIN32)
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#endif
 //-----------------------------------------------------------------------------
 Network network;
 
@@ -53,18 +46,13 @@ Network::Network()
   network_menu = NULL;
 
   //Set nickname
-#ifdef WIN32
-  nickname = getenv("USERNAME");
-#else
   nickname = getenv("USER");
-#endif
 }
 
 //-----------------------------------------------------------------------------
 int net_thread_func(void* no_param)
 {
   network.ReceiveActions();
-  network.Disconnect();
   return 1;
 }
 
@@ -79,11 +67,6 @@ void Network::Init()
   inited = true;
   max_player_number = GameMode::GetInstance()->max_teams;
   connected_player = 0;
-
-#if defined(DEBUG) && not defined(WIN32)
-  fin = open("./network.in", O_RDWR | O_CREAT | O_SYNC, S_IRWXU | S_IRWXG);
-  fout = open("./network.out", O_RDWR | O_CREAT | O_SYNC, S_IRWXU | S_IRWXG);
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -92,13 +75,7 @@ Network::~Network()
 {
   Disconnect();
   if(inited)
-  {
     SDLNet_Quit();
-#if defined(DEBUG) && not defined(WIN32)
-    close(fin);
-    close(fout);
-#endif
-  }
 }
 
 //-----------------------------------------------------------------------------
@@ -135,9 +112,10 @@ void Network::ClientConnect(const std::string &host, const std::string& port)
   MSG_DEBUG("network", "Client connect to %s:%s", host.c_str(), port.c_str());
 
   int prt=0;
+  IPaddress ip;
   sscanf(port.c_str(),"%i",&prt);
 
-  if(SDLNet_ResolveHost(&ip,host.c_str(),(Uint16)prt)==-1)
+  if(SDLNet_ResolveHost(&ip,host.c_str(),prt)==-1)
   {
     Question question;
     question.Set(_("Invalid server adress!"),1,0);
@@ -166,7 +144,7 @@ void Network::ClientConnect(const std::string &host, const std::string& port)
   connected_player = 1;
   cpu.push_back(new DistantComputer(socket));
   //Send nickname to server
-  Action a(Action::ACTION_NICKNAME, nickname);
+  Action a(ACTION_NICKNAME, nickname);
   network.SendAction(&a);
 
   //Control to net_thread_func
@@ -187,7 +165,7 @@ void Network::ServerStart(const std::string &port)
   int prt;
   sscanf(port.c_str(),"%i",&prt);
 
-  if(SDLNet_ResolveHost(&ip,NULL,(Uint16)prt)!=0)
+  if(SDLNet_ResolveHost(&ip,NULL,prt)==-1)
   {
     Question question;
     question.Set(_("Invalid port!"),1,0);
@@ -201,10 +179,10 @@ void Network::ServerStart(const std::string &port)
   m_is_connected = true;
 
   // Open the port to listen to
-  state = NETWORK_OPTION_SCREEN;
   AcceptIncoming();
   connected_player = 1;
   printf("\nConnected\n");
+  state = NETWORK_OPTION_SCREEN;
   socket_set = SDLNet_AllocSocketSet(GameMode::GetInstance()->max_teams);
   thread = SDL_CreateThread(net_thread_func,NULL);
 }
@@ -228,7 +206,7 @@ std::list<DistantComputer*>::iterator Network::CloseConnection(std::list<Distant
 void Network::AcceptIncoming()
 {
   assert(m_is_server);
-  if(state != NETWORK_OPTION_SCREEN) return;
+  if(state == NETWORK_PLAYING) return;
 
   server_socket = SDLNet_TCP_Open(&ip);
   if(!server_socket)
@@ -236,7 +214,7 @@ void Network::AcceptIncoming()
     Question question;
     question.Set(_("Unable to listen for client!"),1,0);
     question.Ask();
-    printf("SDLNet_TCP_Open: %s\n", SDLNet_GetError());
+    printf("SDLNet_ResolveHost: %s\n", SDLNet_GetError());
     return;
   }
   printf("\nStart listening");
@@ -260,12 +238,6 @@ void Network::ReceiveActions()
 
   while(m_is_connected && (cpu.size()==1 || m_is_server))
   {
-    if(state == NETWORK_PLAYING && cpu.size() == 0)
-    {
-      // If while playing everybody disconnected, just quit
-      break;
-    }
-
     while(SDLNet_CheckSockets(socket_set, 100) == 0 && m_is_connected) //Loop while nothing is received
     if(m_is_server && server_socket)
     {
@@ -279,7 +251,7 @@ void Network::ReceiveActions()
         printf("New client connected\n");
         if(connected_player >= max_player_number)
           RejectIncoming();
-        ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_ASK_VERSION));
+        ActionHandler::GetInstance()->NewAction(new Action(ACTION_ASK_VERSION));
       }
     }
 
@@ -296,19 +268,12 @@ void Network::ReceiveActions()
           continue;
         }
 
-#if defined(DEBUG) && not defined(WIN32)
-	int tmp = 0xFFFFFFFF;
-	write(fin, &packet_size, 4);
-	write(fin, packet, packet_size);
-	write(fin, &tmp, 4);
-#endif
-
         Action* a = new Action(packet);
         MSG_DEBUG("network.traffic","Received action %s",
                 ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
 
 	//Add relation between nickname and socket
-	if( a->GetType() == Action::ACTION_NICKNAME){
+	if( a->GetType() == ACTION_NICKNAME){
 	  std::string nickname = a->PopString();
 	  std::cout<<"New nickname: " + nickname<< std::endl;
 	  (*dst_cpu)->nickname = nickname;
@@ -316,14 +281,14 @@ void Network::ReceiveActions()
 	  break;
 	}
 
-        if( a->GetType() == Action::ACTION_NEW_TEAM
-        ||  a->GetType() == Action::ACTION_DEL_TEAM)
+        if( a->GetType() == ACTION_NEW_TEAM
+        &&  a->GetType() == ACTION_DEL_TEAM)
         {
           (*dst_cpu)->ManageTeam(a);
           delete a;
         }
         else
-        if(a->GetType() == Action::ACTION_CHAT_MESSAGE)
+        if(a->GetType() == ACTION_CHAT_MESSAGE)
         {
           (*dst_cpu)->SendChatMessage(a);
           delete a;
@@ -334,9 +299,9 @@ void Network::ReceiveActions()
         }
 
         // Repeat the packet to other clients:
-        if(a->GetType() != Action::ACTION_SEND_VERSION
-        && a->GetType() != Action::ACTION_CHANGE_STATE
-        && a->GetType() != Action::ACTION_CHAT_MESSAGE)
+        if(a->GetType() != ACTION_SEND_VERSION
+        && a->GetType() != ACTION_CHANGE_STATE
+        && a->GetType() != ACTION_CHAT_MESSAGE)
         for(std::list<DistantComputer*>::iterator client = cpu.begin();
             client != cpu.end();
             client++)
@@ -349,7 +314,6 @@ void Network::ReceiveActions()
       dst_cpu++;
     }
   }
-  Game::GetInstance()->SetEndOfGameStatus( true );
 }
 
 // Send Messages
@@ -372,12 +336,6 @@ void Network::SendAction(Action* a)
 
 void Network::SendPacket(char* packet, int size)
 {
-#if defined(DEBUG) && not defined(WIN32)
-	int tmp = 0xFFFFFFFF;
-	write(fout, &size, 4);
-	write(fout, packet, size);
-	write(fout, &tmp, 4);
-#endif
   for(std::list<DistantComputer*>::iterator client = cpu.begin();
       client != cpu.end();
       client++)
@@ -390,11 +348,11 @@ void Network::SendChatMessage(std::string txt)
 {
   if(IsServer())
   {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_CHAT_MESSAGE, nickname + std::string("> ") + txt));
+    ActionHandler::GetInstance()->NewAction(new Action(ACTION_CHAT_MESSAGE, nickname + std::string("> ") + txt));
   }
   else
   {
-    Action a(Action::ACTION_CHAT_MESSAGE, txt);
+    Action a(ACTION_CHAT_MESSAGE, txt);
     network.SendAction(&a);
   }
 }
@@ -405,12 +363,5 @@ const bool Network::IsConnected() const { return m_is_connected; }
 const bool Network::IsLocal() const { return !m_is_server && !m_is_client; }
 const bool Network::IsServer() const { return m_is_server; }
 const bool Network::IsClient() const { return m_is_client; }
-
-const uint Network::GetPort()
-{
-  Uint16 prt;
-  prt = SDLNet_Read16(&ip.port);
-  return (uint)prt;
-}
 
 //-----------------------------------------------------------------------------

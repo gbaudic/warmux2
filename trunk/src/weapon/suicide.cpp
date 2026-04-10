@@ -26,12 +26,14 @@
 #include "../game/game_loop.h"
 #include "../team/teams_list.h"
 #include "../tool/i18n.h"
-#include "../include/action_handler.h"
+
+// Espace entre l'espace en l'image
+const uint ESPACE = 5;
 
 Suicide::Suicide() : Weapon(WEAPON_SUICIDE, "suicide", new ExplosiveWeaponConfig())
-{
+{  
   m_name = _("Commit Suicide");
-  sound_channel = -1;
+  sound_channel = -1;  
 }
 
 void Suicide::p_Select()
@@ -40,7 +42,7 @@ void Suicide::p_Select()
 }
 
 bool Suicide::p_Shoot()
-{
+{ 
   sound_channel = jukebox.Play ("share", "weapon/suicide");
 
   GameLoop::GetInstance()->interaction_enabled=false;
@@ -55,16 +57,11 @@ void Suicide::Refresh()
 
   m_is_active = sound_channel != -1 && Mix_Playing(sound_channel);
 
-  if(!m_is_active && !ActiveCharacter().IsDead())
+  if( !m_is_active )
+  if( !ActiveCharacter().IsDead() )
   {
-    ActiveCharacter().DisableDeathExplosion();
     ActiveCharacter().body->MakeParticles(ActiveCharacter().GetPosition());
-    Action* a = new Action(Action::ACTION_SET_CHARACTER_ENERGY);
-    a->Push((int)ActiveCharacter().GetTeamIndex());
-    a->Push((int)ActiveCharacter().GetCharacterIndex());
-    a->Push(0); // Set energy to 0 => death
-    ActionHandler::GetInstance()->NewAction(a);
-    ApplyExplosion(ActiveCharacter().GetCenter(),cfg());
+    ActiveCharacter().Die();
   }
 }
 

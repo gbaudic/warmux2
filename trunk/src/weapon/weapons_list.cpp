@@ -32,6 +32,14 @@
 #include "../team/macro.h"
 #include "../map/maps_list.h"
 //-----------------------------------------------------------------------------
+WeaponsList weapons_list;
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+
+WeaponsList::WeaponsList()
+{
+}
 
 //-----------------------------------------------------------------------------
 
@@ -58,7 +66,7 @@ void WeaponsList::AddToList(Weapon* arme, uint num_sort)
 
 //-----------------------------------------------------------------------------
 
-WeaponsList::WeaponsList()
+void WeaponsList::Init()
 {
   weapons_res_profile = resource_manager.LoadXMLProfile( "weapons.xml", false);
   Bazooka* bazooka = new Bazooka;
@@ -70,7 +78,7 @@ WeaponsList::WeaponsList()
   AutomaticBazooka* auto_bazooka = new AutomaticBazooka;
   Dynamite* dynamite = new Dynamite;
   GrenadeLauncher* grenade_launcher = new GrenadeLauncher;
-  DiscoGrenadeLauncher* disco_grenade_launcher = new DiscoGrenadeLauncher;
+  HollyGrenadeLauncher* holly_grenade_launcher = new HollyGrenadeLauncher;
   ClusterLauncher* cluster_launcher = new ClusterLauncher;
   Baseball* baseball = new Baseball;
   Mine* mine = new Mine;
@@ -105,7 +113,7 @@ WeaponsList::WeaponsList()
   AddToList(dynamite,2);
   AddToList(grenade_launcher, 2);
   AddToList(cluster_launcher, 2);
-  AddToList(disco_grenade_launcher, 2);
+  AddToList(holly_grenade_launcher, 2);
   AddToList(mine,2);
 
   // Category 3
@@ -166,7 +174,7 @@ Weapon* WeaponsList::GetNextWeapon(uint sort, uint index)
 
 //-----------------------------------------------------------------------------
 
-bool WeaponsList::GetWeaponBySort(uint sort, Weapon::Weapon_type &type)
+bool WeaponsList::GetWeaponBySort(uint sort, Weapon_type &type)
 {
   uint nb_weapons = m_weapons_map.count(sort);
   if (nb_weapons == 0) return false;
@@ -208,13 +216,13 @@ bool WeaponsList::GetWeaponBySort(uint sort, Weapon::Weapon_type &type)
 
 class test_weapon_type {
   private:
-    Weapon::Weapon_type m_type;
+	Weapon_type m_type;
   public:
-    test_weapon_type(Weapon::Weapon_type &type) { m_type = type; }
-	bool operator() ( Weapon* w) { return w->GetType()==m_type; }
+    test_weapon_type(Weapon_type type) { m_type = type; }
+	bool operator() (const Weapon* w) const { return w->GetType()==m_type; }
 };
 
-Weapon* WeaponsList::GetWeapon (Weapon::Weapon_type type)
+Weapon* WeaponsList::GetWeapon (Weapon_type type)
 {
   weapons_list_it it;
   it = std::find_if(m_weapons_list.begin(), m_weapons_list.end(), test_weapon_type(type));

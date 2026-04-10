@@ -33,7 +33,7 @@ class WeaponProjectile : public PhysicalObj
 {
   protected:
     Sprite *image;
-    bool camera_follow_closely;
+
     bool explode_colliding_character; // before timeout.
     bool explode_with_timeout;
     bool explode_with_collision;
@@ -48,7 +48,7 @@ class WeaponProjectile : public PhysicalObj
     int m_timeout_modifier;
 
   public:
-    WeaponProjectile(const std::string &nom,
+    WeaponProjectile(const std::string &nom, 
                      ExplosiveWeaponConfig& cfg,
                      WeaponLauncher * p_launcher);
     virtual ~WeaponProjectile();
@@ -56,14 +56,14 @@ class WeaponProjectile : public PhysicalObj
     virtual void Draw();
     virtual void Refresh();
     virtual void Shoot(double strength);
-    virtual bool IsImmobile() const;
 
     void IncrementTimeOut();
     void DecrementTimeOut();
     void SetTimeOut(int timeout);
-    int GetTotalTimeout() const;
+    int GetTotalTimeout();
     void ResetTimeOut();
     bool change_timeout_allowed();
+    void RemoveFromPhysicalEngine();
   protected:
     virtual void SignalObjectCollision(PhysicalObj * obj);
     virtual void SignalGroundCollision();
@@ -119,16 +119,16 @@ class WeaponLauncher : public Weapon
     void Refresh();
   private:
     void DirectExplosion();
-
+  
   public:
-    WeaponLauncher(Weapon_type type,
+    WeaponLauncher(Weapon_type type, 
                    const std::string &id,
                    EmptyWeaponConfig * params,
                    weapon_visibility_t visibility = ALWAYS_VISIBLE);
     virtual ~WeaponLauncher();
 
     virtual void Draw();
-    virtual void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+    virtual void HandleKeyEvent(int action, int event_type);
 
   // Handle of projectile events
     virtual void SignalProjectileExplosion();

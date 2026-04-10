@@ -33,18 +33,25 @@ public:
 
 private:
   Surface image;
-  Point2i crosshair_position;
+  Point2i calcul_d;
+  int angle;
 
 public:
   CrossHair();
 
   void Reset();
 
-  // Refresh crosshair angle
-  void Refresh(double angle);
+  // Change angle 
+  void ChangeAngle (int delta);
+  void ChangeAngleVal (int angle);
 
   // Draw crosshair
   void Draw();
+
+  // Get angle 
+  int GetAngleVal() const;
+  int GetAngle() const;
+  double GetAngleRad() const;
 };
 
-#endif /* CROSSHAIR_H */
+#endif

@@ -26,7 +26,6 @@
 
 #include "../object/physics.h"
 #include <stdlib.h>
-#include <iostream>
 #include "../game/config.h"
 #include "../game/game_mode.h"
 #include "../game/time.h"
@@ -50,7 +49,7 @@ Physics::Physics ()
   m_fix_point_dxy.Clear();
   m_rope_angle.Clear();
   m_rope_length.Clear();
-
+  
   m_rope_elasticity = 10.0 ;
   m_elasticity_damping = 0.20 ;
   m_balancing_damping = 0.40 ;
@@ -85,14 +84,14 @@ void Physics::SetPhysXY(const Point2d &position){
 	SetPhysXY(position.x, position.y);
 }
 
-double Physics::GetPhysX() const
+double Physics::GetPhysX() const 
 {
-  return m_pos_x.x0;
+  return m_pos_x.x0; 
 }
 
-double Physics::GetPhysY() const
-{
-  return m_pos_y.x0;
+double Physics::GetPhysY() const 
+{ 
+  return m_pos_y.x0; 
 }
 
 Point2d Physics::GetPos() const{
@@ -113,19 +112,19 @@ void Physics::SetMass(double mass)
 
 // Set the wind factor
 void Physics::SetWindFactor (double factor)
-{
+{ 
   m_wind_factor = factor;
 }
 
 // Set the air resist factor
 void Physics::SetAirResistFactor (double factor)
-{
+{ 
   m_air_resist_factor = factor;
 }
 
 // Set the wind factor
 void Physics::SetGravityFactor (double factor)
-{
+{ 
   m_gravity_factor = factor;
 }
 
@@ -167,7 +166,7 @@ void Physics::AddSpeedXY (Point2d vector)
   if (!was_moving && IsMoving()) StartMoving();
 }
 
-void Physics::GetSpeed(double &norm, double &angle) const
+void Physics::GetSpeed(double &norm, double &angle)
 {
   Point2d speed ;
 
@@ -175,35 +174,29 @@ void Physics::GetSpeed(double &norm, double &angle) const
     case FreeFall:
       GetSpeedXY(speed);
       norm = speed.Norm();
-      angle = speed.ComputeAngle();
+      angle = GetSpeedAngle();
       break ;
 
     case Pendulum:
       // Transform angular speed to linear speed.
-
+      
       norm = fabs(m_rope_length.x0 * m_rope_angle.x1);
-
+      
       if (m_rope_angle.x1 > 0)
 	angle = fabs(m_rope_angle.x0) ;
       else
 	angle = fabs(m_rope_angle.x0) - M_PI ;
-
+      
       if (m_rope_angle.x0 < 0)
 	angle = -angle ;
       break;
 
-    case NoMotion:
-      norm = 0.0;
-      angle = 0.0;
-      break;
-
     default:
-      assert(false);
       break ;
   }
 }
 
-void Physics::GetSpeedXY(Point2d &vector) const
+void Physics::GetSpeedXY(Point2d &vector)
 {
   if(!IsMoving())
     {
@@ -213,19 +206,12 @@ void Physics::GetSpeedXY(Point2d &vector) const
   vector.SetValues(m_pos_x.x1, m_pos_y.x1);
 }
 
-Point2d Physics::GetSpeed() const
-{
-  Point2d tmp;
-  GetSpeedXY(tmp);
-  return tmp;
-}
-
-double Physics::GetAngularSpeed() const
+double Physics::GetAngularSpeed()
 {
   return m_rope_angle.x1 ;
 }
 
-double Physics::GetSpeedAngle() const
+double Physics::GetSpeedAngle()
 {
   double angle ;
   Point2d speed ;
@@ -286,7 +272,7 @@ void Physics::SetPhysFixationPointXY(double g_x, double g_y, double dx,
       // Compute the initial angle
       V.x = fix_point_x - g_x ;
       V.y = fix_point_y - g_y ;
-      m_rope_angle.x0 = M_PI_2 - V.ComputeAngle() ;
+      m_rope_angle.x0 = M_PI/2 - V.ComputeAngle() ;
 
       // Convert the linear speed to angular speed.
       m_rope_angle.x1 = (m_pos_x.x1 * cos(m_rope_angle.x0) +
@@ -326,7 +312,7 @@ void Physics::ChangePhysRopeSize(double dl)
     return ;
 
   bool was_moving = IsMoving();
-
+  
   m_rope_length.x0 += dl ;
 
   // Recompute angular speed depending on the new rope length.
@@ -354,7 +340,7 @@ void Physics::StartMoving()
   m_last_move = Time::GetInstance()->Read();
 
   if (m_motion_type == NoMotion)
-    m_motion_type = FreeFall ;
+    m_motion_type = FreeFall ;  
 
   MSG_DEBUG ("physic.physic", "Start moving.");
 }
@@ -415,7 +401,7 @@ void Physics::ComputePendulumNextXY (double delta_t)
 		              +m_extern_force.x / m_rope_length.x0 * cos (m_rope_angle.x0),
                       delta_t);
 
-  double x = m_fix_point_gnd.x - m_fix_point_dxy.x
+  double x = m_fix_point_gnd.x - m_fix_point_dxy.x 
              + m_rope_length.x0 * sin(m_rope_angle.x0);
   double y = m_fix_point_gnd.y - m_fix_point_dxy.y
              + m_rope_length.x0 * cos(m_rope_angle.x0);
@@ -440,7 +426,7 @@ void Physics::ComputeFallNextXY (double delta_t)
 
   // Weight force = m * g
 
-  // printf ("av : (%5f,%5f) - (%5f,%5f) - (%5f,%5f)\n", m_pos_x.x0,
+  //  printf ("av : (%5f,%5f) - (%5f,%5f) - (%5f,%5f)\n", m_pos_x.x0,
   //	  m_pos_y.x0, m_pos_x.x1, m_pos_y.x1, m_pos_x.x2, m_pos_y.x2);
 
   weight_force = GameMode::GetInstance()->gravity * m_gravity_factor * m_mass ;
@@ -465,10 +451,9 @@ void Physics::ComputeFallNextXY (double delta_t)
   m_pos_y.ComputeOneEulerStep(m_mass, air_resistance_factor, 0,
 		      weight_force + m_extern_force.y, delta_t);
 
+  //  printf ("F : Pd(%5f) EF(%5f)\n", weight_force, m_extern_force.y);
 
-    // printf ("F : Pd(%5f) EF(%5f)\n", weight_force, m_extern_force.y);
-
-   // printf ("ap : (%5f,%5f) - (%5f,%5f) - (%5f,%5f)\n", m_pos_x.x0,
+  //  printf ("ap : (%5f,%5f) - (%5f,%5f) - (%5f,%5f)\n", m_pos_x.x0,
   //	  m_pos_y.x0, m_pos_x.x1, m_pos_y.x1, m_pos_x.x2, m_pos_y.x2);
 }
 
@@ -501,24 +486,23 @@ void Physics::RunPhysicalEngine()
   while (delta_t > 0.0){
     if (delta_t < PHYS_DELTA_T)
       step_t = delta_t ;
-
+    
     oldPos = GetPos();
-
+    
     newPos = ComputeNextXY(step_t);
-
+    
     if( newPos != oldPos)  {
       // The object has moved. Notify the son class.
-      MSG_DEBUG( "physic.move", "Move %s (%f, %f) -> (%f, %f)", typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y);
+      MSG_DEBUG( "physic.move", "Move %s (%f, %f) -> (%f, %f)", typeid(*this).name(), oldPos.x, oldPos.y, newPos.x, newPos.y);      
       NotifyMove(oldPos, newPos);
     }
-
+    
     delta_t -= PHYS_DELTA_T ;
   }
 
   return;
 }
 
-/* contact_angle is the angle of the surface we are rebounding on */
 void Physics::Rebound(Point2d contactPos, double contact_angle)
 {
   double norme, angle;
@@ -528,30 +512,28 @@ void Physics::Rebound(Point2d contactPos, double contact_angle)
 
   switch (m_motion_type) {
   case FreeFall :
-    if (m_rebounding)
-    {
+    if (m_rebounding){ 
       // Compute rebound angle.
-      /* if no tangent rebound in the opposit direction */
-      if(contact_angle == NAN)
+      if(contact_angle == -1.0)
 	angle = angle + M_PI ;
       else
-	angle =  M_PI - angle -2.0 *  contact_angle;
+	angle -= 2.0 * (angle - contact_angle);
 
       // Apply rebound factor to the object speed.
       norme = norme * m_rebound_factor;
-
+	  	  
       // Apply the new speed to the object.
       SetSpeed(norme, angle);
-
+	  
       // Check if we should stop rebounding.
       if (norme < STOP_REBOUND_LIMIT){
 	StopMoving();
 	return;
       }
       SignalRebound();
-    }
-    else
+    }else{
       StopMoving();
+    }
     break;
 
   case Pendulum:
@@ -561,9 +543,9 @@ void Physics::Rebound(Point2d contactPos, double contact_angle)
       // Recompute new angle.
       V.x = m_pos_x.x0 + m_fix_point_dxy.x - m_fix_point_gnd.x;
       V.y = m_pos_y.x0 + m_fix_point_dxy.y - m_fix_point_gnd.y;
-
+		
       m_rope_angle.x0 = M_PI_2 - V.ComputeAngle();
-
+      
       // Convert the linear speed of the rebound to angular speed.
       V.x = PENDULUM_REBOUND_FACTOR * norme * cos(angle);
       V.y = PENDULUM_REBOUND_FACTOR * norme * sin(angle);
@@ -577,7 +559,7 @@ void Physics::Rebound(Point2d contactPos, double contact_angle)
       m_extern_force.Clear();
     }
     break ;
-
+     
   default:
     break ;
   }

@@ -20,10 +20,11 @@
  *****************************************************************************/
 
 #include "map.h"
-//#include <iostream>
+#include <iostream>
 #include "camera.h"
 #include "maps_list.h"
 #include "wind.h"
+#include "../game/config.h"
 #include "../game/time.h"
 #include "../graphic/surface.h"
 #include "../graphic/font.h"
@@ -65,9 +66,10 @@ void Map::Reset()
   water.Reset();
   wind.Reset();
 
-  // Configure game about open or closed world
-  bool open = ground.EstOuvert();
-  BonusBox::Enable(open);
+  // Configure le jeu selon que le terrain soit ouvert ou non
+  bool ouvert = ground.EstOuvert();
+  BonusBox::Enable(ouvert);
+  Config::GetInstance()->SetExterieurMondeVide(  ouvert );
 
   delete author_info1; author_info1 = NULL;
   delete author_info2; author_info2 = NULL;
@@ -221,8 +223,7 @@ bool Map::LigneV_EstDansVide (int x, int top, int bottom)
 
   // V�ifie qu'on reste dans le monde
   if (EstHorsMondeX(x) || EstHorsMondeYhaut(top, bottom-top+1))
-    return IsOpen();
-
+    return Config::GetInstance()->GetExterieurMondeVide();
   if (top < 0) top = 0;
   if ((int)GetHeight() <= bottom) bottom = GetHeight()-1;
 

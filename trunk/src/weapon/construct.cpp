@@ -31,7 +31,7 @@
 #include "../team/teams_list.h"
 #include "../tool/i18n.h"
 
-const double angle_step = M_PI / 6.0; // should be a multiple
+const int angle_step = 30; // should be a multiple of 360
 
 
 Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
@@ -39,7 +39,7 @@ Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
 					NEVER_VISIBLE)
 {
   construct_spr = resource_manager.LoadSprite( weapons_res_profile, "construct_spr");
-  construct_spr->EnableRotationCache(static_cast<int>(2 * M_PI / angle_step));
+  construct_spr->EnableRotationCache(360 / angle_step);
   m_name = _("Construct");
   angle = 0;
   force_override_keys = true;
@@ -72,7 +72,7 @@ void Construct::Draw()
     Weapon::Draw();
 
     dst = Mouse::GetInstance()->GetWorldPosition();
-    construct_spr->SetRotation_rad(angle);
+    construct_spr->SetRotation_deg(angle);
     construct_spr->Draw(dst - construct_spr->GetSize()/2);
   }
 }
@@ -84,15 +84,15 @@ void Construct::ChooseTarget(Point2i mouse_pos)
   Shoot();
 }
 
-void Construct::HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type)
+void Construct::HandleKeyEvent(int action, int event_type)
 {
   switch (action) {
-    case Action::ACTION_UP:
-      if (event_type == Keyboard::KEY_PRESSED)
+    case ACTION_UP:
+      if (event_type == KEY_PRESSED)
         Up();
       break ;
-    case Action::ACTION_DOWN:
-      if (event_type == Keyboard::KEY_PRESSED)
+    case ACTION_DOWN:
+      if (event_type == KEY_PRESSED)
         Down();
       break ;
     default:
@@ -113,16 +113,16 @@ void Construct::ActionDown()
 
 void Construct::Up()
 {
-  Action a(Action::ACTION_CONSTRUCTION_UP);
-  if(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
+  Action a(ACTION_CONSTRUCTION_UP);
+  if(ActiveTeam().is_local)
     network.SendAction(&a);
   angle += angle_step;
 }
 
 void Construct::Down()
 {
-  Action a(Action::ACTION_CONSTRUCTION_DOWN);
-  if(ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
+  Action a(ACTION_CONSTRUCTION_DOWN);
+  if(ActiveTeam().is_local)
     network.SendAction(&a);
   angle -= angle_step;
 }

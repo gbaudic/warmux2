@@ -62,15 +62,15 @@ void BodyList::Load (const std::string &name)
 {
   std::string fn = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "body" + PATH_SEPARATOR + name + PATH_SEPARATOR + CONFIG_FN;
 
-  XmlReader doc;
-  if (!doc.Load(fn)) {
+  LitDocXml doc;
+  if (!doc.Charge (fn)) {
      std::cerr << "Unable to find file " << fn << std::endl;
      return;
   }
 
   Profile *res = resource_manager.LoadXMLProfile( fn, true);
 
-  Body* body = new Body(doc.GetRoot(), res);
+  Body* body = new Body(doc.racine(), res);
   list[name] = body;
 
   resource_manager.UnLoadXMLProfile( res);

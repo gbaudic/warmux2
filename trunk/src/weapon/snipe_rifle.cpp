@@ -59,7 +59,6 @@ SnipeRifle::SnipeRifle() : WeaponLauncher(WEAPON_SNIPE_RIFLE,"snipe_rifle", new 
   m_laser_image = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_laser"));
   m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_fire"));
   m_weapon_fire->EnableRotationCache(32);
-  laser_beam_color = resource_manager.LoadColor(weapons_res_profile,m_id+"_laser_color");
 
   ReloadLauncher();
 }
@@ -76,6 +75,7 @@ bool SnipeRifle::p_Shoot()
     return false;
 
   m_is_active = true;
+  ReloadLauncher();
   projectile->Shoot (SNIPE_RIFLE_BULLET_SPEED);
   projectile = NULL;
   ReloadLauncher();
@@ -94,7 +94,7 @@ bool SnipeRifle::ComputeCrossPoint(bool force = false)
 {
   // Did the current character is moving ?
   Point2i pos = GetGunHolePosition();
-  double angle = ActiveCharacter().GetFiringAngle();
+  double angle = ActiveTeam().crosshair.GetAngleRad();
   if ( !force && last_rifle_pos == pos && last_angle == angle ) return targeting_something;
   else {
     last_rifle_pos=pos;
@@ -145,14 +145,14 @@ bool SnipeRifle::ComputeCrossPoint(bool force = false)
 // Reset crosshair when switching from a weapon to another to avoid misused
 void SnipeRifle::p_Deselect()
 {
-  ActiveCharacter().SetFiringAngle(0.);
+  ActiveTeam().crosshair.ChangeAngleVal(0);
 }
 
 void SnipeRifle::DrawBeam()
 {
   Point2i pos1 = laser_beam_start - camera.GetPosition();
   Point2i pos2 = targeted_point - camera.GetPosition();
-  AppWormux::GetInstance()->video.window.AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color);
+  AppWormux::GetInstance()->video.window.AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, Color(255, 0, 0, 100));
 
   // Set area of the screen to be redrawn:
   // Splited into little rectangles to avoid too large area of redraw

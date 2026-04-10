@@ -58,9 +58,7 @@ class ObjMine : public WeaponProjectile
 
     void StartTimeout();
     void Detection();
-    virtual bool IsImmobile() const;
-    // Damage handling
-    virtual void AddDamage(uint damage_points);
+    bool IsImmobile() const;
 
     void Draw();
     void Refresh();
@@ -73,7 +71,6 @@ class MineConfig : public ExplosiveWeaponConfig
   public: 
     uint escape_time;
     double detection_range;
-    double speed_detection;
 
   private:
     MineConfig();

@@ -40,8 +40,8 @@ Body::Body(xmlpp::Element* xml, Profile* res)
   current_mvt = NULL;
   walk_events = 0;
   animation_number = 0;
-  direction = DIRECTION_RIGHT;
-  main_rotation_rad = 0;
+  direction = 1;
+  main_rotation = 0;
 
   // Load members
   xmlpp::Node::NodeList nodes = xml -> get_children("sprite");
@@ -51,7 +51,7 @@ Body::Body(xmlpp::Element* xml, Profile* res)
    {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
     std::string name;
-    XmlReader::ReadStringAttr( elem, "name", name);
+    LitDocXml::LitAttrString( elem, "name", name);
 
     Member* member = new Member(elem, res);
     if(members_lst.find(name) != members_lst.end())
@@ -74,7 +74,7 @@ Body::Body(xmlpp::Element* xml, Profile* res)
   {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it2);
     std::string name;
-    XmlReader::ReadStringAttr( elem, "name", name);
+    LitDocXml::LitAttrString( elem, "name", name);
 
     Clothe* clothe = new Clothe(elem, members_lst);
     if (clothes_lst.find(name) != clothes_lst.end())
@@ -93,8 +93,8 @@ Body::Body(xmlpp::Element* xml, Profile* res)
    {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it4);
     std::string mvt, corresp;
-    XmlReader::ReadStringAttr( elem, "movement", mvt);
-    XmlReader::ReadStringAttr( elem, "correspond_to", corresp);
+    LitDocXml::LitAttrString( elem, "movement", mvt);
+    LitDocXml::LitAttrString( elem, "correspond_to", corresp);
     mvt_alias.insert(std::make_pair(mvt,corresp));
     it4++;
   }
@@ -107,7 +107,7 @@ Body::Body(xmlpp::Element* xml, Profile* res)
   {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it3);
     std::string name;
-    XmlReader::ReadStringAttr( elem, "name", name);
+    LitDocXml::LitAttrString( elem, "name", name);
     if(strncmp(name.c_str(),"animation", 9)==0)
       animation_number++;
 
@@ -136,8 +136,8 @@ Body::Body(Body *_body)
   current_mvt = NULL;
   walk_events = 0;
   animation_number = _body->animation_number;
-  direction = DIRECTION_RIGHT;
-  main_rotation_rad = 0;
+  direction = 1;
+  main_rotation = 0;
 
   // Add a special weapon member to the body
   weapon_member = new WeaponMember();
@@ -207,6 +207,7 @@ Body::~Body()
 void Body::ResetMovement()
 {
   for(int layer=0;layer < (int)current_clothe->layers.size() ;layer++)
+  if(current_clothe->layers[layer]->name != "weapon")
     current_clothe->layers[layer]->ResetMovement();
 }
 
@@ -227,52 +228,52 @@ void Body::ApplyMovement(Movement* mvt, uint frame)
       if(mb_mvt.follow_crosshair && ActiveCharacter().body == this && ActiveTeam().AccessWeapon().UseCrossHair())
       {
         // Use the movement of the crosshair
-        double angle = owner->GetFiringAngle(); /* Get -2 * M_PI < angle =< 2 * M_PI*/
+        int angle = ActiveTeam().crosshair.GetAngle(); // returns -180 < angle < 180
         if(angle < 0)
-          angle += 2 * M_PI; // so now 0 < angle < 2 * M_PI;
-        if(ActiveCharacter().GetDirection() == DIRECTION_LEFT)
-          angle = M_PI - angle;
+          angle += 360; // so now 0 < angle < 360;
+        if(ActiveCharacter().GetDirection() == -1)
+          angle = 180 - angle;
 
-        mb_mvt.SetAngle(mb_mvt.GetAngle() + angle);
+        mb_mvt.angle += angle ;
       }
 
       if(mb_mvt.follow_half_crosshair && ActiveCharacter().body == this && ActiveTeam().AccessWeapon().UseCrossHair())
       {
         // Use the movement of the crosshair
-        double angle_rad = owner->GetFiringAngle(); // returns -180 < angle < 180
-        if(ActiveCharacter().GetDirection() == DIRECTION_RIGHT)
-          angle_rad /= 2; // -90 < angle < 90
+        int angle = ActiveTeam().crosshair.GetAngle(); // returns -180 < angle < 180
+        if(ActiveCharacter().GetDirection() == 1)
+          angle /= 2; // -90 < angle < 90
         else
-        if(angle_rad > M_PI_2)
-          angle_rad = M_PI_2 - angle_rad / 2;//formerly in deg to 45 + (90 - angle) / 2;
+        if(angle > 90)
+          angle = 45 + (90 - angle) / 2;
         else
-          angle_rad = -M_PI_2 - angle_rad / 2;//formerly in deg to -45 + (-90 - angle) / 2;
+          angle = -45 + (-90 - angle) / 2;
 
 
 
-        if(angle_rad < 0)
-          angle_rad += 2 * M_PI; // so now 0 < angle < 2 * M_PI;
+        if(angle < 0)
+          angle += 360; // so now 0 < angle < 360;
 
-        mb_mvt.SetAngle(mb_mvt.GetAngle() + angle_rad);
+        mb_mvt.angle += angle ;
       }
 
       if(mb_mvt.follow_speed)
       {
         // Use the movement of the character
-        double angle_rad = (owner->GetSpeedAngle());
-        if(angle_rad < 0)
-          angle_rad += 2 * M_PI; // so now 0 < angle < 2 * M_PI;
-        if(owner->GetDirection() == DIRECTION_LEFT)
-          angle_rad = M_PI - angle_rad;
+        int angle = (int)(owner->GetSpeedAngle()/M_PI*180.0);
+        if(angle < 0)
+          angle += 360; // so now 0 < angle < 360;
+        if(owner->GetDirection() == -1)
+          angle = 180 - angle;
 
-        mb_mvt.SetAngle(mb_mvt.GetAngle() + angle_rad);
+        mb_mvt.angle += angle;
       }
 
       if(mb_mvt.follow_direction)
       {
         // Use the direction of the character
-        if(owner->GetDirection() == DIRECTION_LEFT)
-          mb_mvt.SetAngle(mb_mvt.GetAngle() + M_PI);
+        if(owner->GetDirection() == -1)
+          mb_mvt.angle += 180;
       }
 
 
@@ -287,7 +288,7 @@ void Body::ApplySqueleton()
   std::vector<junction>::iterator member = squel_lst.begin();
   // The first member is the body, we set it to pos:
   member->member->pos = Point2f(0,0);
-  member->member->SetAngle(0);
+  member->member->angle = 0;
   member++;
 
   for(;member != squel_lst.end();
@@ -350,7 +351,7 @@ void Body::Build()
   }
   body_mvt.pos.y = (float)GetSize().y - y_max + current_mvt->test_bottom;
   body_mvt.pos.x = GetSize().x / 2.0 - squel_lst.front().member->spr->GetWidth() / 2.0;
-  body_mvt.SetAngle(main_rotation_rad);
+  body_mvt.angle = main_rotation;
   squel_lst.front().member->ApplyMovement(body_mvt, squel_lst);
 
   need_rebuild = false;
@@ -361,7 +362,7 @@ void Body::Draw(const Point2i& _pos)
   Build();
 
   // update the weapon position
-  if(direction == DIRECTION_RIGHT)
+  if(direction == 1)
     weapon_pos = Point2i((int)weapon_member->pos.x,(int)weapon_member->pos.y);
   else
     weapon_pos = Point2i(GetSize().x - (int)weapon_member->pos.x,(int)weapon_member->pos.y);
@@ -369,7 +370,7 @@ void Body::Draw(const Point2i& _pos)
 
   // Finally draw each layer one by one
   for(int layer=0;layer < (int)current_clothe->layers.size() ;layer++)
-    current_clothe->layers[layer]->Draw(_pos, _pos.x + GetSize().x/2, int(direction));
+    current_clothe->layers[layer]->Draw(_pos, _pos.x + GetSize().x/2, direction);
 }
 
 void Body::AddChildMembers(Member* parent)
@@ -433,7 +434,7 @@ void Body::SetClothe(std::string name)
   {
     current_clothe = clothes_lst.find(name)->second;
     BuildSqueleton();
-    main_rotation_rad = 0;
+    main_rotation = 0;
     need_rebuild = true;
   }
   else
@@ -458,7 +459,7 @@ void Body::SetMovement(std::string name)
     current_mvt = mvt_lst.find(name)->second;
     current_frame = 0;
     last_refresh = Time::GetInstance()->Read();
-    main_rotation_rad = 0;
+    main_rotation = 0;
     need_rebuild = true;
   }
   else
@@ -488,7 +489,7 @@ void Body::SetClotheOnce(std::string name)
       play_once_clothe_sauv = current_clothe;
     current_clothe = clothes_lst.find(name)->second;
     BuildSqueleton();
-    main_rotation_rad = 0;
+    main_rotation = 0;
     need_rebuild = true;
   }
   else
@@ -516,7 +517,7 @@ void Body::SetMovementOnce(std::string name)
     current_mvt = mvt_lst.find(name)->second;
     current_frame = 0;
     last_refresh = Time::GetInstance()->Read();
-    main_rotation_rad = 0;
+    main_rotation = 0;
     need_rebuild = true;
   }
   else
@@ -527,7 +528,7 @@ void Body::SetMovementOnce(std::string name)
 
 void Body::GetTestRect(uint &l, uint&r, uint &t, uint &b)
 {
-  if(direction == DIRECTION_RIGHT)
+  if(direction == 1)
   {
     l = current_mvt->test_left;
     r = current_mvt->test_right;
@@ -541,12 +542,12 @@ void Body::GetTestRect(uint &l, uint&r, uint &t, uint &b)
   b = current_mvt->test_bottom;
 }
 
-void Body::SetDirection(Direction_t dir)
+void Body::SetDirection(int dir)
 {
   direction=dir;
 }
 
-const Body::Direction_t &Body::GetDirection() const
+const int Body::GetDirection()
 {
   return direction;
 }
@@ -615,16 +616,16 @@ void Body::MakeTeleportParticles(const Point2i& pos, const Point2i& dst)
   if(current_clothe->layers[layer]->type != "weapon")
   {
     ParticleEngine::AddNow(new TeleportMemberParticle(current_clothe->layers[layer]->spr,
-						      current_clothe->layers[layer]->GetPos()+pos,
-						      current_clothe->layers[layer]->GetPos()+dst,
-						      int(direction)));
+                                                  current_clothe->layers[layer]->GetPos()+pos,
+                                                  current_clothe->layers[layer]->GetPos()+dst,
+                                                  direction));
   }
 }
 
-void Body::SetRotation(double angle)
+void Body::SetRotation(int angle)
 {
   MSG_DEBUG("body", "%s -> new angle: %i", owner->GetName().c_str(), angle);
-  main_rotation_rad = angle;
+  main_rotation = angle;
   need_rebuild = true;
 }
 

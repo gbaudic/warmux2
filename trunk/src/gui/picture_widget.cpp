@@ -27,13 +27,11 @@
 PictureWidget::PictureWidget (const Rectanglei &rect) : Widget(rect)
 {
   spr = NULL;
-  disabled = false;
 }
 
 PictureWidget::PictureWidget (const Rectanglei &rect, std::string resource_id) : Widget(rect)
 {
   spr = NULL;
-  disabled = false;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   Surface tmp = resource_manager.LoadImage(res, resource_id);
@@ -74,28 +72,17 @@ void PictureWidget::SetNoSurface()
 }
 
 void PictureWidget::Draw(const Point2i &mousePosition,
-			 Surface& surf) const
+			 Surface& surf)
 {
   if (spr != NULL) {
     int x = GetPositionX() + ( GetSizeX()/2 ) - (spr->GetWidth()/2);
     int y = GetPositionY() + ( GetSizeY()/2 ) - (spr->GetHeight()/2);
 
     spr->Blit ( surf, x, y);
-
-    // Draw a transparency mask
-    if (disabled) {
-      surf.BoxColor(Rectanglei(x,y,spr->GetWidth(),spr->GetHeight()),
-		    defaultOptionColorBox);
-    }
   }
 }
 
 void PictureWidget::SetSizePosition(const Rectanglei &rect)
 {
   StdSetSizePosition(rect);
-}
-
-void PictureWidget::Disable()
-{
-  disabled = true;
 }

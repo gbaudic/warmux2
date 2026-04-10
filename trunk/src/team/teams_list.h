@@ -16,14 +16,13 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Handle team list
+ * Refresh des diff�entes �uipes.
  *****************************************************************************/
 
 #ifndef TEAMS_LIST_H
 #define TEAMS_LIST_H
 //-----------------------------------------------------------------------------
 #include "team.h"
-#include "team_config.h"
 #include <list>
 //-----------------------------------------------------------------------------
 
@@ -53,14 +52,13 @@ public:
 
 
   // Add a new team to playing, and change active team
-  void AddTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
-  void UpdateTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
+  void AddTeam (const std::string &id, bool generate_error=true);
   void DelTeam (const std::string &id);
   void SetActive(const std::string &id);
-  void InitList (const std::list<ConfigTeam> &lst);
+  void InitList (const std::list<std::string> &liste_nom);
   void InitEnergy ();
-  void RefreshEnergy (); //Refresh energy bar
-  void RefreshSort (); //Refresh energy bar position
+  void RefreshEnergy (); //Actualise les jauges d'�ergie
+  void RefreshSort (); //Actualise le classement des jauges
   void ChangeSelection (const std::list<uint>& liste);
   bool IsSelected (uint index);
 
@@ -75,10 +73,10 @@ public:
 extern TeamsList teams_list;
 //-----------------------------------------------------------------------------
 
-// current active team
+// Team active
 Team& ActiveTeam();
 
-// current active character
+// Ver actif
 Character& ActiveCharacter();
 
 //-----------------------------------------------------------------------------

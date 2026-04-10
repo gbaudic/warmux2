@@ -23,6 +23,9 @@
 
 const std::string Constants::VERSION = PACKAGE_VERSION;
 
+const std::string Constants::DEFAULT_DATADIR = INSTALL_DATADIR;
+const std::string Constants::DEFAULT_LOCALEDIR = INSTALL_LOCALEDIR;
+const std::string Constants::DEFAULT_FONT_PATH = FONT_FILE;
 const std::string Constants::ENV_DATADIR = "WORMUX_DATADIR";
 const std::string Constants::ENV_LOCALEDIR = "WORMUX_LOCALEDIR";
 const std::string Constants::ENV_FONT_PATH = "WORMUX_FONT_PATH";
@@ -30,7 +33,7 @@ const std::string Constants::ENV_FONT_PATH = "WORMUX_FONT_PATH";
 std::vector<std::string> Constants::AUTHORS;
 
 const std::string Constants::WEB_SITE = "http://www.wormux.org";
-const std::string Constants::EMAIL = "wormux-dev .AT. gna .DOT. org";
+const std::string Constants::EMAIL = "wormux-dev@gna.org";
 
 // Size min/max of the map (pixels)
 const Point2i Constants::MAP_MIN_SIZE = Point2i(100, 200);
@@ -45,8 +48,6 @@ Constants::Constants()
   AUTHORS.push_back ("Laurent DEFERT SIMONNEAU");
   AUTHORS.push_back ("Jean-Christophe DUBERGA");
   AUTHORS.push_back ("Matthieu FERTRE");
-  AUTHORS.push_back ("Sebastien GONZALVE");
-  AUTHORS.push_back ("Reiner HERRMANN");
   AUTHORS.push_back ("Renaud LOTTIAUX");
   AUTHORS.push_back ("Yannig PERRE");
   AUTHORS.push_back ("Olivie SERRES");

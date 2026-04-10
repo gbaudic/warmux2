@@ -44,7 +44,7 @@ class Blowtorch : public Weapon
   public:
     Blowtorch();
     BlowtorchConfig& cfg();
-    void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type);
+    void HandleKeyEvent(int action, int event_type);
 };
 
 #endif  // __BLOWTORCH_H__

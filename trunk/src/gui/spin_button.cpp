@@ -26,17 +26,15 @@
 #include "../graphic/font.h"
 
 SpinButton::SpinButton (const std::string &label, const Rectanglei &rect,
-			int value, int step, int min_value, int max_value,
-			const Color& color, bool _shadowed)
+			int value, int step, int min_value, int max_value)
 {
   position =  rect.GetPosition();
   size = rect.GetSize();
   size.y = (*Font::GetInstance(Font::FONT_SMALL)).GetHeight();
-  shadowed = _shadowed;
-
+	  
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false); 
 
-  txt_label = new Text(label, color, Font::GetInstance(Font::FONT_SMALL), shadowed);
+  txt_label = new Text(label, white_color, Font::GetInstance(Font::FONT_SMALL));
 
   if ( min_value != -1 && min_value <= value)
     m_min_value = min_value;
@@ -46,7 +44,7 @@ SpinButton::SpinButton (const std::string &label, const Rectanglei &rect,
     m_max_value = max_value;
   else m_max_value = value*2;
 
-  txt_value = new Text("", color, Font::GetInstance(Font::FONT_SMALL), shadowed);
+  txt_value = new Text("", white_color, Font::GetInstance(Font::FONT_SMALL));
   SetValue(value);
 
   std::ostringstream max_value_s;
@@ -83,7 +81,7 @@ void SpinButton::SetSizePosition(const Rectanglei &rect)
   m_minus->SetSizePosition( Rectanglei(position.x + size.x - max_value_w - 5 - 2 * margin, position.y, 5, 10) );
 }
 
-void SpinButton::Draw(const Point2i &mousePosition, Surface& surf) const
+void SpinButton::Draw(const Point2i &mousePosition, Surface& surf)
 {
   txt_label->DrawTopLeft(position);
    

@@ -31,16 +31,11 @@ class Game
 private:
   bool isGameLaunched;
   bool endOfGameStatus;
-  bool isGamePaused;
 
-  int NbrRemainingTeams() const;
+  int NbrRemainingTeams();
 
   Game();
   static Game * singleton;
-  
-  int AskQuestion (Question &question, bool draw=true);
-  void DisplayPause();
-  bool DisplayQuit();
 
 public:
   static Game * GetInstance();
@@ -48,16 +43,17 @@ public:
   void Start();
   void UnloadDatas();
 
-  bool IsGameFinished() const;
-  bool IsGamePaused() const;
+  bool IsGameFinished();
   bool IsGameLaunched() const;
 
-  void MessageLoading() const;
-  void MessageEndOfGame() const;
+  void MessageLoading();
+  void MessageEndOfGame();
+
+  int AskQuestion (Question &question, bool draw=true);
 
   void Pause();
 
-  bool GetEndOfGameStatus() const;
+  bool GetEndOfGameStatus();
   void SetEndOfGameStatus(bool status);
 };
 #endif

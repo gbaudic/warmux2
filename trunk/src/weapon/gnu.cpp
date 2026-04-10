@@ -48,7 +48,7 @@ void Gnu::Shoot (double strength)
   save_x=GetX();
   save_y=GetY();
 
-  double angle = ActiveCharacter().GetFiringAngle();
+  double angle = ActiveTeam().crosshair.GetAngleRad();
 
   if(angle<M_PI/2 && angle>-M_PI/2)
     m_sens = 1;
@@ -82,24 +82,22 @@ void Gnu::Refresh()
   //sometimes, angle==infinite (according to gdb) ??
   GetSpeed(norme, angle);
 
-  while(angle < -M_PI)
-    angle += M_PI;
-  while(angle > M_PI)
-    angle -= M_PI;
+  while(angle < -M_PI) angle += M_PI;
+  while(angle > M_PI) angle -= M_PI;
 
+  angle *= 180.0 / M_PI;
   angle /= 2.0;
   if(m_sens == -1)
   {
     if(angle > 0)
-      angle -= M_PI_2;
+      angle -= 90.0;
     else
-      angle += M_PI_2;
+      angle += 90.0;
   }
 
-  if(angle > 4 * M_PI)
-    angle = 0;
+  if(angle > 720) angle = 0;
 
-  image->SetRotation_rad(angle);
+  image->SetRotation_deg(angle);
   image->Scale((double)m_sens,1.0);
   image->Update();
   // Fixe le rectangle de test  ??
@@ -111,12 +109,12 @@ void Gnu::Refresh()
 
 void Gnu::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The Gnu left the battlefield before exploding"));
+  GameMessages::GetInstance()->Add ("The Gnu left the battlefield before exploding");
   WeaponProjectile::SignalOutOfMap();
 }
 //-----------------------------------------------------------------------------
 
-GnuLauncher::GnuLauncher() :
+GnuLauncher::GnuLauncher() : 
   WeaponLauncher(WEAPON_GNU, "gnulauncher", new ExplosiveWeaponConfig(), VISIBLE_ONLY_WHEN_INACTIVE)
 {
   m_name = _("Gnu Launcher");

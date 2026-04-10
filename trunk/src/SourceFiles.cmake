@@ -1,9 +1,7 @@
+# Add new source files here
 
 SET(WORMUX_SRCS
-ai/ai_engine.cpp
-ai/ai_engine_stupid.cpp
-ai/ai_movement_module.cpp
-ai/ai_shoot_module.cpp
+main.cpp
 character/body.cpp
 character/body_list.cpp
 character/character.cpp
@@ -32,7 +30,6 @@ gui/box.cpp
 gui/button.cpp
 gui/button_text.cpp
 gui/check_box.cpp
-gui/EnergyBar.cpp
 gui/label.cpp
 gui/list_box.cpp
 gui/list_box_w_label.cpp
@@ -50,7 +47,6 @@ gui/widget.cpp
 gui/widget_list.cpp
 include/action.cpp
 include/action_handler.cpp
-include/binreloc.c
 include/constant.cpp
 interface/cursor.cpp
 interface/game_msg.cpp
@@ -59,7 +55,6 @@ interface/keyboard.cpp
 interface/loading_screen.cpp
 interface/mouse.cpp
 interface/weapon_menu.cpp
-main.cpp
 map/camera.cpp
 map/ground.cpp
 map/map.cpp
@@ -71,21 +66,14 @@ map/water.cpp
 map/wind.cpp
 menu/credits_menu.cpp
 menu/game_menu.cpp
-menu/internet_menu.cpp
 menu/main_menu.cpp
-menu/map_selection_box.cpp
 menu/menu.cpp
 menu/network_connection_menu.cpp
 menu/network_menu.cpp
-menu/network_teams_selection_box.cpp
 menu/options_menu.cpp
 menu/results_menu.cpp
-menu/team_box.cpp
-menu/teams_selection_box.cpp
 network/chat.cpp
 network/distant_cpu.cpp
-network/download.cpp
-network/index_server.cpp
 network/network.cpp
 network/randomsync.cpp
 object/barrel.cpp
@@ -95,6 +83,7 @@ object/objects_list.cpp
 object/physical_obj.cpp
 object/physics.cpp
 particles/body_member.cpp
+particles/teleport_member.cpp
 particles/bullet.cpp
 particles/dark_smoke.cpp
 particles/explosion_smoke.cpp
@@ -106,7 +95,6 @@ particles/particle.cpp
 particles/polecat_fart.cpp
 particles/smoke.cpp
 particles/star.cpp
-particles/teleport_member.cpp
 sound/jukebox.cpp
 team/results.cpp
 team/team.cpp
@@ -134,12 +122,12 @@ weapon/bounce_ball.cpp
 weapon/cluster_bomb.cpp
 weapon/construct.cpp
 weapon/crosshair.cpp
-weapon/disco_grenade.cpp
 weapon/dynamite.cpp
 weapon/explosion.cpp
 weapon/gnu.cpp
 weapon/grenade.cpp
 weapon/gun.cpp
+weapon/holly_grenade.cpp
 weapon/jetpack.cpp
 weapon/launcher.cpp
 weapon/lowgrav.cpp

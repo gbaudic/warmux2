@@ -26,7 +26,6 @@
 #include "../include/base.h"
 #include "../character/character.h"
 #include "../network/chat.h"
-#include "../object/bonus_box.h"
 
 class GameLoop
 {
@@ -34,7 +33,6 @@ private:
   int state;
   uint pause_seconde;
   uint duration;
-  BonusBox * current_bonus_box;
 
 public:
   static const int PLAYING = 0;
@@ -43,15 +41,14 @@ public:
 
   FramePerSecond fps;
   Chat chatsession;
-
+  
   static GameLoop * singleton;
-  GameLoop();
 
 public:
   static GameLoop * GetInstance();
 
   void Init();
-
+  
   bool character_already_chosen;
   bool interaction_enabled;
 
@@ -62,10 +59,7 @@ public:
   void Run();
 
   // Refresh all objects (position, state ...)
-  void RefreshObject();
-  void RefreshInput();
-  void RefreshClock();
-  void PingClient();
+  void Refresh();
 
   // Read/Set State
   int ReadState() const { return state; }
@@ -77,16 +71,15 @@ public:
   // Signal character damage
   void SignalCharacterDamage(Character *character);
 
-  void SetCurrentBonusBox(BonusBox * current_box);
-  BonusBox * GetCurrentBonusBox() const;
-
 private:
+  GameLoop();
 
   void InitGameData_NetServer();
   void InitGameData_NetClient();
   void InitData_Local();
   void InitData();
-
+    
+  void RefreshClock();
   void CallDraw();
 
   PhysicalObj* GetMovingObject();

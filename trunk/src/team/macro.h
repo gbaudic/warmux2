@@ -58,10 +58,5 @@
   FOR_EACH_TEAM(equipe) \
   FOR_EACH_LIVING_CHARACTER(*equipe,ver) 
 
-#define FOR_ALL_LIVING_ENEMIES(shooter,equipe,ver)	\
-  FOR_EACH_TEAM(equipe) \
-  if (!(*equipe)->IsSameAs(shooter.GetTeam()))	\
-  FOR_EACH_LIVING_CHARACTER(*equipe,ver) 
-
 //-----------------------------------------------------------------------------
 #endif

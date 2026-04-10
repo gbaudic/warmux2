@@ -29,43 +29,56 @@
 
 // Loop for all objects
 #define FOR_ALL_OBJECTS(object) \
-  for (ObjectsList::iterator object=lst_objects.begin(), \
-       end=lst_objects.end(); \
+  for (ObjectsList::iterator object=lst_objects.Begin(), \
+       end=lst_objects.End(); \
        object != end; \
-       ++object)
+       ++object) \
+	if(!object->to_remove)
 
 //-----------------------------------------------------------------------------
 
 // Loop for all objects that aren't out of the screen
 #define FOR_EACH_OBJECT(object) \
   FOR_ALL_OBJECTS(object) \
-  if (!(*object)->IsGhost())
+  if (!object->ptr->IsGhost())
 
 //-----------------------------------------------------------------------------
 
-class ObjectsList : public std::list<PhysicalObj*>
+class ObjectsList
 {
-  public:
-    inline void RemoveObject(PhysicalObj * obj) { remove(obj);};
-    typedef std::list<PhysicalObj*>::iterator iterator;
+public:
+  typedef struct object_t {
+    PhysicalObj* ptr;
+    bool to_remove;
+    object_t(PhysicalObj* o, bool e) { ptr = o; to_remove = e; }
+  } object_t;
 
-  public:
-    ~ObjectsList();
-    inline void AddObject(PhysicalObj * obj) { push_back(obj);};
+  typedef std::list<object_t>::iterator iterator;
 
+private:
+  std::list<object_t> lst;
+
+public:
+  ~ObjectsList();
+
+  void AddObject (PhysicalObj* obj);
+  void RemoveObject (PhysicalObj* obj);
   // Call the Refresh method of all the objects
-    void Refresh();
+  void Refresh();
   // Call the Draw method of all the objects
-    void Draw();
+  void Draw();
 
-    bool AllReady();
+  bool AllReady();
+
+  iterator Begin() { return lst.begin(); }
+  iterator End() { return lst.end(); }
 
   // Place mines randomly on the map
-    void PlaceMines();
+  void PlaceMines();
   // Place barrels randomly on the map
-    void PlaceBarrels();
+  void PlaceBarrels();
 
-    void FreeMem();
+  void FreeMem();
 };
 
 extern ObjectsList lst_objects;

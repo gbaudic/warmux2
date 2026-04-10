@@ -28,43 +28,34 @@
 #include "../include/base.h"
 //-----------------------------------------------------------------------------
 
-class Keyboard
+class Clavier
 {
 private:
-  std::map<int, Action::Action_t> layout;
-  bool PressedKeys[Action::ACTION_LAST];
+  std::map<int, Action_t> layout;
+  bool PressedKeys[ACTION_MAX];
 
-  static Keyboard * singleton;
+  static Clavier * singleton;
 
 private:
-  // Traite une touche relachï¿½e
-  void HandleKeyPressed (const Action::Action_t &action);
-  void HandleKeyReleased (const Action::Action_t &action);
+  // Traite une touche relachée
+  void HandleKeyPressed (const Action_t &action);
+  void HandleKeyReleased (const Action_t &action);
+  Clavier();
 
-
-public:
-  Keyboard();
-  typedef enum
-  {
-    KEY_PRESSED,
-    KEY_RELEASED,
-    KEY_REFRESH
-  } Key_Event_t ;
+ public:
+  static Clavier * GetInstance();
 
   void HandleKeyEvent( const SDL_Event *event) ;
   void Reset();
 
-  // On veut bouger la camï¿½ra au clavier ?
+  // On veut bouger la caméra au clavier ?
   void TestCamera();
 
   // Refresh des touches du clavier
   void Refresh();
-
-  // Associe une touche ï¿½ une action.
-  void SetKeyAction(int key, Action::Action_t at);
-
-  // Get the key associated to an action.
-  int GetKeyAssociatedToAction(Action::Action_t at);
+  
+  // Associe une touche à une action.
+  void SetKeyAction(int key, Action_t at);
 
 };
 

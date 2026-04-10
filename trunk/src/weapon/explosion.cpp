@@ -98,8 +98,6 @@ void ApplyExplosion_common (const Point2i &pos,
   FOR_ALL_CHARACTERS(equipe,ver)
   {
     double distance = pos.Distance(ver -> GetCenter());
-    if(distance < 1.0)
-      distance = 1.0;
 
     // If the character is in the explosion range, apply damage on it !
     if (distance <= config.explosion_range)
@@ -141,42 +139,35 @@ void ApplyExplosion_common (const Point2i &pos,
   }
 
   if(fastest_character != NULL)
-    camera.FollowObject (fastest_character, true, true);
+    camera.ChangeObjSuivi (fastest_character, true, true);
 
   // Apply the blast on physical objects.
-  FOR_EACH_OBJECT(it)
-   {
-     PhysicalObj *obj = *it;
-     if (!obj->GoesThroughWall() && !obj->IsGhost())
-     {
-       double distance = pos.Distance(obj->GetCenter());
-       if(distance < 1.0)
-         distance = 1.0;
+  FOR_EACH_OBJECT(obj) if ( !(obj -> ptr -> GoesThroughWall()) )
+  { 
+    double distance = pos.Distance(obj -> ptr -> GetCenter());
+    if (distance <= config.explosion_range)
+    {
+      double dmg = cos(M_PI_2 * distance / config.explosion_range);
+      dmg *= config.damage;
+      obj -> ptr -> AddDamage (config.damage);
+    }
 
-       if (distance <= config.explosion_range)
-       {
-         double dmg = cos(M_PI_2 * distance / config.explosion_range);
-         dmg *= config.damage;
-         obj->AddDamage (config.damage);
-       }
+    if (distance <= config.blast_range)
+    {
+      double angle;
+      double force = cos(M_PI_2 * distance / config.blast_range);
+      force *= config.blast_force;
 
-       if (distance <= config.blast_range)
-       {
-         double angle;
-         double force = cos(M_PI_2 * distance / config.blast_range);
-         force *= config.blast_force;
+      if (!EgalZero(distance))
+        angle  = pos.ComputeAngle(obj->ptr->GetCenter());
+      else
+        angle = -M_PI_2;
 
-         if (!EgalZero(distance))
-           angle  = pos.ComputeAngle(obj->GetCenter());
-         else
-           angle = -M_PI_2;
-
-         if(fastest_character != NULL)
-           camera.FollowObject (obj, true, true);
-         obj->AddSpeed (force / obj->GetMass(), angle);
-       }
-     }
-   }
+      if(fastest_character != NULL)
+        camera.ChangeObjSuivi (obj->ptr, true, true);
+      obj -> ptr -> AddSpeed (force / obj->ptr->GetMass(), angle);
+    }
+  }
 
   ParticleEngine::AddExplosionSmoke(pos, config.particle_range, smoke);
 
@@ -194,14 +185,12 @@ void ApplyExplosion_server (const Point2i &pos,
 {
   ActionHandler* action_handler = ActionHandler::GetInstance();
 
-  Action a_begin_sync(Action::ACTION_SYNC_BEGIN);
+  Action a_begin_sync(ACTION_SYNC_BEGIN);
   network.SendAction(&a_begin_sync);
 
   TeamsList::iterator
     it=teams_list.playing_list.begin(),
     end=teams_list.playing_list.end();
-
-  Action* send_char = new Action(Action::ACTION_SET_CHARACTER_PHYSICS);
 
   for (int team_no = 0; it != end; ++it, ++team_no)
   {
@@ -220,13 +209,13 @@ void ApplyExplosion_server (const Point2i &pos,
       if (distance <= config.explosion_range || distance < config.blast_range)
       {
         // cliens : Place characters
-        send_char->StoreCharacter(team_no, char_no);
+        Action* a = BuildActionSendCharacterPhysics(team_no, char_no);
+        action_handler->NewAction(a);
       }
     }
   }
-  action_handler->NewAction(send_char);
 
-  Action* a = new Action(Action::ACTION_EXPLOSION);
+  Action* a = new Action(ACTION_EXPLOSION);
   a->Push(pos.x);
   a->Push(pos.y);
   a->Push((int)config.explosion_range);
@@ -239,6 +228,7 @@ void ApplyExplosion_server (const Point2i &pos,
   a->Push(smoke);
 
   action_handler->NewAction(a);
-  Action a_sync_end(Action::ACTION_SYNC_END);
+//  network.SendAction(&a);
+  Action a_sync_end(ACTION_SYNC_END);
   network.SendAction(&a_sync_end);
 }

@@ -45,10 +45,10 @@ typedef enum
 
 class Main_Menu : public Menu
 {
-  //PictureWidget *title;
-  //Surface s_title;
+  PictureWidget *title;
+  Surface s_title;
 
-  //Sprite *skin_left, *skin_right;
+  Sprite *skin_left, *skin_right;
 
   ButtonText *play, *network, *options, *infos, *quit;
 
@@ -71,7 +71,7 @@ protected:
    void key_cancel();
 
 private:
-   virtual void DrawBackground();
+   virtual void DrawBackground(const Point2i &mousePosition);
    void OnClic(const Point2i &mousePosition, int button);
 
   // Main drawing function: refresh parts of screen 

@@ -23,15 +23,14 @@
 #define BAZOOKA_H
 #include "launcher.h"
 
-class BazookaRocket : public WeaponProjectile
+class RoquetteBazooka : public WeaponProjectile
 {
   ParticleEngine smoke_engine;
 public:
-  BazookaRocket(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
+  RoquetteBazooka(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
   void Refresh();
 protected:
   void SignalOutOfMap();
-  void SignalDrowning();
 };
 
 class Bazooka : public WeaponLauncher

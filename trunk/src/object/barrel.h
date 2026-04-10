@@ -35,7 +35,7 @@ class PetrolBarrel : public PhysicalObj
     void Draw();
     void Refresh();
   protected:
-    void SignalGhostState(bool was_already_dead);
+    void SignalDeath();
 };
 
 #endif /* BARREL_H */

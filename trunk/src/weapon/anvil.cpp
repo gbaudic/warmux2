@@ -45,10 +45,8 @@ Anvil::Anvil(ExplosiveWeaponConfig& cfg,
 
 void Anvil::SignalObjectCollision(PhysicalObj * obj)
 {
-  if(typeid(*obj) == typeid(Character)) {
-    Character * tmp = (Character *)(obj);
-    tmp -> SetEnergyDelta (-200);
-  }
+  Character * tmp = (Character *)(obj);
+  tmp -> SetEnergyDelta (-200);
 }
 
 void Anvil::SignalGroundCollision()
@@ -60,7 +58,7 @@ void Anvil::Refresh()
 {
   if(merge_time != 0 && merge_time < Time::GetInstance()->Read()) {
     world.MergeSprite(GetPosition(),image);
-    Ghost();
+    lst_objects.RemoveObject(this);
   } else {
     WeaponProjectile::Refresh();
   }
@@ -92,7 +90,7 @@ bool AnvilLauncher::p_Shoot ()
     return false;
   projectile->SetXY(target);
   lst_objects.AddObject(projectile);
-  camera.FollowObject(projectile,true,true);
+  camera.ChangeObjSuivi(projectile,true,true);
   projectile = NULL;
   ReloadLauncher();
   return true;

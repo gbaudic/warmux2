@@ -46,6 +46,7 @@ class NinjaRope : public Weapon
     bool m_attaching;
     bool m_rope_attached;
     double m_initial_angle;
+    int m_initial_direction;
     uint m_launch_time;
     uint m_hooked_time;
     Sprite* m_hook_sprite;
@@ -61,7 +62,7 @@ class NinjaRope : public Weapon
     NinjaRope();
     void Active();
     void Draw();
-    void HandleKeyEvent(Action::Action_t action, Keyboard::Key_Event_t event_type) ;
+    void HandleKeyEvent(int key, int event_type) ;
     void NotifyMove(bool collision);
     void SignalTurnEnd();
     EmptyWeaponConfig& cfg();
@@ -69,6 +70,7 @@ class NinjaRope : public Weapon
     void Refresh();
     void p_Deselect();
     bool p_Shoot();
+    void LoadExtraXml(xmlpp::Element *elem);
     void GoUp();
     void GoDown();
     void GoLeft();

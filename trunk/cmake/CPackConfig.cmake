@@ -1,6 +1,6 @@
 # see http://www.cmake.org/Wiki/CMake:Packaging_With_CPack
 
-IF(CMAKE_MAJOR_VERSION MATCHES "2" AND CMAKE_MINOR_VERSION MATCHES "4")
+INCLUDE(InstallRequiredSystemLibraries)  # seems to be only used for win32
 
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Wormux - a convivial mass murder game")
 SET(CPACK_PACKAGE_NAME "Wormux")
@@ -34,4 +34,3 @@ INCLUDE(CPack)
 #  SET(CPACK_SOURCE_STRIP_FILES "")
 #ENDIF(WIN32 AND NOT UNIX)
 
-ENDIF(CMAKE_MAJOR_VERSION MATCHES "2" AND CMAKE_MINOR_VERSION MATCHES "4")

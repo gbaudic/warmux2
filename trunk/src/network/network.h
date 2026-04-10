@@ -31,20 +31,12 @@
 #include "../include/base.h" 
 #include "../menu/network_menu.h"
 //-----------------------------------------------------------------------------
-const std::string WORMUX_NETWORK_PORT = "9999";
-const uint WORMUX_NETWORK_PORT_INT = 9999;
-
 class Network
 {
   friend class DistantComputer;
 
   bool inited;
-
-#if defined(DEBUG) && not defined(WIN32)
-  int fout;
-  int fin;	
-#endif
-
+		
 protected:
   bool m_is_connected;
   bool m_is_server;
@@ -85,7 +77,6 @@ public:
   const bool IsLocal() const;
   const bool IsServer() const;
   const bool IsClient() const;
-  const uint GetPort();
   
   // Network functions common to client and server
   void Disconnect();
@@ -94,6 +85,7 @@ public:
   void SendAction(Action* action);
   void SendPacket(char* packet, int size);
   void ReceiveActions();
+
   // Client specific
   void ClientConnect(const std::string &host, const std::string &port);
 

@@ -24,8 +24,6 @@
 
 #include <list>
 #include "menu.h"
-#include "network_teams_selection_box.h"
-#include "map_selection_box.h"
 #include "../include/base.h"
 #include "../graphic/font.h"
 #include "../gui/button_text.h"
@@ -36,41 +34,54 @@ class Team;
 
 class NetworkMenu : public Menu
 {
-  /* Options controllers */
-  SpinButton* player_number;
-  Box* options_box;
-  Label* connected_players;
-  Label* inited_players;
-  
-  /* Chat controllers */
-  MsgBox* msg_box;
-  TextBox* line_to_send_tbox;
-  Button* send_txt_bt;
-  
-  /* Team controllers */
-  NetworkTeamsSelectionBox *team_box;
-  
-  /* Map controllers */
-  MapSelectionBox *map_box;
-  
-  void SaveOptions();
-  void OnClic(const Point2i &mousePosition, int button);
-  void Draw(const Point2i &mousePosition);
-  
-  void sig_ok();
-  void __sig_ok();
-  void __sig_cancel();
-  
+   Font * normal_font;
+
+   /* Options controllers */
+   SpinButton* player_number;
+   VBox* options_box;
+   Label* connected_players;
+   Label* inited_players;
+   TextBox* chat_box;
+   ButtonText* send_txt;
+
+   /* Team controllers */
+   ListBox *lbox_all_teams;   
+   ListBox *lbox_selected_teams;
+   Button *bt_add_team;
+   Button *bt_remove_team;
+   PictureWidget *team_logo;
+   VBox *team_box;
+   Team * last_team;
+
+   /* Map controllers */
+   ListBox *lbox_maps;
+   PictureWidget *map_preview;  
+   VBox *map_box;
+
+   void ChangeMap(); 
+   void SelectTeamLogo(Team *t);  
+   void MoveTeams(ListBox * from, ListBox * to, bool sort);
+   void MoveDisableTeams(ListBox * from, ListBox * to, bool sort);
+
+   void SaveOptions();
+   void OnClic(const Point2i &mousePosition, int button);
+   void Draw(const Point2i &mousePosition);
+
+   void sig_ok();
+   void __sig_ok();
+   void __sig_cancel();
+
+   void Reset();
 public:
-  NetworkMenu(); 
-  ~NetworkMenu();
-  
-  void AddTeamCallback(std::string team_id);
-  void UpdateTeamCallback(std::string team_id);
-  void DelTeamCallback(std::string team_id);
-  void ChangeMapCallback();
-  
-  void ReceiveMsgCallback(std::string msg);
+   NetworkMenu(); 
+   ~NetworkMenu();
+
+   void AddTeamCallback(std::string team);
+   void DelTeamCallback(std::string team);
+   void ChangeMapCallback();
+
+   MessageBox *msg_box;
+
 };
 
 #endif

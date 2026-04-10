@@ -29,32 +29,13 @@
 
 //#define SCROLLBAR
 
-ListBoxItem::ListBoxItem(const std::string& _label, 
-			 Font& _font,
-			 const std::string& _value,
-			 const Color& color) :
-  Label(_label, Rectanglei(0,0,0,0), _font, color)
+struct CompareItems
 {
-  value = _value;
-}
-
-const std::string& ListBoxItem::GetLabel() const
-{
-  return txt_label->GetText();
-}
-
-const std::string& ListBoxItem::GetValue() const
-{
-  return value;
-}
-
-// struct CompareItems
-// {
-//      bool operator()(const ListBoxItem& a, const ListBoxItem& b)
-//      {
-//        return a.GetLabel() < b.GetLabel();
-//      }
-// };
+     bool operator()(const list_box_item_t& a, const list_box_item_t& b)
+     {
+       return a.label < b.label;
+     }
+};
 
 ListBox::ListBox (const Rectanglei &rect, bool always_one_selected_b) : Widget(rect)
 {
@@ -69,7 +50,11 @@ ListBox::ListBox (const Rectanglei &rect, bool always_one_selected_b) : Widget(r
 
   resource_manager.UnLoadXMLProfile( res);
 
+  height_item = (*Font::GetInstance(Font::FONT_SMALL)).GetHeight();
   first_visible_item = 0;
+  nb_visible_items_max = GetSizeY()/height_item;
+  nb_visible_items = 0;
+
   selected_item = -1;
   always_one_selected = always_one_selected_b;
 }
@@ -82,49 +67,40 @@ ListBox::~ListBox()
    m_items.clear();
 }
 
-int ListBox::MouseIsOnWhichItem(const Point2i &mousePosition) const
+int ListBox::MouseIsOnWhichItem(const Point2i &mousePosition)
 {
   if( !Contains(mousePosition) )
-    return -1;
+	  return -1;
 
-  for (uint i=first_visible_item; i < m_items.size(); i++) {
-    if ( m_items[i]->GetPositionY() <= mousePosition.y
-	 && m_items[i]->GetPositionY() + m_items[i]->GetSizeY() >= mousePosition.y)
-      return i;
-  }
-  return -1;
+  int index = (mousePosition.y - position.y) / height_item;
+  return BorneLong(index + first_visible_item, 0, m_items.size() - 1);
 }
 
 Widget* ListBox::Clic(const Point2i &mousePosition, uint button)
 {
   need_redrawing = true;
 
-  if (m_items.empty())
-    return NULL;
+  // buttons for listbox with more items than visible
+  if( m_items.size() > nb_visible_items_max ){
+    if( (button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition)) ||
+        (button == SDL_BUTTON_LEFT && m_down->Contains(mousePosition)) ){
 
-  // buttons for listbox with more items than visible (first or last item not visible)
-  if(first_visible_item > 0  
-     || m_items.back()->GetPositionY() + m_items.back()->GetSizeY() > GetPositionY() + GetSizeY()) 
-    {
-      if( (button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition)) ||
-	  (button == SDL_BUTTON_LEFT && m_down->Contains(mousePosition)) ){
-	
-	// bottom button
-	if( m_items.back()->GetPositionY() + m_items.back()->GetSizeY() > GetPositionY() + GetSizeY() )
-	  first_visible_item++ ;
-	
-	return this;
-      }
-      else if( (button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
-	       (button == SDL_BUTTON_LEFT && m_up->Contains(mousePosition)) ){
-	
-	// top button
-	if( first_visible_item > 0 )
-	  first_visible_item-- ;
-	
-	return this;
-      }
+      // bottom button
+      if( m_items.size() - first_visible_item > nb_visible_items_max )
+        first_visible_item++ ;
+
+      return this;
     }
+    else if( (button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
+             (button == SDL_BUTTON_LEFT && m_up->Contains(mousePosition)) ){
+
+      // top button
+      if( first_visible_item > 0 )
+        first_visible_item-- ;
+
+      return this;
+    }
+  }
 
   if( button == SDL_BUTTON_LEFT ){
     int item = MouseIsOnWhichItem(mousePosition);
@@ -143,56 +119,33 @@ Widget* ListBox::Clic(const Point2i &mousePosition, uint button)
   }
 }
 
-void ListBox::Draw(const Point2i &mousePosition, Surface& surf) const
+void ListBox::Draw(const Point2i &mousePosition, Surface& surf)
 {
   int item = MouseIsOnWhichItem(mousePosition);
   Rectanglei rect (*this);
 
-  // Draw border and bg color
   surf.BoxColor(rect, defaultListColor1);
   surf.RectangleColor(rect, white_color);
 
-  // Draw items
-  Point2i pos = GetPosition() + Point2i(5, 0);
-  uint local_max_visible_items = m_items.size();
-  bool draw_it = true;
+  for(uint i=0; i < nb_visible_items; i++){
+	 Rectanglei rect(GetPositionX() + 1, GetPositionY() + i * height_item + 1, GetSizeX() - 2, height_item - 2);
 
-  for(uint i=first_visible_item; i < m_items.size(); i++){
+     if( int(i + first_visible_item) == selected_item)
+       surf.BoxColor(rect, defaultListColor2);
+     else
+       if( i + first_visible_item == uint(item) )
+         surf.BoxColor(rect, defaultListColor3);
 
-    Rectanglei rect(GetPositionX() + 1, 
-		    pos.GetY() + 1, 
-		    GetSizeX() - 2, 
-		    m_items.at(i)->GetSizeY() - 2);
-
-    // no more place to add item
-    if (draw_it && rect.GetPositionY() + rect.GetSizeY() > GetPositionY() + GetSizeY()) {
-      local_max_visible_items = i - first_visible_item;
-      draw_it = false;
-    }
-    
-    // item is selected or mouse-overed
-    if (draw_it) {
-      if( int(i) == selected_item) {
-	surf.BoxColor(rect, defaultListColor2);
-      } else if( i == uint(item) ) {
-	surf.BoxColor(rect, defaultListColor3);
-      }
-    }
-
-    // Really draw items
-    Rectanglei rect2(pos.x, pos.y, 
-		     GetSizeX()-2, m_items.at(i)->GetSizeY() - 2);
-
-    m_items.at(i)->SetSizePosition(rect2);
-    if (draw_it) {
-      m_items.at(i)->Draw(mousePosition, surf);
-    }
-
-    pos += Point2i(0, m_items.at(i)->GetSizeY());
+     (*Font::GetInstance(Font::FONT_SMALL)).WriteLeft(
+			  GetPosition() + Point2i(5, i*height_item),
+			  m_items[i + first_visible_item].label,
+			  white_color);
+     if(!m_items[i].enabled)
+       surf.BoxColor(rect, defaultDisabledColorBox);
   }
 
   // buttons for listbox with more items than visible
-  if (m_items.size() > local_max_visible_items){
+  if (m_items.size() > nb_visible_items_max){
     m_up->Draw(mousePosition, surf);
     m_down->Draw(mousePosition, surf);
 #ifdef SCROLLBAR
@@ -214,28 +167,36 @@ void ListBox::SetSizePosition(const Rectanglei &rect)
   StdSetSizePosition(rect);
   m_up->SetSizePosition( Rectanglei(GetPositionX() + GetSizeX() - 12, GetPositionY()+2, 10, 5) );
   m_down->SetSizePosition( Rectanglei(GetPositionX() + GetSizeX() - 12, GetPositionY() + GetSizeY() - 7, 10, 5) );
+
+  nb_visible_items_max = GetSizeY()/height_item;
 }
 
 void ListBox::AddItem (bool selected,
 		       const std::string &label,
 		       const std::string &value,
-		       Font& font,
-		       const Color& color)
+             bool enabled)
 {
   uint pos = m_items.size();
 
   // Push item
-  ListBoxItem * item = new ListBoxItem(label, font, value, color);
+  list_box_item_t item;
+  item.label = label;
+  item.value = value;
+  item.enabled = enabled;
   m_items.push_back (item);
 
   // Select it if selected
   if( selected )
     Select (pos);
+
+  nb_visible_items = m_items.size();
+  if( nb_visible_items_max < nb_visible_items )
+    nb_visible_items = nb_visible_items_max;
 }
 
 void ListBox::Sort()
 {
-  //std::sort( m_items.begin(), m_items.end(), CompareItems() );
+  std::sort( m_items.begin(), m_items.end(), CompareItems() );
 }
 
 void ListBox::RemoveSelected()
@@ -246,6 +207,10 @@ void ListBox::RemoveSelected()
     m_items.erase( m_items.begin() + selected_item );
     selected_item =- 1;
   }
+
+  nb_visible_items = m_items.size();
+  if( nb_visible_items_max < nb_visible_items )
+    nb_visible_items = nb_visible_items_max;
 }
 
 void ListBox::Select (uint index)
@@ -257,11 +222,11 @@ void ListBox::Select (uint index)
 void ListBox::Select(const std::string& val)
 {
   uint index = 0;
-  for(std::vector<ListBoxItem*>::iterator it=m_items.begin();
+  for(std::vector<list_box_item_t>::iterator it=m_items.begin();
       it != m_items.end();
       it++,index++)
   {
-    if((*it)->GetLabel() == val)
+    if(it->label == val)
     {
       Select(index);
       return;
@@ -275,7 +240,7 @@ void ListBox::Deselect ()
   selected_item = -1;
 }
 
-int ListBox::GetSelectedItem () const
+int ListBox::GetSelectedItem ()
 {
   return selected_item;
 }
@@ -283,22 +248,22 @@ int ListBox::GetSelectedItem () const
 const std::string& ListBox::ReadLabel () const
 {
   assert (selected_item != -1);
-  return m_items.at(selected_item)->GetLabel();
+  return m_items.at(selected_item).label;
 }
 
 const std::string& ListBox::ReadValue () const
 {
   assert (selected_item != -1);
-  return m_items.at(selected_item)->GetValue();
+  return m_items.at(selected_item).value;
 }
 
 const std::string& ListBox::ReadValue (int index) const
 {
   assert (index != -1 && index < (int)m_items.size());
-  return m_items.at(index)->GetValue();
+  return m_items.at(index).value;
 }
 
-uint ListBox::Size() const
+std::vector<list_box_item_t> * ListBox::GetItemsList()
 {
-  return m_items.size();
+  return &m_items;
 }
