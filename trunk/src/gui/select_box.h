@@ -45,7 +45,7 @@ public:
             bool alternate_colors = true);
 
   // No need for a Draw method: the additional stuff drawn is made by Update
-  virtual void Update(const Point2i& mousePosition,
+  virtual bool Update(const Point2i& mousePosition,
                       const Point2i& lastMousePosition);
   virtual Widget* ClickUp(const Point2i & mousePosition, uint button);
 
@@ -76,10 +76,14 @@ public:
 
 class ItemBox : public SelectBox
 {
+protected:
   std::vector<const void*> m_values;
+
 public:
   ItemBox(const Point2i& size, bool always = false, bool force = true)
-    : SelectBox(size, always, force) { };
+    : SelectBox(size, always, force, true) { };
+  // Should not be used and thus prevents its use!
+  void AddItem(bool select, Widget* w);
   void AddItem(bool select, Widget* w, const void* value);
   void AddLabelItem(bool selected,
                     const std::string & label,
@@ -87,10 +91,13 @@ public:
                     Font::font_size_t fsize = Font::FONT_SMALL,
                     Font::font_style_t fstyle = Font::FONT_BOLD,
                     const Color & color = white_color);
-  void RemoveSelected();
-  void Empty() { m_values.clear(); SelectBox::Empty(); }
+  virtual void RemoveSelected();
+  virtual void Empty() { m_values.clear(); SelectBox::Empty(); }
+  virtual void Clear() { m_values.clear(); SelectBox::Clear(); }
 
-  const void* GetSelectedValue() const;
+  const void* GetSelectedValue() const { return (selected_item==-1) ? NULL : m_values[selected_item]; }
+  // Our accessors somewhat ensures that this is a label, but beware
+  const char* GetSelectedName() const;
 };
 
 #endif //SELECT_BOX

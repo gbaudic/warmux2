@@ -81,7 +81,7 @@ void Teleportation::Refresh()
     return;
   if (done)
     return;
-  if (Time::GetInstance()->Read() - m_last_fire_time > TELEPORTATION_ANIM_DURATION) {
+  if (GameTime::GetInstance()->Read() - m_last_fire_time > TELEPORTATION_ANIM_DURATION) {
     Character& achar = ActiveCharacter();
     achar.SetXY(dst);
     achar.SetSpeed(ZERO, ZERO);
@@ -109,6 +109,9 @@ void Teleportation::p_Select()
 
 void Teleportation::ChooseTarget(Point2i mouse_pos)
 {
+  if (target_chosen)
+    return;
+
   Character& achar = ActiveCharacter();
   dst = mouse_pos - achar.GetSize()/2;
   if (!GetWorld().ParanoiacRectIsInVacuum(Rectanglei(dst, achar.GetSize())) ||

@@ -19,12 +19,7 @@
  * Network server layer for Warmux.
  *****************************************************************************/
 
-#include <WARMUX_socket.h>
-#include <SDL_thread.h>
-#include "include/action_handler.h"
-#include "network/network_server.h"
-#include "tool/string_tools.h"
-
+#include <algorithm>
 #include <sys/types.h>
 #ifdef LOG_NETWORK
 #  include <sys/stat.h>
@@ -33,6 +28,14 @@
 #    include <io.h>
 #  endif
 #endif
+
+#include <WARMUX_socket.h>
+#include <WARMUX_distant_cpu.h>
+#include <SDL_thread.h>
+
+#include "include/action_handler.h"
+#include "network/network_server.h"
+#include "tool/string_tools.h"
 
 //-----------------------------------------------------------------------------
 
@@ -105,8 +108,8 @@ void NetworkServer::WaitActionSleep()
       socket_set->AddSocket(incoming);
 
       DistantComputer* client = new DistantComputer(incoming, nickname, player_id);
-      SendInitialGameInfo(client, player_id);
       AddRemoteHost(client);
+      SendInitialGameInfo(client, player_id);
 
       if (GetNbPlayersConnected() >= max_nb_players)
         RejectIncoming();
@@ -160,16 +163,10 @@ void NetworkServer::CloseConnection(std::list<DistantComputer*>::iterator closed
 {
   RemoveRemoteHost(closed);
 
-  if (GetNbPlayersConnected() == max_nb_players)
-  {
+  if (GetNbPlayersConnected() == max_nb_players) {
     // A new player will be able to connect, so we reopen the socket
     // For incoming connections
     printf("Allowing new connections\n");
     server_socket.AcceptIncoming(port);
   }
-}
-
-void NetworkServer::SetMaxNumberOfPlayers(uint _max_nb_players)
-{
-  max_nb_players = _max_nb_players;
 }

@@ -93,7 +93,7 @@ void Water::Init()
   surface = GetResourceManager().LoadImage(res, image, false);
   pattern.NewSurface(Point2i(PATTERN_WIDTH, PATTERN_HEIGHT),
                      SDL_SWSURFACE|SDL_SRCCOLORKEY, false);
-  pattern.SetColorKey(SDL_SRCCOLORKEY, 0);
+  pattern.SetColorKey(SDL_SRCCOLORKEY|SDL_RLEACCEL, 0);
 #else
   surface = GetResourceManager().LoadImage(res, image, true);
   pattern.NewSurface(Point2i(PATTERN_WIDTH, PATTERN_HEIGHT),
@@ -102,7 +102,6 @@ void Water::Init()
 
   shift1 = 0;
   next_wave_shift = 0;
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 void Water::Reset()
@@ -140,7 +139,7 @@ void Water::Refresh()
   }
 
   height_mvt = 0;
-  uint now = Time::GetInstance()->Read();
+  uint now = GameTime::GetInstance()->Read();
 
   if (next_wave_shift <= now) {
     shift1 += 2*DEGREE;

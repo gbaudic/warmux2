@@ -97,14 +97,14 @@ bool WeaponMenuItem::IsMouseOver()
 void WeaponMenuItem::SetZoom(bool value)
 {
   zoom = value;
-  zoom_start_time = Time::GetInstance()->Read();
+  zoom_start_time = GameTime::GetInstance()->Read();
 }
 
 void WeaponMenuItem::Draw(Surface * dest)
 {
   Double scale = DEFAULT_ICON_SCALE;
-  if (zoom || zoom_start_time + GetZoomTime() > Time::GetInstance()->Read()) {
-    scale = (Time::GetInstance()->Read() - zoom_start_time) / (Double)GetZoomTime();
+  if (zoom || zoom_start_time + GetZoomTime() > GameTime::GetInstance()->Read()) {
+    scale = (GameTime::GetInstance()->Read() - zoom_start_time) / (Double)GetZoomTime();
     if (zoom) {
       scale = DEFAULT_ICON_SCALE + (MAX_ICON_SCALE - DEFAULT_ICON_SCALE) * scale;
       scale = (scale > MAX_ICON_SCALE ? MAX_ICON_SCALE : scale);
@@ -119,31 +119,31 @@ void WeaponMenuItem::Draw(Surface * dest)
   int nb_bullets = ActiveTeam().ReadNbAmmos(weapon->GetType());
   Point2i tmp = GetOffsetAlignment() + Point2i(0, item->GetWidth() - 10);
 
+  char buffer[5] = { 0, };
   if (nb_bullets ==  INFINITE_AMMO) {
+#define UTF8_INFINITE "\xE2\x88\x9E"
     PolygonItem::Draw(dest);
-    Font::GetInstance(Font::FONT_MEDIUM, Font::FONT_BOLD)->WriteLeft(tmp, "∞", dark_gray_color);
+    Font::GetInstance(Font::FONT_MEDIUM, Font::FONT_BOLD)->WriteLeft(tmp, UTF8_INFINITE, dark_gray_color);
   } else if (nb_bullets == 0) {
-      if (weapon->AvailableAfterTurn() > (int)Game::GetInstance()->GetCurrentTurn()-1){
+      int num = weapon->AvailableAfterTurn() - (int)Game::GetInstance()->GetCurrentTurn();
+      if (num > -1){
         PolygonItem::Draw(dest);
         tmp.y -= 4;
         m_parent->m_not_yet_available->Blit(*dest, tmp);
 
-
         tmp.x += m_parent->m_not_yet_available->GetWidth()-5;
         tmp.y += 10;
-        std::ostringstream txt;
-        txt << weapon->AvailableAfterTurn()-Game::GetInstance()->GetCurrentTurn();
-        txt << " ";
-        Font::GetInstance(Font::FONT_SMALL, Font::FONT_BOLD)->WriteLeft(tmp, txt.str(), dark_red_color);
-      }  else{
+        snprintf(buffer, 4, "%i ", num);
+        Font::GetInstance(Font::FONT_SMALL, Font::FONT_BOLD)->WriteLeft(tmp, buffer, dark_red_color);
+      } else {
         item->SetAlpha(0.3);
         PolygonItem::Draw(dest);
       }
   } else {
     PolygonItem::Draw(dest);
     std::ostringstream txt;
-    txt << nb_bullets;
-    Font::GetInstance(Font::FONT_MEDIUM, Font::FONT_BOLD)->WriteLeft(tmp, txt.str(), dark_gray_color);
+    snprintf(buffer, 4, "%i ", nb_bullets);
+    Font::GetInstance(Font::FONT_MEDIUM, Font::FONT_BOLD)->WriteLeft(tmp, buffer, dark_gray_color);
   }
 }
 
@@ -182,8 +182,6 @@ WeaponsMenu::WeaponsMenu()
   weapons_menu->SetBorderColor(border_color);
   tools_menu->SetPlaneColor(plane_color);
   tools_menu->SetBorderColor(border_color);
-
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 WeaponsMenu::~WeaponsMenu()
@@ -254,10 +252,10 @@ void WeaponsMenu::Show(const Point2i& pos)
 
   ShowGameInterface();
   if (!show) {
-    if (motion_start_time + GetIconsDrawTime() < Time::GetInstance()->Read())
-      motion_start_time = Time::GetInstance()->Read();
+    if (motion_start_time + GetIconsDrawTime() < GameTime::GetInstance()->Read())
+      motion_start_time = GameTime::GetInstance()->Read();
     else
-      motion_start_time = Time::GetInstance()->Read() - (GetIconsDrawTime() - (Time::GetInstance()->Read() - motion_start_time));
+      motion_start_time = GameTime::GetInstance()->Read() - (GetIconsDrawTime() - (GameTime::GetInstance()->Read() - motion_start_time));
     show = true;
 
     JukeBox::GetInstance()->Play("default", "menu/weapon_menu_show");
@@ -270,10 +268,10 @@ void WeaponsMenu::Hide(bool play_sound)
 {
   if (show) {
     Interface::GetInstance()->SetCurrentOverflyWeapon(NULL);
-    if (motion_start_time + GetIconsDrawTime() < Time::GetInstance()->Read())
-      motion_start_time = Time::GetInstance()->Read();
+    if (motion_start_time + GetIconsDrawTime() < GameTime::GetInstance()->Read())
+      motion_start_time = GameTime::GetInstance()->Read();
     else
-      motion_start_time = Time::GetInstance()->Read() - (GetIconsDrawTime() - (Time::GetInstance()->Read() - motion_start_time));
+      motion_start_time = GameTime::GetInstance()->Read() - (GetIconsDrawTime() - (GameTime::GetInstance()->Read() - motion_start_time));
     show = false;
 
     if (play_sound)
@@ -343,7 +341,7 @@ AffineTransform2D WeaponsMenu::ComputeToolTransformation()
 
   // Define the animation
   position.SetTranslationAnimation(motion_start_time, GetIconsDrawTime(),
-                                   Time::GetInstance()->Read(),
+                                   GameTime::GetInstance()->Read(),
                                    !show, start, end);
 
   return position ;
@@ -362,7 +360,7 @@ AffineTransform2D WeaponsMenu::ComputeWeaponTransformation()
 
   // Define the animation
   position.SetTranslationAnimation(motion_start_time, GetIconsDrawTime(),
-                                   Time::GetInstance()->Read(),
+                                   GameTime::GetInstance()->Read(),
                                    !show, start, click_pos);
 
   return position;
@@ -370,7 +368,7 @@ AffineTransform2D WeaponsMenu::ComputeWeaponTransformation()
 
 void WeaponsMenu::Draw()
 {
-  if (!show && (motion_start_time == 0 || Time::GetInstance()->Read() >= motion_start_time + GetIconsDrawTime()))
+  if (!show && (motion_start_time == 0 || GameTime::GetInstance()->Read() >= motion_start_time + GetIconsDrawTime()))
     return;
 
   // Update animation

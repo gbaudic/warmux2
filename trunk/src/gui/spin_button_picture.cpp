@@ -45,7 +45,6 @@ SpinButtonWithPicture::SpinButtonWithPicture(const std::string& label,
 
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   torus = new TorusCache(res, resource_id, BIG_R, SMALL_R);
-  GetResourceManager().UnLoadXMLProfile(res);
 
   txt_label = new Text(label, dark_gray_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
   txt_label->SetMaxWidth(GetSizeX());
@@ -118,7 +117,7 @@ void SpinButtonWithPicture::Draw(const Point2i &mousePosition)
 
 void SpinButtonWithPicture::RecreateTorus()
 {
-  float angle = (M_PI*2 - OPEN_ANGLE) * (GetValue() - GetMinValue())
+  float angle = (2.0f*M_PI - OPEN_ANGLE) * (GetValue() - GetMinValue())
               / (GetMaxValue() - GetMinValue());
   torus->Refresh(angle, OPEN_ANGLE);
 }

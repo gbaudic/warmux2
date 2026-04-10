@@ -22,7 +22,6 @@
 #ifndef WARMUX_PLAYER_H
 #define WARMUX_PLAYER_H
 //-----------------------------------------------------------------------------
-#include <SDL_net.h>
 #include <list>
 #include <string>
 #include <WARMUX_types.h>
@@ -52,9 +51,10 @@ public:
   Player(uint player_id, const std::string& nickname);
   Player();
   ~Player() { Disconnect(); }
+  // This is misleading: it is assumed this doesn't use the network, check ~DistantComputer()
   void Disconnect()
   {
-    // It's up to the program using class Player to define WARMUX_DisconnectPlayer();
+    // It's up to the program using class Player to define WARMUX_DisconnectPlayer()
     WARMUX_DisconnectPlayer(*this);
   }
 
@@ -78,6 +78,7 @@ public:
 };
 
 // It's up to the program using class Player to define WARMUX_DisconnectPlayer();
+// Currently it is expected not to use the network: check ~DistantComputer()
 extern void WARMUX_DisconnectPlayer(Player& player);
 
 #endif

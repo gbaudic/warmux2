@@ -70,10 +70,10 @@ protected:
 
 public:
   ScrollBox(const Point2i & size, bool force = true, bool alternate = false);
-  ~ScrollBox();
+  virtual ~ScrollBox() { };
 
   // No need for a Draw method: the additional stuff drawn is made by Update
-  virtual void Update(const Point2i &mousePosition,
+  virtual bool Update(const Point2i &mousePosition,
                       const Point2i &lastMousePosition);
   virtual Widget* Click(const Point2i & mousePosition, uint button);
   virtual Widget* ClickUp(const Point2i & mousePosition, uint button);
@@ -95,8 +95,8 @@ public:
     }
   }
   virtual size_t WidgetCount() const { return vbox->WidgetCount(); }
-  virtual void Empty() { vbox->Empty(); }
-  virtual void Clear() { vbox->Clear(); }
+  virtual void Empty() { offset = 0; vbox->Empty(); }
+  virtual void Clear() { offset = 0; vbox->Clear(); }
 };
 
 #endif  //SCROLL_BOX_H

@@ -23,16 +23,16 @@
 #define SCROLLING_H
 
 #include <WARMUX_base.h>
-#include "interface/mouse.h"
-#include "interface/movable_by_user.h"
 #include <WARMUX_point.h>
 #include <WARMUX_rectangle.h>
-#include "game/stopwatch.h"
 
+#include "game/stopwatch.h"
+#include "interface/mouse.h"
+#include "interface/movable_by_user.h"
 
 class PhysicalObj;
 
-class Camera : public Rectanglei, public Singleton<Camera>, public MovableByUser
+class Camera : public Singleton<Camera>, public Rectanglei, public MovableByUser
 {
 public :
   enum CameraControlMode {
@@ -96,6 +96,7 @@ public:
   // Auto crop on an object
   void FollowObject(const PhysicalObj *obj, bool follow_closely = false);
   void StopFollowingObj(const PhysicalObj* obj);
+  const PhysicalObj* GetFollowedObj() const { return followed_object; }
 
   void CenterOnActiveCharacter();
 

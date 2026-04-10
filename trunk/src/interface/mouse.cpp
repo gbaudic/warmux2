@@ -19,26 +19,27 @@
  * Mouse management
  *****************************************************************************/
 
-#include "interface/mouse.h"
+#include <WARMUX_point.h>
 
-#include "interface/cursor.h"
-#include "interface/interface.h"
-#include "interface/mouse_cursor.h"
 #include "character/character.h"
 #include "game/config.h"
-#include "game/game_mode.h"
 #include "game/game.h"
+#include "game/game_mode.h"
+#include "game/game_time.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "include/action_handler.h"
+#include "interface/cursor.h"
+#include "interface/interface.h"
+#include "interface/mouse.h"
+#include "interface/mouse_cursor.h"
 #include "map/camera.h"
 #include "map/map.h"
+#include "replay/replay.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WARMUX_point.h>
 #include "tool/resource_manager.h"
 #include "weapon/weapon.h"
-#include "game/game_time.h"
 
 #define MOUSE_CLICK_SQUARE_DISTANCE 5*5
 #define LONG_CLICK_DURATION 600
@@ -100,7 +101,7 @@ void Mouse::EndLongClickTimer()
 
 bool Mouse::HasFocus() const
 {
-  Uint8 state = SDL_GetAppState();
+  uint8_t state = SDL_GetAppState();
 
   if ((state & SDL_APPMOUSEFOCUS) &&
       (state & SDL_APPINPUTFOCUS) &&
@@ -177,12 +178,12 @@ bool Mouse::IS_CLICK_BUTTON(uint button)
   return (button==SDL_BUTTON_LEFT || button==SDL_BUTTON_RIGHT || button==SDL_BUTTON_MIDDLE);
 }
 
-Uint8 Mouse::BUTTON_RIGHT() // static method
+uint8_t Mouse::BUTTON_RIGHT() // static method
 {
   return Config::GetConstRef().GetLeftHandedMouse() ? SDL_BUTTON_LEFT : SDL_BUTTON_RIGHT;
 }
 
-Uint8 Mouse::BUTTON_LEFT() // static method
+uint8_t Mouse::BUTTON_LEFT() // static method
 {
   return Config::GetConstRef().GetLeftHandedMouse() ? SDL_BUTTON_RIGHT : SDL_BUTTON_LEFT;
 }
@@ -242,10 +243,9 @@ bool Mouse::HandleEvent(const SDL_Event& evnt)
     }
   }
 
-  if (Game::GetInstance()->ReadState() != Game::PLAYING)
-    return true;
-
-  if (!ActiveTeam().IsLocalHuman())
+  if (Game::GetInstance()->ReadState() != Game::PLAYING ||
+      Replay::GetConstInstance()->IsPlaying() ||
+      !ActiveTeam().IsLocalHuman())
     return true;
 
   bool shift = !!(SDL_GetModState() & KMOD_SHIFT);
@@ -378,7 +378,7 @@ void Mouse::Draw() const
 void Mouse::Show()
 {
 #ifndef HAVE_TOUCHSCREEN
-  if (Time::GetConstInstance()->Read()-last_hide_time > 10000 && visible == MOUSE_HIDDEN) {
+  if (GameTime::GetConstInstance()->Read()-last_hide_time > 10000 && visible == MOUSE_HIDDEN) {
     CenterPointer();
   }
 #endif
@@ -392,10 +392,13 @@ void Mouse::Show()
 
 void Mouse::Hide()
 {
+  // If doing a pause or the like, we do want to see it
+  if (Replay::GetConstInstance()->IsPlaying())
+    return;
+
   if (visible == MOUSE_VISIBLE)
-  {
-    last_hide_time = Time::GetConstInstance()->Read();
-  }
+    last_hide_time = GameTime::GetConstInstance()->Read();
+
   visible = MOUSE_HIDDEN;
   SDL_ShowCursor(false); // be sure cursor is invisible
 

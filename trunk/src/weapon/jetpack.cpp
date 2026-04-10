@@ -91,7 +91,7 @@ void JetPack::Refresh()
 
     if (!F.IsNull()) {
       // We are using fuel !!!
-      uint current = Time::GetInstance()->Read() ;
+      uint current = GameTime::GetInstance()->Read() ;
       int64_t delta = current - m_last_fuel_down;
 
       while (delta >= DELTA_FUEL_DOWN) {
@@ -117,7 +117,7 @@ void JetPack::p_Select()
 void JetPack::p_Deselect()
 {
   active = false;
-  ActiveCharacter().SetExternForce(0,0);
+  ActiveCharacter().SetExternForceXY(Point2d());
   StopFlying();
   ActiveCharacter().SetClothe("normal");
   ActiveCharacter().SetMovement("breathe");
@@ -130,7 +130,7 @@ void JetPack::StartFlying()
 
   ActiveCharacter().SetMovement("jetpack-fire");
 
-  m_last_fuel_down = Time::GetInstance()->Read();
+  m_last_fuel_down = GameTime::GetInstance()->Read();
   flying_sound.Play(ActiveTeam().GetSoundProfile(),"weapon/jetpack", -1);
 
   Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
@@ -138,6 +138,8 @@ void JetPack::StartFlying()
 
   // this avoids to show the arrow on top of character that can hide the ammo units
   ActiveCharacter().UpdateLastMovingTime();
+
+  ActiveCharacter().StopBackJumping();
 
   // do not display the character on top of the active character
   // else it will hide the ammo unit of the jetpack (bug #11479)

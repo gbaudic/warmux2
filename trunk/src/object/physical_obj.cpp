@@ -25,8 +25,13 @@
  *****************************************************************************/
 
 #include <iostream>
+
+#include <WARMUX_debug.h>
+#include <WARMUX_point.h>
+#include <WARMUX_random.h>
+#include <WARMUX_rectangle.h>
+
 #include "character/character.h"
-#include "include/action.h"
 #include "game/config.h"
 #include "game/game_time.h"
 #include "map/map.h"
@@ -38,16 +43,12 @@
 #include "team/macro.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include <WARMUX_debug.h>
 #include "tool/isnan.h"
 #include "tool/math_tools.h"
 #include "tool/string_tools.h"
-#include <WARMUX_point.h>
-#include <WARMUX_random.h>
-#include <WARMUX_rectangle.h>
 #include "weapon/weapon_launcher.h"
 
-const int Y_OBJET_MIN = -10000;
+#define Y_OBJET_MIN  -10000
 
 PhysicalObj::PhysicalObj(const std::string &name, const std::string &xml_config) :
   m_collides_with_ground(true),
@@ -136,7 +137,7 @@ void PhysicalObj::SetOverlappingObject(PhysicalObj* obj, int timeout)
     return;
   }
   if (timeout > 0)
-    m_minimum_overlapse_time = Time::GetInstance()->Read() + timeout;
+    m_minimum_overlapse_time = GameTime::GetInstance()->Read() + timeout;
 
   CheckOverlapping();
 }
@@ -148,10 +149,10 @@ void PhysicalObj::CheckOverlapping()
 
   // Check if we are still overlapping with this object
   if (!m_overlapping_object->GetTestRect().Intersect(GetTestRect()) &&
-      m_minimum_overlapse_time <= Time::GetInstance()->Read()) {
+      m_minimum_overlapse_time <= GameTime::GetInstance()->Read()) {
     MSG_DEBUG("physic.overlapping", "\"%s\" just stopped overlapping with \"%s\" (%d ms left)",
               GetName().c_str(), m_overlapping_object->GetName().c_str(),
-              (m_minimum_overlapse_time - Time::GetInstance()->Read()));
+              (m_minimum_overlapse_time - GameTime::GetInstance()->Read()));
     SetOverlappingObject(NULL);
   } else {
     MSG_DEBUG("physic.overlapping", "\"%s\" is overlapping with \"%s\"",
@@ -190,6 +191,8 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
   if (IsGhost())
     return NO_COLLISION;
 
+  Point2d contactPos;
+  Double contactAngle;
   Point2d pos, offset;
   PhysicalObj* collided_obj = NULL;
 
@@ -298,6 +301,8 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
     speed_collided_obj = collided_obj->GetSpeed();
   }
 
+  ContactPointAngleOnGround(pos, contactPos, contactAngle);
+
   Collide(collision, collided_obj, pos);
 
   // ===================================
@@ -309,10 +314,9 @@ collision_t PhysicalObj::NotifyMove(Point2d oldPos, Point2d newPos)
   switch (collision) {
   case NO_COLLISION:
     // Nothing more to do!
-    ASSERT(!collided_obj);
     break;
   case COLLISION_ON_GROUND:
-    SignalGroundCollision(speed_before_collision);
+    SignalGroundCollision(speed_before_collision, contactAngle);
     break;
   case COLLISION_ON_OBJECT:
     SignalObjectCollision(speed_before_collision, collided_obj, speed_collided_obj);
@@ -332,12 +336,11 @@ void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, cons
   switch (collision) {
   case NO_COLLISION:
     // Nothing more to do!
-    ASSERT(!collided_obj);
     return;
 
   case COLLISION_ON_GROUND:
-    ASSERT(!collided_obj);
     ContactPointAngleOnGround(position, contactPos, contactAngle);
+    ASSERT(!collided_obj);
     break;
 
   case COLLISION_ON_OBJECT:
@@ -359,9 +362,9 @@ void PhysicalObj::Collide(collision_t collision, PhysicalObj* collided_obj, cons
     //
     // v'1 =  ((m1 - m2) * v1 + 2m1 *v2) / (m1 + m2)
     // v'2 =  ((m2 - m1) * v2 + 2m1 *v1) / (m1 + m2)
-    collided_obj->SetSpeed(((mass1 - mass2) * v1 + 2 * mass1 *v2 * m_cfg.m_rebound_factor) / (mass1 + mass2),
+    collided_obj->SetSpeed(abs(((mass1 - mass2) * v1 + 2 * mass1 *v2 * m_cfg.m_rebound_factor) / (mass1 + mass2)),
                            angle1);
-    SetSpeed(((mass2 - mass1) * v2 + 2 * mass1 *v1 * m_cfg.m_rebound_factor) / (mass1 + mass2), angle2);
+    SetSpeed(abs(((mass2 - mass1) * v2 + 2 * mass1 *v1 * m_cfg.m_rebound_factor) / (mass1 + mass2)), angle2);
     break;
   }
 
@@ -530,7 +533,7 @@ void PhysicalObj::Drown()
   if (m_is_fire)
     GetWorld().water.Smoke(GetPosition());
   // make a splash in the water :-)
-  else if (GetMass() >= 2)
+  else if (GetMass() >= 2 && GetName() != "water_particle")
     GetWorld().water.Splash(GetPosition());
 
   StopMoving();
@@ -593,7 +596,9 @@ void PhysicalObj::CheckRebound()
     if (Pendulum!=GetMotionType() && m_rebound_position==GetPosition()) {
       MSG_DEBUG("physic.state", "%s seems to be stuck in ground. Stop moving!",
                 GetName().c_str());
+      m_rebound_position = Point2i(-1, -1);
       StopMoving();
+      return;
     }
   }
   m_rebound_position = GetPosition();

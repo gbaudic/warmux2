@@ -36,7 +36,6 @@ union SDL_Event;
 
 class Chat
 {
-private:
   TextList chat;
   Text* input;
   Text* msg;
@@ -47,7 +46,7 @@ private:
 
   void CloseInput();
 
- public:
+public:
   Chat();
   ~Chat();
   void Show();
@@ -58,7 +57,7 @@ private:
   void HandleKeyPressed(const SDL_Event& evnt);
   void HandleKeyReleased(const SDL_Event& evnt);
 
-  static void SendMessage(const std::string& msg);
+  static void SendMessage(const std::string& msg, bool in_game = true);
 };
 
 #endif

@@ -21,6 +21,7 @@
 #include <SDL.h>
 #include <png.h>
 #include "map/tileitem.h"
+#include "game/config.h"
 #include "game/game.h"
 #include "game/game_time.h"
 #include "graphic/surface.h"
@@ -30,12 +31,13 @@
 #include "map/camera.h"
 
 // We need only one empty tile
-TileItem_Empty EmptyTile;
+static TileItem_Empty EmptyTile;
 
-Tile::Tile() :
-  nbCells(Point2i(0, 0)),
-  m_preview(NULL),
-  m_last_preview_redraw(0)
+Tile::Tile()
+  : m_use_alpha(true)
+  , nbCells(Point2i(0, 0))
+  , m_preview(NULL)
+  , m_last_preview_redraw(0)
 {
   ASSERT(CELL_BITS > 3);
 }
@@ -84,8 +86,8 @@ void Tile::InitTile(const Point2i &pSize, const Point2i & upper_left_offset, con
 
 void Tile::Dig(const Point2i &position, const Surface& dig)
 {
-  Point2i  firstCell = Clamp(position / CELL_SIZE);
-  Point2i  lastCell  = Clamp((position + dig.GetSize()) / CELL_SIZE);
+  Point2i  firstCell = Clamp(position>> CELL_BITS);
+  Point2i  lastCell  = Clamp((position + dig.GetSize())>> CELL_BITS);
   uint     index     = firstCell.y*nbCells.x;
 
   m_preview->Lock();
@@ -104,8 +106,16 @@ void Tile::Dig(const Point2i &position, const Surface& dig)
 
         tin->GetSurface().Lock();
         tin->Dig(position - (c<<CELL_BITS), dig);
-        tin->ScalePreview(dst, c.x-startCell.x, pitch, m_shift);
+        if (c >= startCell && c < endCell) // don't write outside minimap!
+          tin->ScalePreview(dst, c.x-startCell.x, pitch, m_shift);
         tin->GetSurface().Unlock();
+
+        if (tin->NeedDelete()) {
+          // no need to display this tile as it can be deleted!
+          delete tin;
+          // Don't instanciate a new empty tile but use the already existing one
+          item[index + c.x] = &EmptyTile;
+        }
       }
     }
     dst   += pitch<<(CELL_BITS-m_shift);
@@ -114,7 +124,7 @@ void Tile::Dig(const Point2i &position, const Surface& dig)
 
   m_preview->Unlock();
 
-  m_last_preview_redraw = Time::GetInstance()->Read();
+  m_last_preview_redraw = GameTime::GetInstance()->Read();
 }
 
 void Tile::Dig(const Point2i &center, const uint radius)
@@ -144,8 +154,16 @@ void Tile::Dig(const Point2i &center, const uint radius)
 
         tin->GetSurface().Lock();
         tin->Dig(center - (c<<CELL_BITS), radius);
-        tin->ScalePreview(dst, c.x-startCell.x, pitch, m_shift);
+        if (c >= startCell && c < endCell) // don't write outside minimap!
+          tin->ScalePreview(dst, c.x-startCell.x, pitch, m_shift);
         tin->GetSurface().Unlock();
+ 
+        if (tin->NeedDelete()) {
+          // no need to display this tile as it can be deleted!
+          delete tin;
+          // Don't instanciate a new empty tile but use the already existing one
+          item[index + c.x] = &EmptyTile;
+        }
       }
     }
     dst   += pitch<<(CELL_BITS-m_shift);
@@ -153,17 +171,19 @@ void Tile::Dig(const Point2i &center, const uint radius)
   }
 
   m_preview->Unlock();
-  m_last_preview_redraw = Time::GetInstance()->Read();
+  m_last_preview_redraw = GameTime::GetInstance()->Read();
 }
 
-TileItem_NonEmpty* Tile::GetNonEmpty(uint x, uint y, uint8_t bpp)
+TileItem_NonEmpty* Tile::GetNonEmpty(uint x, uint y)
 {
   TileItem          *ti  = item[y*nbCells.x + x];
   TileItem_NonEmpty *tin = NULL;
 
   if (ti->IsTotallyEmpty()) {
     // Do not delete the tile, it's a empty one!
-    tin = TileItem_BaseColorKey::NewEmpty(bpp, m_alpha_threshold);
+    if (m_use_alpha) tin = new TileItem_AlphaSoftware(m_alpha_threshold);
+    else             tin = new TileItem_ColorKey16(m_alpha_threshold);
+    tin->ForceEmpty();
     item[y*nbCells.x +x] = tin;
   } else {
     tin = static_cast<TileItem_NonEmpty*>(ti);
@@ -179,7 +199,7 @@ TileItem_NonEmpty* Tile::CreateNonEmpty(uint8_t *ptr, int stride)
   for (int y=0; y<CELL_SIZE.y; y++) {
     for (int x=0; x<CELL_SIZE.x; x++) {
       if (pix[x]) {
-        if (SDL_GetVideoInfo()->vfmt->BytesPerPixel > 2)
+        if (m_use_alpha)
           return new TileItem_AlphaSoftware(ptr, stride, m_alpha_threshold);
         return new TileItem_ColorKey16(ptr, stride, m_alpha_threshold);
       }
@@ -192,11 +212,10 @@ TileItem_NonEmpty* Tile::CreateNonEmpty(uint8_t *ptr, int stride)
 
 void Tile::PutSprite(const Point2i& pos, Sprite* spr)
 {
-  Rectanglei rec(pos, spr->GetSizeMax());
-  uint8_t    bpp       = SDL_GetVideoInfo()->vfmt->BytesPerPixel;
   Point2i    firstCell = Clamp(pos/CELL_SIZE);
-  Point2i    lastCell  = Clamp((pos + spr->GetSizeMax())/CELL_SIZE);
-  Surface    s         = spr->GetSurface();
+  Surface&   s         = spr->GetSurface();
+  Point2i    lastCell  = Clamp((pos + s.GetSize())/CELL_SIZE);
+  Rectanglei rec(pos, s.GetSize());
 
   m_preview->Lock();
 
@@ -209,6 +228,7 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
 
   for (c.y = firstCell.y; c.y <= lastCell.y; c.y++) {
     for (c.x = firstCell.x; c.x <= lastCell.x; c.x++) {
+#if 1
       Point2i cell_pos = (c<<CELL_BITS);
       Rectanglei src;
       Rectanglei dst;
@@ -231,11 +251,24 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
         dst.SetPositionY(0);
       dst.SetSize(src.GetSize());
 
-      TileItem_NonEmpty *tin = GetNonEmpty(c.x, c.y, bpp);
+      TileItem_NonEmpty *tin = GetNonEmpty(c.x, c.y);
       tin->GetSurface().Blit(s, dst, src.GetPosition());
+#else
+      TileItem_NonEmpty *tin = GetNonEmpty(c.x, c.y);
+      tin->GetSurface().Blit(s, pos-(c<<CELL_BITS));
+#endif
+
       tin->GetSurface().Lock();
-      tin->ScalePreview(pdst, c.x-startCell.x, pitch, m_shift);
+      if (c >= startCell && c < endCell) // don't write outside minimap!
+        tin->ScalePreview(pdst, c.x-startCell.x, pitch, m_shift);
       tin->GetSurface().Unlock();
+
+      if (tin->NeedDelete()) {
+        // no need to display this tile as it can be deleted!
+        delete tin;
+        // Don't instanciate a new empty tile but use the already existing one
+        item[c.y*nbCells.x + c.x] = &EmptyTile;
+      }
     }
     pdst += pitch<<(CELL_BITS-m_shift);
   }
@@ -243,12 +276,11 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
   s.SetAlpha(SDL_SRCALPHA, 0);
 
   m_preview->Unlock();
-  m_last_preview_redraw = Time::GetInstance()->Read();
+  m_last_preview_redraw = GameTime::GetInstance()->Read();
 }
 
 void Tile::MergeSprite(const Point2i &position, Surface& surf)
 {
-  uint8_t  bpp       = SDL_GetVideoInfo()->vfmt->BytesPerPixel;
   Point2i  firstCell = Clamp(position/CELL_SIZE);
   Point2i  lastCell  = Clamp((position + surf.GetSize())/CELL_SIZE);
 
@@ -264,18 +296,26 @@ void Tile::MergeSprite(const Point2i &position, Surface& surf)
     for (c.x = firstCell.x; c.x <= lastCell.x; c.x++) {
 
       Point2i offset = position - (c<<CELL_BITS);
-      TileItem_NonEmpty *tin = GetNonEmpty(c.x, c.y, bpp);
+      TileItem_NonEmpty *tin = GetNonEmpty(c.x, c.y);
 
       tin->GetSurface().Lock();
       tin->MergeSprite(offset, surf);
-      tin->ScalePreview(dst, c.x-startCell.x, pitch, m_shift);
+      if (c >= startCell && c < endCell) // don't write outside minimap!
+        tin->ScalePreview(dst, c.x-startCell.x, pitch, m_shift);
       tin->GetSurface().Unlock();
+
+      if (tin->NeedDelete()) {
+        // no need to display this tile as it can be deleted!
+        delete tin;
+        // Don't instanciate a new empty tile but use the already existing one
+        item[c.y*nbCells.x + c.x] = &EmptyTile;
+      }
     }
     dst += pitch<<(CELL_BITS-m_shift);
   }
 
   m_preview->Unlock();
-  m_last_preview_redraw = Time::GetInstance()->Read();
+  m_last_preview_redraw = GameTime::GetInstance()->Read();
 }
 
 // Initialize preview depending on current video and map sizes
@@ -285,9 +325,11 @@ void Tile::InitPreview()
 
   if (m_preview)
     delete m_preview;
-  if (GetMainWindow().GetBytesPerPixel() == 2) {
+  Quality qual = Config::GetInstance()->GetQuality();
+  m_use_alpha = qual > QUALITY_16BPP;
+  if (!m_use_alpha) {
     m_preview = new Surface(world_size, SDL_SWSURFACE, false);
-    m_preview->SetColorKey(SDL_SRCCOLORKEY, 0xF81F);
+    m_preview->SetColorKey(SDL_SRCCOLORKEY|SDL_RLEACCEL, 0xF81F);
     m_preview->Fill(0xF81F);
   } else {
     m_preview = new Surface(world_size, SDL_SWSURFACE, true);
@@ -301,14 +343,14 @@ void Tile::InitPreview()
   m_preview_rect = Rectanglei((m_upper_left_offset & CELL_MASK)>>m_shift,
                               m_preview_size);
 
-  m_last_preview_redraw = Time::GetInstance()->Read();
+  m_last_preview_redraw = GameTime::GetInstance()->Read();
 }
 
 // Rerender all of the preview
 void Tile::CheckPreview(bool force)
 {
   if (m_last_preview_redraw == 0) {
-    m_last_preview_redraw = Time::GetInstance()->Read();
+    m_last_preview_redraw = GameTime::GetInstance()->Read();
   }
 
   const Surface& window = GetMainWindow();
@@ -376,7 +418,6 @@ bool Tile::LoadImage(const std::string& filename,
   png_infop    info_ptr = NULL;
   bool         ret      = false;
   uint8_t     *buffer   = NULL;
-  uint8_t      bpp      = SDL_GetVideoInfo()->vfmt->BytesPerPixel;
   int          stride;
   int          offsetx, offsety, endoffy;
   Point2i      i, world_size;
@@ -472,11 +513,11 @@ bool Tile::LoadImage(const std::string& filename,
     for (; i.x < endCell.x; i.x++) {
       TileItem_NonEmpty *ti;
 
-      if (bpp==2) {
+      if (m_use_alpha) {
+        ti = CreateNonEmpty(buffer + ((i.x - startCell.x)<<(CELL_BITS+2)), stride);
+      } else {
         ti = new TileItem_ColorKey16(buffer + ((i.x - startCell.x)<<(CELL_BITS+2)),
                                      stride, m_alpha_threshold);
-      } else {
-        ti = CreateNonEmpty(buffer + ((i.x - startCell.x)<<(CELL_BITS+2)), stride);
       }
 
       if (ti->NeedDelete()) {
@@ -529,8 +570,8 @@ bool Tile::IsEmpty(const Point2i & pos) const
 
 void Tile::DrawTile()
 {
-  Point2i firstCell = Clamp(Camera::GetInstance()->GetPosition() / CELL_SIZE);
-  Point2i lastCell = Clamp((Camera::GetInstance()->GetPosition() + Camera::GetInstance()->GetSize()) / CELL_SIZE);
+  Point2i firstCell = Clamp(Camera::GetInstance()->GetPosition()>> CELL_BITS);
+  Point2i lastCell = Clamp((Camera::GetInstance()->GetPosition() + Camera::GetInstance()->GetSize())>> CELL_BITS);
   Point2i i;
   for (i.y = firstCell.y; i.y <= lastCell.y; i.y++)
     for (i.x = firstCell.x; i.x <= lastCell.x; i.x++)
@@ -546,8 +587,9 @@ void Tile::DrawTile_Clipped(const Rectanglei & worldClip) const
   // Revision 3095:
   // Sorry, I don't understand that comment. Moreover the +1 produces a bug when the ground of
   // a map have an alpha value != 255 and != 0
-  Point2i firstCell = Clamp(worldClip.GetPosition() / CELL_SIZE);
-  Point2i lastCell  = Clamp((worldClip.GetBottomRightPoint()) / CELL_SIZE);
+  Point2i cam_pos   = Camera::GetInstance()->GetPosition();
+  Point2i firstCell = Clamp(worldClip.GetPosition()>> CELL_BITS);
+  Point2i lastCell  = Clamp((worldClip.GetBottomRightPoint())>> CELL_BITS);
   Point2i c;
 
   for (c.y = firstCell.y; c.y <= lastCell.y; c.y++) {
@@ -560,28 +602,31 @@ void Tile::DrawTile_Clipped(const Rectanglei & worldClip) const
       Rectanglei destRect(c<<CELL_BITS, CELL_SIZE);
 
       destRect.Clip(worldClip);
-      if (destRect.Intersect(*Camera::GetInstance())) {
-        Point2i ptDest = destRect.GetPosition() - Camera::GetInstance()->GetPosition();
-        Point2i ptSrc = destRect.GetPosition() - (c<<CELL_BITS);
+      Point2i ptDest = destRect.GetPosition() - cam_pos;
+      Point2i ptSrc = destRect.GetPosition() - (c<<CELL_BITS);
 
-
-        GetMainWindow().Blit(tin->GetSurface(),
-                             Rectanglei(ptSrc, destRect.GetSize()),
-                             ptDest);
-      }
+      GetMainWindow().Blit(tin->GetSurface(),
+                           Rectanglei(ptSrc, destRect.GetSize()),
+                           ptDest);
     }
   }
+
+#if 0
+  GetMainWindow().RectangleColor(Rectanglei(worldClip.GetPosition() - cam_pos,
+                                            worldClip.GetSize()),
+                                 primary_red_color);
+#endif
 }
 
 Surface Tile::GetPart(const Rectanglei& rec)
 {
   Surface part(rec.GetSize(), SDL_SWSURFACE|SDL_SRCALPHA, true);
-  part.SetAlpha(0,0);
+  part.SetAlpha(0, 0);
   part.Fill(0x00000000);
-  part.SetAlpha(SDL_SRCALPHA,0);
+  part.SetAlpha(SDL_SRCALPHA, 0);
 
-  Point2i firstCell = Clamp(rec.GetPosition() / CELL_SIZE);
-  Point2i lastCell = Clamp((rec.GetPosition() + rec.GetSize()) / CELL_SIZE);
+  Point2i firstCell = Clamp(rec.GetPosition()>> CELL_BITS);
+  Point2i lastCell = Clamp((rec.GetPosition() + rec.GetSize())>> CELL_BITS);
   Point2i i = nbCells - 1;
   bool    force_copy = SDL_GetVideoInfo()->vfmt->BytesPerPixel>2;
 
@@ -615,24 +660,6 @@ Surface Tile::GetPart(const Rectanglei& rec)
     }
   }
   return part;
-}
-
-void Tile::CheckEmptyTiles()
-{
-  uint cellsCount = nbCells.x * nbCells.y;
-
-  for (uint i = 0; i < cellsCount; i++) {
-    if (item[i]->IsTotallyEmpty())
-      continue;
-    TileItem_NonEmpty *t = static_cast<TileItem_NonEmpty*>(item[i]);
-
-    if (t->NeedDelete()) {
-      // no need to display this tile as it can be deleted!
-      delete item[i];
-      // Don't instanciate a new empty tile but use the already existing one
-      item[i] = &EmptyTile;
-    }
-  }
 }
 
 Tile::SynchTileList Tile::GetTilesToSynch()

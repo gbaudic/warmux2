@@ -20,6 +20,7 @@
  *****************************************************************************/
 
 #include "graphic/video.h"
+#include "graphic/colors.h"
 #include <SDL.h>
 #include "gui/button.h"
 #include "gui/vertical_box.h"
@@ -46,7 +47,6 @@ ScrollBox::ScrollBox(const Point2i & _size, bool force_widget_size, bool alterna
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   m_up = new Button(res, "menu/up");
   m_down = new Button(res, "menu/down");
-  GetResourceManager().UnLoadXMLProfile(res);
 
   Widget::SetBorder(white_color, 1);
   Widget::SetBackgroundColor(transparent_color);
@@ -54,17 +54,13 @@ ScrollBox::ScrollBox(const Point2i & _size, bool force_widget_size, bool alterna
   scrollbar_width = m_up->GetSizeX();
   // Let's consider the scrollbar is not displayed for now.
   vbox = new VBox(_size.x - 2*border_size - scrollbar_width, false, false, force_widget_size);
-  vbox->SetBorder(Point2i(0, 0));
+  vbox->SetNoBorder();
   vbox->SetMargin(0);
   vbox->SetBackgroundColor(transparent_color);
 
   WidgetList::AddWidget(vbox);
   WidgetList::AddWidget(m_up);
   WidgetList::AddWidget(m_down);
-}
-
-ScrollBox::~ScrollBox()
-{
 }
 
 Widget * ScrollBox::ClickUp(const Point2i & mousePosition, uint button)
@@ -237,7 +233,7 @@ int ScrollBox::GetTrackHeight() const
   return size.y - 2*(m_up->GetSizeY()+border_size);
 }
 
-void ScrollBox::Update(const Point2i &mousePosition,
+bool ScrollBox::Update(const Point2i &mousePosition,
                        const Point2i &lastMousePosition)
 {
   // Force redrawing if we are scrolling and the mouse has moved
@@ -246,15 +242,14 @@ void ScrollBox::Update(const Point2i &mousePosition,
   }
 
   bool redraw = need_redrawing;
-  Widget::Update(mousePosition, lastMousePosition);
+  bool updated = Widget::Update(mousePosition, lastMousePosition);
   need_redrawing = redraw;
 
   bool has_scrollbar = HasScrollBar();
   m_up->SetVisible(has_scrollbar);
   m_down->SetVisible(has_scrollbar);
 
-  //printf("Update: size=%ix%i max=%i\n", size.x, size.y, GetMaxOffset());
-  WidgetList::Update(mousePosition, lastMousePosition);
+  updated |= WidgetList::Update(mousePosition, lastMousePosition);
 
   if (has_scrollbar) {
     GetMainWindow().BoxColor(GetScrollTrack(), dark_gray_color);
@@ -263,6 +258,7 @@ void ScrollBox::Update(const Point2i &mousePosition,
     bool over = scroll_mode==SCROLL_MODE_THUMB || thumb.Contains(mousePosition);
     GetMainWindow().BoxColor(thumb, over ? white_color : gray_color);
   }
+  return updated;
 }
 
 void ScrollBox::Pack()

@@ -19,21 +19,24 @@
  * Maps list
  *****************************************************************************/
 
-
 #include <algorithm>
-#include "include/action.h"
+#include <sstream>
+#include <iostream>
+
+#include <WARMUX_action.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_file_tools.h>
+#include <WARMUX_random.h>
+
 #include "map/maps_list.h"
 #include "map/water.h"
 #include "game/config.h"
 #include "graphic/surface.h"
 #include "gui/question.h"
+#include "tool/ansi_convert.h"
 #include "tool/resource_manager.h"
-#include <WARMUX_debug.h>
-#include <WARMUX_file_tools.h>
-#include <WARMUX_random.h>
 #include "tool/string_tools.h"
 #include "tool/xml_document.h"
-#include <sstream>
 
 extern const uint MAX_WIND_OBJECTS;
 
@@ -200,8 +203,8 @@ bool InfoMap::ProcessXmlData(const xmlNode *xml)
 
 InfoMap::~InfoMap()
 {
-  if (res_profile)
-    GetResourceManager().UnLoadXMLProfile(res_profile);
+  // No need to unload profile, it will get automatically cleaned by ResourceManager
+  res_profile = NULL;
   if (normal)
     delete normal;
   if (basic)
@@ -258,11 +261,6 @@ void InfoMap::FreeData()
   delete normal; normal = NULL;
 }
 
-std::string InfoMap::GetConfigFilepath() const
-{
-  return m_directory + PATH_SEPARATOR + "config.xml";
-}
-
 /* ========================================================================== */
 static inline bool compareMaps(const InfoMap* a, const InfoMap* b)
 {
@@ -282,7 +280,9 @@ MapsList::MapsList()
   FolderSearch *f = OpenFolder(dirname);
   if (f) {
     const char *name;
-    while ((name = FolderSearchNext(f)) != NULL) LoadOneMap(dirname, name);
+    bool search_files = false;
+    while ((name = FolderSearchNext(f, search_files)) != NULL)
+      LoadOneMap(dirname, name);
     CloseFolder(f);
   } else {
     Error (Format(_("Unable to open the maps directory (%s)!"), dirname.c_str()));
@@ -292,8 +292,10 @@ MapsList::MapsList()
   dirname = config->GetPersonalDataDir() + "map" PATH_SEPARATOR;
   f = OpenFolder(dirname);
   if (f) {
+    bool search_files = false;
     const char *name;
-    while ((name = FolderSearchNext(f)) != NULL) LoadOneMap(dirname, name);
+    while ((name = FolderSearchNext(f, search_files)) != NULL)
+      LoadOneMap(dirname, name);
     CloseFolder(f);
   } else {
         std::cerr << std::endl
@@ -305,7 +307,7 @@ MapsList::MapsList()
   std::cout << std::endl << std::endl;
 
   // On a au moins une carte ?
-  if (lst.size() < 1)
+  if (lst.empty())
     Error(_("You need at least one valid map!"));
 
   /* Get the full set of map ordered */
@@ -325,15 +327,16 @@ MapsList::~MapsList()
 
 void MapsList::LoadOneMap(const std::string &dir, const std::string &map_name)
 {
-  if (map_name[0] == '.') return;
+  if (map_name[0] == '.' || map_name == "SVN~1") return;
 
   std::string fullname = dir + map_name;
   if (!DoesFolderExist(fullname))
     return;
 
-  InfoMap *nv_terrain = new InfoMap(map_name, fullname + PATH_SEPARATOR);
+  std::string real_name = ANSIToUTF8(dir, map_name);
+  InfoMap *nv_terrain = new InfoMap(real_name, fullname + PATH_SEPARATOR);
 
-  std::cout << (lst.empty()?" ":", ") << map_name;
+  std::cout << (lst.empty()?" ":", ") << real_name;
   std::cout.flush();
   lst.push_back(nv_terrain);
 }
@@ -398,4 +401,14 @@ void MapsList::FillActionMenuSetMap(Action& a) const
     a.Push("random");
     a.Push(lst.at(active_map_index)->GetRawName());
   }
+}
+
+std::vector<std::string> MapsList::GetAvailableMaps() const
+{
+  std::vector<std::string> list;
+  MSG_DEBUG("map.list", "Converting available maps\n");
+  for (uint i=0; i<lst.size(); ++i)
+    list.push_back(lst[i]->GetRawName());
+
+  return list;
 }

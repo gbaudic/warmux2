@@ -100,11 +100,11 @@ private:
 
   virtual void SignalDrowning();
   virtual void SignalGhostState(bool was_dead);
-  virtual void SignalGroundCollision(const Point2d& speed_before);
+  virtual void SignalGroundCollision(const Point2d& speed_before, const Double& contactAngle);
   virtual void SignalObjectCollision(const Point2d& my_speed_before,
                                      PhysicalObj * obj,
                                      const Point2d& obj_speed);
-  void Collision(const Point2d& speed_vector);
+  void Collision(const Point2d& speed_vector, const Double& contactAngle);
   void SetBody(Body* char_body);
 
   void UpdateFiringAngle();
@@ -193,6 +193,7 @@ public:
   void Jump();
   void HighJump();
   void BackJump();
+  void StopBackJumping() { back_jumping = false; }
 
   // Direction of the character ( -1 == looks to the left / +1 == looks to the right)
   void SetDirection(LRDirection direction);

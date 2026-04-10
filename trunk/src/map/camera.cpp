@@ -41,9 +41,9 @@
 static const Point2f MAX_CAMERA_SPEED(5000, 5000);
 static const Point2f MAX_CAMERA_ACCELERATION(1.5,1.5);
 
-#define REACTIVITY             0.6
-#define SPEED_REACTIVITY       0.05
-#define REALTIME_FOLLOW_FACTOR 0.15
+#define REACTIVITY             0.6f
+#define SPEED_REACTIVITY       0.05f
+#define REALTIME_FOLLOW_FACTOR 0.15f
 
 #define ANTICIPATION               18
 #define ADVANCE_ANTICIPATION       20
@@ -149,7 +149,10 @@ void Camera::AutoCrop()
     target = obj_pos;
 
     if (followed_object->IsMoving()) {
-      Double time_delta = 1000 / (Double)Game::GetInstance()->GetLastFrameRate();
+      float fps = Game::GetInstance()->GetLastFrameRate();
+      if (fps < 0.1f)
+        fps = 0.1f;
+      Double time_delta = 1000 / (Double)fps;
       Point2d anticipation = followed_object->GetSpeed() * time_delta;
 
       //limit anticipation to screen size/3
@@ -354,7 +357,7 @@ void Camera::HandleMouseMovement()
     last_mouse_pos = curr_pos;
 
     if (m_begin_controlled_move_time == 0) {
-      m_begin_controlled_move_time = Time::GetInstance()->Read();
+      m_begin_controlled_move_time = GameTime::GetInstance()->Read();
     }
 
     if (SDL_GetModState() & KMOD_CTRL) {
@@ -369,7 +372,7 @@ void Camera::HandleMouseMovement()
     // if the mouse has not moved at all since the user pressed the middle button, we center the camera!
     if (abs((int)first_mouse_pos.x - curr_pos.x) < 5 &&
         abs((int)first_mouse_pos.y - curr_pos.y) < 5 &&
-        Time::GetInstance()->Read() - m_begin_controlled_move_time < 500) {
+        GameTime::GetInstance()->Read() - m_begin_controlled_move_time < 500) {
       CenterOnActiveCharacter();
     }
 
@@ -422,7 +425,7 @@ void Camera::Refresh(bool ignore_user)
 
     if (auto_crop && followed_object)
       AutoCrop();
-    refresh_stopwatch.Reset(1.0);
+    refresh_stopwatch.Reset();
   }
 }
 
@@ -460,7 +463,7 @@ void Camera::CenterOnActiveCharacter()
 
 Point2i Camera::ComputeShake() const
 {
-  uint time = Time::GetInstance()->Read();
+  uint time = GameTime::GetInstance()->Read();
   ASSERT(time >= m_started_shaking);
 
   if (time > m_started_shaking + m_shake_duration || m_shake_duration == 0) {
@@ -475,7 +478,7 @@ Point2i Camera::ComputeShake() const
 
   float func_val = 1.0f;
   if (t >= 0.001f) {
-    float k_scale_angle = 10 * M_PI;
+    float k_scale_angle = float(10 * M_PI);
     float arg = k_scale_angle * t;
     // denormalized sinc
     func_val = (1 - t) * sin(arg) / arg;
@@ -502,7 +505,7 @@ void Camera::Shake(uint how_long_msec, const Point2i & amplitude, const Point2i 
 {
   MSG_DEBUG("camera.shake", "Shake added!");
 
-  uint time = Time::GetInstance()->Read();
+  uint time = GameTime::GetInstance()->Read();
 
   ASSERT(time >= m_started_shaking);
 

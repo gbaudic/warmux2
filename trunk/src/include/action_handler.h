@@ -24,20 +24,20 @@
 //-----------------------------------------------------------------------------
 #include <map>
 #include <list>
+#include <vector>
 #include <WARMUX_action_handler.h>
-#include "include/action.h"
-#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 
 //-----------------------------------------------------------------------------
 
 // Forward declarations
 struct SDL_mutex;
 class Player;
-class TeamConfig;
+class ConfigTeam;
+class Action;
 
-class ActionHandler : public WActionHandler, public Singleton<ActionHandler>
+class ActionHandler : public Singleton<ActionHandler>, public WActionHandler
 {
-private:
   friend class Singleton<ActionHandler>;
   ActionHandler();
   ~ActionHandler();

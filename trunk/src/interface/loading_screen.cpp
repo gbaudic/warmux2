@@ -52,7 +52,6 @@ LoadingScreen::~LoadingScreen()
 {
   delete loading_bg;
   delete loading_text;
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 void LoadingScreen::DrawBackground()
@@ -85,7 +84,3 @@ void LoadingScreen::StartLoading(uint nb, const std::string& resource,
 
   AppWarmux::GetInstance()->video->Flip();
 }
-
-
-
-

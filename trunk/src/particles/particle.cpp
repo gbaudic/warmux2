@@ -52,10 +52,10 @@ Particle::Particle(const std::string &name) :
   PhysicalObj(name),
   on_top(true), // if true displayed on top of characters and weapons
   m_initial_time_to_live(20),
-  m_left_time_to_live(0),
+  m_time_left_to_live(0),
   m_check_move_on_end_turn(false),
   m_time_between_scale(0),
-  m_last_refresh(Time::GetInstance()->Read()),
+  m_last_refresh(GameTime::GetInstance()->Read()),
   image(NULL)
 {
   SetCollisionModel(false, false, false);
@@ -68,14 +68,14 @@ Particle::~Particle()
 
 void Particle::Draw()
 {
-  if (m_left_time_to_live > 0) {
+  if (m_time_left_to_live > 0) {
     image->Draw(GetPosition());
   }
 }
 
 void Particle::Refresh()
 {
-  uint time = Time::GetInstance()->Read() - m_last_refresh;
+  uint time = GameTime::GetInstance()->Read() - m_last_refresh;
 
   UpdatePosition();
 
@@ -83,12 +83,12 @@ void Particle::Refresh()
 
   if (time >= m_time_between_scale) {
 
-    //ASSERT(m_left_time_to_live > 0);
-    if (m_left_time_to_live <= 0) return ;
+    //ASSERT(m_time_left_to_live > 0);
+    if (m_time_left_to_live <= 0) return ;
 
-    m_left_time_to_live--;
+    m_time_left_to_live--;
 
-    uint lived_time = m_initial_time_to_live - m_left_time_to_live;
+    uint lived_time = m_initial_time_to_live - m_time_left_to_live;
 
     //during the 1st half of the time, increase size of particle
     //after the 1st half, decrease the alpha value
@@ -102,14 +102,14 @@ void Particle::Refresh()
       image->Scale(1.0, 1.0);
       image->SetAlpha(alpha);
     }
-    m_last_refresh = Time::GetInstance()->Read() ;
+    m_last_refresh = GameTime::GetInstance()->Read() ;
   }
 }
 
 // ==============================================
 
 ParticleEngine::ParticleEngine(uint time):
-  m_last_refresh(Time::GetInstance()->Read()),
+  m_last_refresh(GameTime::GetInstance()->Read()),
   m_time_between_add(time)
 {}
 
@@ -118,8 +118,8 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
                                  Double angle, Double norme)
 {
   // time spent since last refresh (in milliseconds)
-  uint time = Time::GetInstance()->Read() - m_last_refresh;
-  uint tmp = Time::GetInstance()->Read();
+  uint time = GameTime::GetInstance()->Read() - m_last_refresh;
+  uint tmp = GameTime::GetInstance()->Read();
 
   MSG_DEBUG("random.get", "ParticleEngine::AddPeriodic(...)");
   uint delta = uint(m_time_between_add * Double(RandomSync().GetUint(3, 40)) / 10);
@@ -164,7 +164,6 @@ void ParticleEngine::Load()
   particle_sprite[DIRTYWATER_spr] = LOAD_RES_SPRITE("dirtywater_drop");
   particle_sprite[CHOCOLATEWATER_spr] = LOAD_RES_SPRITE("chocolate_drop");
   particle_sprite[EXPLOSION_spr] = LOAD_RES_SPRITE("explosion_particle");
-  GetResourceManager().UnLoadXMLProfile(res);
 
   sprites_loaded = true;
 }
@@ -225,15 +224,15 @@ void ParticleEngine::AddNow(const Point2i &position,
       break;
     case particle_WATER : particle = new WaterParticle();
       break;
-    case particle_CLEARWATER : particle = new ClearWaterParticle();
+    case particle_CLEARWATER : particle = new WaterParticle(CLEARWATER_spr);
       break;
-    case particle_LAVA: particle = new LavaParticle();
+    case particle_LAVA: particle = new WaterParticle(LAVA_spr);
       break;
-    case particle_RADIOACTIVE: particle = new RadioactiveParticle();
+    case particle_RADIOACTIVE: particle = new WaterParticle(RADIOACTIVE_spr);
       break;
-    case particle_DIRTYWATER: particle = new DirtyWaterParticle();
+    case particle_DIRTYWATER: particle = new WaterParticle(DIRTYWATER_spr);
       break;
-    case particle_CHOCOLATEWATER: particle = new ChocolateWaterParticle();
+    case particle_CHOCOLATEWATER: particle = new WaterParticle(RADIOACTIVE_spr);
       break;
     case particle_EXPLOSION: particle = new ExplosionParticle();
     case particle_BODY_MEMBER:
@@ -282,8 +281,10 @@ void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
   const uint little_partic_nbr = 1;
-  static const float little_cos[] = { 1.000000, 0.809017, 0.309017, -0.309017, -0.809017, -1.000000, -0.809017, -0.309017, 0.309017, 0.809017 };
-  static const float little_sin[] = { 0.000000, 0.587785, 0.951057, 0.951056, 0.587785, -0.000000, -0.587785, -0.951056, -0.951056, -0.587785 };
+  static const float little_cos[] = { 1.000000f,  0.809017f,  0.309017f, -0.309017f, -0.809017f,
+                                     -1.000000f, -0.809017f, -0.309017f,  0.309017f,  0.809017f };
+  static const float little_sin[] = { 0.000000f,  0.587785f,  0.951057f,  0.951056f,  0.587785f,
+                                     -0.000000f, -0.587785f, -0.951056f, -0.951056f, -0.587785f };
 
   Particle *particle = NULL;
 
@@ -314,8 +315,8 @@ void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius
   const uint big_partic_nbr = 1;
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
-  static const float big_cos[] = { 1.000000, -0.809017, 0.309017, 0.309017, -0.809017 };
-  static const float big_sin[] = { 0.000000, 0.587785, -0.951056, 0.951057, -0.587785 };
+  static const float big_cos[] = { 1.000000f, -0.809017f,  0.309017f, 0.309017f, -0.809017f };
+  static const float big_sin[] = { 0.000000f,  0.587785f, -0.951056f, 0.951057f, -0.587785f };
 
   Particle *particle = NULL;
   for (uint i=0; i<big_partic_nbr; i++) {

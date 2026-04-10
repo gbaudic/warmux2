@@ -19,11 +19,14 @@
  * Warmux action handler.
  *****************************************************************************/
 
+#include <algorithm>
 #include <iostream>
 #include <SDL_mutex.h>
 #include <WARMUX_debug.h>
 #include <WARMUX_distant_cpu.h>
+#include <WARMUX_file_tools.h>
 #include <WARMUX_team_config.h>
+#include <WARMUX_i18n.h>
 
 #include "action_handler.h"
 #include "character/character.h"
@@ -33,6 +36,7 @@
 #include "game/game.h"
 #include "game/game_time.h"
 #include "graphic/colors.h"
+#include "gui/question.h"
 #include "include/app.h"
 #include "include/constant.h"
 #include "interface/interface.h"
@@ -50,9 +54,10 @@
 #include "object/bonus_box.h"
 #include "object/medkit.h"
 #include "object/objbox.h"
+#include "replay/replay.h"
+#include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include "sound/jukebox.h"
 #include "weapon/construct.h"
 #include "weapon/explosion.h"
 #include "weapon/gnu.h"
@@ -89,7 +94,7 @@ static void FAIL_IF_GAMEMASTER(Action *a)
 // #############################################################################
 // #############################################################################
 
-static void Action_Network_ClientChangeState (Action *a)
+static void Action_Network_ClientChangeState(Action *a)
 {
   if (!Network::GetInstance()->IsGameMaster())
     return;
@@ -97,9 +102,9 @@ static void Action_Network_ClientChangeState (Action *a)
   WNet::net_game_state_t client_state = (WNet::net_game_state_t)a->PopInt();
 
   MSG_DEBUG("network.game_state", "game master (%s) <-- player %d (%s)",
-    WNet::GetGameStateAsString(Network::GetInstance()->GetState()),
-    player_id,
-    WNet::GetGameStateAsString(client_state));
+            WNet::GetGameStateAsString(Network::GetInstance()->GetState()),
+            player_id,
+            WNet::GetGameStateAsString(client_state));
 
   switch (Network::GetInstance()->GetState()) {
   case WNet::NO_NETWORK:
@@ -127,7 +132,8 @@ static void Action_Network_ClientChangeState (Action *a)
   default:
     NET_ASSERT(false)
       {
-        if(a->GetCreator()) a->GetCreator()->ForceDisconnection();
+        if (a->GetCreator())
+          a->GetCreator()->ForceDisconnection();
         return;
       }
     break;
@@ -168,8 +174,9 @@ static void Action_Network_MasterChangeState(Action *a)
   default:
     NET_ASSERT(false)
     {
-      if(a->GetCreator()) a->GetCreator()->ForceDisconnection();
-        return;
+      if (a->GetCreator())
+        a->GetCreator()->ForceDisconnection();
+      return;
     }
   }
 }
@@ -221,7 +228,8 @@ static void Action_Network_Check_Phase1(Action *a)
 enum net_error {
   WRONG_MAP_NAME,
   WRONG_MAP_CRC,
-  WRONG_TEAM
+  WRONG_TEAM,
+  WRONG_SYNC,
 };
 
 static std::string NetErrorId_2_String(enum net_error error)
@@ -233,7 +241,24 @@ static std::string NetErrorId_2_String(enum net_error error)
     return _("Wrong map CRC!");
   case WRONG_TEAM:
     return _("Wrong team!");
+  case WRONG_SYNC:
+    return _("Game out of sync!");
   default: return "";
+  }
+}
+
+/*
+ * This function is useful to call in a context of Action execution
+ * while Network::Disconnect cannot be called because it will
+ * result in a deadlock.
+ */
+static void ForceGlobalDisconnection()
+{
+  std::list<DistantComputer*>& cpus = Network::GetInstance()->GetRemoteHosts();
+  for (std::list<DistantComputer*>::iterator itcpu = cpus.begin();
+       itcpu != cpus.end();
+       ++itcpu) {
+    (*itcpu)->ForceDisconnection();
   }
 }
 
@@ -241,7 +266,7 @@ static void Action_Network_Disconnect_On_Error(Action *a)
 {
   enum net_error error = (enum net_error)a->PopInt();
   AppWarmux::DisplayError(NetErrorId_2_String(error));
-  Network::Disconnect();
+  ForceGlobalDisconnection();
 }
 
 static void DisconnectOnError(enum net_error error)
@@ -249,10 +274,10 @@ static void DisconnectOnError(enum net_error error)
   Action a(Action::ACTION_NETWORK_DISCONNECT_ON_ERROR);
   a.Push(int(error));
   Network::GetInstance()->SendActionToAll(a);
-  Network::Disconnect();
+  ForceGlobalDisconnection();
 }
 
-static void Error_in_Network_Check_Phase2 (Action *a, enum net_error error)
+static void Error_in_Network_Check_Phase2(Action *a, enum net_error error)
 {
   std::string str = Format(_("Error initializing network: Client %s does not agree with you!! - %s"),
                            a->GetCreator()->GetAddress().c_str(),
@@ -262,7 +287,7 @@ static void Error_in_Network_Check_Phase2 (Action *a, enum net_error error)
   AppWarmux::DisplayError(str);
 }
 
-static void Action_Network_Check_Phase2 (Action *a)
+static void Action_Network_Check_Phase2(Action *a)
 {
   // Game master receives information from the client
   if (!Network::GetInstance()->IsGameMaster())
@@ -303,13 +328,13 @@ static void Action_Network_Check_Phase2 (Action *a)
 
 // ########################################################
 
-static void Action_Player_ChangeWeapon (Action *a)
+static void Action_Player_ChangeWeapon(Action *a)
 {
   JukeBox::GetInstance()->Play("default", "change_weapon");
   ActiveTeam().SetWeapon(static_cast<Weapon::Weapon_type>(a->PopInt()));
 }
 
-static void Action_Player_ChangeCharacter (Action *a)
+static void Action_Player_ChangeCharacter(Action *a)
 {
   JukeBox::GetInstance()->Play("default", "character/change_in_same_team");
   int char_no = a->PopInt();
@@ -318,14 +343,14 @@ static void Action_Player_ChangeCharacter (Action *a)
   Camera::GetInstance()->FollowObject(&ActiveCharacter(),true);
 }
 
-static void Action_Game_CalculateFrame (Action */*a*/)
+static void Action_Game_CalculateFrame(Action */*a*/)
 {
   // Nothing to do here:
   // It is just an indication for the action handler
   // that the frame is complete.
 }
 
-static void Action_DropBonusBox (Action */*a*/)
+static void Action_DropBonusBox(Action */*a*/)
 {
   ObjBox* current_box = Game::GetInstance()->GetCurrentBox();
   if (current_box != NULL) {
@@ -333,7 +358,7 @@ static void Action_DropBonusBox (Action */*a*/)
   }
 }
 
-static void Action_RequestBonusBoxDrop (Action */*a*/)
+static void Action_RequestBonusBoxDrop(Action */*a*/)
 {
   if (Network::GetInstance()->IsTurnMaster())
     Game::GetInstance()->RequestBonusBoxDrop();
@@ -341,7 +366,7 @@ static void Action_RequestBonusBoxDrop (Action */*a*/)
 
 // ########################################################
 
-static void Action_Rules_SetGameMode (Action *a)
+static void Action_Rules_SetGameMode(Action *a)
 {
   FAIL_IF_GAMEMASTER(a);
 
@@ -406,11 +431,12 @@ static void Action_ChatMessage(Action *a)
   uint player_id = a->PopInt();
   std::string message = a->PopString();
   DistantComputer *cpu = a->GetCreator();
-  const Player* player = cpu ? cpu->GetPlayer(player_id)
-                             : &Network::GetInstance()->GetPlayer();
+  const Team *team = NULL;
+  std::string nickname = "?";
+  const Player* player = (cpu) ? cpu->GetPlayer(player_id)
+                               : &Network::GetInstance()->GetPlayer();
 
   // Search first active team
-  Team *team = NULL;
   if (player) {
     const std::list<ConfigTeam>& teams = player->GetTeams();
     std::list<ConfigTeam>::const_iterator it = teams.begin(), found = it;
@@ -423,13 +449,16 @@ static void Action_ChatMessage(Action *a)
 
     int unused_buffer;
     team = GetTeamsList().FindById(found->id, unused_buffer);
+    nickname = team->GetPlayerName();
   }
   const Color& color = (team) ? team->GetColor()
                               : DefaultCPUColor(cpu);
-  const std::string& nickname = (player) ? player->GetNickname() : "?";
 
-  ChatLogger::GetInstance()->LogMessage(nickname+"> "+message);
-  AppWarmux::GetInstance()->ReceiveMsgCallback(nickname+"> "+message, color);
+  // cpu is NULL on replay, so only log if !=NULL
+  if (Replay::GetConstInstance()->IsPlaying())
+    ChatLogger::GetInstance()->LogMessage(nickname+"> "+message);
+  AppWarmux::GetInstance()->ReceiveMsgCallback(nickname+"> "+message, color,
+                                               a->GetType() == Action::ACTION_CHAT_INGAME_MESSAGE);
 }
 
 static void Action_AnnouncePause(Action *a)
@@ -450,9 +479,57 @@ static void _Action_SelectMap(Action *a)
     MapsList::GetInstance()->SelectRandomMapByName(a->PopString());
   }
 
-  if (Network::GetInstance()->network_menu != NULL) {
-    Network::GetInstance()->network_menu->ChangeMapCallback();
+  Network *net = Network::GetInstance();
+  if (net->network_menu && !net->IsGameMaster()) {
+    net->network_menu->ChangeMapCallback();
   }
+}
+
+static void _Action_Game_MapList(Action *a)
+{
+  int                num        = a->PopInt();
+  MapsList          *map_list   = MapsList::GetInstance();
+  // We are going to directly update the DistantComputer map list
+  std::vector<uint>& index_list = a->GetCreator()->GetAvailableMaps();
+
+  index_list.clear();
+  MSG_DEBUG("action_handler.map", "Map list size for %p: %i\n", a->GetCreator(), num);
+  while (num--) {
+    std::string map_name = a->PopString();
+    int index = map_list->FindMapById(map_name);
+    if (index != -1) {
+      index_list.push_back(index);
+      MSG_DEBUG("action_handler.map", "Adding map %s of index %i (%i left)\n", map_name.c_str(), index, num);
+    } else
+      MSG_DEBUG("action_handler.map", "Rejecting map %s  (%i left)\n", map_name.c_str(), num);
+  }
+}
+
+static void Action_Game_SetMapList(Action *a)
+{
+  if (a)
+    _Action_Game_MapList(a);
+  Network  *net      = Network::GetInstance();
+  if (!net->IsGameMaster()) {
+    MSG_DEBUG("action_handler.map", "Dropping message from %p\n", a->GetCreator());
+    return;
+  }
+
+  // This is NetworkServer being invoked here
+  net->SendMapsList();
+}
+
+static void Action_Game_ForceMapList(Action *a)
+{
+  _Action_Game_MapList(a);
+
+  // This list should be the common list, already a subset of our own
+  // and thus we should apply it
+  Network  *net      = Network::GetInstance();
+  ASSERT(net->network_menu);
+  net->network_menu->SetMapsCallback(a->GetCreator()->GetAvailableMaps());
+
+  //_Action_SelectMap(a);
 }
 
 static Player* _Action_GetPlayer(Action *a, uint player_id)
@@ -503,12 +580,9 @@ static void Action_Game_Info(Action *a)
 
   Network::GetInstance()->SetState(WNet::NETWORK_MENU_INIT);
 
-  _Action_SelectMap(a);
-
   uint nb_players = a->PopInt();
   for (uint i = 0; i < nb_players; i++) {
     uint player_id = a->PopInt();
-
 
     ASSERT (a->GetCreator() && a->GetCreator()->GetPlayer(player_id) == NULL);
     ASSERT (player_id != Network::GetInstance()->GetPlayer().GetId());
@@ -523,14 +597,14 @@ static void Action_Game_Info(Action *a)
   }
 }
 
-static void Action_Game_SetMap (Action *a)
+static void Action_Game_SetMap(Action *a)
 {
   FAIL_IF_GAMEMASTER(a);
 
   _Action_SelectMap(a);
 }
 
-static void Action_Game_AddTeam (Action *a)
+static void Action_Game_AddTeam(Action *a)
 {
   uint player_id = a->PopInt();
   ASSERT(Network::GetInstance()->network_menu->HasOpenTeamSlot());
@@ -542,7 +616,7 @@ static void Action_Game_AddTeam (Action *a)
   Network::GetInstance()->UnlockRemoteHosts();
 }
 
-static void Action_Game_UpdateTeam (Action *a)
+static void Action_Game_UpdateTeam(Action *a)
 {
   uint player_id = a->PopInt();
   std::string old_team_id = a->PopString();
@@ -581,7 +655,7 @@ static void _Action_DelTeam(Player *player, const std::string& team_id)
     Network::GetInstance()->network_menu->DelTeamCallback(team_id);
 }
 
-static void Action_Game_DelTeam (Action *a)
+static void Action_Game_DelTeam(Action *a)
 {
   uint player_id = a->PopInt();
   std::string team_id = a->PopString();
@@ -672,7 +746,7 @@ void WARMUX_DisconnectPlayer(Player& player)
   while (it != player.owned_teams.end()) {
     std::string team_id = it->id;
 
-    if (Game::IsRunning()) {
+    if (GameIsRunning()) {
       player.RemoveTeam(team_id);
       int unused_buffer;
       Team* the_team = GetTeamsList().FindById(team_id, unused_buffer);
@@ -839,17 +913,27 @@ static void Action_Network_VerifyRandomSync(Action *a)
 {
   uint local_seed = RandomSync().GetSeed();
   uint remote_seed = (uint)a->PopInt();
-  MSG_DEBUG("random.verify","Verify seed: %d (local) == %d (remote)", local_seed, remote_seed);
+  MSG_DEBUG("random.verify", "Verify seed: %d (local) == %d (remote)", local_seed, remote_seed);
 
-  ASSERT(remote_seed == local_seed);
+  if (local_seed != remote_seed) {
 
-  if (local_seed != remote_seed)
-    RandomSync().SetSeed(remote_seed);
+    Question question(Question::WARNING);
+    question.Set(_("Game is not synchronized anymore! This is BAD, the network game will be "
+                   "interrupted, sorry. Please, report the bug to the Warmux Team by mail or "
+                   "through the forum. Precise your computer configuration and attach the "
+                   "bug.wrf file that has just been created in your home folder."),
+                   true, 0);
+    question.Ask();
+    DisconnectOnError(WRONG_SYNC);
+    Replay *replay = Replay::GetInstance();
+    if (replay->IsRecording())
+      replay->SaveReplay(GetHome() + "bug.wrf", "I'm bugged");
+  }
 }
 
 static void Action_Time_VerifySync(Action *a)
 {
-  uint local_time = Time::GetInstance()->Read();
+  uint local_time = GameTime::GetInstance()->Read();
   uint remote_time = (uint)a->PopInt();
   MSG_DEBUG("time.verify","Verify time: %d (local) == %d (remote)", local_time, remote_time);
   ASSERT(local_time == remote_time);
@@ -862,15 +946,15 @@ static void Action_Network_Ping(Action */*a*/)
 
 // ########################################################
 
-static void _Info_ConnectHost(const std::string& hostname, const std::string& nicknames)
+static void _Info_ConnectHost(const std::string& host_info)
 {
   // For translators: extended in "<nickname> (<host>) just connected
-  std::string msg = Format("%s (%s) just connected", nicknames.c_str(), hostname.c_str());
+  std::string msg = Format(_("%s just connected"), host_info.c_str());
   std::cerr << msg.c_str() << std::endl;
 
   ChatLogger::LogMessageIfOpen(msg);
 
-  if (Game::IsRunning())
+  if (GameIsRunning())
     GameMessages::GetInstance()->Add(msg, primary_red_color);
   else if (Network::GetInstance()->network_menu)
     //Network Menu
@@ -879,6 +963,8 @@ static void _Info_ConnectHost(const std::string& hostname, const std::string& ni
   if (Config::GetInstance()->GetWarnOnNewPlayer())
     JukeBox::GetInstance()->Play("default", "menu/newcomer");
 }
+
+
 
 static inline void add_player_info_to_action(Action& a, const Player& player)
 {
@@ -899,7 +985,6 @@ void SendInitialGameInfo(DistantComputer* client, int added_player_id)
   MSG_DEBUG("network", "Server: Sending map information");
 
   Action a(Action::ACTION_GAME_INFO);
-  MapsList::GetInstance()->FillActionMenuSetMap(a);
 
   MSG_DEBUG("network", "Server: Sending teams information");
 
@@ -911,6 +996,8 @@ void SendInitialGameInfo(DistantComputer* client, int added_player_id)
   std::list<Player>::const_iterator player;
 
   for (it = hosts.begin(); it != hosts.end(); it++) {
+    if (*it == client)
+      continue;
     const std::list<Player>& players = (*it)->GetPlayers();
 
     for (player = players.begin(); player != players.end(); player++) {
@@ -926,6 +1013,8 @@ void SendInitialGameInfo(DistantComputer* client, int added_player_id)
   add_player_info_to_action(a, Network::GetInstance()->GetPlayer());
 
   for (it = hosts.begin(); it != hosts.end(); it++) {
+    if (*it == client)
+      continue;
     const std::list<Player>& players = (*it)->GetPlayers();
 
     for (player = players.begin(); player != players.end(); player++) {
@@ -944,14 +1033,12 @@ void SendInitialGameInfo(DistantComputer* client, int added_player_id)
 static void Action_Info_ClientConnect(Action *a)
 {
   int player_id = a->PopInt();
-  std::string hostname = a->PopString();
-  std::string nicknames = a->PopString();
+  std::string host_info = a->PopString();
 
   ASSERT(a->GetCreator() && a->GetCreator()->GetPlayer(player_id) == NULL);
   a->GetCreator()->AddPlayer(player_id);
 
-
-  _Info_ConnectHost(hostname, nicknames);
+  _Info_ConnectHost(host_info);
 
   if (Network::GetInstance()->IsGameMaster()) {
     SendInitialGameInfo(a->GetCreator(), player_id);
@@ -960,45 +1047,38 @@ static void Action_Info_ClientConnect(Action *a)
 
 void WARMUX_ConnectHost(DistantComputer& host)
 {
-  std::string hostname = host.GetAddress();
-  std::string nicknames = host.GetNicknames();
+  std::string host_info = host.ToString();
 
-  _Info_ConnectHost(hostname, nicknames);
+  _Info_ConnectHost(host_info);
 
   if (Network::GetInstance()->IsServer()) {
     Action a(Action::ACTION_INFO_CLIENT_CONNECT);
     ASSERT(host.GetPlayers().size() == 1);
     int player_id = host.GetPlayers().back().GetId();
     a.Push(player_id);
-    a.Push(hostname);
-    a.Push(nicknames);
+    a.Push(host_info);
 
     Network::GetInstance()->SendActionToAllExceptOne(a, &host);
   }
 }
 
-static void _Info_DisconnectHost(const std::string& hostname, const std::string& nicknames)
+static void _Info_DisconnectHost(const std::string& host)
 {
   // For translators: extended in "<nickname> (<host>) just disconnected
-  std::string msg = Format("%s (%s) just disconnected", nicknames.c_str(), hostname.c_str());
+  std::string msg = Format(_("%s just disconnected"), host.c_str());
   fprintf(stderr, "%s\n", msg.c_str());
 
   ChatLogger::LogMessageIfOpen(msg);
 
-  if (Game::IsRunning())
-    GameMessages::GetInstance()->Add(msg, primary_red_color);
-  else if (Network::GetInstance()->network_menu != NULL)
-    //Network Menu
-    AppWarmux::GetInstance()->ReceiveMsgCallback(msg, primary_red_color);
+  AppWarmux::GetInstance()->ReceiveMsgCallback(msg, primary_red_color);
 }
 
 // Used to notify clients that someone disconnected from the server
 static void Action_Info_ClientDisconnect(Action *a)
 {
-  std::string hostname = a->PopString();
-  std::string nicknames = a->PopString();
+  std::string host = a->PopString();
 
-  _Info_DisconnectHost(hostname, nicknames);
+  _Info_DisconnectHost(host);
 
   int nb_players = a->PopInt();
   for (int i = 0; i < nb_players; i++) {
@@ -1009,15 +1089,13 @@ static void Action_Info_ClientDisconnect(Action *a)
 
 void WARMUX_DisconnectHost(DistantComputer& host)
 {
-  std::string hostname = host.GetAddress();
-  std::string nicknames = host.GetNicknames();
+  std::string host_info = host.ToString();
 
-  _Info_DisconnectHost(hostname, nicknames);
+  _Info_DisconnectHost(host_info);
 
   if (Network::GetInstance()->IsServer()) {
     Action a(Action::ACTION_INFO_CLIENT_DISCONNECT);
-    a.Push(hostname);
-    a.Push(nicknames);
+    a.Push(host_info);
     a.Push(int(host.GetPlayers().size()));
 
     std::list<Player>::const_iterator player_it;
@@ -1026,6 +1104,9 @@ void WARMUX_DisconnectHost(DistantComputer& host)
     }
     Network::GetInstance()->SendActionToAll(a); // host is already removed from the list
   }
+
+  // Passing NULL for action makes it not parse the action but do the remaining processing
+  Action_Game_SetMapList(NULL);
 }
 // ########################################################
 // ########################################################
@@ -1042,11 +1123,12 @@ void Action_Handler_Init()
   ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_CHECK_PHASE2, "NETWORK_check2", &Action_Network_Check_Phase2);
   ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_DISCONNECT_ON_ERROR, "NETWORK_disconnect_on_error", &Action_Network_Disconnect_On_Error);
   ActionHandler::GetInstance()->Register(Action::ACTION_NETWORK_SET_GAME_MASTER, "NETWORK_set_game_master", &Action_Network_Set_GameMaster);
+  ActionHandler::GetInstance()->Register(Action::ACTION_CHAT_MENU_MESSAGE, "menu_chat_message", Action_ChatMessage);
 
   // ########################################################
+  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_CALCULATE_FRAME, "GAME_calculate_frame", &Action_Game_CalculateFrame);
   ActionHandler::GetInstance()->Register(Action::ACTION_PLAYER_CHANGE_WEAPON, "PLAYER_change_weapon", &Action_Player_ChangeWeapon);
   ActionHandler::GetInstance()->Register(Action::ACTION_PLAYER_CHANGE_CHARACTER, "PLAYER_change_character", &Action_Player_ChangeCharacter);
-  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_CALCULATE_FRAME, "GAME_calculate_frame", &Action_Game_CalculateFrame);
 
   // ########################################################
   // To be sure that rules will be the same on each computer
@@ -1054,7 +1136,7 @@ void Action_Handler_Init()
 
   // ########################################################
   // Chat message
-  ActionHandler::GetInstance()->Register(Action::ACTION_CHAT_MESSAGE, "chat_message", Action_ChatMessage);
+  ActionHandler::GetInstance()->Register(Action::ACTION_CHAT_INGAME_MESSAGE, "ingame_chat_message", Action_ChatMessage);
   ActionHandler::GetInstance()->Register(Action::ACTION_ANNOUNCE_PAUSE, "chat_announce_pause", Action_AnnouncePause);
 
   // Initial information about the game: map, teams already selected, ...
@@ -1062,6 +1144,8 @@ void Action_Handler_Init()
 
   // Map selection in network menu
   ActionHandler::GetInstance()->Register(Action::ACTION_GAME_SET_MAP, "GAME_set_map", &Action_Game_SetMap);
+  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_SET_MAP_LIST, "GAME_set_map_list", &Action_Game_SetMapList);
+  ActionHandler::GetInstance()->Register(Action::ACTION_GAME_FORCE_MAP_LIST, "GAME_set_map_list", &Action_Game_ForceMapList);
 
   // Teams selection in network menu
   ActionHandler::GetInstance()->Register(Action::ACTION_GAME_ADD_TEAM, "GAME_add_team", &Action_Game_AddTeam);
@@ -1131,45 +1215,41 @@ ActionHandler::~ActionHandler()
 {
 }
 
+static bool IsFrameAction(const Action* a)
+{
+  return a->GetType() == Action::ACTION_GAME_CALCULATE_FRAME;
+}
+
 bool ActionHandler::ExecActionsForOneFrame()
 {
-  ASSERT(Game::GetInstance()->IsRunning());
-  Action * a;
-  std::list<Action*>::iterator it;
-  bool frame_complete = false;
+  ASSERT(GameIsRunning());
+
   Lock();
-  it = queue.begin();
-  while (it != queue.end() && !frame_complete) {
-    a = *it;
-    if (a->GetType() == Action::ACTION_GAME_CALCULATE_FRAME)
-      frame_complete = true;
-    it++;
-  }
-  if (!frame_complete) {
+  if (std::find_if(queue.begin(), queue.end(), IsFrameAction) == queue.end()) {
     UnLock();
     return false;
   }
 
-  frame_complete = false;
-  it = queue.begin();
-  while (it != queue.end() && !frame_complete) {
-    a = (*it);
-    if (a->GetType() == Action::ACTION_GAME_CALCULATE_FRAME)
-      frame_complete = true;
+  // Frame is obviously complete from now on
+  std::list<Action*>::iterator it = queue.begin();
+  Replay *replay = Replay::GetInstance();
+  while (it != queue.end()) {
+    Action * a = (*it);
+    bool complete = IsFrameAction(a);
 
-    if (!a->IsFrameLess()) {
-      MSG_DEBUG("action_time", "-> Action %s (action time: %u, time: %u)",
-                GetActionName(a->GetType()).c_str(), a->GetTimestamp(),
-                Time::GetInstance()->Read());
-    }
-
+    // Do it first, else Exec will strip its content!
+    if (replay->IsRecording())
+      replay->StoreAction(a);
     Exec(a);
 
     delete *it;
     it = queue.erase(it);
+    if (complete)
+      break;
   }
   UnLock();
-  return frame_complete;
+
+  return true;
 }
 
 void ActionHandler::ExecFrameLessActions()

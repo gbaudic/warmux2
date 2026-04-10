@@ -27,9 +27,6 @@
 #include "SDL_timer.h"
 #include "SDL_audio.h"
 #include "SDL_sysaudio.h"
-#include "SDL_mixer_MMX.h"
-#include "SDL_mixer_MMX_VC.h"
-#include "SDL_mixer_m68k.h"
 
 /* This table is used to add two sound values together and pin
  * the value to avoid overflow.  (used with permission from ARDI)
@@ -87,178 +84,126 @@ static const Uint8 mix8[] =
 };
 
 /* The volume ranges from 0 - 128 */
-#define ADJUST_VOLUME(s, v)  (s = (s*v)/SDL_MIX_MAXVOLUME)
-#define ADJUST_VOLUME_U8(s, v) (s = (((s-128)*v)/SDL_MIX_MAXVOLUME)+128)
+#define ADJUST_VOLUME(s, v)	(s = (s*v)/SDL_MIX_MAXVOLUME)
+#define ADJUST_VOLUME_U8(s, v)	(s = (((s-128)*v)/SDL_MIX_MAXVOLUME)+128)
 
 void SDL_MixAudio (Uint8 *dst, const Uint8 *src, Uint32 len, int volume)
 {
- Uint16 format;
+	Uint16 format;
 
- if ( volume == 0 ) {
-   return;
- }
- /* Mix the user-level audio format */
- if ( current_audio ) {
-   if ( current_audio->convert.needed ) {
-     format = current_audio->convert.src_format;
-   } else {
-     format = current_audio->spec.format;
-   }
- } else {
-     /* HACK HACK HACK */
-   format = AUDIO_S16;
- }
- switch (format) {
+	if ( volume == 0 ) {
+		return;
+	}
+	/* Mix the user-level audio format */
+	if ( current_audio ) {
+		if ( current_audio->convert.needed ) {
+			format = current_audio->convert.src_format;
+		} else {
+			format = current_audio->spec.format;
+		}
+	} else {
+  		/* HACK HACK HACK */
+		format = AUDIO_S16;
+	}
+	switch (format) {
 
-   case AUDIO_U8: {
-#if defined(__GNUC__) && defined(__M68000__) && !defined(__mcoldfire__) && defined(SDL_ASSEMBLY_ROUTINES)
-     SDL_MixAudio_m68k_U8((char*)dst,(char*)src,(unsigned long)len,(long)volume,(char *)mix8);
-#else
-     Uint8 src_sample;
+		case AUDIO_U8: {
+			Uint8 src_sample;
 
-     while ( len-- ) {
-       src_sample = *src;
-       ADJUST_VOLUME_U8(src_sample, volume);
-       *dst = mix8[*dst+src_sample];
-       ++dst;
-       ++src;
-     }
-#endif
-   }
-   break;
+			while ( len-- ) {
+				src_sample = *src;
+				ADJUST_VOLUME_U8(src_sample, volume);
+				*dst = mix8[*dst+src_sample];
+				++dst;
+				++src;
+			}
+		}
+		break;
 
-   case AUDIO_S8: {
-#if defined(SDL_BUGGY_MMX_MIXERS) /* buggy, so we're disabling them. --ryan. */
-#if defined(__GNUC__) && defined(__i386__) && defined(SDL_ASSEMBLY_ROUTINES)
-     if (SDL_HasMMX())
-     {
-       SDL_MixAudio_MMX_S8((char*)dst,(char*)src,(unsigned int)len,(int)volume);
-     }
-     else
-#elif ((defined(_MSC_VER) && defined(_M_IX86)) || defined(__WATCOMC__)) && defined(SDL_ASSEMBLY_ROUTINES)
-     if (SDL_HasMMX())
-     {
-       SDL_MixAudio_MMX_S8_VC((char*)dst,(char*)src,(unsigned int)len,(int)volume);
-     }
-     else
-#endif
-#endif
+		case AUDIO_S8: {
+			Sint8 *dst8, *src8;
+			Sint8 src_sample;
+			int dst_sample;
+			const int max_audioval = ((1<<(8-1))-1);
+			const int min_audioval = -(1<<(8-1));
 
-#if defined(__GNUC__) && defined(__M68000__) && !defined(__mcoldfire__) && defined(SDL_ASSEMBLY_ROUTINES)
-     SDL_MixAudio_m68k_S8((char*)dst,(char*)src,(unsigned long)len,(long)volume);
-#else
-     {
-     Sint8 *dst8, *src8;
-     Sint8 src_sample;
-     int dst_sample;
-     const int max_audioval = ((1<<(8-1))-1);
-     const int min_audioval = -(1<<(8-1));
+			src8 = (Sint8 *)src;
+			dst8 = (Sint8 *)dst;
+			while ( len-- ) {
+				src_sample = *src8;
+				ADJUST_VOLUME(src_sample, volume);
+				dst_sample = *dst8 + src_sample;
+				if ( dst_sample > max_audioval ) {
+					*dst8 = max_audioval;
+				} else
+				if ( dst_sample < min_audioval ) {
+					*dst8 = min_audioval;
+				} else {
+					*dst8 = dst_sample;
+				}
+				++dst8;
+				++src8;
+			}
+		}
+		break;
 
-     src8 = (Sint8 *)src;
-     dst8 = (Sint8 *)dst;
-     while ( len-- ) {
-       src_sample = *src8;
-       ADJUST_VOLUME(src_sample, volume);
-       dst_sample = *dst8 + src_sample;
-       if ( dst_sample > max_audioval ) {
-         *dst8 = max_audioval;
-       } else
-       if ( dst_sample < min_audioval ) {
-         *dst8 = min_audioval;
-       } else {
-         *dst8 = dst_sample;
-       }
-       ++dst8;
-       ++src8;
-     }
-     }
-#endif
-   }
-   break;
+		case AUDIO_S16LSB: {
+			Sint16 src1, src2;
+			int dst_sample;
+			const int max_audioval = ((1<<(16-1))-1);
+			const int min_audioval = -(1<<(16-1));
 
-   case AUDIO_S16LSB: {
-#if defined(SDL_BUGGY_MMX_MIXERS) /* buggy, so we're disabling them. --ryan. */
-#if defined(__GNUC__) && defined(__i386__) && defined(SDL_ASSEMBLY_ROUTINES)
-     if (SDL_HasMMX())
-     {
-       SDL_MixAudio_MMX_S16((char*)dst,(char*)src,(unsigned int)len,(int)volume);
-     }
-                        else
-#elif ((defined(_MSC_VER) && defined(_M_IX86)) || defined(__WATCOMC__)) && defined(SDL_ASSEMBLY_ROUTINES)
-     if (SDL_HasMMX())
-     {
-       SDL_MixAudio_MMX_S16_VC((char*)dst,(char*)src,(unsigned int)len,(int)volume);
-     }
-     else
-#endif
-#endif
+			len /= 2;
+			while ( len-- ) {
+				src1 = ((src[1])<<8|src[0]);
+				ADJUST_VOLUME(src1, volume);
+				src2 = ((dst[1])<<8|dst[0]);
+				src += 2;
+				dst_sample = src1+src2;
+				if ( dst_sample > max_audioval ) {
+					dst_sample = max_audioval;
+				} else
+				if ( dst_sample < min_audioval ) {
+					dst_sample = min_audioval;
+				}
+				dst[0] = dst_sample&0xFF;
+				dst_sample >>= 8;
+				dst[1] = dst_sample&0xFF;
+				dst += 2;
+			}
+		}
+		break;
 
-#if defined(__GNUC__) && defined(__M68000__) && !defined(__mcoldfire__) && defined(SDL_ASSEMBLY_ROUTINES)
-     SDL_MixAudio_m68k_S16LSB((short*)dst,(short*)src,(unsigned long)len,(long)volume);
-#else
-     {
-     Sint16 src1, src2;
-     int dst_sample;
-     const int max_audioval = ((1<<(16-1))-1);
-     const int min_audioval = -(1<<(16-1));
+		case AUDIO_S16MSB: {
+			Sint16 src1, src2;
+			int dst_sample;
+			const int max_audioval = ((1<<(16-1))-1);
+			const int min_audioval = -(1<<(16-1));
 
-     len /= 2;
-     while ( len-- ) {
-       src1 = ((src[1])<<8|src[0]);
-       ADJUST_VOLUME(src1, volume);
-       src2 = ((dst[1])<<8|dst[0]);
-       src += 2;
-       dst_sample = src1+src2;
-       if ( dst_sample > max_audioval ) {
-         dst_sample = max_audioval;
-       } else
-       if ( dst_sample < min_audioval ) {
-         dst_sample = min_audioval;
-       }
-       dst[0] = dst_sample&0xFF;
-       dst_sample >>= 8;
-       dst[1] = dst_sample&0xFF;
-       dst += 2;
-     }
-     }
-#endif
-   }
-   break;
+			len /= 2;
+			while ( len-- ) {
+				src1 = ((src[0])<<8|src[1]);
+				ADJUST_VOLUME(src1, volume);
+				src2 = ((dst[0])<<8|dst[1]);
+				src += 2;
+				dst_sample = src1+src2;
+				if ( dst_sample > max_audioval ) {
+					dst_sample = max_audioval;
+				} else
+				if ( dst_sample < min_audioval ) {
+					dst_sample = min_audioval;
+				}
+				dst[1] = dst_sample&0xFF;
+				dst_sample >>= 8;
+				dst[0] = dst_sample&0xFF;
+				dst += 2;
+			}
+		}
+		break;
 
-   case AUDIO_S16MSB: {
-#if defined(__GNUC__) && defined(__M68000__) && !defined(__mcoldfire__) && defined(SDL_ASSEMBLY_ROUTINES)
-     SDL_MixAudio_m68k_S16MSB((short*)dst,(short*)src,(unsigned long)len,(long)volume);
-#else
-     Sint16 src1, src2;
-     int dst_sample;
-     const int max_audioval = ((1<<(16-1))-1);
-     const int min_audioval = -(1<<(16-1));
-
-     len /= 2;
-     while ( len-- ) {
-       src1 = ((src[0])<<8|src[1]);
-       ADJUST_VOLUME(src1, volume);
-       src2 = ((dst[0])<<8|dst[1]);
-       src += 2;
-       dst_sample = src1+src2;
-       if ( dst_sample > max_audioval ) {
-         dst_sample = max_audioval;
-       } else
-       if ( dst_sample < min_audioval ) {
-         dst_sample = min_audioval;
-       }
-       dst[1] = dst_sample&0xFF;
-       dst_sample >>= 8;
-       dst[0] = dst_sample&0xFF;
-       dst += 2;
-     }
-#endif
-   }
-   break;
-
-   default: /* If this happens... FIXME! */
-     SDL_SetError("SDL_MixAudio(): unknown audio format");
-     return;
- }
+		default: /* If this happens... FIXME! */
+			SDL_SetError("SDL_MixAudio(): unknown audio format");
+			return;
+	}
 }
 

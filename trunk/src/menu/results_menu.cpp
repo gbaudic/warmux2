@@ -19,8 +19,12 @@
  * Results menu
  *****************************************************************************/
 
-#include "menu/results_menu.h"
 #include <algorithm>  //std::sort
+#include <time.h>
+
+#include <WARMUX_debug.h>
+
+#include "menu/results_menu.h"
 
 #include "character/character.h"
 #include "character/damage_stats.h"
@@ -32,19 +36,23 @@
 #include "gui/box.h"
 #include "gui/button.h"
 #include "gui/figure_widget.h"
+#include "gui/file_list_box.h"
 #include "gui/graph_canvas.h"
 #include "gui/label.h"
-#include "gui/scroll_box.h"
 #include "gui/null_widget.h"
+#include "gui/question.h"
+#include "gui/scroll_box.h"
 #include "gui/tabs.h"
 #include "gui/talk_box.h"
+#include "gui/text_box.h"
 #include "include/app.h"
 #include "include/action_handler.h"
 #include "network/network.h"
+#include "replay/replay.h"
 #include "sound/jukebox.h"
 #include "team/results.h"
 #include "team/team.h"
-#include <WARMUX_debug.h>
+#include "tool/ansi_convert.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
 #include "tool/string_tools.h"
@@ -56,8 +64,9 @@
 #define GRAPH_BORDER        20
 #define GRAPH_START_Y       400
 
-static const Point2i BorderSize(DEF_BORDER, DEF_BORDER);
 static const Point2i DefSize(DEF_SIZE, DEF_SIZE);
+
+#define REPLAY_ID "TAB_replay"
 
 class ResultBox : public HBox
 {
@@ -70,7 +79,7 @@ class ResultBox : public HBox
   void SetWidgets(const std::string& type, const char* buffer, const Character* player)
   {
     margin = DEF_BORDER;
-    border = BorderSize;
+    border_size = DEF_BORDER;
 
     Font::font_size_t font = Font::FONT_SMALL;
 
@@ -220,20 +229,24 @@ static bool IsPodiumSeparate()
 }
 
 ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
-  : Menu("menu/bg_results", vOk)
+  : Menu("menu/bg_results", vOkCancel)
   , results(v)
   , first_team(NULL)
   , second_team(NULL)
   , third_team(NULL)
   , msg_box(NULL)
   , winner_box(NULL)
+  , save(NULL)
 {
   Profile *res  = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   Point2i wsize = GetMainWindow().GetSize();
   bool    small = !IsPodiumSeparate();
-  uint x        = wsize.GetX() * 0.02;
+  uint x        = wsize.GetX() * 0.02f;
   uint tab_x    = small ? x : 260+16+x;
-  uint y        = wsize.GetY() * 0.02;
+  uint y        = wsize.GetY() * 0.02f;
+
+  // Not showing it yet
+  b_cancel->SetVisible(false);
 
   if (!disconnected)
     ComputeTeamsOrder();
@@ -241,7 +254,6 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
   // Load the podium img
   podium_img = GetResourceManager().LoadImage(res, "menu/podium");
   podium_img.SetAlpha(0, 0);
-  GetResourceManager().UnLoadXMLProfile(res);
 
   Point2i tab_size = wsize - Point2i(tab_x + x, y+actions_buttons->GetSizeY());
 
@@ -294,12 +306,12 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
   }
 
   // Create tabs for each team result
-  stats = new MultiTabs(tab_size - 2*BorderSize);
+  stats = new MultiTabs(tab_size - 2*DEF_BORDER);
   stats->SetMaxVisibleTabs(1);
   for (uint i=0; i<v.size(); i++) {
     const Team* team = v[i]->getTeam();
     const std::string name = (team) ? team->GetName() : _("All teams");
-    stats->AddNewTab(name, name, new ResultListBox(v[i], tab_size - 4*BorderSize));
+    stats->AddNewTab(name, name, new ResultListBox(v[i], tab_size - 4*DEF_BORDER));
   }
   tabs->AddNewTab("TAB_team", _("Team stats"), stats);
 
@@ -324,19 +336,60 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
     }
   }
   tabs->AddNewTab("TAB_canvas", _("Team graphs"),
-                  new GraphCanvas(tab_size - 2*BorderSize, _("Time"), _("Energy"), team_results));
+                  new GraphCanvas(tab_size - 2*DEF_BORDER, _("Time"), _("Energy"), team_results));
+
+  // Save replay tab
+  if (Replay::GetInstance()->IsRecording()) {
+#define BOX_HEIGHT 24
+#define LABEL_SIZE 88
+#define BORDER      5
+    VBox* vbox  = new VBox(tab_size.x-2*BORDER, false, false); // Keep the 5,5 border
+    save = new Button(res, "menu/save", false); save->SetBorder(defaultOptionColorRect, 2);
+    HBox* hbox  = new HBox(save->GetSizeY(), false, false); hbox->SetNoBorder();
+    hbox->AddWidget(save);
+
+    VBox* vbox2 = new VBox(tab_size.x - 3*BORDER - save->GetSizeX(), false, false); vbox2->SetNoBorder();
+
+    HBox* hbox2 = new HBox(BOX_HEIGHT, false, false); hbox2->SetNoBorder();
+    hbox2->AddWidget(new Label(_("Filename:"), LABEL_SIZE, Font::FONT_MEDIUM));
+    char buffer[32];
+    time_t rawtime;
+    struct tm * timeinfo;
+    time(&rawtime);
+    timeinfo = localtime (&rawtime);
+    strftime(buffer, sizeof(buffer), "Record %Y-%m-%d %HH%Mm%S.wrf", timeinfo);
+    replay_name = new TextBox(buffer, tab_size.x -6*BORDER -LABEL_SIZE -save->GetSizeX());
+    hbox2->AddWidget(replay_name);
+    vbox2->AddWidget(hbox2);
+
+    hbox2 = new HBox(BOX_HEIGHT, false, false); hbox2->SetNoBorder();
+    hbox2->AddWidget(new Label(_("Comment:"), LABEL_SIZE, Font::FONT_MEDIUM));
+    comment = new TextBox(_("I like WarMUX :)"), tab_size.x -6*BORDER -LABEL_SIZE -save->GetSizeX());
+    hbox2->AddWidget(comment);
+    vbox2->AddWidget(hbox2);
+    hbox->AddWidget(vbox2);
+    vbox->AddWidget(hbox);
+    folders = new FileListBox(Point2i(tab_size.x-2*BORDER,
+                              tab_size.y -tabs->GetHeaderHeight() -4*BORDER -hbox->GetSizeY()));
+    // Windows may use SFN => uppercase extensions
+    folders->AddExtensionFilter("WRF");
+    folders->AddExtensionFilter("wrf");
+    folders->StartListing();
+    vbox->AddWidget(folders);
+    tabs->AddNewTab(REPLAY_ID, _("Save replay?"), vbox);
+  }
 
   // Final box
-  VBox* tmp_box = new VBox(tab_size.x, false, false, false);
-  tmp_box->SetNoBorder();
-  tmp_box->AddWidget(tabs);
+  VBox *vbox = new VBox(tab_size.x, false, false, false);
+  vbox->SetNoBorder();
+  vbox->AddWidget(tabs);
 
   if (msg_box) {
-    tmp_box->AddWidget(msg_box);
+    vbox->AddWidget(msg_box);
   }
-  tmp_box->SetPosition(tab_x, y);
+  vbox->SetPosition(tab_x, y);
 
-  widgets.AddWidget(tmp_box);
+  widgets.AddWidget(vbox);
   widgets.Pack();
 }
 
@@ -361,11 +414,47 @@ void ResultsMenu::DrawTeamOnPodium(const Team& team, const Point2i& relative_pos
   podium_img.MergeSurface(tmp, position);
 }
 
+bool ResultsMenu::SaveReplay()
+{
+  std::string filename = replay_name->GetText();
+  if (filename.empty() || filename == "") {
+    Question question(Question::WARNING);
+    question.Set(_("Invalid filename"), true, 0);
+    question.Ask();
+    return false;
+  }
+
+#  ifdef _WIN32
+  std::string name = UTF8ToUTF16(folders->GetCurrentFolder(), filename);
+#  else
+  std::string name = folders->GetCurrentFolder() + filename;
+#endif
+  if (!Replay::GetInstance()->SaveReplay(name, comment->GetText().c_str())) {
+    Question question(Question::WARNING);
+    question.Set(_("Failed to save replay"), true, 0);
+    question.Ask();
+    return false;
+  }
+
+  folders->StartListing(folders->GetCurrentFolder().c_str());
+  Question question(Question::NO_TYPE);
+  question.Set(_("Replay saved"), true, 0);
+  question.Ask();
+
+  return true;
+}
+
+bool ResultsMenu::signal_ok()
+{
+  if (tabs->GetCurrentTabId() == REPLAY_ID)
+    return SaveReplay();
+  return true;
+}
+
 void ResultsMenu::key_ok()
 {
   // return was pressed while chat texbox still had focus (player wants to send his msg)
-  if (msg_box != NULL && msg_box->TextHasFocus())
-  {
+  if (msg_box != NULL && msg_box->TextHasFocus()) {
     msg_box->SendChatMsg();
     return;
   }
@@ -384,5 +473,26 @@ void ResultsMenu::ReceiveMsgCallback(const std::string& msg, const Color& color)
 {
   if (msg_box) {
     msg_box->NewMessage(msg, color);
+  }
+}
+
+void ResultsMenu::OnClickUp(const Point2i &mousePosition, int button)
+{
+  Widget *w = widgets.ClickUp(mousePosition, button);
+
+  b_cancel->SetVisible(tabs->GetCurrentTabId() == REPLAY_ID);
+
+  // Are we recording?
+  if (save) {
+    // Are we requested to save?
+    if (w == save) {
+      SaveReplay();
+    } else if (w == folders) {
+      const char* file = folders->GetSelectedName();
+      // This is a file, use that filename
+      if (file) {
+        replay_name->SetText(file);
+      }
+    }
   }
 }

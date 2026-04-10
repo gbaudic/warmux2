@@ -20,6 +20,10 @@
 #include <algorithm>
 #include <iostream>
 #include <SDL_image.h>
+#ifdef ANDROID
+#  include <SDL_screenkeyboard.h>
+#endif
+
 #include <WARMUX_file_tools.h>
 
 #include "game/config.h"
@@ -78,7 +82,7 @@ Video::Video()
   }
   AddUniqueConfigSorted(window.GetWidth(), window.GetHeight());
 
-  SetWindowCaption(std::string("Warmux ") + Constants::WARMUX_VERSION);
+  SetWindowCaption(std::string("WarMUX ") + Constants::WARMUX_VERSION);
 }
 
 Video::~Video()
@@ -163,7 +167,7 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
 #ifdef HAVE_HANDHELD
   int bpp   = 16;
 #else
-  int bpp   = 32;
+  int bpp   = Config::GetInstance()->GetQuality()==QUALITY_32BPP ? 32 : 16;
 #endif
 
 #ifdef HAVE_TOUCHSCREEN
@@ -263,6 +267,11 @@ void Video::InitSDL()
     Error(Format("Unable to initialize SDL library: %s", SDL_GetError()));
     exit(EXIT_FAILURE);
   }
+
+#ifdef ANDROID
+  SDL_Rect r = {0,0,0,0};
+  SDL_ANDROID_SetScreenKeyboardButtonPos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_TEXT, &r);
+#endif
 
   SDL_EnableUNICODE(1);
   SDLReady = true;

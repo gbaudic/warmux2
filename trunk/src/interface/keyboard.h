@@ -22,17 +22,21 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 //-----------------------------------------------------------------------------
-#include "interface/man_machine_interface.h"
-#include <WARMUX_singleton.h>
 #include <set>
-#include "SDL_keyboard.h"
-#include "tool/xml_document.h"
+#include "SDL_keysym.h"
+
+#include <WARMUX_singleton.h>
+
+#include "interface/man_machine_interface.h"
 //-----------------------------------------------------------------------------
 
-class Keyboard : public ManMachineInterface, public Singleton<Keyboard>
+typedef struct _xmlNode xmlNode;
+
+class Keyboard : public Singleton<Keyboard>, public ManMachineInterface
 {
 private:
   int modifier_bits;
+  int modifier_only_bits;
   std::set<SDLKey> pressed_keys;
   void HandleKeyComboEvent(int key_code, Key_Event_t event_type);
 protected:
@@ -41,7 +45,7 @@ protected:
   void SetDefaultConfig();
 
 public:
-  void HandleKeyEvent(const SDL_Event& evnt);
+  bool HandleKeyEvent(const SDL_Event& evnt);
   void SetConfig(const xmlNode *node);
   void SaveConfig(xmlNode *node) const;
 

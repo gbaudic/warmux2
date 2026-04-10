@@ -57,7 +57,7 @@ NONSHARABLE_CLASS(TDsa)
 
 inline TDsa::TDsa(const CDsa& aDsa) : iDsa(aDsa)
    {
-   __ASSERT_ALWAYS(&iDsa, PANIC(KErrNotReady));
+   __ASSERT_ALWAYS(&iDsa, PANIC(KErrNotReady + 1000));
    }
 
 inline TBool TDsa::IsTurn() const
@@ -100,19 +100,23 @@ protected:
 	void CreateSurfaceL();
 	void Free();
 	~CBitmapSurface();
+	virtual CBitmapContext* Gc() = 0;
 private:
 	TUint8* LockSurface();
-	void UnlockHwSurface();
+	void UnlockSurface();
 	void Wipe();
 	void Update();
 	void CompleteUpdate();
 	void UnlockHWSurfaceRequestComplete();
 
-	void DoBlt();
+	TBool DoBlt();
     TBool BlitterBlt(CBitmapContext& aGc, CFbsBitmap& aBmp);
 private:
 	CFbsBitmap* iBmp;
 	TBool iUpdateWait;
+	
+	CFbsBitmapDevice* iOverlayDevice;
+	CFbsBitGc* iOverlayGc;
 	};
 	
 	
@@ -130,7 +134,7 @@ TBool CBitmapSurface::BlitterBlt(CBitmapContext& aGc, CFbsBitmap& aBmp)
     return Blitter() && Blitter()->BitBlt(aGc, aBmp, HwRect(), SwSize()); 
     }
 
-void CBitmapSurface::DoBlt()
+TBool CBitmapSurface::DoBlt()
     {
     if(!BlitterBlt(*Gc(), Bmp()))
         {
@@ -147,13 +151,28 @@ void CBitmapSurface::DoBlt()
             }
         else
             Gc()->DrawBitmap(HwRect(), &Bmp());
+        return ETrue;
         }
+    return EFalse;
     }
 
 void CBitmapSurface::Free()
     {
+    if(iBmp != NULL)
+        {
+        if(IsUpdating())
+            {
+            SetUpdating(EFalse);
+            UnlockHwSurface();
+            }
+        }
     delete iBmp;
     iBmp = NULL;
+    
+    delete iOverlayDevice;
+    iOverlayDevice = NULL;
+    delete iOverlayGc;
+    iOverlayGc = NULL;
     }
 
 CBitmapSurface::~CBitmapSurface()
@@ -169,25 +188,30 @@ TUint8* CBitmapSurface::LockSurface()
 	}
 
 
-void CBitmapSurface::UnlockHwSurface()
+
+
+
+void CBitmapSurface::UnlockSurface()
 	{
 	__ASSERT_ALWAYS(iBmp, PANIC(KErrNotReady));
 	iBmp->UnlockHeap();
-	SetUpdating(EFalse);
-	Update();
 	}
 
 		
 void CBitmapSurface::Update()
 	{
-	DoBlt();
-	DrawOverlays();
+    DrawOverlays(*iOverlayGc);
+	//const TBool completeNeed = 
+    DoBlt();
+//	if(completeNeed)
+//	    { 
 	CompleteUpdate();	
+//	    }
 	}
 		
 void CBitmapSurface::CreateSurfaceL()
 	{
-	_ASSERT_Update;
+    __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
 	Free();
 	if(iBmp == NULL || iBmp->SizeInPixels() != SwSize() || iBmp->DisplayMode() != DisplayMode())
 	    {
@@ -195,6 +219,16 @@ void CBitmapSurface::CreateSurfaceL()
 	    iBmp = NULL;
 	    iBmp  = new (ELeave) CFbsBitmap();
 	    User::LeaveIfError(iBmp->Create(SwSize(), DisplayMode()));
+	    
+	    delete iOverlayDevice;
+	    iOverlayDevice = NULL;
+	    delete iOverlayGc;
+	    iOverlayGc = NULL;
+	    
+	    iOverlayDevice = CFbsBitmapDevice::NewL(iBmp);    
+	    User::LeaveIfError(iOverlayDevice->CreateContext(iOverlayGc));
+	    iOverlayGc->SetDrawMode(CGraphicsContext::EDrawModeWriteAlpha);
+
 	    }
 	}
 
@@ -294,11 +328,12 @@ public:
 private:
     TUint8* LockSurface();	
     void UnlockHWSurfaceRequestComplete();
-    void UnlockHwSurface();
+    void UnlockSurface();
+    void Update();
   //  void Resume();
     void CreateSurfaceL();
     void Wipe();
-    CBitmapContext* Gc();
+  //  CBitmapContext* Gc();
 	};
 
 CDsaGles::CDsaGles(RWsSession& aSession) : CDsa(aSession)
@@ -314,9 +349,13 @@ void CDsaGles::UnlockHWSurfaceRequestComplete()
 	{
 	}
 	
-void CDsaGles::UnlockHwSurface()
+void CDsaGles::UnlockSurface()
 	{
 	}
+
+void CDsaGles::Update()
+    {
+    }
 	
 /*
 void CDsaGles::Resume()
@@ -330,12 +369,13 @@ void CDsaGles::CreateSurfaceL()
 void CDsaGles::Wipe()
 	{
 	}
-	
+
+/*
 CBitmapContext* CDsaGles::Gc()
 	{
 	return NULL;
 	}
-
+*/
 
 //////////////////////////////////////////////////////////////////////
 
@@ -440,7 +480,7 @@ void CDsaBitgdi::DisableDraw(TBool aDisable)
 
  void CDsaBitgdi::ConstructL(RWindow& aWindow, CWsScreenDevice& aDevice)
  	{
- 	_ASSERT_Update;
+     __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
  	//delete iBitGdiBmp;
  	//iBitGdiBmp = NULL;
  //	delete iWinGc;
@@ -504,7 +544,7 @@ private:
 	void ConstructL(RWindow& aWindow, CWsScreenDevice& aDevice);
 	void Stop();
 	CBitmapContext* Gc();
-    void DoBlt();
+//    TBool DoBlt();
     void UpdateRequestCompleted();
     void DisableDraw(TBool aDisable);
 private:
@@ -588,7 +628,7 @@ void CDirectDsa::DisableDraw(TBool aDisable)
 
 void CDirectDsa::RestartL()
     {
-    _ASSERT_Update;
+    __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
 
     __ASSERT_ALWAYS(iDsa != NULL, PANIC(KErrNotFound));
     
@@ -631,6 +671,8 @@ void CDirectDsa::RestartL()
 
 void CDirectDsa::AbortNow(RDirectScreenAccess::TTerminationReasons /*aReason*/)
 	{
+    SetUpdating(EFalse);
+    UnlockHwSurface(); 
 	Stop();
 	}
 	
@@ -666,7 +708,7 @@ void CDirectDsa::Stop()
 	DsaLockOn();
 	if(iDsa != NULL)
 	    {
-	    _ASSERT_Update;
+	    __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
 	    iDsa->Cancel();
 	    }
 	DsaLockOff();
@@ -818,7 +860,7 @@ CDsa::~CDsa()
          
 void CDsa::ConstructL(RWindow& aWindow, CWsScreenDevice& /*aDevice*/)
     {			
-    _ASSERT_Update;
+    __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
     const TBool init = iDsaLock.Handle() == 0;
     
     if(init)
@@ -888,11 +930,11 @@ void CDsa::DsaLockOff()
     }
 #endif
 
-void CDsa::DrawOverlays()
+void CDsa::DrawOverlays(CBitmapContext& aContext) const
 	{
 	const TInt last = iOverlays.Count() - 1;
 	for(TInt i = last; i >= 0 ; i--)
-		iOverlays[i].iOverlay->Draw(*Gc(), HwRect(), SwSize());
+		iOverlays[i].iOverlay->Draw(aContext, HwRect(), SwSize());
 	}
 
 TInt CDsa::AppendOverlay(MOverlay& aOverlay, TInt aPriority)
@@ -975,7 +1017,7 @@ RWsSession& CDsa::Session()
 
 TUint8* CDsa::LockHwSurface()
 	{
-	if((iStateFlags & EUpdating) == 0) //else frame is skipped
+	if(!IsUpdating()) //else frame is skipped
 		{
 		SetUpdating(ETrue);
 		return LockSurface();
@@ -983,15 +1025,32 @@ TUint8* CDsa::LockHwSurface()
 	return NULL; 
 	}
 
+void CDsa::UnlockHwSurface()
+    {
+    if(!IsUpdating())
+        {
+        UnlockSurface();
+        iTargetAddr = NULL;
+        }
+    __ASSERT_ALWAYS(iTargetAddr == NULL, PANIC(KErrNotReady));
+    }
 	
 TInt CDsa::AllocSurface(TBool aHwSurface, const TSize& aSize, TDisplayMode aMode)
 	{
 	DsaLockOn();
-	_ASSERT_Update;
-	if(aHwSurface && aMode != DisplayMode())
+	 __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
+	/*
+	 * if(aHwSurface && aMode != DisplayMode())
 	    {
 	    DsaLockOff();
 	    return KErrArgument;
+	    }
+	*/
+	
+	
+	if(aHwSurface)
+	    {
+	    iStateFlags |= EHwSurface;
 	    }
 	
 	iSourceMode = aMode;
@@ -1012,7 +1071,8 @@ TInt CDsa::AllocSurface(TBool aHwSurface, const TSize& aSize, TDisplayMode aMode
 		return err;
 	    }
 	
-	SetCopyFunction();
+	if(!aHwSurface)
+	    SetCopyFunction();
 	
 	iOwnerThread = RThread().Id();
 	
@@ -1032,7 +1092,7 @@ TInt CDsa::AllocSurface(TBool aHwSurface, const TSize& aSize, TDisplayMode aMode
 void CDsa::CreateZoomerL(const TSize& aSize)
 	{
 	DsaLockOn();
-	_ASSERT_Update;
+	__ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
 	iSwSize = aSize;
 	iStateFlags |= EResizeRequest;
 	CreateSurfaceL();
@@ -1169,16 +1229,19 @@ void CDsa::DisableDraw(TBool aDisable)
 
 TBool CDsa::AddUpdateRect(const TUint8* aBits, const TRect& aUpdateRect, const TRect& aRect)
 	{
-	
 	DsaLockOn();
 	
 	if(iStateFlags & EOrientationChanged)
 		{
 		iStateFlags &= ~EOrientationFlags;
 		iStateFlags |= iNewFlags;
-		SetCopyFunction();
+		
+		if(!(iStateFlags & EHwSurface))
+		    SetCopyFunction();
+		
 		if(IsDsaAvailable())
 		    Wipe();
+		
 		iStateFlags &= ~EOrientationChanged;
 		
 		DsaLockOff();
@@ -1186,6 +1249,8 @@ TBool CDsa::AddUpdateRect(const TUint8* aBits, const TRect& aUpdateRect, const T
 	    //EpocSdlEnv::WaitDeviceChange();
 	    return EFalse; //skip this frame as data is may be changed
 		}
+	
+	__ASSERT_ALWAYS(!(iStateFlags & EHwSurface), PANIC(KErrGeneral));
 
 	if(iStateFlags & EDisableDraw)
 	    {
@@ -1197,7 +1262,7 @@ TBool CDsa::AddUpdateRect(const TUint8* aBits, const TRect& aUpdateRect, const T
 		{
 		iTargetAddr = LockHwSurface();
 		}
-	else
+	else if(!IsUpdating())
 	    {
 	    SetUpdating(ETrue);
 	    }
@@ -1245,12 +1310,8 @@ TBool CDsa::AddUpdateRect(const TUint8* aBits, const TRect& aUpdateRect, const T
 				do
 					{
 					*dst = (*src & 0xF800)<< 8;
-					*dst |= (*src & 0xE01F) << 3; 
-
 					*dst |= (*src & 0x07E0) << 5;
-					*dst |= (*src & 0x600) >> 1;
-
-					*dst |= (*src & 0x1C) >> 2;
+					*dst |= (*src & 0x01F) << 3; 
 					dst++;
 					src++;
 					}
@@ -1276,11 +1337,17 @@ TBool CDsa::AddUpdateRect(const TUint8* aBits, const TRect& aUpdateRect, const T
 	}
 	
 		
-void CDsa::UpdateSwSurface()
+void CDsa::UpdateSurface()
 	{
 	DsaLockOn();
-	iTargetAddr = NULL;
-	UnlockHwSurface();	//could be faster if does not use AO, but only check status before redraw, then no context switch needed
+	if(iTargetAddr != NULL)
+	    {
+	    __ASSERT_ALWAYS(IsUpdating(), PANIC(KErrNotReady));
+	    iTargetAddr = NULL;
+	    UnlockHwSurface();	//could be faster if does not use AO, but only check status before redraw, then no context switch needed
+	    SetUpdating(EFalse);
+	    }
+	Update();
 	DsaLockOff();
 	}
 	
@@ -1325,14 +1392,14 @@ TPoint CDsa::WindowCoordinates(const TPoint& aPoint) const
 		}
 	if(!(iStateFlags & EUseBlit))
 	    {
-	pos.iX <<= 16;
-	pos.iY <<= 16;
-	pos.iX /= asz.iWidth; 
-	pos.iY /= asz.iHeight;
-	pos.iX *= iSwSize.iWidth;
-	pos.iY *= iSwSize.iHeight;
-	pos.iX >>= 16;
-	pos.iY >>= 16;
+        pos.iX <<= 16;
+        pos.iY <<= 16;
+        pos.iX /= asz.iWidth; 
+        pos.iY /= asz.iHeight;
+        pos.iX *= iSwSize.iWidth;
+        pos.iY *= iSwSize.iHeight;
+        pos.iX >>= 16;
+        pos.iY >>= 16;
 	    }
 	return pos; 	
 	}
@@ -1399,7 +1466,7 @@ RWindow* CDsa::Window()
 	
 CDsa* CDsa::CreateGlesDsaL()
 	{
-	_ASSERT_Update;
+    __ASSERT_ALWAYS(!IsUpdating(), PANIC(KErrNotReady));
 	CDsa* dsa = new (ELeave) CDsaGles(Session());
 	CWsScreenDevice* dummy = NULL;
 	dsa->ConstructL(*Window(), *dummy);

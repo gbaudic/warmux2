@@ -23,6 +23,7 @@
 #define DISTANT_CPU_H
 //-----------------------------------------------------------------------------
 #include <list>
+#include <vector>
 #include <string>
 #include <WARMUX_player.h>
 #include <WARMUX_types.h>
@@ -38,6 +39,7 @@ private:
 
   // a remote computer may act as a relay for several players (this is true when it is a server)
   std::list<Player> players;
+  std::vector<uint> maps;
   bool force_disconnection_called;
 public:
   DistantComputer(WSocket* new_sock);
@@ -54,7 +56,7 @@ public:
   bool SendData(const char* data, size_t len);
 
   std::string GetAddress() const;
-  std::string GetNicknames() const;
+  std::vector<std::string> GetNicknames() const;
 
   void AddPlayer(uint player_id);
   void DelPlayer(uint player_id);
@@ -70,6 +72,9 @@ public:
   bool MustBeDisconnected() { return force_disconnection_called; }
 
   const std::string ToString() const;
+  std::vector<uint>& GetAvailableMaps() { return maps; };
+
+  static std::vector<uint> GetCommonMaps(const std::list<DistantComputer*>&);
 };
 
 // It's up to the program using class DistantComputer to define WARMUX_[Dis]connectHost();

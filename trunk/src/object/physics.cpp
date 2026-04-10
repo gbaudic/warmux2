@@ -24,18 +24,19 @@
  * If the object go outside of the world, it become a ghost.
  *****************************************************************************/
 
-#include "object/physics.h"
 #include <stdlib.h>
 #include <iostream>
+
+#include <WARMUX_debug.h>
+
+#include "object/physics.h"
 #include "game/config.h"
 #include "game/game_mode.h"
 #include "game/game_time.h"
 #include "map/wind.h"
-#include <WARMUX_debug.h>
 #include "tool/isnan.h"
 #include "tool/math_tools.h"
 #include "tool/string_tools.h"
-#include "include/action.h"
 
 // Physical constants
 static const Double STOP_REBOUND_LIMIT = 0.5;
@@ -43,14 +44,16 @@ static const Double AIR_RESISTANCE_FACTOR = 40.0;
 #define PHYS_DELTA_T_MS  20
 static const Double PHYS_DELTA_T = PHYS_DELTA_T_MS / 1000.0;         // Physical simulation time step
 static const Double PENDULUM_REBOUND_FACTOR = 0.8;
+static const Double HALF_PI_PLUS    = HALF_PI+(Double)0.3;
+static const Double HALF_PI_MINUS   = HALF_PI-(Double)0.3 ;
 
 Physics::Physics ():
   m_motion_type(NoMotion),
   m_pos_x(),
   m_pos_y(),
   m_extern_force(),
-  m_last_move(Time::GetInstance()->Read()),
-  m_last_physical_engine_run(Time::GetInstance()->Read()),
+  m_last_move(GameTime::GetInstance()->Read()),
+  m_last_physical_engine_run(GameTime::GetInstance()->Read()),
   m_phys_width(),
   m_phys_height(),
   m_fix_point_gnd(),
@@ -151,6 +154,24 @@ void Physics::GetSpeed(Double &norm, Double &angle) const
   }
 }
 
+bool Physics::IsGoingUp() const
+{
+  Double angle = GetSpeedAngle();
+  if (angle > -HALF_PI_PLUS && angle < -HALF_PI_MINUS)
+    return true;
+
+  return false;
+}
+
+bool Physics::IsGoingDown() const
+{
+  Double angle = GetSpeedAngle();
+  if (angle < HALF_PI_PLUS && angle > HALF_PI_MINUS)
+    return true;
+
+  return false;
+}
+
 void Physics::SetExternForceXY (const Point2d& vector)
 {
   bool was_moving = IsMoving();
@@ -203,7 +224,7 @@ void Physics::SetPhysFixationPointXY(Double g_x, Double g_y, Double dx,
     m_rope_angle.x0 = HALF_PI - V.ComputeAngle();
 
     // Convert the linear speed to angular speed.
-    m_rope_angle.x1 = ( m_pos_x.x1 * cos(m_rope_angle.x0) +
+    m_rope_angle.x1 = ( m_pos_x.x1 * cos(m_rope_angle.x0) -
                         m_pos_y.x1 * sin(m_rope_angle.x0) ) / m_rope_length.x0;
 
     // Reset the angular acceleration.
@@ -297,7 +318,7 @@ bool Physics::IsMoving() const
 bool Physics::IsSleeping() const
 {
   // return true if not moving since 1 sec.
-  int delta = Time::GetInstance()->Read() - m_last_move;
+  int delta = GameTime::GetInstance()->Read() - m_last_move;
   if (delta > 400) {
     MSG_DBG_RTTI("physic.sleep", "%s is sleeping since %d ms.",
                  typeid(*this).name(), delta);
@@ -309,7 +330,7 @@ bool Physics::IsSleeping() const
 
 void Physics::UpdateTimeOfLastMove()
 {
-  m_last_move = Time::GetInstance()->Read();
+  m_last_move = GameTime::GetInstance()->Read();
 }
 
 // Compute the next position of the object during a pendulum motion.
@@ -356,6 +377,11 @@ void Physics::ComputePendulumNextXY(Double delta_t)
   //            m_rope_angle.x0, m_rope_angle.x1, m_rope_angle.x2);
 
   SetPhysXY(x,y);
+
+  Double speed_norm, angle;
+  GetSpeed(speed_norm, angle);
+  angle = -angle;
+  SetSpeed(speed_norm, angle);
 }
 
 // Compute the next position of the object during a free fall.
@@ -440,12 +466,12 @@ Point2d Physics::ComputeNextXY(Double delta_t){
 
 void Physics::ResetLastRunTime()
 {
-  m_last_physical_engine_run = Time::GetInstance()->Read();
+  m_last_physical_engine_run = GameTime::GetInstance()->Read();
 }
 
 void Physics::RunPhysicalEngine()
 {
-  uint now = Time::GetInstance()->Read();
+  uint now = GameTime::GetInstance()->Read();
   if (m_last_physical_engine_run < m_last_move) {
     ASSERT(now >= m_last_move);
     m_last_physical_engine_run = m_last_move;
@@ -461,7 +487,7 @@ void Physics::RunPhysicalEngine()
   // Compute object move for each physical engine time step.
   while (delta_t_ms >= PHYS_DELTA_T_MS) {
     oldPos = GetPos();
-    newPos = ComputeNextXY(PHYS_DELTA_T); // causes 11µs error per iteration
+    newPos = ComputeNextXY(PHYS_DELTA_T); // causes 11ï¿½s error per iteration
 
     if (newPos != oldPos) {
       // The object has moved. Notify the son class.
@@ -521,14 +547,7 @@ void Physics::Rebound(Point2d /*contactPos*/, Double contact_angle)
 
       m_rope_angle.x0 = HALF_PI - V.ComputeAngle();
 
-      // Convert the linear speed of the rebound to angular speed.
-      V.x = PENDULUM_REBOUND_FACTOR * norme * cos(angle);
-      V.y = PENDULUM_REBOUND_FACTOR * norme * sin(angle);
-
-      angle = angle + PI;
-
-      m_rope_angle.x1 = ( norme * cos(angle) * cos(m_rope_angle.x0) +
-                          norme * sin(angle) * sin(m_rope_angle.x0) ) / m_rope_length.x0;
+      m_rope_angle.x1 = -PENDULUM_REBOUND_FACTOR * m_rope_angle.x1;
 
       m_rope_angle.x2 = 0;
       m_extern_force.Clear();

@@ -18,17 +18,6 @@
  ******************************************************************************
  * Network client layer for Warmux.
  *****************************************************************************/
-#include <WARMUX_socket.h>
-#include <SDL_thread.h>
-#include <WARMUX_debug.h>
-
-//-----------------------------------------------------------------------------
-#include "include/action_handler.h"
-#include "include/app.h"
-#include "include/constant.h"
-#include "network/network_client.h"
-#include "network/net_error_msg.h"
-#include "tool/string_tools.h"
 
 #include <sys/types.h>
 #ifdef LOG_NETWORK
@@ -38,6 +27,20 @@
 #    include <io.h>
 #  endif
 #endif
+
+#include <WARMUX_socket.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_distant_cpu.h>
+#include <SDL_thread.h>
+
+//-----------------------------------------------------------------------------
+#include "include/action_handler.h"
+#include "include/app.h"
+#include "include/constant.h"
+#include "network/network_client.h"
+#include "network/net_error_msg.h"
+#include "tool/string_tools.h"
+
 //-----------------------------------------------------------------------------
 
 NetworkClient::NetworkClient(const std::string& password) : Network("-", password)
@@ -185,6 +188,7 @@ NetworkClient::ClientConnect(const std::string &host, const std::string& port)
   server = new DistantComputer(socket);
 
   AddRemoteHost(server);
+  SendMapsList();
 
   NetworkThread::Start();
   return CONNECTED;

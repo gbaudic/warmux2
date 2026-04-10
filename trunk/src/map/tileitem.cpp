@@ -17,17 +17,17 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#include "map/tileitem.h"
 #include <iostream>
 #include <SDL.h>
 #include <SDL_endian.h>
+#include <WARMUX_point.h>
+#include "map/camera.h"
 #include "map/tile.h"
+#include "map/tileitem.h"
 #include "game/config.h"
 #include "graphic/video.h"
 #include "include/app.h"
-#include "map/camera.h"
 #include "tool/math_tools.h"
-#include <WARMUX_point.h>
 
 // === Common to all TileItem_* except TileItem_Emtpy ==============================
 TileItem_NonEmpty::TileItem_NonEmpty(uint8_t alpha_threshold)
@@ -40,7 +40,7 @@ TileItem_NonEmpty::TileItem_NonEmpty(uint8_t alpha_threshold)
 
 void TileItem_NonEmpty::Draw(const Point2i &pos)
 {
-  GetMainWindow().Blit(GetSurface(),
+  GetMainWindow().Blit(m_surface,
                        pos * CELL_SIZE - Camera::GetInstance()->GetPosition());
 }
 
@@ -189,21 +189,6 @@ void TileItem_NonEmpty::ForceEmpty()
   m_need_check_empty = false;
 }
 
-TileItem_NonEmpty* TileItem_NonEmpty::NewEmpty(uint8_t bpp, uint8_t alpha_threshold)
-{
-  TileItem_NonEmpty *ti;
-
-  switch (bpp) {
-  case 2: ti = new TileItem_ColorKey16(alpha_threshold); break;
-  // Otherwise, we probably need to merge a sprite in, so let's be clean
-  default: ti = new TileItem_AlphaSoftware(alpha_threshold); break;
-  }
-
-  ti->ForceEmpty();
-
-  return ti;
-}
-
 // === Implemenation of TileItem_BaseColorKey ==============================
 TileItem_BaseColorKey::TileItem_BaseColorKey(uint8_t alpha_threshold)
   : TileItem_NonEmpty(alpha_threshold)
@@ -230,7 +215,7 @@ void TileItem_BaseColorKey::ForceEmpty()
 void TileItem_BaseColorKey::MapColorKey()
 {
   color_key = m_surface.MapRGBA(255, 0, 255, 0);
-  m_surface.SetColorKey(SDL_SRCCOLORKEY, color_key);
+  m_surface.SetColorKey(SDL_SRCCOLORKEY|SDL_RLEACCEL, color_key);
 }
 
 void TileItem_BaseColorKey::Dig(const Point2i &position, const Surface& dig)
@@ -542,7 +527,8 @@ void TileItem_ColorKey24::ScalePreview(uint8_t* out, int x, uint opitch, uint sh
 TileItem_AlphaSoftware::TileItem_AlphaSoftware(uint8_t alpha_threshold)
   : TileItem_NonEmpty(alpha_threshold)
 {
-  m_surface = Surface(CELL_SIZE, SDL_SWSURFACE|SDL_SRCALPHA, true).DisplayFormatAlpha();
+  // Calls NewSurface, which properly sets to display format alpha
+  m_surface = Surface(CELL_SIZE, SDL_SWSURFACE|SDL_SRCALPHA, true);
 }
 
 void TileItem_AlphaSoftware::ForceEmpty()

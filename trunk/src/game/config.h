@@ -43,20 +43,20 @@ class ObjectConfig;
 typedef struct _xmlNode xmlNode;
 
 //-----------------------------------------------------------------------------
-#ifdef WIN32
-#  define PATH_SEPARATOR "\\"
-#else
-#  define PATH_SEPARATOR "/"
-#endif
 
-//-----------------------------------------------------------------------------
+typedef enum
+{
+  QUALITY_16BPP = 0,
+  QUALITY_MIX   = 1,
+#ifndef HAVE_HANDHELD
+  QUALITY_32BPP = 2,
+#endif
+  QUALITY_MAX
+} Quality;
 
 class Config : public Singleton<Config>
 {
 public:
-  static const int ALPHA = 0;
-  static const int COLORKEY = 1;
-
   const ObjectConfig &GetObjectConfig(const std::string &name,
                                       const std::string &xml_config) const;
   void RemoveAllObjectConfigs();
@@ -96,6 +96,9 @@ public:
   uint GetVideoHeight() const { return video_height; };
   void SetVideoHeight(const uint height) { video_height = height; };
 
+  Quality GetQuality() const { return quality; }
+  void SetQuality(Quality qual) { quality = qual; }
+
   std::list<Point2i> & GetResolutionAvailable() { return resolution_available; };
   uint GetMaxFps() const { return max_fps; };
 
@@ -129,9 +132,7 @@ public:
   const std::string & GetMapName() const { return map_name; };
   void SetMapName(const std::string& new_name) { map_name = new_name; }
 
-  int GetTransparency() const { return transparency; };
-
-  const std::string& GetTtfFilename();
+  const std::string& GetTtfFilename() const;
 
   std::string GetDataDir() const { return data_dir; };
 #ifdef ENABLE_NLS
@@ -234,7 +235,7 @@ protected:
   std::string font_dir;
   std::string ttf_filename;
 
-  int transparency;
+  Quality quality;
 
   friend class Singleton<Config>;
   Config();

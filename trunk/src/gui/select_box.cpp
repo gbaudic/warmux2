@@ -35,21 +35,25 @@ SelectBox::SelectBox(const Point2i& size, bool always, bool force, bool alt)
   vbox->SetMargin(0);
 }
 
-void SelectBox::Update(const Point2i& mousePosition,
+bool SelectBox::Update(const Point2i& mousePosition,
                        const Point2i& lastMousePosition)
 {
+  bool updated = false;
   if (last && (selected_item==-1 || m_items[selected_item]!=last)) {
     last->SetHighlighted(false);
     last->SetHighlightBgColor(selected_item_color);
+    updated = true;
   }
   int item = MouseIsOnWhichItem(mousePosition);
   if (item!=-1 && item!=selected_item) {
     last = m_items[item];
     last->SetHighlighted(true);
     last->SetHighlightBgColor(default_item_color);
+    updated = true;
   }
 
-  ScrollBox::Update(mousePosition, lastMousePosition);
+  updated |= ScrollBox::Update(mousePosition, lastMousePosition);
+  return updated;
 }
 
 Widget * SelectBox::ClickUp(const Point2i & mousePosition, uint button)
@@ -161,6 +165,11 @@ int SelectBox::MouseIsOnWhichItem(const Point2i & mousePosition) const
 }
 
 //--------------------------------------------------------------------------
+void ItemBox::AddItem(bool, Widget*)
+{
+  fprintf(stderr, "You must not use that accessor directly!\n");
+  exit(1);
+}
 
 void ItemBox::AddItem(bool select, Widget* w, const void* value)
 {
@@ -177,11 +186,6 @@ void ItemBox::RemoveSelected()
   }
 }
 
-const void* ItemBox::GetSelectedValue() const
-{
-  return (selected_item==-1) ? "" : m_values[selected_item];
-}
-
 void ItemBox::AddLabelItem(bool selected,
                            const std::string & label,
                            const void* value,
@@ -191,6 +195,14 @@ void ItemBox::AddLabelItem(bool selected,
 {
   AddItem(selected,
           new Label(label, 200, fsize, fstyle,
-                    color, Text::ALIGN_CENTER, true),
+                    color, Text::ALIGN_LEFT_CENTER, true),
           value);
+}
+
+const char* ItemBox::GetSelectedName() const
+{
+  if (selected_item==-1)
+    return NULL;
+  // Our accessors somewhat ensures that this is a label, but beware
+  return static_cast<Label*>(m_items[selected_item])->GetText().c_str();
 }

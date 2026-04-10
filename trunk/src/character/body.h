@@ -26,7 +26,6 @@
 #include <vector>
 #include <WARMUX_base.h>
 #include <WARMUX_point.h>
-#include "tool/xml_document.h"
 
 // Forward declarations
 class Character;
@@ -38,6 +37,7 @@ class Clothe;
 class Profile;
 class junction;
 typedef struct _xmlNode xmlNode;
+typedef std::vector<const xmlNode*> xmlNodeArray;
 
 class Body
 {
@@ -54,6 +54,7 @@ class Body
   // When a movement/clothe is played once, those variables save the previous state
   const Clothe *                    previous_clothe;
   Movement *                        previous_mvt;
+  bool                              mvt_locked;
 
   // For weapon position handling
   Member *                          weapon_member;

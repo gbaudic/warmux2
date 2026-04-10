@@ -32,10 +32,10 @@
 
 const uint MAX_GAME_TIME_USED_THINKING_IN_MS = 10000;
 const uint REAL_THINK_TIME_PER_REFRESH_IN_MS = 1;
-#define  MAX_GUN_DISTANCE               600
-#define  MAX_SHOTGUN_DISTANCE           250
-#define  MAX_SNIPER_RIFILE_DISTANCE   46000 // squared to int at some point => overflow!
-#define  MAX_SUBMACHINE_GUN_DISTANCE    500
+#define  MAX_GUN_DISTANCE               600.0f
+#define  MAX_SHOTGUN_DISTANCE           250.0f
+#define  MAX_SNIPER_RIFILE_DISTANCE   46000.0f // squared to int at some point => overflow!
+#define  MAX_SUBMACHINE_GUN_DISTANCE    500.0f
 
 //#define DBG_AI_TIME
 
@@ -93,6 +93,11 @@ public:
   { }
 };
 
+bool AIStupidPlayer::CompareIdeaMaxRating(const AIItem& i1, const AIItem& i2)
+{
+  return i1.first->GetMaxRating(false) > i2.first->GetMaxRating(false);
+}
+
 AIStupidPlayer::AIStupidPlayer(Team * team)
   : team(team)
   , item_iterator(items.begin())
@@ -117,24 +122,25 @@ AIStupidPlayer::AIStupidPlayer(Team * team)
                                                                       Weapon::WEAPON_SNIPE_RIFLE, MAX_SNIPER_RIFILE_DISTANCE),
                                          &stats->ShootDirectly));
           items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
-                                                                              Weapon::WEAPON_BAZOOKA, 0.9),
+                                                                              Weapon::WEAPON_BAZOOKA, 0.9f),
                                          &stats->WeaponLauncher));
           items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
-                                                                              Weapon::WEAPON_BAZOOKA, 1.8),
+                                                                              Weapon::WEAPON_BAZOOKA, 1.8f),
                                          &stats->WeaponLauncher));
           items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
-                                                                              Weapon::WEAPON_GRENADE, 2.01, 2),
+                                                                              Weapon::WEAPON_GRENADE, 2.01f, 2),
                                          &stats->WeaponLauncher));
           items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
-                                                                              Weapon::WEAPON_DISCO_GRENADE, 2.01, 2),
+                                                                              Weapon::WEAPON_DISCO_GRENADE, 2.01f, 2),
                                          &stats->WeaponLauncher));
           items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
-                                                                              Weapon::WEAPON_BAZOOKA, 3.0),
+                                                                              Weapon::WEAPON_BAZOOKA, 3.0f),
                                          &stats->WeaponLauncher));
         }
       }
     }
   }
+  items.sort(CompareIdeaMaxRating);
 }
 
 AIStupidPlayer::~AIStupidPlayer()
@@ -151,6 +157,16 @@ void AIStupidPlayer::PrepareTurn()
 {
   Reset();
   weapons_weighting.RandomizeFactors();
+
+  std::list<AIItem>::iterator it = items.begin();
+  while (it != items.end()) {
+    if (it->first->NoLongerPossible()) {
+      delete it->first;
+      it = items.erase(it);
+    } else
+      ++it;
+  }
+  item_iterator = items.begin();
 }
 
 void AIStupidPlayer::Reset()
@@ -165,7 +181,7 @@ void AIStupidPlayer::Reset()
   best_strategy = new DoNothingStrategy();
   best_strategy_counter = 1;
   item_iterator = items.begin();
-  game_time_at_turn_start = Time::GetInstance()->Read();
+  game_time_at_turn_start = GameTime::GetInstance()->Read();
 }
 
 void AIStupidPlayer::Refresh()
@@ -178,13 +194,13 @@ void AIStupidPlayer::Refresh()
     return;
   if (command_executed)
     return;
-  uint now = Time::GetInstance()->Read();
+  uint now = GameTime::GetInstance()->Read();
   bool is_thinking = (command == NULL);
   if (is_thinking) {
     bool think_time_over = now >= game_time_at_turn_start + MAX_GAME_TIME_USED_THINKING_IN_MS;
     if (!think_time_over) {
       Stopwatch stopwatch;
-      while(stopwatch.GetValue() < REAL_THINK_TIME_PER_REFRESH_IN_MS && item_iterator != items.end()) {
+      while (stopwatch.GetValue() < REAL_THINK_TIME_PER_REFRESH_IN_MS && item_iterator != items.end()) {
         CheckNextIdea();
       }
     }
@@ -201,8 +217,16 @@ void AIStupidPlayer::Refresh()
 
 void AIStupidPlayer::CheckNextIdea()
 {
+  AIIdea* idea = (*item_iterator).first;
+  float rating = idea->GetMaxRating(true);
+  if (rating < best_strategy->GetRating()) {
+    // All following strategies are going to be less effective, abort search
+    item_iterator = items.end();
+    return;
+  }
+
   Stopwatch stopwatch;
-  AIStrategy * strategy = (*item_iterator).first->CreateStrategy();
+  AIStrategy * strategy = idea->CreateStrategy();
   (*item_iterator).second->AddTiming(stopwatch.GetValue());
   if (strategy) {
     AIStrategy::CompareResult compare_result = strategy->CompareRatingWith(best_strategy);

@@ -296,8 +296,8 @@ template<class T> class Vector2
      * @return A vector in which the elements are equal to 1 where the comparaison is true, 0 elsewhere.
      */
     inline Vector2<T> inf(const Vector2<T> &p2){
-      return Vector2<T>( x < p2.x ? 1:0,
-          y < p2.y ? 1:0);
+      return Vector2<T>(x<p2.x ? 1:0,
+                        y<p2.y ? 1:0);
     }
 
     /**
@@ -308,8 +308,8 @@ template<class T> class Vector2
      * @return
      */
     inline Vector2<T> min(const Vector2<T> &p2) const{
-      return Vector2<T>( x < p2.x? x:p2.x,
-          y < p2.y? y:p2.y );
+      return Vector2<T>(x<p2.x ? x : p2.x,
+                        y<p2.y ? y : p2.y);
     }
 
     /**
@@ -317,8 +317,8 @@ template<class T> class Vector2
      * @return
      */
     inline Vector2<T> max(const Vector2<T> &p2) const{
-                        return Vector2<T>( x > p2.x? x:p2.x,
-                       y > p2.y? y:p2.y );
+      return Vector2<T>(x>p2.x ? x : p2.x,
+                        y>p2.y ? y : p2.y);
     }
 
     inline Vector2<T> clamp(const Vector2<T> &min, const Vector2<T> &max) const{
@@ -446,15 +446,15 @@ template<class T> class Vector2
         if (!IsZero(y)) {
           float angle = atan(y/(float)x);
           if (x<0)
-            return (y>0) ? angle+M_PI : angle-M_PI;
+            return (y>0) ? angle+(float)M_PI : angle-(float)M_PI;
           return angle;
         } else {
-          return (x>0) ? 0 : M_PI;
+          return (x>0) ? 0.0f : (float)M_PI;
         }
       } else if (y>0) {
-        return 0.5f*M_PI;
+        return float(0.5f*M_PI);
       } else if (y<0) {
-        return -0.5f*M_PI;
+        return float(-0.5f*M_PI);
       }
       return 0;
     }

@@ -19,41 +19,12 @@
  * Network layer for Warmux.
  *****************************************************************************/
 
-#ifdef _WIN32
-#  define NOMINMAX // Avoid Windows headers to define max()
-#endif
-#include <WARMUX_debug.h>
-#include <SDL_thread.h>
-#include <SDL_timer.h>
-#include <WARMUX_distant_cpu.h>
-#include <WARMUX_player.h>
-#include <WARMUX_index_server.h>
-#include "network/network.h"
-#include "network/network_local.h"
-#include "network/network_client.h"
-#include "network/network_server.h"
-#include "network/chatlogger.h"
-//-----------------------------------------------------------------------------
-#include "game/game_mode.h"
-#include "game/game.h"
-#include "graphic/video.h"
-#include "include/action.h"
-#include "include/action_handler.h"
-#include "include/app.h"
-#include "include/constant.h"
+#include <algorithm>
 
-#include <sys/types.h>
-#ifdef LOG_NETWORK
-#  include <sys/stat.h>
-#  include <fcntl.h>
-#  ifdef WIN32
-#    include <io.h>
-#  endif
-#endif
-//-----------------------------------------------------------------------------
-
-// Standard header, only needed for the following method
 #ifdef WIN32
+#  ifndef NOMINMAX
+#    define NOMINMAX 1 // Avoid Windows headers to define max()
+#  endif
 #  include <winsock2.h>
 #else
 #  ifdef GEKKO
@@ -73,6 +44,39 @@
 #  include <errno.h>
 #  include <unistd.h>
 #endif
+
+#ifdef LOG_NETWORK
+#  include <sys/stat.h>
+#  include <fcntl.h>
+#  ifdef WIN32
+#    include <io.h>
+#  endif
+#endif
+
+#include <sys/types.h>
+#include <SDL_thread.h>
+#include <SDL_timer.h>
+
+#include <WARMUX_debug.h>
+#include <WARMUX_distant_cpu.h>
+#include <WARMUX_player.h>
+#include <WARMUX_index_server.h>
+#include "network/network.h"
+#include "network/network_local.h"
+#include "network/network_client.h"
+#include "network/network_server.h"
+#include "network/chatlogger.h"
+//-----------------------------------------------------------------------------
+#include "game/game_mode.h"
+#include "game/game.h"
+#include "graphic/video.h"
+#include "include/action_handler.h"
+#include "include/app.h"
+#include "include/constant.h"
+#include "map/maps_list.h"
+#include "menu/network_menu.h"
+
+//-----------------------------------------------------------------------------
 
 #include "team/team.h"
 #include "team/teams_list.h"
@@ -105,6 +109,8 @@ void NetworkThread::Wait()
   thread = NULL;
   stop_thread = false;
 }
+
+static int count=0;
 
 void NetworkThread::ReceiveActions()
 {
@@ -153,8 +159,8 @@ void NetworkThread::ReceiveActions()
       // Means an error
       else if (num_ready == -1) {
         //Spams a lot under windows without the errno check...
-        if (errno<0)
-          std::cerr << "SDLNet_CheckSockets: " << SDLNet_GetError() << std::endl;
+        fprintf(stderr, "SDLNet_CheckSockets: %s\n", SDLNet_GetError());
+
         continue; //Or break?
       }
     }
@@ -286,6 +292,7 @@ void Network::RemoveRemoteHost(std::list<DistantComputer*>::iterator host_it)
   // the iterator is removed from the list and has become invalid!
   DistantComputer *host =  *host_it;
   cpu.erase(host_it);
+  // host can no longer receive packets, now disconnect it
   delete host;
   SDL_UnlockMutex(cpus_lock);
 }
@@ -314,7 +321,7 @@ Player * Network::LockRemoteHostsAndGetPlayer(uint player_id)
 void Network::Disconnect()
 {
   // restore Windows title
-  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("Warmux ") + Constants::WARMUX_VERSION);
+  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("WarMUX ") + Constants::WARMUX_VERSION);
 
   // Flush all actions
   ActionHandler::GetInstance()->Flush();
@@ -360,7 +367,7 @@ void Network::DisconnectNetwork()
 // Send Messages
 void Network::SendActionToAll(const Action& a) const
 {
-  MSG_DEBUG("network.traffic","Send action %s to all remote computers",
+  MSG_DEBUG("network.traffic", "Send action %s to all remote computers",
             ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str());
 
   SendAction(a, NULL, false);
@@ -368,7 +375,7 @@ void Network::SendActionToAll(const Action& a) const
 
 void Network::SendActionToOne(const Action& a, DistantComputer* client) const
 {
-  MSG_DEBUG("network.traffic","Send action %s to %s",
+  MSG_DEBUG("network.traffic", "Send action %s to %s",
             ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str(),
             client->ToString().c_str());
 
@@ -445,7 +452,7 @@ connection_state_t Network::ClientStart(const std::string& host,
   } else if (prev != NULL) {
     delete prev;
   }
-  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("Warmux ") +
+  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("WarMUX ") +
                                                     Constants::WARMUX_VERSION + " - " +
                                                     _("Client mode"));
   return error;
@@ -475,7 +482,7 @@ connection_state_t Network::ServerStart(const std::string& port, const std::stri
   }
 
   if (error == CONNECTED) {
-    AppWarmux::GetInstance()->video->SetWindowCaption(std::string("Warmux ") +
+    AppWarmux::GetInstance()->video->SetWindowCaption(std::string("WarMUX ") +
                                                       Constants::WARMUX_VERSION + " - " +
                                                       _("Server mode"));
   }
@@ -554,4 +561,72 @@ uint Network::GetNbPlayersWithState(Player::State player_state) const
   SDL_UnlockMutex(cpus_lock);
 
   return counter;
+}
+
+std::vector<uint> Network::GetCommonMaps()
+{
+  SDL_LockMutex(cpus_lock);
+  std::vector<uint> list = DistantComputer::GetCommonMaps(cpu);
+  SDL_UnlockMutex(cpus_lock);
+
+  return list;
+}
+
+
+void Network::SendMapsList()
+{
+  MapsList *map_list = MapsList::GetInstance();
+  std::list<DistantComputer*> &list = GetRemoteHosts();
+  if (list.empty())
+    return;
+
+  if (IsGameMaster()) {
+    // We are the game master: the received list must be used to determine
+    // the common list and inform *all* distant computers
+    // Furthermore, there should be no additional integer for the currently selected
+    std::vector<uint> common_list = GetCommonMaps();
+    if (common_list.empty()) {
+      // No host, create a ful list list for ourselves at least
+      common_list.resize(map_list->lst.size());
+      for (uint i=0; i<map_list->lst.size(); i++)
+        common_list[i] = i;
+    }
+    MSG_DEBUG("action_handler.map", "Common list has now %u maps\n", common_list.size());
+
+    int index = map_list->GetActiveMapIndex();
+    if (map_list->IsRandom()) {
+      index = common_list.size();
+    } else if (std::find(common_list.begin(), common_list.end(), index) == common_list.end()) {
+      // Not found, reset
+      index = 0;
+      map_list->SelectMapByIndex(0);
+    }
+
+    Action a(Action::ACTION_GAME_FORCE_MAP_LIST);
+
+    a.Push(common_list.size());
+    for (uint i=0; i<common_list.size(); i++)
+      a.Push(map_list->lst[common_list[i]]->GetRawName());
+    //map_list->FillActionMenuSetMap(a);
+
+    SendActionToAll(a);
+
+    if (network_menu) {
+      // Apply locally: list and current active one
+      network_menu->SetMapsCallback(common_list);
+      // Calling this will send an action, check MapSelectionBox::ChangeMap
+      network_menu->ChangeMapCallback();
+    }
+
+    return;
+  }
+  DistantComputer* host = list.front();
+  MSG_DEBUG("action_handler.map", "Sending list to %p\n", host);
+  Action a(Action::ACTION_GAME_SET_MAP_LIST);
+  a.Push(map_list->lst.size());
+  for (uint i=0; i<map_list->lst.size(); i++)
+    a.Push(map_list->lst[i]->GetRawName());
+
+  // We only send to game master, which should be the only one anyway
+  SendActionToOne(a, host);
 }

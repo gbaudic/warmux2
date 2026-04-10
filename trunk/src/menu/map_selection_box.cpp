@@ -19,6 +19,8 @@
  * Map selection box
  *****************************************************************************/
 
+#include <algorithm>
+
 #include "menu/map_selection_box.h"
 #include "game/config.h"
 #include "gui/button.h"
@@ -32,8 +34,10 @@
 #include "network/network.h"
 #include "tool/resource_manager.h"
 
-MapSelectionBox::MapSelectionBox(const Point2i &_size, bool show_border, bool _display_only) :
-  VBox(_size.GetX(), show_border, false), selected_map_index(0)
+MapSelectionBox::MapSelectionBox(const Point2i &_size, bool show_border, bool _display_only)
+  : VBox(_size.GetX(), show_border, false)
+  , selected_map_index(0)
+  , common(MapsList::GetInstance()->lst) // Created with an already initialized list
 {
   display_only = _display_only;
 
@@ -45,8 +49,6 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool show_border, bool _d
 
   // random map
   random_map_preview = GetResourceManager().LoadImage(res, "menu/random_map");
-
-  GetResourceManager().UnLoadXMLProfile(res);
 
   // compute margin width between previews
   uint map_preview_height = _size.GetY() -2*10 -40;
@@ -62,15 +64,15 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool show_border, bool _d
   uint margin = 0;
 
   if (uint(size.x) > uint(total_width_previews + bt_map_plus->GetSizeX()
-                          + bt_map_minus->GetSizeX() + border.x)) {
+                          + bt_map_minus->GetSizeX() + border_size)) {
     margin = ( size.x - (total_width_previews + bt_map_plus->GetSizeX() +
-                         bt_map_minus->GetSizeX() + border.x) ) / 6;
+                         bt_map_minus->GetSizeX() + border_size) ) / 6;
   }
 
   if (margin < 5) {
     margin = 5;
     uint total_size_wo_margin = size.x - 6*margin - bt_map_plus->GetSizeX()
-                              - bt_map_minus->GetSizeX() - border.x;
+                              - bt_map_minus->GetSizeX() - border_size;
     map_preview_width = (total_size_wo_margin)/4; // <= total = w + 4*(3/4)w
     map_preview_height = 3/4 * map_preview_width;
   }
@@ -111,15 +113,10 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool show_border, bool _d
                                Text::ALIGN_CENTER_TOP, false);
   AddWidget(map_author_label);
 
-  // Load Maps' list
-  uint i = MapsList::GetInstance()->GetActiveMapIndex();
-
   if (display_only) {
     bt_map_minus->SetVisible(false);
     bt_map_plus->SetVisible(false);
   }
-
-  ChangeMap(i);
 }
 
 void MapSelectionBox::ChangeMapDelta(int delta_index)
@@ -129,7 +126,7 @@ void MapSelectionBox::ChangeMapDelta(int delta_index)
   int tmp = selected_map_index + delta_index;
 
   // +1 is for random map!
-  tmp = (tmp < 0 ? tmp + MapsList::GetInstance()->lst.size() + 1 : tmp) % (MapsList::GetInstance()->lst.size() + 1);
+  tmp = (tmp < 0 ? tmp + common.size() + 1 : tmp) % (common.size() + 1);
 
   ChangeMap(tmp);
 }
@@ -137,7 +134,7 @@ void MapSelectionBox::ChangeMapDelta(int delta_index)
 void MapSelectionBox::ChangeMap(uint index)
 {
   int tmp;
-  if (index > MapsList::GetInstance()->lst.size()+1) return;
+  if (index > common.size()+1) return;
 
   // Callback other network players
   if (Network::GetInstance()->IsGameMaster()) {
@@ -146,10 +143,10 @@ void MapSelectionBox::ChangeMap(uint index)
     // We need to do it here to send the right map to still not connected clients
     // in distant_cpu::distant_cpu
 
-    if (selected_map_index == MapsList::GetInstance()->lst.size()) { // random map
+    if (selected_map_index == common.size()) { // random map
       MapsList::GetInstance()->SelectMapByName("random");
     } else {
-      MapsList::GetInstance()->SelectMapByIndex(index);
+      MapsList::GetInstance()->SelectMapByName(common[index]->GetRawName());
     }
 
     Action a(Action::ACTION_GAME_SET_MAP);
@@ -164,34 +161,39 @@ void MapSelectionBox::ChangeMap(uint index)
 
   // Set previews
   tmp = index - 1;
-  tmp = (tmp < 0 ? tmp + MapsList::GetInstance()->lst.size() + 1: tmp);
+  tmp = (tmp < 0 ? tmp + common.size() + 1: tmp);
   UpdateMapInfo(map_preview_before, tmp, false);
 
   tmp = index - 2;
-  tmp = (tmp < 0 ? tmp + MapsList::GetInstance()->lst.size() + 1: tmp);
+  tmp = (tmp < 0 ? tmp + common.size() + 1: tmp);
   UpdateMapInfo(map_preview_before2, tmp, false);
 
-  UpdateMapInfo(map_preview_after,  (index + 1) % (MapsList::GetInstance()->lst.size() +1), false);
-  UpdateMapInfo(map_preview_after2, (index + 2) % (MapsList::GetInstance()->lst.size() +1), false);
+  UpdateMapInfo(map_preview_after,  (index + 1) % (common.size() +1), false);
+  UpdateMapInfo(map_preview_after2, (index + 2) % (common.size() +1), false);
 }
 
 void MapSelectionBox::UpdateMapInfo(PictureWidget * widget, uint index, bool selected)
 {
-  if (index == MapsList::GetInstance()->lst.size()) {
+  if (index == common.size()) {
     UpdateRandomMapInfo(widget, selected);
     return;
   }
 
   InfoMapBasicAccessor* basic = NULL;
 
-  basic = MapsList::GetInstance()->lst[index]->LoadBasicInfo();
+  basic = common[index]->LoadBasicInfo();
   if (!basic) {
     // Error already reported by LoadBasicInfo()
+    MapsList *map_list = MapsList::GetInstance();
 
     // Crude
-    MapsList::iterator it = MapsList::GetInstance()->lst.begin() + index;
+    MapsList::iterator it = map_list->lst.begin()
+                          + map_list->FindMapById(common[index]->GetRawName());
     delete *it;
-    MapsList::GetInstance()->lst.erase(it);
+    map_list->lst.erase(it);
+
+    // Inform network if need be - will call back up to this very function
+    Network::GetInstance()->SendMapsList();
     return;
   }
 
@@ -264,7 +266,7 @@ void MapSelectionBox::ValidMapSelection()
 {
   std::string map_name;
 
-  if (selected_map_index == MapsList::GetInstance()->lst.size()) {
+  if (selected_map_index == common.size()) {
     // Choose one and select it!
     map_name = "random";
 
@@ -272,8 +274,8 @@ void MapSelectionBox::ValidMapSelection()
       MapsList::GetInstance()->SelectMapByName(map_name);
     }
   } else {
-    map_name = MapsList::GetInstance()->lst[selected_map_index]->GetRawName();
-    MapsList::GetInstance()->SelectMapByIndex(selected_map_index);
+    map_name = common[selected_map_index]->GetRawName();
+    MapsList::GetInstance()->SelectMapByName(map_name);
   }
 
   /* The player chose a map, save it in the main config so that this will be
@@ -283,8 +285,24 @@ void MapSelectionBox::ValidMapSelection()
 
 void MapSelectionBox::ChangeMapCallback()
 {
-  int index = MapsList::GetInstance()->GetActiveMapIndex();
-  ChangeMap(index);
+  const InfoMap* current = MapsList::GetInstance()->ActiveMap();
+  for (uint i=0; i<common.size(); i++) {
+    if (common[i] == current) {
+      ChangeMap(i);
+      break;
+    }
+  }
+}
+
+void MapSelectionBox::ChangeMapListCallback(const std::vector<uint>& index_list)
+{
+  std::vector<InfoMap*> local = MapsList::GetInstance()->lst;
+
+  // Index list is made of indices of local maps: it's a subset
+  common.resize(index_list.size());
+  for (uint i=0; i<index_list.size(); i++) {
+    common[i] = local[index_list[i]];
+  }
 }
 
 void MapSelectionBox::AllowSelection()

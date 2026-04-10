@@ -70,6 +70,9 @@ MainMenu::MainMenu() :
   credits = new ButtonPic(_("Credits"), "menu/ico_credits", size);
   box->AddWidget(credits);
 
+  replay = new ButtonPic(_("Replay"), "menu/ico_replay", size);
+  box->AddWidget(replay);
+
   quit =  new ButtonPic(_("Quit"), "menu/ico_quit", size);
   box->AddWidget(quit);
 
@@ -84,7 +87,7 @@ MainMenu::MainMenu() :
 
   widgets.Pack();
 
-  std::string s("Version "+Constants::WARMUX_VERSION);
+  std::string s = _("Version") + std::string(" ")+Constants::WARMUX_VERSION;
   version_text = new Text(s, orange_color, Font::FONT_MEDIUM, Font::FONT_BOLD, true);
 
   std::string s2(Constants::WEB_SITE);
@@ -131,6 +134,9 @@ void MainMenu::SelectAction(const Widget * widget)
   } else if (widget == credits) {
     choice = CREDITS;
     close_menu = true;
+  } else if (widget == replay) {
+    choice = REPLAY;
+    close_menu = true;
   } else if (widget == quit) {
     choice = QUIT;
     close_menu = true;
@@ -167,8 +173,10 @@ void MainMenu::SelectAction(const Widget * widget)
 void MainMenu::OnClickUp(const Point2i &mousePosition, int button)
 {
   Widget* b = widgets.ClickUp(mousePosition,button);
-  SelectAction(b);
-  JukeBox::GetInstance()->Play("default", "menu/clic");
+  if (b) {
+    SelectAction(b);
+    JukeBox::GetInstance()->Play("default", "menu/clic");
+  }
 }
 
 void MainMenu::OnClick(const Point2i &/*mousePosition*/, int /*button*/)

@@ -32,6 +32,7 @@
 #include "team/teams_list.h"
 #include "character/character.h"
 #include "graphic/colors.h"
+#include "graphic/polygon.h"
 #include "game/game.h"
 
 
@@ -57,7 +58,6 @@ void WeaponStrengthBar::InitPos(uint px, uint py, uint pwidth, uint pheight)
   if (last_fire)
     delete last_fire;
   last_fire = new Sprite(LOAD_RES_IMAGE("interface/weapon_strength_bar_last_fire"));
-  GetResourceManager().UnLoadXMLProfile(res);
 
   if (m_box)
     delete m_box;

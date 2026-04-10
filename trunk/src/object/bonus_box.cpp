@@ -20,18 +20,19 @@
  * The box can contain any weapon in the game.
  *****************************************************************************/
 
-#include "object/bonus_box.h"
 #include <sstream>
 #include <iostream>
+
+#include <WARMUX_random.h>
+
+#include "object/bonus_box.h"
 #include "character/character.h"
 #include "graphic/sprite.h"
-#include "include/action.h"
 #include "interface/game_msg.h"
 #include "network/randomsync.h"
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WARMUX_random.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
@@ -45,9 +46,8 @@ BonusBox::BonusBox(Weapon * weapon):
 {
   SetTestRect(29, 29, 63, 6);
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   anim = GetResourceManager().LoadSprite( res, "object/bonus_box");
-  GetResourceManager().UnLoadXMLProfile(res);
 
   SetSize(anim->GetSize());
   anim->animation.SetLoopMode(false);

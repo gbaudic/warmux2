@@ -55,12 +55,12 @@ static const uint MARGIN_TOP    = 5;
 static const uint MARGIN_SIDE   = 5;
 static const uint MARGIN_BOTTOM = 40;
 
-NetworkMenu::NetworkMenu() :
-  Menu("menu/bg_network")
+NetworkMenu::NetworkMenu()
+  : Menu("menu/bg_network")
+  , opt_game_mode(NULL)
 {
   waiting_for_server = false;
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml",false);
   Point2i pointZero(W_UNDEF, W_UNDEF);
 
   Surface& window = GetMainWindow();
@@ -84,7 +84,7 @@ NetworkMenu::NetworkMenu() :
     team_box_height = mainBoxHeight - 60;
   }
 
-  MultiTabs * tabs = new MultiTabs(Point2i(mainBoxWidth, mainBoxHeight));
+  tabs = new MultiTabs(Point2i(mainBoxWidth, mainBoxHeight));
 
   // ################################################
   // ##  TEAM AND MAP SELECTION
@@ -107,31 +107,13 @@ NetworkMenu::NetworkMenu() :
     tabs->AddNewTab("TAB_Team_Map", tabs_title, box);
   }
 
-  // ################################################
-  // ##  GAME OPTIONS
-  // ################################################
-
-  if (Network::GetInstance()->IsGameMaster()) {
-    // Using the game mode editor but currently we are not able to send
-    // custom parameters to client
-
-    Box *box = new GridBox(4, 4, 0, false);
-
-    Point2i option_size(114, 114);
-    std::string selected_gamemode = Config::GetInstance()->GetGameMode();
-
-    opt_game_mode = new ComboBox(_("Game mode"), "menu/game_mode", option_size,
-				 GameMode::ListGameModes(), selected_gamemode);
-    box->AddWidget(opt_game_mode);
-
-    tabs->AddNewTab("TAB_Game", _("Game"), box);
-  }
-
   tabs->SetPosition(MARGIN_SIDE, MARGIN_TOP);
-
   widgets.AddWidget(tabs);
   widgets.Pack();
 
+  // ################################################
+  // ##  PLAYERS INFORMATION
+  // ################################################
 
   Box* bottom_box = new HBox(chat_box_height, false, false, true);
   bottom_box->SetNoBorder();
@@ -169,9 +151,6 @@ NetworkMenu::NetworkMenu() :
   bottom_box->SetPosition(MARGIN_SIDE, tabs->GetPositionY() + tabs->GetSizeY() + MARGIN_SIDE);
 
   widgets.AddWidget(bottom_box);
-  widgets.Pack();
-
-  GetResourceManager().UnLoadXMLProfile(res);
 
   if (!Network::GetInstance()->IsServer()) {
 
@@ -191,11 +170,31 @@ NetworkMenu::NetworkMenu() :
 
   } else if (Network::GetInstance()->IsServer()) {
     // Server Mode
+    AddGameModeTab();
     mode_label->SetText(_("Server mode"));
   } else {
-    // The first player to connect to a headless server asumes the game master role
+    // The first player to connect to a headless server assumes the game master role
     SetGameMasterCallback();
   }
+  widgets.Pack();
+}
+
+void NetworkMenu::AddGameModeTab()
+{
+  ASSERT(!opt_game_mode);
+
+  Box *box = new GridBox(4, 4, 0, false);
+
+  Point2i option_size(114, 114);
+  std::string selected_gamemode = Config::GetInstance()->GetGameMode();
+
+  // Using the game mode editor but currently we are not able to send
+  // custom parameters to client
+  opt_game_mode = new ComboBox(_("Game mode"), "menu/game_mode", option_size,
+				 GameMode::ListGameModes(), selected_gamemode);
+  box->AddWidget(opt_game_mode);
+
+  tabs->AddNewTab("TAB_Game", _("Game"), box);
 }
 
 void NetworkMenu::signal_begin_run()
@@ -251,22 +250,20 @@ void NetworkMenu::PrepareForNewGame()
 
 bool NetworkMenu::signal_ok()
 {
-  if (!Network::GetInstance()->IsGameMaster())
-  {
+  if (!Network::GetInstance()->IsGameMaster()) {
     // Check the user have selected a team:
     bool found = false;
-    for(std::vector<Team*>::iterator team = GetTeamsList().playing_list.begin();
-                    team != GetTeamsList().playing_list.end();
-                    team++)
-    {
-      if((*team)->IsLocalHuman())
-      {
+
+    for (std::vector<Team*>::iterator team = GetTeamsList().playing_list.begin();
+         team != GetTeamsList().playing_list.end();
+         team++) {
+      if ((*team)->IsLocalHuman()) {
         found = true;
         break;
       }
     }
-    if(!found)
-    {
+
+    if (!found) {
       msg_box->NewMessage(_("You won't be able to play before selecting a team!"));
       goto error;
     }
@@ -278,24 +275,19 @@ bool NetworkMenu::signal_ok()
       goto error;
     }
 
-  }
-  else
-  {
-    if (GetTeamsList().playing_list.size() <= 1)
-    {
+  } else {
+    if (GetTeamsList().playing_list.size() <= 1) {
       msg_box->NewMessage(Format(ngettext("There is only %i team.",
                                           "There are only %i teams.",
                                           GetTeamsList().playing_list.size()),
                                  GetTeamsList().playing_list.size()), c_red);
       goto error;
     }
-    if (Network::GetInstance()->GetNbPlayersConnected() == 0)
-    {
+    if (Network::GetInstance()->GetNbPlayersConnected() == 0) {
       msg_box->NewMessage(_("You are alone. :-/"), c_red);
       goto error;
     }
-    if (Network::GetInstance()->GetNbPlayersConnected() != Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED))
-    {
+    if (Network::GetInstance()->GetNbPlayersConnected() != Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED)) {
       int nbr = Network::GetInstance()->GetNbPlayersConnected() - Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED);
       std::string pl = Format(ngettext("Wait! %i player is not ready yet!", "Wait! %i players are not ready yet!", nbr), nbr);
       msg_box->NewMessage(pl, c_red);
@@ -343,8 +335,7 @@ bool NetworkMenu::signal_ok()
 void NetworkMenu::key_ok()
 {
   // return was pressed while chat texbox still had focus (player wants to send his msg)
-  if (msg_box->TextHasFocus())
-  {
+  if (msg_box->TextHasFocus()) {
     msg_box->SendChatMsg();
     return;
   }
@@ -362,8 +353,7 @@ bool NetworkMenu::signal_cancel()
 
 void NetworkMenu::Draw(const Point2i& /*mousePosition*/)
 {
-  if (Network::GetInstance()->IsConnected())
-  {
+  if (Network::GetInstance()->IsConnected()) {
     //Refresh the number of connected players:
     int nbr = Network::GetInstance()->GetNbPlayersConnected() + 1;
     std::string pl = Format(ngettext("%i player connected", "%i players connected", nbr), nbr);
@@ -400,7 +390,7 @@ void NetworkMenu::Draw(const Point2i& /*mousePosition*/)
 
 void NetworkMenu::DelTeamCallback(const std::string& team_id)
 {
-  if( close_menu )
+  if (close_menu)
     return;
 
   // Called from the action handler
@@ -409,7 +399,7 @@ void NetworkMenu::DelTeamCallback(const std::string& team_id)
 
 void NetworkMenu::AddTeamCallback(const std::string& team_id)
 {
-  if ( close_menu )
+  if (close_menu)
     return;
 
   team_box->AddTeamCallback(team_id);
@@ -417,7 +407,7 @@ void NetworkMenu::AddTeamCallback(const std::string& team_id)
 
 void NetworkMenu::UpdateTeamCallback(const std::string& old_team_id, const std::string& team_id)
 {
-  if ( close_menu )
+  if (close_menu)
     return;
 
   team_box->UpdateTeamCallback(old_team_id, team_id);
@@ -434,23 +424,33 @@ void NetworkMenu::ChangeMapCallback()
 void NetworkMenu::SetGameMasterCallback()
 {
   // We are becoming game master, updating the menu...
-  AppWarmux::GetInstance()->video->SetWindowCaption( std::string("Warmux ") +
-                                                     Constants::WARMUX_VERSION + " - " +
-                                                     _("Master mode"));
+  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("WarMUX ") +
+                                                    Constants::WARMUX_VERSION + " - " +
+                                                    _("Master mode"));
+  AddGameModeTab();
   mode_label->SetText(_("Master mode"));
   connected_players->SetVisible(true);
   initialized_players->SetVisible(true);
   map_box->AllowSelection();
   b_ok->SetVisible(true); // make sure OK button is available if we had already clicked it
-  waiting_for_server = false;
-  msg_box->NewMessage(_("You are the new turn master!"), c_red);
-  msg_box->NewMessage(_("Wait until some opponent(s) connect!"), c_red);
 
+  widgets.Pack();
+  tabs->NeedRedrawing();
+  RedrawMenu();
+
+  waiting_for_server = false;
+  msg_box->NewMessage(_("You are the new turn master! Learn about your new powers by typing /help"), c_red);
+  msg_box->NewMessage(_("Wait until some opponent(s) connect!"), c_red);
 }
 
 void NetworkMenu::ReceiveMsgCallback(const std::string& msg, const Color& color)
 {
   msg_box->NewMessage(msg, color);
+}
+
+void NetworkMenu::SetMapsCallback(const std::vector<uint>& list)
+{
+  map_box->ChangeMapListCallback(list);
 }
 
 Team * NetworkMenu::FindUnusedTeam(const std::string default_team_id)

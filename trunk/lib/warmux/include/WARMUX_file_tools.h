@@ -58,13 +58,22 @@ std::string CreateTmpFile(const std::string& prefix, int *fd);
 // Move a file or folder
 bool Rename(const std::string& old_name, const std::string& new_name);
 
+#ifdef _WIN32
+#  define TranslateDirectory(a) (a)
+#else
 // Replace ~ by its true name
 std::string TranslateDirectory(const std::string &directory);
+#endif
 
 typedef struct _FolderSearch FolderSearch;
 
 FolderSearch *OpenFolder(const std::string& dirname);
-const char* FolderSearchNext(FolderSearch *f);
+/**
+ * Set file to true to have in it on return whether the returned
+ * string is a file
+ * @warning The string returned is a temporary!
+ */
+const char* FolderSearchNext(FolderSearch *f, bool& file);
 void CloseFolder(FolderSearch *f);
 
 std::string FormatFileName(const std::string &name);

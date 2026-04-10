@@ -19,12 +19,12 @@
  *  Starting file. (the 'main' function is here.)
  *****************************************************************************/
 
+#include <WARMUX_singleton.h>
 #include <getopt.h>
 #ifndef WIN32
 # include <signal.h>
 #endif
 #include <SDL.h>
-#include <WARMUX_singleton.h>
 #include "game/config.h"
 #include "game/game.h"
 #include "game/game_time.h"
@@ -41,10 +41,13 @@
 #include "menu/game_menu.h"
 #include "menu/help_menu.h"
 #include "menu/main_menu.h"
+#include "menu/pause_menu.h"
 #include "menu/network_connection_menu.h"
 #include "menu/options_menu.h"
+#include "menu/replay_menu.h"
 #include "network/randomsync.h"
 #include "particles/particle.h"
+#include "replay/replay.h"
 #include "sound/jukebox.h"
 #include "tool/stats.h"
 #ifdef MAEMO
@@ -54,6 +57,15 @@
 #ifdef WMX_LOG
 # include "include/debugmasks.h"
 #endif
+#ifdef ANDROID
+# include <android/log.h>
+# define PAUSE_LOG(fmt, ...) __android_log_print(ANDROID_LOG_INFO, "warmux", fmt, ##__VA_ARGS__ )
+#else
+# define PAUSE_LOG(fmt, ...) MSG_DEBUG("pause", fmt, ##__VA_ARGS__ )
+#endif
+
+// Can be accessed by other parts of the code
+bool quit_game = false;
 
 static MainMenu::menu_item choice = MainMenu::NONE;
 static bool skip_menu = false;
@@ -86,10 +98,10 @@ AppWarmux::~AppWarmux()
   singleton = NULL;
 }
 
+static std::string replay;
+
 int AppWarmux::Main(void)
 {
-  bool quit = false;
-
   DisplayLoadingPicture();
 
   // Now that we are displaying a kind of 'please wait', do preload sounds
@@ -100,6 +112,14 @@ int AppWarmux::Main(void)
 #endif
 
   Action_Handler_Init();
+
+  // Is a replay filename set so that we play it?
+  if (!replay.empty()) {
+    StartPlaying(replay);
+    replay.clear();
+    End();
+    return 0;
+  }
 
   do {
     if (choice == MainMenu::NONE) {
@@ -153,8 +173,15 @@ int AppWarmux::Main(void)
         credits_menu.Run();
         break;
       }
+      case MainMenu::REPLAY:
+      {
+        ReplayMenu replay_menu;
+        SetCurrentMenu(&replay_menu);
+        replay_menu.Run();
+        break;
+      }
       case MainMenu::QUIT:
-        quit = true;
+        quit_game = true;
         break;
       default:
         break;
@@ -164,7 +191,7 @@ int AppWarmux::Main(void)
     skip_menu = false;
     net_action = NetworkConnectionMenu::NET_NOTHING;
   }
-  while (!quit);
+  while (!quit_game);
 
   End();
 
@@ -185,7 +212,7 @@ void AppWarmux::DisplayLoadingPicture()
   loading_image.ScaleSize(video->window.GetSize());
   loading_image.Blit(video->window, 0, 0);
 
-  Time::GetInstance()->Reset();
+  GameTime::GetInstance()->Reset();
 
   Text text1(_("Warmux launching..."), white_color,
              Font::FONT_HUGE, Font::FONT_BOLD, true);
@@ -203,7 +230,7 @@ void AppWarmux::DisplayLoadingPicture()
 
 void AppWarmux::RefreshDisplay()
 {
-  if (Game::IsRunning()) {
+  if (GameIsRunning()) {
     if (Game::GetCurrentMenu()) {
       Game::GetCurrentMenu()->RedrawMenu();
       return;
@@ -221,7 +248,7 @@ void AppWarmux::DisplayError(const std::string &msg)
 {
   std::cerr << msg << std::endl;
 
-  if (Game::IsRunning()) {
+  if (GameIsRunning()) {
     if (Game::GetCurrentMenu()) {
       Game::GetCurrentMenu()->DisplayError(msg);
     }
@@ -231,10 +258,12 @@ void AppWarmux::DisplayError(const std::string &msg)
   }
 }
 
-void AppWarmux::ReceiveMsgCallback(const std::string& msg, const Color& color)
+void AppWarmux::ReceiveMsgCallback(const std::string& msg, const Color& color, bool in_game)
 {
-  if (Game::IsRunning()) {
-    if (Game::GetCurrentMenu()) {
+  if (Replay::GetConstInstance()->IsPlaying() && in_game) {
+    Game::GetInstance()->chatsession.NewMessage(msg, color);
+  } else if (GameIsRunning()) {
+    if (Game::GetCurrentMenu() && !in_game) {
       // Drop message, we should be paused anyway
     } else {
       // Add message to chat session in Game
@@ -259,58 +288,60 @@ void AppWarmux::End() const
   SaveStatToXML("stats.xml");
 #endif
   std::cout << "o " << _("If you found a bug or have a feature request "
-                    "send us an email (in english, please):")
+                         "send us an email (in english, please):")
     << " " << Constants::EMAIL << std::endl;
 }
 
 bool AppWarmux::CheckInactive(SDL_Event& evnt)
 {
 #ifdef MAEMO
-  bool pause_all = true;
   Osso::Process();
-  if (evnt.type==SDL_ACTIVEEVENT) {
-#else
-
-# ifdef ANDROID
-  bool pause_all = true;
-# else
-  bool pause_all = false;
-# endif
-
-  if (evnt.type==SDL_ACTIVEEVENT && evnt.active.state&SDL_APPACTIVE) {
 #endif
-    if (Network::IsConnected()) {
-      switch (evnt.active.gain) {
-      case 0: JukeBox::GetInstance()->Pause(pause_all); return true;
-      case 1: JukeBox::GetInstance()->Resume(pause_all); return true;
-      default: break;
-      }
-    }
-    else if (evnt.active.gain == 0) {
+
 #ifdef HAVE_HANDHELD
-      JukeBox::GetInstance()->CloseDevice();
+#  define CHECK_STATE(e) e.type==SDL_ACTIVEEVENT
 #else
-      JukeBox::GetInstance()->Pause();
+#  define CHECK_STATE(e) e.type==SDL_ACTIVEEVENT && e.active.state&SDL_APPACTIVE
 #endif
-      Time::GetInstance()->SetWaitingForUser(true);
-      while (SDL_WaitEvent(&evnt)) {
+
+  if (CHECK_STATE(evnt) && evnt.active.gain == 0) {
+    PAUSE_LOG("Pause: entering, state=%X\n", evnt.active.state);
+    JukeBox::GetInstance()->CloseDevice();
+    GameTime::GetInstance()->SetWaitingForUser(true);
+
+    Action a(Action::ACTION_ANNOUNCE_PAUSE);
+    Network::GetInstance()->SendActionToAll(a);
+
+    while (SDL_WaitEvent(&evnt)) {
 #ifdef MAEMO
-  Osso::Process();
+      Osso::Process();
 #endif
-        if (evnt.type == SDL_QUIT) AppWarmux::EmergencyExit();
-        if (evnt.type == SDL_ACTIVEEVENT && evnt.active.gain == 1) {
-#ifdef HAVE_HANDHELD
-    JukeBox::GetInstance()->OpenDevice();
-    JukeBox::GetInstance()->NextMusic();
-#else
-          JukeBox::GetInstance()->Resume();
-#endif
-          Time::GetInstance()->SetWaitingForUser(false);
-          break;
+      if (evnt.type == SDL_QUIT) AppWarmux::EmergencyExit();
+      if (evnt.type == SDL_ACTIVEEVENT && evnt.active.gain == 1) {
+        PAUSE_LOG("Active: state=%X\n", evnt.active.state);
+        if ((!menu || choice != MainMenu::NONE) && GameIsRunning()) {
+          PAUSE_LOG("Pause: menu=%p\n", menu);
+          choice = MainMenu::NONE;
+          bool exit = false;
+          // There shouldn't be any other menu set, right?
+          menu = new PauseMenu(exit);
+          menu->Run();
+          delete menu;
+          menu = NULL;
+          if (exit)
+            Game::GetInstance()->UserAsksForEnd();
         }
+
+        JukeBox::GetInstance()->OpenDevice();
+        JukeBox::GetInstance()->NextMusic();
+        GameTime::GetInstance()->SetWaitingForUser(false);
+
+        break;
       }
-      return true;
+
+      PAUSE_LOG("Dropping event %u\n", evnt.type);
     }
+    return true;
   }
   return false;
 }
@@ -353,12 +384,15 @@ void DisplayWelcomeMessage()
 void PrintUsage(const char* cmd_name)
 {
   printf("usage: \n");
-  printf("%s -h|--help : show this help\n", cmd_name);
-  printf("%s -v|--version : show the version\n", cmd_name);
-  printf("%s -r|--reset-config : reset the configuration to default\n", cmd_name);
+  printf("%s -h|--help : show this help and exit\n", cmd_name);
+  printf("%s -v|--version : show the version and exit\n", cmd_name);
+  printf("%s -r|--reset-config : reset the configuration to default and exit\n", cmd_name);
+  printf("%s -f|--force-refresh : force game to refresh, even very slowly. Useful to run with valgrind\n", cmd_name);
+  printf("%s --size <width>x<height> : set the display resolution\n", cmd_name);
   printf("%s [-p|--play] [-g|--game-mode <game_mode>]"
          " [-s|--server] [-c|--client [ip]]\n"
-         " [-i|--index-server] [ip/hostname of index server]]\n"
+         " [-i|--index-server [ip/hostname of index server]]\n"
+         " [-q|--quick-quit : exit the game immediately after first run\n"
 #ifdef WMX_LOG
          " [-d|--debug <debug_masks>|all]\n"
 #endif
@@ -377,26 +411,29 @@ void ParseArgs(int argc, char * argv[])
     {"unrandom",   no_argument,       NULL, 'u'},
     {"force-refresh", no_argument,    NULL, 'f'},
     {"help",       no_argument,       NULL, 'h'},
-    {"blitz",      no_argument,       NULL, 'b'},
     {"version",    no_argument,       NULL, 'v'},
     {"play",       no_argument,       NULL, 'p'},
+    {"quick-quit", no_argument,       NULL, 'q'},
     {"client",     optional_argument, NULL, 'c'},
     {"server",     no_argument,       NULL, 's'},
     {"index-server", optional_argument, NULL, 'i'},
     {"game-mode",  required_argument, NULL, 'g'},
     {"debug",      required_argument, NULL, 'd'},
     {"reset-config", no_argument,     NULL, 'r'},
+    {"size",       required_argument, NULL, 'S'},
+    {"replay",     required_argument, NULL, 'R'},
     {NULL,         no_argument,       NULL,  0 }
   };
 
-  while ((c = getopt_long (argc, argv, "ufhbvpc::i::sg:d:",
-                           long_options, &option_index)) != -1) {
+  while ((c = getopt_long(argc, argv, "ufhvpqc::si::g:d:rS:R:",
+                          long_options, &option_index)) != -1) {
     switch (c) {
     case 'u':
       RandomSync().UnRandom();
       RandomLocal().UnRandom();
       break;
     case 'f':
+      // This option is useful to run with valgrind
       extern bool force_refresh;
       force_refresh = true;
       break;
@@ -429,6 +466,9 @@ void ParseArgs(int argc, char * argv[])
       fprintf(stderr, "Option -d is not available. Warmux has not been compiled with debug/logging option.\n");
 #endif
       break;
+    case 'R':
+      replay = optarg;
+      break;
     case 's':
       choice = MainMenu::NETWORK;
       net_action = NetworkConnectionMenu::NET_HOST;
@@ -448,6 +488,9 @@ void ParseArgs(int argc, char * argv[])
       printf("Game-mode: %s\n", optarg);
       Config::GetInstance()->SetGameMode(optarg);
       break;
+    case 'q':
+      quit_game = true; // immediately exit the game after first run
+      break;
     case 'r':
       {
         bool r;
@@ -457,7 +500,18 @@ void ParseArgs(int argc, char * argv[])
         exit(EXIT_SUCCESS);
       }
       break;
-
+    case 'S':
+      {
+	      uint width, height;
+	      int ret = sscanf(optarg, "%ux%u", &width, &height);
+	      if (ret == 2) {
+	        Config::GetInstance()->SetVideoWidth(width);
+	        Config::GetInstance()->SetVideoHeight(height);
+	      } else {
+	        fprintf(stderr, "Error: %s is not a valid resolution\n", optarg);
+	      }
+      }
+      break;
     case '?': /* returns by getopt if option was invalid */
       PrintUsage(argv[0]);
       exit(EXIT_FAILURE);
@@ -474,7 +528,7 @@ void ParseArgs(int argc, char * argv[])
 
 extern "C" int main(int argc, char *argv[])
 {
-#ifndef WIN32
+#if !defined(WIN32) && !defined(__SYMBIAN32__)
   signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -491,6 +545,8 @@ extern "C" int main(int argc, char *argv[])
   freopen("warmux_stdout.txt", "w", stdout);
   freopen("warmux_stderr.txt", "w", stderr);
 #endif
+
+  std::ios_base::sync_with_stdio(true);
 
   /* FIXME calling Config::GetInstance here means that there is no need of
    * singleton for Config but simply a global variable. This may look stange
@@ -513,6 +569,7 @@ extern "C" int main(int argc, char *argv[])
 
   AppWarmux::GetInstance()->Main();
   delete AppWarmux::GetInstance();
+  SDL_QuitSubSystem(SDL_INIT_TIMER);
   SDL_Quit();
   exit(EXIT_SUCCESS);
 }

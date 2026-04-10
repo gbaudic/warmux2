@@ -19,18 +19,19 @@
  * energy bar of each team
  *****************************************************************************/
 
-#include "team/team_energy.h"
 #include <sstream>
 #include <WARMUX_types.h>
-#include "map/camera.h"
-#include "map/map.h"
 #include "game/game_time.h"
 #include "graphic/text.h"
 #include "graphic/sprite.h"
+#include "gui/energy_bar.h"
+#include "include/app.h"
+#include "map/camera.h"
+#include "map/map.h"
 #include "sound/jukebox.h"
 #include "team/team.h"
+#include "team/team_energy.h"
 #include "team/teams_list.h"
-#include "include/app.h"
 
 #define   BAR_WIDTH       13
 
@@ -38,7 +39,7 @@
 #define   BACK_ALPHA      0
 #define   BACKGROUND_GREY (255*6)/10
 
-#define MOVE_DURATION     750.0
+#define MOVE_DURATION     750.0f
 
 void EnergyList::Reset()
 {
@@ -54,7 +55,7 @@ void EnergyList::AddValue(uint value)
   if (value == m_last_value)
     return;
 
-  EnergyValue *eval = new EnergyValue(Time::GetInstance()->Read(), value);
+  EnergyValue *eval = new EnergyValue(GameTime::GetInstance()->Read(), value);
   if (value > m_max_value) m_max_value = value;
   m_last_value = value;
   EnergyList::push_back(eval);
@@ -184,7 +185,7 @@ void TeamEnergy::Move()
   }
 
   // teams ranking have changed
-  Time * global_time = Time::GetInstance();
+  GameTime * global_time = GameTime::GetInstance();
   if (rank != new_rank) {
     if (!move_start_time)
       move_start_time = global_time->Read();

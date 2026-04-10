@@ -25,6 +25,7 @@
 #include <WARMUX_error.h>
 #include <WARMUX_i18n.h>
 #include <WARMUX_socket.h>
+#include <WARMUX_debug.h>
 
 static const int MAX_PACKET_SIZE = 250*1024;
 
@@ -63,6 +64,8 @@ DistantComputer::~DistantComputer()
   WARMUX_DisconnectHost(*this);
 
   // This will call the needed player->Disconnect() for each player
+  // This doesn't receive or send info from the network, so it's safe
+  // to do this after WARMUX_DisconnectHost to not delay disconnection
   players.clear();
 
   delete sock;
@@ -120,20 +123,17 @@ std::string DistantComputer::GetAddress() const
   return sock->GetAddress();
 }
 
-std::string DistantComputer::GetNicknames() const
+std::vector<std::string> DistantComputer::GetNicknames() const
 {
-  std::string nicknames;
+  std::vector<std::string> nicknames;
   std::list<Player>::const_iterator player;
 
   for (player = players.begin(); player != players.end(); player++) {
-    if (nicknames != "")
-      nicknames += ", ";
-
-    nicknames += player->GetNickname();
+    nicknames.push_back(player->GetNickname());
   }
 
-  if (nicknames == "")
-    nicknames = _("Unnamed");
+  if (nicknames.empty())
+    nicknames.push_back(_("Unnamed"));
 
   return nicknames;
 }
@@ -151,6 +151,49 @@ int DistantComputer::GetNumberOfPlayersWithState(Player::State state)
 
 const std::string DistantComputer::ToString() const
 {
-  std::string str = GetAddress() + std::string(" (") + GetNicknames() + std::string(" )");
+  const std::vector<std::string>& nicknames = GetNicknames();
+  std::string str = nicknames[0];
+  for (uint i=1; i<nicknames.size(); i++)
+    str += ", " + nicknames[i];
+  str += " (" + GetAddress() + ")";
   return str;
+}
+
+std::vector<uint> DistantComputer::GetCommonMaps(const std::list<DistantComputer*>& cpu)
+{
+  std::vector<uint> index_list;
+
+  if (cpu.empty()) {
+    MSG_DEBUG("action_handler.map", "No CPU, empty list\n");
+    return index_list;
+  }
+
+  if (cpu.size() == 1) {
+    index_list = cpu.front()->GetAvailableMaps();
+
+    MSG_DEBUG("action_handler.map", "Getting front CPU list of size %u from %p\n", index_list.size(), cpu.front());
+    return index_list;
+  }
+
+  std::list<DistantComputer*>::const_iterator first = cpu.begin();
+  const std::vector<uint>& start_list = (*first)->GetAvailableMaps();
+  for (uint n=0; n<start_list.size(); n++) {
+    uint index = start_list[n];
+    std::list<DistantComputer*>::const_iterator client = first;
+    bool found = true;
+    client++;
+    for (; client != cpu.end(); client++) {
+      const std::vector<uint>& other_list = (*client)->GetAvailableMaps();
+      if (std::find(other_list.begin(), other_list.end(), index) == other_list.end()) {
+        found = false;
+        break;
+      }
+    }
+
+    if (found)
+      index_list.push_back(index);
+  }
+
+  MSG_DEBUG("action_handler.map", "List of size %u\n", index_list.size());
+  return index_list;
 }

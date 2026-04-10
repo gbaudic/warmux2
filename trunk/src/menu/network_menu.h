@@ -31,6 +31,7 @@ class TalkBox;
 class MapSelectionBox;
 class CheckBox;
 class ComboBox;
+class MultiTabs;
 
 class NetworkMenu : public Menu
 {
@@ -52,10 +53,13 @@ class NetworkMenu : public Menu
   /* Map controllers */
   MapSelectionBox *map_box;
 
+  MultiTabs *tabs;
+
   void PrepareForNewGame();
   void SaveOptions();
   void WaitingForGameMaster();
 
+  void AddGameModeTab();
   void ChangeGameMode();
 
   virtual void Draw(const Point2i &mousePosition);
@@ -80,6 +84,7 @@ public:
   bool HasOpenTeamSlot();
 
   void ReceiveMsgCallback(const std::string& msg, const Color& color);
+  void SetMapsCallback(const std::vector<uint>& list);
 };
 
 #endif

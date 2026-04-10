@@ -44,10 +44,10 @@
 // Test if a file exists
 bool DoesFileExist(const std::string &name)
 {
-  std::ifstream f(name.c_str());
-  bool exist = f.good();
-  f.close();
-  return exist;
+  struct stat stat_file;
+  if (stat(name.c_str(), &stat_file))
+    return false;
+  return (stat_file.st_mode & S_IFMT) == S_IFREG;
 }
 
 // Check if the folder exists
@@ -55,8 +55,8 @@ bool DoesFolderExist(const std::string &name)
 {
   // Is it a directory ?
   struct stat stat_file;
-  if (stat(name.c_str(), &stat_file) != 0)
-        return false;
+  if (stat(name.c_str(), &stat_file))
+    return false;
   return (stat_file.st_mode & S_IFMT) == S_IFDIR;
 }
 
@@ -170,32 +170,44 @@ FolderSearch *OpenFolder(const std::string& dirname)
   FolderSearch *f      = new FolderSearch;
 
   f->file_search = FindFirstFile(pattern.c_str(), &f->file);
-  if (f->file_search == INVALID_HANDLE_VALUE)
-  {
-     FindClose(f->file_search);
-     delete f;
-         return NULL;
+  if (f->file_search == INVALID_HANDLE_VALUE) {
+    FindClose(f->file_search);
+    delete f;
+    return NULL;
   }
 
   return f;
 }
 
-const char* FolderSearchNext(FolderSearch *f)
+const char* FolderSearchNext(FolderSearch *f, bool& file)
 {
-  while (FindNextFile(f->file_search, &f->file))
-  {
-     if (f->file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-       return f->file.cFileName;
+  WIN32_FIND_DATA *find = &f->file;
+  while (FindNextFile(f->file_search, find)) {
+    const char *name = (find->cAlternateFileName && find->cAlternateFileName[0])
+                     ? find->cAlternateFileName : find->cFileName;
+    if (find->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      // If we are also looking for files, report it isn't one
+      if (file)
+        file = false;
+      return name;
+    }
+
+    // We're not searching for folder, so exit with failure
+    if (!file)
+      continue;
+
+    // This is a file and we do search for files
+    file = true;
+    return name;
   }
   return NULL;
 }
 
 void CloseFolder(FolderSearch *f)
 {
-  if (f)
-  {
+  if (f) {
     FindClose(f->file_search);
-        delete f;
+    delete f;
   }
 }
 
@@ -263,15 +275,20 @@ struct _FolderSearch
 {
   DIR           *dir;
   struct dirent *file;
+#ifdef __SYMBIAN32__
+  std::string    dname;
+#endif
 };
 
 FolderSearch* OpenFolder(const std::string& dirname)
 {
   FolderSearch *f = new FolderSearch;
   f->dir = opendir(dirname.c_str());
+#ifdef __SYMBIAN32__
+  f->dname = dirname;
+#endif
 
-  if (!f->dir)
-  {
+  if (!f->dir) {
     delete f;
     return NULL;
   }
@@ -279,17 +296,44 @@ FolderSearch* OpenFolder(const std::string& dirname)
   return f;
 }
 
-const char* FolderSearchNext(FolderSearch *f)
+const char* FolderSearchNext(FolderSearch *f, bool& file)
 {
-  f->file = readdir(f->dir);
-  return (f->file) ? f->file->d_name : NULL;
+  while ((f->file = readdir(f->dir)) != NULL) {
+
+#ifdef __SYMBIAN32__
+    if (f->file->d_namlen && DoesFolderExist(f->dname+"/"+std::string(f->file->d_name))) {
+#else
+    if (f->file->d_type == DT_DIR) {
+#endif
+      // If we are also looking for files, report it isn't one
+      if (file)
+        file = false;
+      return f->file->d_name;
+    }
+
+    // We're not searching for folder, exit with failure
+    if (!file)
+      continue;
+
+    // This is a file and we do search for file
+#ifdef __SYMBIAN32__
+    if (f->file->d_namlen && DoesFileExist(f->dname+"/"+std::string(f->file->d_name))) {
+#else
+    if (f->file->d_type == DT_REG) {
+#endif
+      file = true;
+      return f->file->d_name;
+    }
+
+    // Not something we like, so skip it
+  }
+  return NULL;
 }
 
 void CloseFolder(FolderSearch *f)
 {
-  if (f)
-  {
-        closedir(f->dir);
+  if (f) {
+    closedir(f->dir);
     delete f;
   }
 }
@@ -310,6 +354,7 @@ std::string CreateTmpFile(const std::string& prefix, int* fd)
   return path;
 }
 
+#ifndef _WIN32
 // Replace ~ by its true name
 std::string TranslateDirectory(const std::string &directory)
 {
@@ -318,31 +363,31 @@ std::string TranslateDirectory(const std::string &directory)
 
   for (int pos = txt.length()-1;
        (pos = txt.rfind ('~', pos)) != -1;
-       --pos)
-  {
+       --pos) {
     txt.replace(pos,1,home);
   }
   return txt;
 }
+#endif
 
 std::string FormatFileName(const std::string &name)
 {
  std::string formated_name = name;
 
-    for(unsigned i = 0;i<formated_name.size();i++)
-    {
-      if(formated_name[i] == ' '){
-          formated_name[i] = '_';
-      }
-      if(formated_name[i] == '.'){
-          formated_name[i] = '_';
-      }
-      if(formated_name[i] == '/'){
-          formated_name[i] = '_';
-      }
-      if(formated_name[i] == '\\'){
-          formated_name[i] = '_';
-      }
+  for (uint i=0; i<formated_name.size();i++) {
+    if (formated_name[i] == ' '){
+      formated_name[i] = '_';
     }
+    if (formated_name[i] == '.') {
+      formated_name[i] = '_';
+    }
+    if (formated_name[i] == '/') {
+      formated_name[i] = '_';
+    }
+    if (formated_name[i] == '\\') {
+      formated_name[i] = '_';
+    }
+  }
+
   return formated_name;
 }

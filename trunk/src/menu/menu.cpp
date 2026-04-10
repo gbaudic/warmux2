@@ -80,7 +80,6 @@ Menu::Menu(const std::string& bg, t_action _actions)
   }
 
   widgets.SetContainer(this);
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 Menu::Menu(void)
@@ -335,12 +334,24 @@ bool Menu::HandleGlobalEvent(const SDL_Event & evnt)
   }
 
   // Toggle fullscreen
-  if (evnt.key.keysym.sym == SDLK_F10) {
+#if 1
+  int mod_state = SDL_GetModState();
+  const Keyboard *kbd = Keyboard::GetConstInstance();
+  ManMachineInterface::Key_t key = kbd->GetRegisteredAction(evnt.key.keysym.sym,
+                                                            mod_state&KMOD_CTRL,
+                                                            mod_state&KMOD_ALT,
+                                                            mod_state&KMOD_SHIFT);
+  if (key == ManMachineInterface::KEY_FULLSCREEN) {
     AppWarmux::GetInstance()->video->ToggleFullscreen();
     return true;
   }
 
   return false;
+#else
+  // There are many keys not checking that the game is running or not
+  // Make chatsession static and modify correspoding code to use this
+  return Keyboard::GetInstance()->HandleKeyEvent(evnt);
+#endif
 }
 
 void Menu::HandleEvent(const SDL_Event& evnt)
@@ -413,7 +424,7 @@ void Menu::HandleEvents()
 
   do {
     // We might be set inactive while in here
-    if (AppWarmux::CheckInactive(evnt))
+    if (AppWarmux::GetInstance()->CheckInactive(evnt))
       continue;
 
     if (!HandleGlobalEvent(evnt)) {

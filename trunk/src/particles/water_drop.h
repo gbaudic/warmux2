@@ -25,44 +25,18 @@
 
 class WaterParticle : public Particle
 {
+  void SetDefaults(particle_spr type);
 public:
+  WaterParticle(particle_spr type);
   WaterParticle();
   virtual ~WaterParticle();
   void Refresh();
   void Draw();
 protected:
-  void SignalDrowning();
-  void SignalOutOfMap();
-};
-
-class ClearWaterParticle : public WaterParticle
-{
-public:
-  ClearWaterParticle();
-};
-
-class LavaParticle : public WaterParticle
-{
-public:
-  LavaParticle();
-};
-
-class RadioactiveParticle : public WaterParticle
-{
-public:
-  RadioactiveParticle();
-};
-
-class DirtyWaterParticle : public WaterParticle
-{
-public:
-  DirtyWaterParticle();
-};
-
-class ChocolateWaterParticle : public WaterParticle
-{
-public:
-  ChocolateWaterParticle();
+  void SignalDrowning() { m_time_left_to_live = 0; }
+  void SignalOutOfMap() { m_time_left_to_live = 0; }
+  void SignalRebound() { m_time_left_to_live = 0; }
+  void SignalGroundCollision(const Point2d&, const Double&) { m_time_left_to_live = 0; }
 };
 
 #endif /* WATER_DROP_H */

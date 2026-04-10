@@ -21,8 +21,6 @@
  * the configuration file.
  *****************************************************************************/
 
-#include "game/config.h"
-
 #include <cstdlib>
 #include <sstream>
 #include <string>
@@ -34,6 +32,15 @@
 #  include <CoreFoundation/CoreFoundation.h>
 #endif
 
+#ifdef WIN32
+#  include <windows.h>
+#  include <direct.h>
+#endif
+
+#include <WARMUX_file_tools.h>
+#include <WARMUX_team_config.h>
+
+#include "game/config.h"
 #include "game/game.h"
 #include "graphic/font.h"
 #include "graphic/video.h"
@@ -45,33 +52,38 @@
 #include "sound/jukebox.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include <WARMUX_team_config.h>
 #include "tool/resource_manager.h"
-#include <WARMUX_file_tools.h>
 #include "tool/string_tools.h"
 #include "tool/xml_document.h"
 #include "weapon/weapons_list.h"
 
 #ifdef _WIN32
-#  include <windows.h>
-#  include <direct.h>
-
 // Under Windows, binary may be relocated
 static std::string GetWarmuxPath()
 {
-  char  buffer[MAX_PATH];
-  DWORD size = GetModuleFileName(NULL, buffer, MAX_PATH);
+  WCHAR  buffer[4*MAX_PATH];
+  DWORD size = GetModuleFileNameW(NULL, buffer, 4*MAX_PATH);
 
   if (size<1)
     return std::string("");
 
-  char *ptr = strrchr(buffer, '\\');
-  if (!ptr)
-    return "";
+  // Now get shortname
+  size = GetShortPathNameW(buffer, NULL, 0);
+  ASSERT(size);
+  WCHAR *buf = new WCHAR[size];
+  GetShortPathNameW(buffer, buf, size);
 
-  // Mask name
-  ptr[0] = 0;
-  return std::string(buffer);
+  // Retrieve the path and convert it to ANSI
+  size = wcsrchr((wchar_t*)buf, L'\\')+1 - buf;
+  ASSERT(size < MAX_PATH);
+  int ulen = WideCharToMultiByte(CP_UTF8, 0, buf, size, NULL, 0, NULL, NULL);
+
+  std::string ret;
+  ret.resize(ulen-1);
+  WideCharToMultiByte(CP_UTF8, 0, buf, size, (LPSTR)ret.c_str(), ulen-1, NULL, NULL);
+  delete[] buf;
+
+  return ret;
 }
 #else
 #  if defined(ANDROID)
@@ -82,7 +94,7 @@ static std::string GetWarmuxPath() { return "sd:/apps/Warmux"; }
 #  include <unistd.h> // not needed by mingw
 #endif
 
-const std::string FILENAME="config.xml";
+static const std::string FILENAME="config.xml";
 
 Config::Config()
   : default_language("")
@@ -124,7 +136,12 @@ Config::Config()
   , m_network_server_game_name("Warmux party")
   , m_network_server_port(WARMUX_NETWORK_PORT)
   , m_network_server_public(true)
-  , transparency(ALPHA)
+
+#ifdef HAVE_HANDHELD
+  , quality(QUALITY_16BPP)
+#else
+  , quality(QUALITY_32BPP)
+#endif
 {
   // Set audio volume
   volume_music = JukeBox::GetMaxVolume()/2;
@@ -305,7 +322,7 @@ void Config::SetLanguage(const std::string& language)
   InitI18N(TranslateDirectory(locale_dir), language);
 
   Font::ReleaseInstances();
-  if (Game::IsRunning()) {
+  if (GameIsRunning()) {
     Game::GetInstance()->UpdateTranslation();
   }
 }
@@ -486,6 +503,12 @@ void Config::LoadXml(const xmlNode *xml)
     XmlReader::ReadUint(elem, "width", video_width);
     XmlReader::ReadUint(elem, "height", video_height);
     XmlReader::ReadBool(elem, "full_screen", video_fullscreen);
+
+    uint qual;
+    if (XmlReader::ReadUint(elem, "quality", qual)) {
+	if (qual>QUALITY_MAX-1) qual=QUALITY_MAX-1;
+	quality = (Quality)qual;
+    }
   }
 
   //=== Sound ===
@@ -638,12 +661,8 @@ bool Config::SaveXml(bool save_current_teams)
   doc.WriteElement(video_node, "width", uint2str(video->window.GetWidth()));
   doc.WriteElement(video_node, "height", uint2str(video->window.GetHeight()));
   doc.WriteElement(video_node, "full_screen", bool2str(video->IsFullScreen()));
+  doc.WriteElement(video_node, "quality", uint2str(quality));
   doc.WriteElement(video_node, "max_fps", uint2str(video->GetMaxFps()));
-
-  if (transparency == ALPHA)
-    doc.WriteElement(video_node, "transparency", "alpha");
-  else if (transparency == COLORKEY)
-    doc.WriteElement(video_node, "transparency", "colorkey");
 
   //=== Sound ===
   xmlNode *sound_node = xmlAddChild(root, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"sound"));
@@ -719,13 +738,16 @@ uint Config::GetMaxVolume()
   return JukeBox::GetMaxVolume();
 }
 
-const std::string& Config::GetTtfFilename()
+const std::string& Config::GetTtfFilename() const
 {
 #ifdef ENABLE_NLS
   if (fonts.find(default_language) == fonts.end())
     return ttf_filename;
-  else
-    return fonts[default_language];
+  else {
+    std::map<std::string, std::string>::const_iterator it = fonts.find(default_language);
+    ASSERT(it != fonts.end());
+    return it->second;
+  }
 #else
   return ttf_filename;
 #endif

@@ -21,17 +21,17 @@
  *****************************************************************************/
 
 #include "game/game_time.h"
-#include <SDL_events.h>
 #include "graphic/text.h"
 #include "graphic/text_list.h"
 #include "graphic/video.h"
-#include "include/action.h"
 #include "include/action_handler.h"
 #include "include/app.h"
 #include "network/chat.h"
 #include "network/admin_commands.h"
 #include "network/network.h"
 #include "tool/text_handling.h"
+
+#include <SDL_events.h>
 
 #define HEIGHT       15
 #define XPOS         25
@@ -56,7 +56,7 @@ Chat::Chat():
 
 void Chat::Show()
 {
-  uint now = Time::GetInstance()->ReadSec();
+  uint now = GameTime::GetInstance()->ReadSec();
 
   if (now - last_time >= MAXSECONDS){
     chat.DeleteLine();
@@ -87,27 +87,29 @@ void Chat::ShowInput()
   int ypos = GetMainWindow().GetHeight() - 100;
   msg->DrawLeftTop(Point2i(25, ypos));
   if (input->GetText() != "") {
-    input->DrawLeftTop(Point2i(25 + msg->GetWidth() + 5, ypos));
-    input->DrawCursor(Point2i(25 + msg->GetWidth() + 5, ypos), cursor_pos);
+    int x = 25 + msg->GetWidth() + 5;
+    input->DrawCursor(Point2i(x, ypos), cursor_pos, input->GetWidth());
+    input->DrawLeftTop(Point2i(x, ypos));
   }
 }
 
 void Chat::NewMessage(const std::string &msg, const Color& color)
 {
   if (!chat.Size()){
-    uint now = Time::GetInstance()->ReadSec();
+    uint now = GameTime::GetInstance()->ReadSec();
     last_time = now;
   }
 
   chat.AddText(msg, color, MAXLINES);
 }
 
-void Chat::SendMessage(const std::string &msg)
+void Chat::SendMessage(const std::string &msg, bool in_game)
 {
   if (msg.size() == 0)
     return;
 
-  Action* a = new Action(Action::ACTION_CHAT_MESSAGE);
+  Action* a = new Action((in_game) ? Action::ACTION_CHAT_INGAME_MESSAGE
+                                   : Action::ACTION_CHAT_MENU_MESSAGE);
   a->Push(Network::GetInstance()->GetPlayer().GetId());
   a->Push(msg);
   ActionHandler::GetInstance()->NewAction(a);

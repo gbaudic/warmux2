@@ -24,11 +24,14 @@
 //-----------------------------------------------------------------------------
 #include <string>
 #include <iostream>
-#include <list>
-#include <WARMUX_distant_cpu.h>
-#include <WARMUX_euler_vector.h>
-#include <WARMUX_point.h>
+
 #include <WARMUX_types.h>
+#include <WARMUX_point.h>
+
+//-----------------------------------------------------------------------------
+// Forward declaration
+class DistantComputer;
+class EulerVector;
 
 //-----------------------------------------------------------------------------
 
@@ -37,7 +40,7 @@ class Action
 public:
   typedef enum
   {
-    ACTION_NETWORK_CLIENT_CHANGE_STATE,
+    ACTION_NETWORK_CLIENT_CHANGE_STATE = 0,
     ACTION_NETWORK_MASTER_CHANGE_STATE,
     ACTION_NETWORK_CHECK_PHASE1,
     ACTION_NETWORK_CHECK_PHASE2,
@@ -49,15 +52,19 @@ public:
     ACTION_RULES_SET_GAME_MODE,
 
     // ########################################################
-    // Chat message
-    ACTION_CHAT_MESSAGE,
     ACTION_ANNOUNCE_PAUSE,
 
     // Initial information about the game: map, teams already selected, ...
+    ACTION_CHAT_MENU_MESSAGE,
+    // Chat message
+    ACTION_CHAT_INGAME_MESSAGE,
+
     ACTION_GAME_INFO,
 
     // Map selection in network menu
     ACTION_GAME_SET_MAP,
+    ACTION_GAME_SET_MAP_LIST,
+    ACTION_GAME_FORCE_MAP_LIST,
 
     // Teams selection in network menu
     ACTION_GAME_ADD_TEAM,
@@ -76,9 +83,9 @@ public:
     // All action below must be executed within their physics frame.
     // ########################################################
     // ########################################################
+    ACTION_GAME_CALCULATE_FRAME,
     ACTION_PLAYER_CHANGE_WEAPON,
     ACTION_PLAYER_CHANGE_CHARACTER,
-    ACTION_GAME_CALCULATE_FRAME,
 
     // ########################################################
     // Character's move
@@ -124,15 +131,28 @@ public:
     // ########################################################
   } Action_t;
 
+#pragma pack(push)  /* push current alignment to stack */
+#pragma pack(1)     /* set alignment to 1 byte boundary */
+  typedef struct
+  {
+    // Write: length of the actual data
+    uint32_t len;
+    uint8_t  type;
+  } Header;
+#pragma pack(pop)   /* restore original alignment from stack */
+
 private:
-  std::list<uint32_t> var;
-  Action_t m_type;
-  uint m_timestamp;
+  uint8_t *m_var, *m_write, *m_read;
+  uint     m_bufsize;
+  Header   m_header;
 
-  DistantComputer* creator;
+  DistantComputer* m_creator;
 
+  void Resize(uint n);
+  void Increase(uint n = 20) { Resize(m_bufsize+n); }
+  uint MemWriteLeft() const { return m_bufsize - (m_write - m_var); }
+  uint MemReadLeft() const { return m_header.len - (m_read - m_var); }
   void Init(Action_t type);
-  int  GetSize() const;
 
 public:
 
@@ -140,20 +160,20 @@ public:
   Action(Action_t type);
 
   // Action with various parameter
-  Action(Action_t type, int value);
+  Action(Action_t type, int32_t value);
   Action(Action_t type, Double value);
   Action(Action_t type, const std::string& value);
-  Action(Action_t type, Double value1, int value2);
+  Action(Action_t type, Double value1, int32_t value2);
   Action(Action_t type, Double value1, Double value2);
 
   // Build an action from a network packet
   Action(const char* buffer, DistantComputer* _creator);
 
-  ~Action() { };
+  ~Action();
 
   // Push / Back functions to add / retreive datas
   // Work as a FIFO container, inspiteof the name of methods !
-  void Push(int val);
+  void Push(int32_t val);
   void Push(Double val);
   void Push(const std::string& val);
   void Push(const Point2i& val);
@@ -167,17 +187,18 @@ public:
   Point2d PopPoint2d();
   EulerVector PopEulerVector();
 
+  int  GetSize() const
+  {
+    return sizeof(Header) + m_header.len;
+  }
+  void Write(char *packet) const;
   void WriteToPacket(char* & packet, int & size) const;
 
-  bool IsEmpty() const { return var.empty(); }
+  DistantComputer* GetCreator() const { return m_creator; }
+  Action_t GetType() const { return (Action_t)m_header.type; }
+  bool IsFrameLess() const { return m_header.type <= LAST_FRAME_LESS_ACTION; }
 
-  DistantComputer* GetCreator() const { return creator; }
-  uint GetTimestamp() const { return m_timestamp; }
-  Action_t GetType() const { return m_type; }
-  bool IsFrameLess() const { return m_type <= LAST_FRAME_LESS_ACTION; }
+  static Action_t GetType(const char *buffer) { return (Action_t)buffer[offsetof(Header, type)]; }
 };
-
-// to be defined outside of the library
-extern uint Action_TimeStamp();
 
 #endif

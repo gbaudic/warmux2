@@ -7,8 +7,8 @@ LOCAL_MODULE := application
 
 SRC_SRCS := *.cpp ai/*.cpp character/*.cpp game/*.cpp graphic/*.cpp gui/*.cpp \
             gui/big/*.cpp include/*.cpp interface/*.cpp map/*.cpp menu/*.cpp \
-            network/*.cpp object/*.cpp particles/*.cpp sound/*.cpp team/*.cpp \
-            tool/*.cpp weapon/*.cpp
+            network/*.cpp object/*.cpp particles/*.cpp replay/*.cpp \
+            sound/*.cpp team/*.cpp tool/*.cpp weapon/*.cpp
 
 WMX_SRCS := action/*.cpp base/*.cpp maths/*.cpp net/*.cpp tools/*.cpp
 
@@ -36,8 +36,8 @@ LOCAL_C_INCLUDES += $(OTHER_PATH)/../sdl/include $(OTHER_PATH)/../sdl_mixer \
                     $(OTHER_PATH)/../sdl_net $(OTHER_PATH)/../xml2/include \
                     $(OTHER_PATH)/../intl $(LOCAL_PATH)/lib/warmux/include
 
-LOCAL_STATIC_LIBRARIES := sdl_ttf xml2 png freetype intl
-LOCAL_SHARED_LIBRARIES := sdl sdl_net sdl_mixer sdl_gfx sdl_net sdl_image
+LOCAL_STATIC_LIBRARIES := sdl_net sdl_gfx sdl_ttf xml2 freetype intl
+LOCAL_SHARED_LIBRARIES := sdl sdl_mixer sdl_image png
 
 LOCAL_LDLIBS := -lGLESv1_CM -ldl -llog -lz -lGLESv1_CM
 

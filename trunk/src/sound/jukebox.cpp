@@ -23,13 +23,15 @@
 
 #include <iostream>
 #include <fstream>
+#include <SDL.h>
+#include <SDL_mixer.h>
+
+#include <WARMUX_debug.h>
+#include <WARMUX_random.h>
+#include <WARMUX_file_tools.h>
 
 #include "game/config.h"
 #include "sound/sound_sample.h"
-#include <WARMUX_debug.h>
-
-#include <WARMUX_random.h>
-#include <WARMUX_file_tools.h>
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
 
@@ -65,6 +67,9 @@ void JukeBox::Resume(bool all) const
   if (all)
     Mix_ResumeMusic();
 }
+
+uint JukeBox::GetMaxVolume() { return MIX_MAX_VOLUME; }
+void JukeBox::SetMusicVolume(uint vol) { Mix_VolumeMusic(vol); }
 
 void JukeBox::Init()
 {
@@ -424,16 +429,16 @@ int JukeBox::Play(const std::string& category, const std::string& sample,
 {
   if (!UseEffects() || !m_init) return -1;
 
-  uint nb_sons= m_soundsamples.count(category+ "/" +sample);
-  if (nb_sons) {
+  uint nb_sounds= m_soundsamples.count(category+ "/" +sample);
+  if (nb_sounds) {
     std::pair<sample_iterator, sample_iterator> p =
       m_soundsamples.equal_range(category+ "/" +sample);
     sample_iterator it = p.first;
 
     // Choose a random sound sample
-    if (nb_sons > 1) {
-      uint selection = RandomLocal().GetUint(0, nb_sons);
-      if (selection == nb_sons) --selection ;
+    if (nb_sounds > 1) {
+      uint selection = RandomLocal().GetUint(0, nb_sounds);
+      if (selection == nb_sounds) --selection ;
 
       it = p.first ;
 

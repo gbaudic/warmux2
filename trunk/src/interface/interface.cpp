@@ -24,17 +24,21 @@
 #include "interface/weapon_help.h"
 #include "interface/mouse.h"
 #include "character/character.h"
+#include "game/config.h"
 #include "game/game.h"
 #include "game/game_mode.h"
 #include "game/game_time.h"
 #include "graphic/text.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
+#include "gui/energy_bar.h"
 #include "include/app.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "object/objects_list.h"
 #include "object/objbox.h"
+#include "replay/replay.h"
+#include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
 #include "tool/resource_manager.h"
@@ -52,22 +56,38 @@ void Interface::LoadDataInternal(Profile *res)
 
   FreeDrawElements();
 
-  clock_normal    = LOAD_RES_SPRITE("interface/clock_normal");
-  clock_emergency = LOAD_RES_SPRITE("interface/clock_emergency");
+  // Clocks should be kept, as information difficult to retrieve is there
+  if (!clock_normal)
+    clock_normal    = LOAD_RES_SPRITE("interface/clock_normal");
+  if (!clock_emergency)
+    clock_emergency = LOAD_RES_SPRITE("interface/clock_emergency");
 
+  bool replay = Replay::GetConstInstance()->IsPlaying();
   last_width = AppWarmux::GetInstance()->video->window.GetWidth();
   if (last_width < tmp.GetWidth()+20) {
     zoom            = last_width / (float)(tmp.GetWidth()+20);
     default_toolbar = tmp.RotoZoom(0.0, zoom, zoom);
-    control_toolbar = LOAD_RES_IMAGE("interface/background_control_interface").RotoZoom(0.0, zoom, zoom);
     small_interface = LOAD_RES_IMAGE("interface/small_background_interface").RotoZoom(0.0, zoom, zoom);
+    if (replay) {
+      control_toolbar.AutoFree();
+      replay_toolbar = LOAD_RES_IMAGE("interface/background_replay").RotoZoom(0.0, zoom, zoom);
+    } else {
+      replay_toolbar.AutoFree();
+      control_toolbar = LOAD_RES_IMAGE("interface/background_control_interface").RotoZoom(0.0, zoom, zoom);
+    }
     clock_normal->Scale(zoom, zoom);
     clock_emergency->Scale(zoom, zoom);
   }
   else {
     zoom            = 1.0f;
     default_toolbar = tmp;
-    control_toolbar = LOAD_RES_IMAGE("interface/background_control_interface");
+    if (replay) {
+      control_toolbar.AutoFree();
+      replay_toolbar = LOAD_RES_IMAGE("interface/background_replay");
+    } else {
+      replay_toolbar.AutoFree();
+      control_toolbar = LOAD_RES_IMAGE("interface/background_control_interface");
+    }
     small_interface = LOAD_RES_IMAGE("interface/small_background_interface");
   }
   clock_width = 70*zoom+0.5f;
@@ -85,7 +105,7 @@ void Interface::LoadDataInternal(Profile *res)
                              GameMode::GetInstance()->character.init_energy);
 
   // Labels
-  uint fsize = Font::FONT_SMALL*powf(zoom, 0.85)+0.5f;
+  uint fsize = Font::FONT_SMALL*powf(zoom, 0.85f)+0.5f;
   if (fsize < 10) fsize = 10;
   t_character_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
   t_team_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
@@ -93,6 +113,13 @@ void Interface::LoadDataInternal(Profile *res)
   t_weapon_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
   t_weapon_stock = new Text("0", m_text_color, fsize, Font::FONT_BOLD, false);
   t_character_energy = new Text("Dead", m_energy_text_color, fsize, Font::FONT_BOLD);
+
+  // Replay labels
+  if (replay) {
+    char tmp[] = { 'x', '1', 0 };
+    tmp[1] = 48+(uint)GameTime::GetConstInstance()->GetSpeed();
+    t_speed = new Text(tmp, primary_red_color, Font::FONT_HUGE*zoom+0.5f, Font::FONT_BOLD, true);
+  }
 
   // Timer
   global_timer = new Text("0", gray_color, Font::FONT_BIG*zoom+0.5f, Font::FONT_BOLD, false);
@@ -105,7 +132,6 @@ void Interface::LoadData()
 {
   Profile *res   = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   LoadDataInternal(res);
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 Interface::Interface()
@@ -118,8 +144,8 @@ Interface::Interface()
   , t_character_energy(NULL)
   , t_weapon_name(NULL)
   , t_weapon_stock(NULL)
-  , is_control(false)
-  , display(true)
+  , t_speed(NULL)
+  , mode(MODE_NORMAL)
   , start_hide_display(0)
   , start_show_display(0)
   , display_minimap(true)
@@ -137,8 +163,6 @@ Interface::Interface()
 
   m_text_color = LOAD_RES_COLOR("interface/text_color");
   m_energy_text_color = LOAD_RES_COLOR("interface/energy_text_color");
-
-  LoadDataInternal(res);
 
   // wind bar
   wind_bar.SetMinMaxValueColor(LOAD_RES_COLOR("interface/wind_color_min"),
@@ -165,8 +189,6 @@ Interface::Interface()
 
   // Weapon help
   help = new WeaponHelp();
-
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 Interface::~Interface()
@@ -179,13 +201,14 @@ Interface::~Interface()
 
   if (energy_bar) delete energy_bar;
 
+  if (clock_normal) delete clock_normal;
+  if (clock_emergency) delete clock_emergency;
+
   delete help;
 }
 
 void Interface::FreeDrawElements()
 {
-  if (clock_normal) delete clock_normal;
-  if (clock_emergency) delete clock_emergency;
   if (global_timer) delete global_timer;
   if (timer) delete timer;
   if (t_character_name) delete t_character_name;
@@ -194,6 +217,10 @@ void Interface::FreeDrawElements()
   if (t_character_energy) delete t_character_energy;
   if (t_weapon_name) delete t_weapon_name;
   if (t_weapon_stock) delete t_weapon_stock;
+  if (t_speed) {
+    delete t_speed;
+    t_speed = NULL;
+  }
 }
 
 void Interface::Reset()
@@ -205,6 +232,10 @@ void Interface::Reset()
   start_show_display = 0;
   character_under_cursor = NULL;
   weapon_under_cursor = NULL;
+
+  LoadDataInternal(GetResourceManager().LoadXMLProfile("graphism.xml", false));
+  mode = Replay::GetConstInstance()->IsPlaying() ? MODE_REPLAY : MODE_NORMAL;
+
   weapons_menu.Reset();
   help->Reset();
   energy_bar->InitVal(0, 0, GameMode::GetInstance()->character.init_energy);
@@ -274,7 +305,7 @@ void Interface::DrawWeaponInfo() const
 
   int offset = ((default_toolbar.GetWidth() - clock_width)>>1) - icon.GetWidth();
   // The control interface doesn't look good with texts overlayed on it
-  if (!is_control) {
+  if (mode == MODE_NORMAL) {
     // Draw weapon name
     t_weapon_name->SetText(weapon->GetName());
     t_weapon_name->DrawRightCenter(bottom_bar_pos + Point2i(offset, 70*zoom));
@@ -315,7 +346,7 @@ void Interface::DrawClock(const Point2i &time_pos) const
   clock->DrawXY(tmp_point);
 
   // Draw global timer
-  std::string tmp(Time::GetInstance()->GetString());
+  std::string tmp(GameTime::GetInstance()->GetString());
   global_timer->SetText(tmp);
   global_timer->DrawCenter(time_pos + Point2i(0, default_toolbar.GetHeight()/3));
 }
@@ -335,13 +366,23 @@ void Interface::DrawWindInfo() const
   DrawWindIndicator(bottom_bar_pos + wind_pos_offset);
 }
 
+// display replay info
+void Interface::DrawReplayInfo() const
+{
+  t_speed->DrawCenter(bottom_bar_pos + Point2i(576*zoom+0.5f,default_toolbar.GetHeight()>>1));
+  float len = (GameTime::GetConstInstance()->Read() * 128.0f) / Replay::GetConstInstance()->GetDuration();
+  GetMainWindow().BoxColor(Rectanglei(bottom_bar_pos + Point2i(149*zoom, 35*zoom),
+                                      Point2i(len*zoom+0.5f, 11*zoom+0.5f)),
+                           primary_red_color);
+}
+
 // draw mini info when hidding interface
 void Interface::DrawSmallInterface() const
 {
-  if (display)
+  if (mode != MODE_SMALL)
     return;
   Surface& window = GetMainWindow();
-  int height = ((int)Time::GetInstance()->Read() - start_hide_display - 1000) / 3 - 30;
+  int height = ((int)GameTime::GetInstance()->Read() - start_hide_display - 1000) / 3 - 30;
   height = height > 0 ? height : 0;
   height = (height < small_interface.GetHeight()) ? height : small_interface.GetHeight();
   Point2i position((window.GetWidth() - small_interface.GetWidth())>>1,
@@ -361,7 +402,7 @@ void Interface::DrawTeamEnergy() const
   Point2i team_bar_offset(430*zoom, 0);
   FOR_EACH_TEAM(tmp_team) {
     Team* team = *tmp_team;
-    if (!display) // Fix bug #7753 (Team energy bar visible when the interface is hidden)
+    if (!IsDisplayed()) // Fix bug #7753 (Team energy bar visible when the interface is hidden)
       team->GetEnergyBar().FinalizeMove();
     team->DrawEnergy(bottom_bar_pos + team_bar_offset);
   }
@@ -371,16 +412,17 @@ void Interface::DrawTeamEnergy() const
 void Interface::DrawMapPreview()
 {
   Surface   &window  = GetMainWindow();
-  Point2i    offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN,
+  Ground    &ground  = GetWorld().ground;
+  Point2i    offset(window.GetWidth() - ground.GetPreviewSize().x - 2*MARGIN,
                     2*MARGIN);
-  Rectanglei rect_preview(offset, GetWorld().ground.GetPreviewSize());
+  Rectanglei rect_preview(offset, ground.GetPreviewSize());
 
   Rectanglei clip = rect_preview;
   SwapWindowClip(clip);
 
-  if (window.GetBytesPerPixel() == 2) {
-    window.Blit(*GetWorld().ground.GetPreview(),
-                offset-GetWorld().ground.GetPreviewRect().GetPosition());
+  if (!ground.IsPreviewHQ()) {
+    window.Blit(*ground.GetPreview(),
+                offset-ground.GetPreviewRect().GetPosition());
 
     // Draw water
     if (GetWorld().water.IsActive()) {
@@ -388,7 +430,7 @@ void Interface::DrawMapPreview()
 
       // Scale water height according to preview size
       int y = GetWorld().GetSize().GetY() - GetWorld().water.GetSelfHeight();
-      int h = GetWorld().ground.PreviewCoordinates(Point2i(0, y)).GetY();
+      int h = ground.PreviewCoordinates(Point2i(0, y)).GetY();
 
       color.SetAlpha(200);
       window.BoxColor(Rectanglei(Point2i(0, h)+offset, rect_preview.GetSize() - Point2i(0, h)),
@@ -396,11 +438,11 @@ void Interface::DrawMapPreview()
     }
   } else {
     if (minimap == NULL ||
-        GetWorld().ground.GetLastPreviewRedrawTime() > m_last_minimap_redraw ||
+        ground.GetLastPreviewRedrawTime() > m_last_minimap_redraw ||
         GetWorld().water.GetLastPreviewRedrawTime() > m_last_minimap_redraw) {
 
-      m_last_minimap_redraw = Time::GetInstance()->Read();
-      const Point2i& preview_size = GetWorld().ground.GetPreviewSize();
+      m_last_minimap_redraw = GameTime::GetInstance()->Read();
+      const Point2i& preview_size = ground.GetPreviewSize();
 
       // Check whether the whole minimap must be updated
       if (m_last_preview_size != preview_size) {
@@ -425,8 +467,8 @@ void Interface::DrawMapPreview()
       if (!scratch)
         scratch = new Surface(preview_size, SDL_SWSURFACE, true);
 
-      Point2i mergePos = -GetWorld().ground.GetPreviewRect().GetPosition();
-      scratch->Blit(*GetWorld().ground.GetPreview(), mergePos);
+      Point2i mergePos = -ground.GetPreviewRect().GetPosition();
+      scratch->Blit(*ground.GetPreview(), mergePos);
 
       // Draw water
       if (GetWorld().water.IsActive()) {
@@ -434,7 +476,7 @@ void Interface::DrawMapPreview()
 
         // Scale water height according to preview size
         int y = GetWorld().GetSize().GetY() - GetWorld().water.GetSelfHeight();
-        int h = GetWorld().ground.PreviewCoordinates(Point2i(0, y)).GetY();
+        int h = ground.PreviewCoordinates(Point2i(0, y)).GetY();
 
         color.SetAlpha(200);
         scratch->BoxColor(Rectanglei(Point2i(0, h), rect_preview.GetSize() - Point2i(0, h)),
@@ -443,7 +485,7 @@ void Interface::DrawMapPreview()
 
       //scratch->SetAlpha(SDL_SRCALPHA, 0);
       if (!mask) {
-        m_last_preview_size = GetWorld().ground.GetPreviewSize();
+        m_last_preview_size = ground.GetPreviewSize();
         mask = new Surface(m_last_preview_size, SDL_SWSURFACE, true);
 
         GenerateStyledBorder(*mask, DecoratedBox::STYLE_ROUNDED);
@@ -468,7 +510,7 @@ void Interface::DrawMapPreview()
       const Surface* icon = box->GetIcon();
 
       // The real icon
-      coord = GetWorld().ground.PreviewCoordinates(box->GetPosition())
+      coord = ground.PreviewCoordinates(box->GetPosition())
             + offset - Point2i(icon->GetWidth()>>1, (3*icon->GetHeight())>>2);
       window.Blit(*icon, coord);
       GetWorld().ToRedrawOnScreen(Rectanglei(coord, icon->GetSize()));
@@ -487,7 +529,7 @@ void Interface::DrawMapPreview()
         continue;
       }
 
-      coord = GetWorld().ground.PreviewCoordinates(character->GetPosition()) + offset;
+      coord = ground.PreviewCoordinates(character->GetPosition()) + offset;
       Point2i icoord = coord - (icon.GetSize()>>1);
       window.Blit(icon, icoord);
 
@@ -504,8 +546,8 @@ void Interface::DrawMapPreview()
   }
 
   const Camera* cam = Camera::GetConstInstance();
-  Point2i TopLeft = GetWorld().ground.PreviewCoordinates(cam->GetPosition());
-  Point2i BottomR = GetWorld().ground.PreviewCoordinates(cam->GetPosition()+cam->GetSize());
+  Point2i TopLeft = ground.PreviewCoordinates(cam->GetPosition());
+  Point2i BottomR = ground.PreviewCoordinates(cam->GetPosition()+cam->GetSize());
 
   GetMainWindow().RectangleColor(Rectanglei(TopLeft + offset, BottomR-TopLeft),
                                  m_camera_preview_color);
@@ -538,19 +580,24 @@ void Interface::Draw()
   weapons_menu.Draw();
 
   // Display the background
-  if (display) {
+  if (IsDisplayed()) {
     Rectanglei dr(bottom_bar_pos, default_toolbar.GetSize());
-    if (is_control) {
-      window.Blit(control_toolbar, bottom_bar_pos);
-    } else {
-      window.Blit(default_toolbar, bottom_bar_pos);
-      // And both Character info and weapon info
-      DrawCharacterInfo();
-      DrawTeamEnergy();
-    }
+    if (mode==MODE_CONTROL || mode==MODE_NORMAL) {
+      if (mode==MODE_CONTROL) {
+        window.Blit(control_toolbar, bottom_bar_pos);
+      } else {
+        window.Blit(default_toolbar, bottom_bar_pos);
+        // And both Character info and weapon info
+        DrawCharacterInfo();
+        DrawTeamEnergy();
+      }
 
-    // Now display wind and time info
-    DrawWeaponInfo();
+      // Now display wind and time info
+      DrawWeaponInfo();
+    } else {
+      window.Blit(replay_toolbar, bottom_bar_pos);
+      DrawReplayInfo();
+    }
     DrawWindInfo();
     DrawTimeInfo();
     GetWorld().ToRedrawOnScreen(dr);
@@ -564,12 +611,12 @@ void Interface::Draw()
 
 int Interface::GetHeight() const
 {
-  if (!display) {
-    int height = GetMenuHeight() - ((int)Time::GetInstance()->Read() - start_hide_display)/3;
+  if (!IsDisplayed()) {
+    int height = GetMenuHeight() - ((int)GameTime::GetInstance()->Read() - start_hide_display)/3;
     height = (height > 0 ? height : 0);
     return (height < GetMenuHeight() ? height : GetMenuHeight());
   } else if (start_show_display != 0) {
-    int height = ((int)Time::GetInstance()->Read() - start_show_display)/3;
+    int height = ((int)GameTime::GetInstance()->Read() - start_show_display)/3;
     height = (height < GetMenuHeight() ? height : GetMenuHeight());
     return (height < GetMenuHeight() ? height : GetMenuHeight());
   }
@@ -583,9 +630,10 @@ int Interface::GetMenuHeight() const
 
 void Interface::Show()
 {
-  if (display) return;
-  display = true;
-  uint now = Time::GetInstance()->Read();
+  if (IsDisplayed())
+    return;
+  mode = MODE_NORMAL;
+  uint now = GameTime::GetInstance()->Read();
   if (start_show_display + 1000 < (int)now)
     start_show_display = now;
   else
@@ -594,9 +642,10 @@ void Interface::Show()
 
 void Interface::Hide()
 {
-  if (!display) return;
-  display = false;
-  uint now = Time::GetInstance()->Read();
+  if (mode==MODE_SMALL || mode==MODE_REPLAY)
+    return;
+  mode = MODE_SMALL;
+  uint now = GameTime::GetInstance()->Read();
   if (start_hide_display + 1000 < (int)now)
     start_hide_display = now;
   else
@@ -659,8 +708,8 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
   if (!ActiveTeam().IsLocalHuman()
       || ActiveCharacter().IsDead()
       || (Game::GetInstance()->ReadState() != Game::PLAYING
-	  // movement should be possible just after shooting
-	  && Game::GetInstance()->ReadState() != Game::HAS_PLAYED))
+          // movement should be possible just after shooting
+          && Game::GetInstance()->ReadState() != Game::HAS_PLAYED))
     return false;
 
   Character *active_char = &ActiveCharacter();
@@ -674,17 +723,17 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-	active_char->HandleKeyPressed_MoveLeft(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyPressed_MoveLeft(false);
-	}
-	break;
+        active_char->HandleKeyPressed_MoveLeft(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_MoveLeft(false);
+        }
+        break;
       case CLICK_TYPE_UP:
-	active_char->HandleKeyReleased_MoveLeft(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyReleased_MoveLeft(false);
-	}
-	break;
+        active_char->HandleKeyReleased_MoveLeft(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_MoveLeft(false);
+        }
+        break;
     }
     return true;
   }
@@ -694,18 +743,18 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-	active_char->HandleKeyPressed_MoveRight(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyPressed_MoveRight(false);
-	}
-	break;
+        active_char->HandleKeyPressed_MoveRight(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_MoveRight(false);
+        }
+        break;
 
       case CLICK_TYPE_UP:
-	active_char->HandleKeyReleased_MoveRight(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyReleased_MoveRight(false);
-	}
-	break;
+        active_char->HandleKeyReleased_MoveRight(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_MoveRight(false);
+        }
+        break;
     }
     return true;
   }
@@ -716,18 +765,18 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
       case CLICK_TYPE_LONG:
         if (!jump_button.Contains(old_mouse_pos))
           return false;
-	active_char->HandleKeyPressed_HighJump();
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyPressed_HighJump();
-	}
+        active_char->HandleKeyPressed_HighJump();
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_HighJump();
+        }
         break;
       case CLICK_TYPE_DOWN: return false; // Needed to allow long clicks
       case CLICK_TYPE_UP:
-	active_char->HandleKeyPressed_Jump();
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyPressed_Jump();
-	}
-	break;
+        active_char->HandleKeyPressed_Jump();
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_Jump();
+        }
+        break;
     }
     return true;
   }
@@ -757,18 +806,18 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-	active_char->HandleKeyPressed_Up(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyPressed_Up(false);
-	}
-	break;
+        active_char->HandleKeyPressed_Up(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_Up(false);
+        }
+        break;
 
       case CLICK_TYPE_UP:
-	active_char->HandleKeyReleased_Up(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyReleased_Up(false);
-	}
-	break;
+        active_char->HandleKeyReleased_Up(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_Up(false);
+        }
+        break;
     }
     return true;
   }
@@ -778,18 +827,18 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-	active_char->HandleKeyPressed_Down(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyPressed_Down(false);
-	}
-	break;
+        active_char->HandleKeyPressed_Down(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyPressed_Down(false);
+        }
+        break;
 
       case CLICK_TYPE_UP:
-	active_char->HandleKeyReleased_Down(false);
-	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
-	  ActiveTeam().AccessWeapon().HandleKeyReleased_Down(false);
-	}
-	break;
+        active_char->HandleKeyReleased_Down(false);
+        if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+          ActiveTeam().AccessWeapon().HandleKeyReleased_Down(false);
+        }
+        break;
     }
     return true;
   }
@@ -803,11 +852,11 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
-	ActiveTeam().AccessWeapon().HandleKeyPressed_Shoot();
-	break;
+        ActiveTeam().AccessWeapon().HandleKeyPressed_Shoot();
+        break;
       case CLICK_TYPE_UP: {
-	ActiveTeam().AccessWeapon().HandleKeyReleased_Shoot();
-	break;
+        ActiveTeam().AccessWeapon().HandleKeyReleased_Shoot();
+        break;
       }
     }
     return true;
@@ -815,6 +864,73 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
 
   // No actual button clicked, just allow long clicks
   return (type == CLICK_TYPE_DOWN) ? false : true;
+}
+
+void Interface::SetSpeed(const Double& speed)
+{
+  if (speed<ONE || speed>8)
+    return;
+
+  // Set text only once
+  char tmp[] = { 'x', '1', 0 };
+  tmp[1] = 48+(uint)speed;
+  t_speed->SetText(tmp);
+
+  Game::GetInstance()->RequestSpeed(speed);
+}
+
+bool Interface::ReplayClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
+{
+  Game     *game = Game::GetInstance();
+  Point2i mouse_rel_pos = mouse_pos-bottom_bar_pos;
+  Point2i size(64*zoom, replay_toolbar.GetHeight());
+
+  old_mouse_pos -= bottom_bar_pos;
+
+  Rectanglei play_button(Point2i(10*zoom, 0), size);
+  if (play_button.Contains(mouse_rel_pos)) {
+    // We have to go through the game loop to pause
+    if (type == CLICK_TYPE_DOWN)
+      game->RequestPause(!GameTime::GetConstInstance()->IsPaused());
+    return true;
+  }
+
+  Rectanglei stop_button(Point2i(72*zoom, 0), size);
+  if (stop_button.Contains(mouse_rel_pos)) {
+    // We have to go through the game loop to pause
+    if (type == CLICK_TYPE_DOWN)
+      game->UserAsksForEnd();
+    return true;
+  }
+
+  Rectanglei skip_button(Point2i(149*zoom, 0), Point2i(128*zoom, replay_toolbar.GetHeight()));
+  if (skip_button.Contains(mouse_rel_pos)) {
+    uint time;
+    switch (type) {
+      case CLICK_TYPE_LONG: time = GameTime::GetConstInstance()->Read() + 60000; break;
+      case CLICK_TYPE_DOWN: return false; // Needed to allow long clicks
+      case CLICK_TYPE_UP: time = GameTime::GetConstInstance()->Read() + 30000; break;
+      default: return false;
+    }
+    game->RequestTime(time);
+    return true;
+  }
+
+  Rectanglei slow_button(Point2i(433*zoom, 0), Point2i(49*zoom, replay_toolbar.GetHeight()));
+  if (slow_button.Contains(mouse_rel_pos)) {
+    if (type == CLICK_TYPE_DOWN)
+      SetSpeed(GameTime::GetConstInstance()->GetSpeed()-ONE);
+    return true;
+  }
+
+  Rectanglei fast_button(Point2i(482*zoom, 0), size);
+  if (fast_button.Contains(mouse_rel_pos)) {
+    if (type == CLICK_TYPE_DOWN && Game::GetInstance()->GetLastFrameRate()>10)
+      SetSpeed(GameTime::GetConstInstance()->GetSpeed()+ONE);
+    return true;
+  }
+
+  return false;
 }
 
 bool Interface::DefaultClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
@@ -850,7 +966,7 @@ bool Interface::DefaultClick(const Point2i &mouse_pos, ClickType type, Point2i o
 
 int Interface::AnyClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
 {
-  Point2i mouse_rel_pos = mouse_pos-bottom_bar_pos;
+  Point2i mouse_rel_pos = mouse_pos - bottom_bar_pos;
   const Team& ateam = ActiveTeam();
 
   old_mouse_pos -= bottom_bar_pos;
@@ -877,6 +993,7 @@ int Interface::AnyClick(const Point2i &mouse_pos, ClickType type, Point2i old_mo
   Rectanglei weapon_button(TL, BR-TL);
   // Check if we clicked the weapon icon: toggle weapon menu
   if (weapon_button.Contains(mouse_rel_pos)) {
+    if (mode == MODE_REPLAY)return -1; // This button isn't active in replay
     switch (type) {
       case CLICK_TYPE_LONG:
         if (weapon_button.Contains(old_mouse_pos)) {
@@ -887,7 +1004,8 @@ int Interface::AnyClick(const Point2i &mouse_pos, ClickType type, Point2i old_mo
       case CLICK_TYPE_DOWN: return 0; // Needed to allow long clicks
       case CLICK_TYPE_UP:
         if (!ateam.IsLocalHuman() || ActiveCharacter().IsDead() ||
-            Game::GetInstance()->ReadState() != Game::PLAYING)
+            Game::GetInstance()->ReadState() != Game::PLAYING ||
+            Replay::GetConstInstance()->IsPlaying())
           return 1;
         if (weapon_button.Contains(old_mouse_pos))
           weapons_menu.SwitchDisplay();
@@ -901,10 +1019,13 @@ int Interface::AnyClick(const Point2i &mouse_pos, ClickType type, Point2i old_mo
       case CLICK_TYPE_LONG:
       case CLICK_TYPE_DOWN: return 1;
       case CLICK_TYPE_UP:
-        if (ateam.IsLocalHuman() && !ActiveCharacter().IsDead() &&
-            Game::GetInstance()->ReadState() == Game::PLAYING &&
-            wind_button.Contains(old_mouse_pos))
-          is_control = !is_control;
+        if (Replay::GetConstInstance()->IsPlaying()) {
+          mode = (mode==MODE_REPLAY) ? MODE_NORMAL : MODE_REPLAY;
+        } else if (ateam.IsLocalHuman() && !ActiveCharacter().IsDead() &&
+                   Game::GetInstance()->ReadState() == Game::PLAYING &&
+                   wind_button.Contains(old_mouse_pos)) {
+          mode = (mode==MODE_CONTROL) ? MODE_NORMAL : MODE_CONTROL;
+        }
         return 1;
     }
   }
@@ -916,7 +1037,7 @@ bool Interface::ActionClickDown(const Point2i &mouse_pos)
 {
   Surface& window = GetMainWindow();
 
-  if (display) {
+  if (IsDisplayed()) {
     Rectanglei menu_button(Point2i(), default_toolbar.GetSize());
     if (menu_button.Contains(mouse_pos-bottom_bar_pos)) {
       switch (AnyClick(mouse_pos, CLICK_TYPE_DOWN)) {
@@ -925,8 +1046,12 @@ bool Interface::ActionClickDown(const Point2i &mouse_pos)
         default: return true;
       }
 
-      return is_control ? ControlClick(mouse_pos, CLICK_TYPE_DOWN)
-                        : DefaultClick(mouse_pos, CLICK_TYPE_DOWN);
+      switch (mode) {
+        case MODE_CONTROL: return ControlClick(mouse_pos, CLICK_TYPE_DOWN);
+        case MODE_NORMAL: return DefaultClick(mouse_pos, CLICK_TYPE_DOWN);
+        case MODE_REPLAY: return ReplayClick(mouse_pos, CLICK_TYPE_DOWN);
+        default: exit(1);
+      }
     }
   } else {
     // Mini-interface drawn, check if we clicked on it
@@ -946,15 +1071,19 @@ bool Interface::ActionClickDown(const Point2i &mouse_pos)
 
 bool Interface::ActionLongClick(const Point2i &mouse_pos, const Point2i& old_mouse_pos)
 {
-  if (display) {
+  if (IsDisplayed()) {
     switch (AnyClick(mouse_pos, CLICK_TYPE_LONG, old_mouse_pos)) {
       case -1: break;
       case 0: return false;
       default: return true;
     }
 
-    return is_control ? ControlClick(mouse_pos, CLICK_TYPE_LONG, old_mouse_pos)
-                      : DefaultClick(mouse_pos, CLICK_TYPE_LONG, old_mouse_pos);
+    switch (mode) {
+      case MODE_CONTROL: return ControlClick(mouse_pos, CLICK_TYPE_LONG);
+      case MODE_NORMAL: return DefaultClick(mouse_pos, CLICK_TYPE_LONG);
+      case MODE_REPLAY: return ReplayClick(mouse_pos, CLICK_TYPE_LONG);
+      default: exit(1);
+    }
   }
 
   return false;
@@ -964,8 +1093,8 @@ bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click
 {
   Surface &  window  = GetMainWindow();
 
-  if (display) {
-    if (is_control) {
+  if (IsDisplayed()) {
+    if (mode == MODE_CONTROL) {
       ActiveCharacter().HandleKeyReleased_MoveLeft(false);
       ActiveCharacter().HandleKeyReleased_MoveRight(false);
       ActiveCharacter().HandleKeyReleased_Up(false);
@@ -980,8 +1109,12 @@ bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click
         default: return true;
       }
 
-      return is_control ? ControlClick(mouse_pos, CLICK_TYPE_UP)
-                        : DefaultClick(mouse_pos, CLICK_TYPE_UP);
+      switch (mode) {
+        case MODE_CONTROL: return ControlClick(mouse_pos, CLICK_TYPE_UP);
+        case MODE_NORMAL: return DefaultClick(mouse_pos, CLICK_TYPE_UP);
+        case MODE_REPLAY: return ReplayClick(mouse_pos, CLICK_TYPE_UP);
+        default: exit(1);
+      }
     } else if (ActiveTeam().IsLocalHuman() && weapons_menu.ActionClic(mouse_pos)) {
       // Process click on weapon menu before minimap as it should be
       // overlayed on top of it.
@@ -1001,8 +1134,7 @@ bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click
     }
   }
 
-  if (display_minimap && // We are not targetting
-      Mouse::GetInstance()->GetPointer() == Mouse::POINTER_SELECT) {
+  if (display_minimap) {
     Point2i    offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
     Rectanglei rect_preview(offset, GetWorld().ground.GetPreviewSize());
     if (rect_preview.Contains(mouse_pos)) {
@@ -1034,7 +1166,9 @@ void Interface::MinimapSizeDelta(int delta)
 void HideGameInterface()
 {
   Interface *interf = Interface::GetInstance();
-  if (interf->GetWeaponsMenu().IsDisplayed() || interf->IsControl())
+  if (interf->GetWeaponsMenu().IsDisplayed() ||
+      interf->GetMode()==Interface::MODE_CONTROL ||
+      interf->GetMode()==Interface::MODE_REPLAY)
     return;
   Mouse::GetInstance()->Hide();
   interf->Hide();

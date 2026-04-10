@@ -28,8 +28,7 @@ class Stopwatch
 {
 private:
   uint start_time;
-  uint paused_time;
-  uint pause_begin;
+  uint offset_time;
   bool paused;
   Double speed;
 private:
@@ -39,8 +38,11 @@ public:
   Stopwatch();
   void Reset(Double speed = 1);
   void SetPause(bool value);
-  uint GetValue();
-  bool IsPaused();
+  const Double& GetSpeed() const { return speed; }
+  void SetSpeed(const Double& speed);
+  uint GetValue() const;
+  bool IsPaused() const { return paused; }
+  void Resynch(uint time);
 };
 
 #endif

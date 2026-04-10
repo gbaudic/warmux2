@@ -27,7 +27,6 @@
 #include <WARMUX_base.h>
 #include <WARMUX_singleton.h>
 #include "graphic/surface.h"
-#include "map/water.h"
 #include "tool/xml_document.h"
 
 // Forward declarations
@@ -36,7 +35,6 @@ class Profile;
 class Water;
 class InfoMapBasicAccessor;
 class InfoMapAccessor;
-typedef struct _xmlNode xmlNode;
 
 class InfoMap {
  public:
@@ -100,7 +98,7 @@ public:
 
   const std::string& GetRawName() const { return m_map_name; }
   const std::string& GetDirectory() const { return m_directory; }
-  std::string GetConfigFilepath() const;
+  std::string GetConfigFilepath() const { return m_directory + PATH_SEPARATOR + "config.xml"; }
 
   Profile * ResProfile() const { return res_profile; }
 
@@ -172,7 +170,9 @@ public:
   int GetActiveMapIndex() const { return random_map ? lst.size() : active_map_index; }
   InfoMap* ActiveMap() { return lst.at(active_map_index); }
 
+  bool IsRandom() const { return random_map; }
   void FillActionMenuSetMap(Action& a) const;
+  std::vector<std::string> GetAvailableMaps() const;
 };
 
 inline InfoMap* ActiveMap() { return MapsList::GetInstance()->ActiveMap(); }

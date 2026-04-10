@@ -30,24 +30,26 @@ Stopwatch::Stopwatch()
 
 void Stopwatch::Reset(Double speed_value)
 {
-  speed = speed_value;
-  paused = false;
-  start_time = SDL_GetTicks();
-  paused_time = 0;
+  speed       = speed_value;
+  paused      = false;
+  start_time  = SDL_GetTicks();
+  offset_time = 0;
 }
 
 void Stopwatch::Stop()
 {
   ASSERT(!paused);
-  paused = true;
-  pause_begin = SDL_GetTicks();
+  // Save last valid time
+  offset_time = GetValue();
+  paused      = true;
 }
 
 void Stopwatch::Resume()
 {
   ASSERT(paused);
-  paused = false;
-  paused_time += SDL_GetTicks() - pause_begin;
+  paused     = false;
+  // Start new time segment
+  start_time = SDL_GetTicks();
 }
 
 void Stopwatch::SetPause(bool value)
@@ -61,15 +63,25 @@ void Stopwatch::SetPause(bool value)
   }
 }
 
-uint Stopwatch::GetValue()
+uint Stopwatch::GetValue() const
 {
   if (paused)
-    return static_cast<long>(speed * (pause_begin - start_time - paused_time));
+    return offset_time;
   else
-    return static_cast<long>(speed * (SDL_GetTicks() - start_time - paused_time));
+    return static_cast<long>(speed * (SDL_GetTicks() - start_time)) + offset_time;
 }
 
-bool Stopwatch::IsPaused()
+void Stopwatch::SetSpeed(const Double& sp)
 {
-  return paused;
+  // Save current time as a new segment is about to start
+  offset_time = GetValue();
+  // Start new time segment
+  start_time  = SDL_GetTicks();
+  speed       = sp;
+}
+
+void Stopwatch::Resynch(uint value)
+{
+  offset_time = value;
+  start_time  = SDL_GetTicks();
 }

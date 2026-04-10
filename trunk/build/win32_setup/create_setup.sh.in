@@ -31,8 +31,7 @@ else
   SEP="\\"
 fi
 
-if test "@PACKAGE_VERSION@" = "svn"; then VIPV="0.0.0"
-else VIPV="@PACKAGE_VERSION@"; fi
+VIPV="11.04"
 
 mkdir -p $DEST
 
@@ -53,7 +52,7 @@ cat > $NSIS <<EOF
 
 Name "Warmux"
 ;Version resource
-VIProductVersion        "$VIPV.0"
+VIProductVersion        "0.$VIPV.0"
 VIAddVersionKey         "FileDescription"       "Warmux Installer"
 VIAddVersionKey         "ProductName"           "Warmux"
 VIAddVersionKey         "FileVersion"           "@PACKAGE_VERSION@"
@@ -302,7 +301,7 @@ Section \$(TITLE_Warmux) Sec_Warmux
   File "${WIN_WarmuxDIR}\src\warmux.exe"
   WriteUninstaller "uninstall.exe"
   ; data
-  File /r /x .svn /x Makefile* /x Makefile.* "${WIN_WarmuxDIR}\\data"
+  File /r /x .svn /x Makefile* /x Makefile.* /x icon /x warmux_default_*_config.xml "${WIN_WarmuxDIR}\\data"
   ; Licenses
   File /r /x .svn "${WIN_WarmuxDIR}\\doc\\license"
 EOF
@@ -311,10 +310,10 @@ EOF
 # Make sure freetype, libpng and jpeg dll are matching your libs.
 SDL_PATH=$(@SDL_CONFIG@ --prefix)
 PNG_PATH=$(pkg-config --variable=prefix libpng)
-cp "$SDL_PATH/bin/"SDL{,_mixer,_ttf,_image,_net}.dll       \
-   "$PNG_PATH/bin/"{intl,iconv,freetype6}.dll              \
-   "$PNG_PATH/bin/"lib{png14-14,jpeg-8,xml2-2,tiff-3}.dll  \
-   "$SDL_PATH/bin/"lib{ogg-0,vorbis-0,vorbisfile-3}.dll    \
+cp "$SDL_PATH/bin/"SDL{,_mixer,_ttf,_image,_net}.dll         \
+   "$PNG_PATH/bin/"{intl,iconv,freetype6,jpeg62}.dll         \
+   "$PNG_PATH/bin/"lib{png14-14,xml2-2}.dll                   \
+   "$SDL_PATH/bin/"lib{ogg-0,vorbis-0,vorbisfile-3}.dll      \
    "$SDL_PATH/bin/zlib1.dll" "$DEST"
 
 # Continue producing installer

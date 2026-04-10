@@ -31,11 +31,21 @@
 #include <sdlmain.h>
 #include <eikedwin.h>
 #include <eiklabel.h>
-#include <sdlexe.rsg>
 #include <aknglobalmsgquery.h>
 #include <apgwgnam.h> 
 
-#include "drawbitmapfilter.h"
+#include "hwablitter.h"
+
+
+#include "blitter.h"
+#include "fpsview.h"
+#include "virtualcursor.h"
+#include "zoomer.h"
+
+//#include <sdlexe.mbg>
+
+_LIT(KGlobalPath, "\\data\\sdl\\");
+_LIT(KDefaultHWABlitter, "sdlhwablitter.dll");
 
 
 
@@ -113,194 +123,6 @@ void GetPrivatePath(RFs& aFs, TDes& aName)
     aName.Append(name);
     }
 
-
-NONSHARABLE_CLASS(CZoomer) : public CBase, public MBlitter
-	{
-public:
-	static CZoomer* NewL();
-	~CZoomer();
-	TBool BitBlt(CBitmapContext& aGc,
-		CFbsBitmap& aBmp,
-		const TRect& aTargetRect,
-		const TSize& aSize);
-private:
-	CFbsBitmap* iBitmap;
-	};
-	
-CZoomer::~CZoomer()
-	{
-	delete iBitmap;
-	}
-		
-		
-CZoomer* CZoomer::NewL()
-	{
-	CZoomer* b = new (ELeave) CZoomer();
-	CleanupStack::PushL(b);
-	b->iBitmap = new (ELeave) CFbsBitmap();
-	CleanupStack::Pop();
-	return b;
-	}
-	
-#ifndef EColor16MAP //this do something for bw comp issue 
-#define EColor16MAP ENone 
-#endif	
-		
-TBool CZoomer::BitBlt(CBitmapContext& aGc,
- 	CFbsBitmap& aBmp,
- 	const TRect& aTargetRect,
- 	const TSize& aSize)
-	{
-	
-	if(aSize.iHeight == aTargetRect.Size().iHeight && aSize.iWidth == aTargetRect.Size().iWidth)
-	    return EFalse;
-	
-	if(0 == iBitmap->Handle() ||
-	 	iBitmap->SizeInPixels() != aTargetRect.Size())
-		{
-		iBitmap->Reset();
-		if(KErrNone != iBitmap->Create(aTargetRect.Size(), EColor64K))
-			return EFalse;
-		}
-		
-	const TDisplayMode mode = aBmp.DisplayMode();	
-		
-	switch(mode)
-		{
-		case EColor16MA:
-		case EColor16MU:
-		case EColor16MAP:
-			break;
-		default:
-			return EFalse;
-		}
-	
-	aBmp.LockHeap(ETrue);
-	const TUint32* source = aBmp.DataAddress();
-	TUint16* target = (TUint16*) iBitmap->DataAddress();
-	DrawBitmapFilter::Draw(target, source, aTargetRect.Size(),
-	        aSize, aTargetRect.Size().iWidth * 2, aSize.iWidth * 4);
-	aBmp.UnlockHeap();
-	aGc.BitBlt(TPoint(0, 0), iBitmap);
-	return ETrue;
-	}
-	
-    
-NONSHARABLE_CLASS(TVirtualCursor) : public MOverlay
-	{
-	public:
-		TVirtualCursor();
-		void Set(const TRect& aRect, CFbsBitmap* aBmp, CFbsBitmap* aAlpha);
-		void Move(TInt aX, TInt aY);
-		void MakeEvent(TPointerEvent::TType aType, TWsEvent& aEvent, const TPoint& aBasePos) const;
-		void ToggleOn();
-		void ToggleMove();
-		TBool IsOn() const;
-		TBool IsMove() const;
-	private:
-    	void Draw(CBitmapContext& aGc, const TRect& aTargetRect, const TSize& aSize);
-	private:
-		TRect iRect;
-		TPoint iInc;
-		TPoint iPos;
-		TBool iIsOn;
-		TBool iIsMove;
-		CFbsBitmap* iCBmp;
-		CFbsBitmap* iAlpha;
-	};
-	
-	
-TVirtualCursor::TVirtualCursor() :  iInc(0, 0), iIsOn(EFalse), iIsMove(EFalse), iCBmp(NULL)
-	{	
-	}
-	
-const TInt KMaxMove = 10;	
-
-void TVirtualCursor::Move(TInt aX, TInt aY)
-	{
-	if(aX > 0 && iInc.iX > 0)
-			++iInc.iX;
-	else if(aX < 0 && iInc.iX < 0)
-			--iInc.iX;
-	else
-		iInc.iX = aX;
-
-	if(aY > 0 && iInc.iY > 0)
-			++iInc.iY;
-	else if(aY < 0 && iInc.iY < 0)
-			--iInc.iY;
-	else
-			iInc.iY = aY;
-	
-	iInc.iX = Min(KMaxMove, iInc.iX); 
-	
-	iInc.iX = Max(-KMaxMove, iInc.iX);
-	
-	iInc.iY = Min(KMaxMove, iInc.iY);
-	
-	iInc.iY =Max(-KMaxMove, iInc.iY);
-	
-	const TPoint pos = iPos + iInc;
-	if(iRect.Contains(pos))
-		{
-		iPos = pos;
-		}
-	else
-		{
-		iInc = TPoint(0, 0);	
-		}
-	}
-	
-	
-void TVirtualCursor::ToggleOn()
-	{
-	iIsOn = !iIsOn;
-	}
-	
-
-void TVirtualCursor::ToggleMove()
-    {
-    iIsMove = !iIsMove;
-    }
-
-TBool TVirtualCursor::IsOn() const
-	{
-	return iIsOn;
-	}
-
-TBool TVirtualCursor::IsMove() const
-    {
-    return iIsMove;
-    }
-
-void TVirtualCursor::Set(const TRect& aRect, CFbsBitmap* aBmp, CFbsBitmap* aAlpha)
-	{
-	iRect = aRect;
-	iCBmp = aBmp;
-	iAlpha = aAlpha;
-	}
-	
-		
-void TVirtualCursor::MakeEvent(TPointerEvent::TType aType, TWsEvent& aEvent, const TPoint& aBasePos) const
-	{
- 	aEvent.SetType(EEventPointer),
-	aEvent.SetTimeNow();
-	TPointerEvent& pointer = *aEvent.Pointer();	
-	pointer.iType = aType;
-	pointer.iPosition = iPos;
-	pointer.iParentPosition = aBasePos;
-	}
-	
-	
-void TVirtualCursor::Draw(CBitmapContext& aGc, const TRect& /*aTargetRect*/, const TSize& /*aSize*/)
-	{
-	if(iIsOn && iCBmp != NULL)
-		{
-		const TRect rect(TPoint(0, 0), iCBmp->SizeInPixels());
-		aGc.AlphaBlendBitmaps(iPos, iCBmp, rect, iAlpha, TPoint(0, 0));
-		}
-	
-	}	
 
 NONSHARABLE_CLASS(TSdlClass)
 	{
@@ -474,13 +296,16 @@ NONSHARABLE_CLASS(CSDLAppUi) : public CAknAppUi, public MExitWait, public MSDLOb
     	static TBool IdleRequestL(TAny* aThis);
     	
     	TBool HandleKeyL(const TWsEvent& aEvent);
+    	
+    	TBool CreateHwaBlitterL(RWindow& aWindow, TInt aFlags);
+    	
     
     	void SdlDraw();
     	
     	static void ParseFlags(const TDesC8& aString, TInt& aSdlFlags, TInt& aExeFlags);
     	static void FlagsFromFileL(const TDesC& aFile, TInt& aSdlFlags, TInt& aExeFlags);
     	static void MakeCCmdLineL(const TDesC8& Cmd, CDesC8Array& aArray);
-    	static TBool FindFileL(const TDesC& aFile, TDes& aName);
+    	static TBool FindFileL(const TDesC& aFile, TDes& aName, const TDesC& aSearchPath = KNullDesC);
 	private:
 		CExitWait* iWait;
 		CSDLWin* iSDLWin;
@@ -495,7 +320,10 @@ NONSHARABLE_CLASS(CSDLAppUi) : public CAknAppUi, public MExitWait, public MSDLOb
 		CFbsBitmap*	iCBmp;
 		CFbsBitmap*	iAlpha;
 		CFbsBitmap* iCBmpMove;
-		CZoomer* iZoomer;
+		CBlitter* iZoomer;
+		CFpsView* iFpsView;
+		RBuf      iMbmFile;
+		RLibrary  iHwaLib;
 	//	TTime iLastPress;
 	//	CSDL::TOrientationMode iOrientation;
 	};
@@ -598,7 +426,7 @@ void CSDLWin:: ConstructL(const TRect& aRect, TBool aBackup)
     else
         CreateWindowL();
 	SetRect(aRect);
-	ActivateL();	
+	ActivateL();
 	}
 	
 	
@@ -645,15 +473,35 @@ CSDLAppUi::~CSDLAppUi()
 	delete iIdle;
 	if(iStarter != NULL)
 		iStarter->Cancel();
+	if(iSdl != NULL)
+	    iSdl->SetBlitter(NULL);
+	
+	if(iWait != NULL)
+	    iWait->Cancel();
+
 	delete iStarter;
+	
+
+	
 	delete iWait;
-	delete iSdl;
-	delete iSDLWin;
+	
+
+    
+    delete iSdl;
+	
+	delete iZoomer;
+	
 	delete iParams;
 	delete iCBmp;
 	delete iAlpha;
 	delete iCBmpMove;
-	delete iZoomer;
+	delete iFpsView;
+
+    delete iSDLWin;
+    
+	
+	iMbmFile.Close();
+	iHwaLib.Close();
 	}
 
 
@@ -680,17 +528,22 @@ void CSDLAppUi::ParseFlags(const TDesC8& aString, TInt& aSdlFlags, TInt& aExeFla
             {_L8("MainThread"), CSDL::EMainThread},                   
             {_L8("ImageResizeZoomOut"), CSDL::EImageResizeZoomOut},            
             {_L8("AutoOrientation"), CSDL::EAutoOrientation},             
-            {_L8("DisableVolumeKeys"), CSDL::EDisableVolumeKeys}                     
+            {_L8("DisableVolumeKeys"), CSDL::EDisableVolumeKeys}
     };
     
     
     const SFlag exeFlags[] = {
-            {_L8("ParamQuery"),SDLEnv::EParamQuery}, 
-            {_L8("AllowConsoleView"),SDLEnv::EAllowConsoleView}, 
-            {_L8("VirtualMouse"),SDLEnv::EVirtualMouse}, 
-            {_L8("ParamQueryDialog"),SDLEnv::EParamQueryDialog},
-            {_L8("FastZoomBlitter"),SDLEnv::EFastZoomBlitter},
-            {_L8("EnableVirtualMouseMoveEvents"),SDLEnv::EEnableVirtualMouseMoveEvents},
+            {_L8("ParamQuery"), SDLEnv::EParamQuery}, 
+            {_L8("AllowConsoleView"), SDLEnv::EAllowConsoleView}, 
+            {_L8("VirtualMouse"), SDLEnv::EVirtualMouse}, 
+            {_L8("ParamQueryDialog"), SDLEnv::EParamQueryDialog},
+            {_L8("FastZoomBlitter"), SDLEnv::EFastZoomBlitter},
+            {_L8("EnableVirtualMouseMoveEvents"), SDLEnv::EEnableVirtualMouseMoveEvents},
+            {_L8("HWABlitter"),SDLEnv::EHWABlitter},
+            {_L8("HWABlitterNoScale"), SDLEnv::EHWABlitterNoScale},
+            {_L8("HWABlitterRatioScale"), SDLEnv::EHWABlitterRatioScale},
+            {_L8("NoHWABlitter"), SDLEnv::ENoHWABlitter},
+            {_L8("ViewFPS"), SDLEnv::EViewFPS}
     };
 
     
@@ -727,16 +580,24 @@ void CSDLAppUi::ParseFlags(const TDesC8& aString, TInt& aSdlFlags, TInt& aExeFla
 	
 void CSDLAppUi::FlagsFromFileL(TInt& aSdlFlags, TInt& aExeFlags) 
      {
-     _LIT(flagsfile, "sdl_flags.txt" );
+     _LIT(flagsfile, "sdl_flags.txt");
      TFileName name;
-     if(FindFileL(flagsfile, name))
+     if(FindFileL(flagsfile, name) || FindFileL(flagsfile, name, KGlobalPath))
          FlagsFromFileL(name, aSdlFlags, aExeFlags);
      }
 
-TBool CSDLAppUi::FindFileL(const TDesC& aFile, TDes& aName)
+TBool CSDLAppUi::FindFileL(const TDesC& aFile, TDes& aName, const TDesC& aSearchPath)
      {
      RFs& fs = CEikonEnv::Static()->FsSession();
-     GetPrivatePath(fs, aName);
+     if(aSearchPath.Length() == 0)
+         {
+         GetPrivatePath(fs, aName);
+         }
+     else
+         {
+         aName.Insert(0, aSearchPath);
+         aName.Insert(0, _L("C:"));
+         }
      aName.Append(aFile);
      TEntry entry;
      TBool found = ETrue;
@@ -862,12 +723,22 @@ TBool CSDLAppUi::ProcessCommandParametersL(CApaCommandLine &aCommandLine)
  
  TBool CSDLAppUi::ParamEditorL(TDes& aCheat)
 	{
-	CAknTextQueryDialog* query = CAknTextQueryDialog::NewL(aCheat);
+#if 0
+	 CAknTextQueryDialog* query = CAknTextQueryDialog::NewL(aCheat);
 	CleanupStack::PushL(query);
 	query->SetPromptL(_L("Enter parameters"));
 	CleanupStack::Pop();
 	return query->ExecuteLD(R_PARAMEDITOR);
+#else
+	return false;
+#endif
 	}
+ 
+ TBool CSDLAppUi::CreateHwaBlitterL(RWindow& aWindow, TInt aFlags)
+     {
+	 iZoomer = CHWABlitter::NewL(aWindow, aFlags);
+	 return ETrue;
+     }
  	
  void CSDLAppUi::StartL()	
  	{ 		
@@ -911,13 +782,33 @@ TBool CSDLAppUi::ProcessCommandParametersL(CApaCommandLine &aCommandLine)
                     *iEikonEnv->ScreenDevice());
     iSdl->AppendOverlay(iCursor, 0);
     
-    if(gSDLClass.AppFlags() & SDLEnv::EFastZoomBlitter)
+    if(!(gSDLClass.AppFlags() & SDLEnv::ENoHWABlitter))
+        {
+        RWindow& win = iSDLWin->GetWindow();
+        TInt flags = 0;
+        if((gSDLClass.AppFlags() & SDLEnv::EHWABlitterNoScale) == SDLEnv::EHWABlitterNoScale)
+            flags = CHWABlitter::EPreventScale;
+        if((gSDLClass.AppFlags() & SDLEnv::EHWABlitterRatioScale) == SDLEnv::EHWABlitterRatioScale)
+            flags = CHWABlitter::EPreserveRatio;
+        
+        if(CreateHwaBlitterL(win, flags))
+            {
+            iSdl->SetBlitter(iZoomer);
+            }
+       // ASSERT(!gSDLClass.AppFlags() & SDLEnv::EFastZoomBlitter);
+        }
+    
+    if(gSDLClass.AppFlags() & SDLEnv::EHWABlitter && iZoomer == NULL)
+        {
+        User::Leave(KErrNotFound);
+        }
+    
+    if(iZoomer == NULL && gSDLClass.AppFlags() & SDLEnv::EFastZoomBlitter)
         {
         iZoomer = CZoomer::NewL();
         iSdl->SetBlitter(iZoomer);
         }
  	        
- 	
  	iWait = new (ELeave) CExitWait(*this);
  	iSdl->CallMainL(gSDLClass.Main(), &iWait->iStatus, iParams, CSDL::ENoParamFlags, 0xA000);
  	}
@@ -995,7 +886,7 @@ TBool CSDLAppUi::HandleKeyL(const TWsEvent& aEvent)
 					                   
 					iCursor.MakeEvent(type, event, iSDLWin->Position());
 					iSdl->AppendWsEvent(event);
-					if(gSDLClass.AppFlags() & SDLEnv::EEnableVirtualMouseMoveEvents)
+					if((gSDLClass.AppFlags() & SDLEnv::EEnableVirtualMouseMoveEvents) == SDLEnv::EEnableVirtualMouseMoveEvents)
 					    {
 					    iCursor.ToggleMove();
 					    CFbsBitmap* bmp = iCursor.IsMove()? iCBmpMove : iCBmp;
@@ -1051,7 +942,12 @@ TBool CSDLAppUi::HandleKeyL(const TWsEvent& aEvent)
 void CSDLAppUi::DoExit(TInt/*Err*/)
    	{
    	iExitRequest = ETrue;
+   	CExitWait* w = iWait;
+   	if(iWait != NULL)
+   	    iWait->Cancel();
+   	iWait = NULL;
    	Exit();
+   	delete w;
    	}
 
     
@@ -1065,8 +961,11 @@ TInt CSDLAppUi::SdlEvent(TInt aEvent, TInt /*aParam*/)
 	switch(aEvent)
 		{
 		case MSDLObserver::EEventResume:
+		    iSdl->RedrawRequest();
 			break;
 		case MSDLObserver::EEventSuspend:
+		    if(iZoomer != NULL)
+		        iZoomer->Release();
 			//if(iExitRequest)
 			//	return MSDLObserver::ESuspendNoSuspend;
 			break;

@@ -100,6 +100,8 @@ warmux_SOURCES = \
         gui/energy_bar.h \
         gui/figure_widget.cpp \
         gui/figure_widget.h \
+        gui/file_list_box.cpp \
+        gui/file_list_box.h \
         gui/graph_canvas.cpp \
         gui/graph_canvas.h \
         gui/label.cpp \
@@ -135,8 +137,6 @@ warmux_SOURCES = \
         gui/widget.h \
         gui/widget_list.cpp \
         gui/widget_list.h \
-        include/action.cpp \
-        include/action.h \
         include/action_handler.cpp \
         include/action_handler.h \
         include/app.h \
@@ -216,6 +216,8 @@ warmux_SOURCES = \
         menu/options_menu.h \
         menu/pause_menu.cpp \
         menu/pause_menu.h \
+        menu/replay_menu.cpp \
+        menu/replay_menu.h \
         menu/results_menu.cpp \
         menu/results_menu.h \
         menu/team_box.cpp \
@@ -289,6 +291,11 @@ warmux_SOURCES = \
         particles/teleport_member.h \
         particles/water_drop.cpp \
         particles/water_drop.h \
+        replay/replay_info.cpp \
+        replay/replay_info.h \
+        replay/replay.cpp \
+        replay/replay.h \
+        replay/game_mode_info.h \
         sound/jukebox.cpp \
         sound/jukebox.h \
         sound/sample_cache.cpp \
@@ -310,6 +317,8 @@ warmux_SOURCES = \
         team/teams_list.h \
         tool/affine_transform.cpp \
         tool/affine_transform.h \
+        tool/ansi_convert.cpp \
+        tool/ansi_convert.h \
         tool/copynpaste.cpp \
         tool/copynpaste.h \
         tool/isnan.h \

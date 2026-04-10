@@ -36,15 +36,24 @@
 class NetworkGame
 {
 private:
-  std::string game_name;
-  std::string password;
-  bool game_started;
+  std::string      game_name;
+  std::string      password;
+  bool             game_started;
   std::list<DistantComputer*> cpulist;
+  std::map<std::string, uint> name_index_map;
+  std::string      selected_map;
+
+  // To handle an idling game master
+  DistantComputer* waited;
+  uint             start_waiting;
+  bool             warned;
 
   void SendAdminMessage(const std::string& message);
   void SendAction(const Action& a, DistantComputer* client, bool clt_as_rcver) const;
   void StartGame();
   void StopGame();
+
+  void UpdateWaited();
 
 public:
   NetworkGame(const std::string& game_name, const std::string& password);
@@ -55,17 +64,24 @@ public:
   void AddCpu(DistantComputer* cpu);
   std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator closed);
 
-  std::list<DistantComputer*>& GetCpus();
-  const std::list<DistantComputer*>& GetCpus() const;
+  std::list<DistantComputer*>& GetCpus() { return cpulist; }
+  const std::list<DistantComputer*>& GetCpus() const { return cpulist; }
 
-  bool AcceptNewComputers() const;
+  bool AcceptNewComputers() const { return !game_started && cpulist.size() < 8; }
 
   uint NextPlayerId() const;
   void ElectGameMaster();
   void ForwardPacket(const char *buffer, size_t len, DistantComputer* sender);
-  void SendActionToAll(const Action& action) const;
-  void SendActionToOne(const Action& action, DistantComputer* client) const;
-  void SendActionToAllExceptOne(const Action& action, DistantComputer* client) const;
+  void SendActionToAll(const Action& a) const { SendAction(a, NULL, false); }
+  void SendActionToOne(const Action& a, DistantComputer* client) const { SendAction(a, client, true); }
+  void SendActionToAllExceptOne(const Action& a, DistantComputer* client) const { SendAction(a, client, false); }
+
+  void SendSingleAdminMessage(DistantComputer* client, const std::string& message);
+  void CheckWaited();
+  void ResetWaiting() { warned = false; waited = NULL; start_waiting = 0; }
+  bool IsGameMaster(std::list<DistantComputer*>::const_iterator& cpu) const { return cpu == cpulist.begin(); }
+  bool IsGameMaster(std::list<DistantComputer*>::iterator& cpu) { return cpu == cpulist.begin(); }
+  void SendMapsList(DistantComputer *host);
 };
 
 class GameServer : public Singleton<GameServer>

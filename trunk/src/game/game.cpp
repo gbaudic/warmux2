@@ -32,6 +32,7 @@
 #include "gui/question.h"
 #include "include/app.h"
 #include "include/action_handler.h"
+#include "include/constant.h"
 #include "interface/cursor.h"
 #include "interface/interface.h"
 #include "interface/keyboard.h"
@@ -55,6 +56,7 @@
 #include "object/medkit.h"
 #include "object/objects_list.h"
 #include "particles/particle.h"
+#include "replay/replay.h"
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
@@ -105,7 +107,6 @@ Game * Game::UpdateGameRules()
   return GetInstance();
 }
 
-
 void Game::InitEverything()
 {
   int icon_count = Network::GetInstance()->IsLocal() ? 4 : 5;
@@ -120,22 +121,37 @@ void Game::InitEverything()
   Mouse::GetInstance()->Hide();
 
   std::cout << "o " << _("Initialisation") << std::endl;
-  Time::GetInstance()->Reset();
+  GameTime::GetInstance()->Reset();
 
   // initialize gaming data
-  if (Network::GetInstance()->IsGameMaster())
-    InitGameData_NetGameMaster();
-  else if (benching) {
+  Replay *replay = Replay::GetInstance();
+  if (replay->IsPlaying()) {
+    InitGameData_RePlay();
+  } else if (benching) {
     RandomSync().SetSeed(0xABADCAFE);
     bench_res.reserve(600);
     bench_res.clear();
-  } else if (Network::GetInstance()->IsLocal()) {
-    RandomSync().InitRandom();
+  } else {
+    replay->Init(true);
+
+    if (Network::GetInstance()->IsGameMaster()) {
+      InitGameData_NetGameMaster();
+    } else if (Network::GetInstance()->IsLocal()) {
+      AppWarmux::GetInstance()->video->SetWindowCaption(std::string("WarMUX ") + Constants::WARMUX_VERSION);
+      RandomSync().InitRandom();
+    }
+
+    std::string game_mode, game_mode_objects;
+    const GameMode *mode = GameMode::GetConstInstance();
+
+    mode->ExportToString(game_mode, game_mode_objects);
+
+    if (replay->StartRecording(mode->GetName(), game_mode, game_mode_objects))
+      replay->SetSeed(RandomSync().GetSeed());
   }
 
   // GameMode::GetInstance()->Load(); : done in the game menu to adjust some parameters for local games
   // done in action_handler for clients
-
 
   // Camera must not shake as the started shaking time could be from a previous game:
   Camera::GetInstance()->ResetShake();
@@ -168,6 +184,7 @@ void Game::InitEverything()
     loading_screen.StartLoading(5, "network_icon", _("Network"));
     WaitForOtherPlayers();
   }
+
   ActionHandler::GetInstance()->ExecFrameLessActions();
   ResetUniqueIds();
 
@@ -182,10 +199,17 @@ void Game::InitEverything()
   SetState(END_TURN, true); // begin with a small pause
 
   // Reset time at end of initialisation, so that the first player doesn't loose a few seconds.
-  Time::GetInstance()->Reset();
+  GameTime::GetInstance()->Reset();
 
   std::cout << std::endl;
   std::cout << "[ " << _("Starting a new game") << " ]" << std::endl;
+}
+
+void Game::InitGameData_RePlay()
+{
+  AppWarmux::GetInstance()->video->SetWindowCaption("WarMUX " + Constants::WARMUX_VERSION +
+                                                    " - " + _("Replay mode"));
+  RandomSync().SetSeed(Replay::GetInstance()->GetSeed());
 }
 
 void Game::InitGameData_NetGameMaster()
@@ -342,9 +366,9 @@ void Game::DisplayError(const std::string &msg)
 
   Question question(Question::WARNING);
   question.Set(msg, true, 0);
-  Time::GetInstance()->SetWaitingForUser(true);
+  GameTime::GetInstance()->SetWaitingForUser(true);
   question.Ask();
-  Time::GetInstance()->SetWaitingForUser(false);
+  GameTime::GetInstance()->SetWaitingForUser(false);
 }
 
 uint Game::Start(bool bench)
@@ -355,6 +379,7 @@ uint Game::Start(bool bench)
   Joystick::GetInstance()->Reset();
 
   bool game_finished = true;
+
   InfoMapBasicAccessor *basic = ActiveMap()->LoadBasicInfo();
   if (basic) {
     InitEverything();
@@ -367,6 +392,7 @@ uint Game::Start(bool bench)
   } else {
     fprintf(stderr, "Couldn't load map\n");
   }
+
   UnloadDatas(game_finished);
 
   Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
@@ -436,8 +462,10 @@ Game::Game()
   , ask_for_menu(false)
   , ask_for_help_menu(false)
   , ask_for_end(false)
+  , request_pause(NO_REQUEST)
+  , request_speed(ZERO)
+  , request_time(0)
   , fps(new FramePerSecond())
-  , delay(0)
   , time_of_next_frame(0)
   , time_of_next_phy_frame(0)
   , character_already_chosen(false)
@@ -459,17 +487,17 @@ Game::~Game()
 
 // ignore all pending events
 // useful after loading screen
-void Game::IgnorePendingInputEvents() const
+void Game::IgnorePendingInputEvents()
 {
   SDL_Event evnt;
-  while(SDL_PollEvent(&evnt)) { ; }
+  while (SDL_PollEvent(&evnt)) { ; }
 }
 
 void Game::RefreshInput()
 {
   // Poll and treat keyboard and mouse events
   SDL_Event evnt;
-  while(SDL_PollEvent(&evnt)) {
+  while (SDL_PollEvent(&evnt)) {
 
     // Emergency exit
     if (evnt.type == SDL_KEYDOWN && evnt.key.keysym.sym == SDLK_ESCAPE && (SDL_GetModState() & KMOD_CTRL))
@@ -487,7 +515,7 @@ void Game::RefreshInput()
     }
 
     // Inactive event
-    if (AppWarmux::CheckInactive(evnt))
+    if (AppWarmux::GetInstance()->CheckInactive(evnt))
       continue;
 
     if (benching) {
@@ -619,18 +647,18 @@ void Game::Draw()
   if (benching) {
     float avg = fps->GetLastValue();
     if (avg > 0.0) {
-      bench_res.push_back(std::make_pair(Time::GetInstance()->Read()/1000.0f, avg));
+      bench_res.push_back(std::make_pair(GameTime::GetInstance()->Read()/1000.0f, avg));
     }
   }
 
   // Draw MsgBox for chat network
-  if (Network::GetInstance()->IsConnected()) {
+  if (Network::GetInstance()->IsConnected() || Replay::GetConstInstance()->IsPlaying()) {
     StatStart("GameDraw:chatsession");
     chatsession.Show();
     StatStop("GameDraw:chatsession");
   }
 
-  if (Time::GetInstance()->GetMSWaitingForNetwork() > MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS) {
+  if (GameTime::GetInstance()->GetMSWaitingForNetwork() > MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS) {
     Point2i pos = GetMainWindow().GetSize()/2;
     std::string text = Format(_("Waiting for %s"), ActiveTeam().GetPlayerName().c_str());
     waiting_for_network_text.SetText(text);
@@ -668,12 +696,13 @@ bool Game::Run()
   bool game_finished = false;
   isGameLaunched = true;
 
-  // Time to wait between 2 loops
-  delay = 0;
   // Time to display the next frame
   time_of_next_frame = 0;
   // Time to display the compute next physic engine frame
   time_of_next_phy_frame = 0;
+  // Reset some requests
+  request_time = 0;
+  request_speed = ZERO;
 
   // loop until game is finished
   do {
@@ -681,6 +710,9 @@ bool Game::Run()
     ask_for_help_menu = false;
     ask_for_end = false;
     MainLoop();
+
+    if (Replay::GetConstInstance()->IsPlaying() && ActionHandler::GetConstInstance()->IsEmpty())
+      break;
 
     if (ask_for_end) {
       break;
@@ -741,11 +773,18 @@ void Game::MessageEndOfGame() const
 
   JukeBox::GetInstance()->StopAll();
 
-  if (!benching) {
+  extern bool quit_game;
+  if (!benching && !ask_for_end && !quit_game) {
     std::vector<TeamResults*>* results_list = TeamResults::createAllResults();
     ResultsMenu menu(*results_list, disconnected);
     menu.Run();
     TeamResults::deleteAllResults(results_list);
+  }
+
+  Replay *replay = Replay::GetInstance();
+  if (replay->IsRecording()) {
+    replay->StopRecording();
+    replay->DeInit();
   }
 }
 
@@ -753,40 +792,140 @@ void Game::MessageEndOfGame() const
 void Game::MainLoop()
 {
   static bool draw = true;
+  GameTime *time = GameTime::GetInstance();
 
-  if (!Time::GetInstance()->IsWaitingForUser()) {
-    // If we are waiting for the network then we have already done those steps.
-    if (!Time::GetInstance()->IsWaitingForNetwork()) {
-      Time::GetInstance()->Increase();
+  // One time honouring of the pause request - check GameTime::IsPaused to get the state
+  if (request_pause == START_PAUSE) {
+    time->SetPause(true);
+    request_pause = NO_REQUEST;
+  } else if (request_pause == END_PAUSE) {
+    time->SetPause(false);
+    request_pause = NO_REQUEST;
+  }
+  if (request_speed.IsNotZero()) {
+    time->SetSpeed(request_speed);
+    request_speed = ZERO;
+  }
+  if (request_time) {
+    uint start_skip = SDL_GetTicks();
+    JukeBox::GetInstance()->End();
+
+    while (time->Read() < request_time && !IsGameFinished()) {
+      uint now     = SDL_GetTicks();
+      bool refresh = false;
+
+      // If more than 1s has passed, then refresh
+      if (now - start_skip > 1000) {
+        refresh    = true;
+        start_skip = now;
+      }
+
+      time->Increase();
 
       // Refresh clock value
       RefreshClock();
 
+      if (refresh)
+        RefreshInput();
+
       // For example the switch of characters can make it necessary to rebuild the body.
-      // If no cacluate frame action is sheduled the frame calculation will be skipped and the bodies don't get build.
+      // If no cacluate frame action is scheduled the frame calculation will be skipped
+      // and the bodies don't get build.
       // As the draw method needs builded characters we need to build here
       FOR_ALL_CHARACTERS(team,character) {
         character->GetBody()->Build();
         character->GetBody()->RefreshSprites();
       }
 
-      if (Network::GetInstance()->IsTurnMaster()) {
-        // The action which verifys the random seed must be the first action sheduled!
+      ActionHandler::GetInstance()->ExecFrameLessActions();
+
+      bool actions_executed = ActionHandler::GetInstance()->ExecActionsForOneFrame();
+      ASSERT(actions_executed);
+
+      if (actions_executed) {
+        RefreshObject();
+
+        // Refresh the map
+        GetWorld().Refresh();
+
+        // Build the characters if necessary so that it does not need to happen while drawing.
+        // The build can become necessary again when for example weapons change the movement.
+        FOR_ALL_CHARACTERS(team,character) {
+          character->GetBody()->Build();
+          character->GetBody()->RefreshSprites();
+        }
+      }
+
+      // Avoid freeze
+      if (refresh) {
+        CallDraw();
+        // How many frame by seconds ?
+        fps->Refresh();
+      }
+    }
+    JukeBox::GetInstance()->Init();
+
+    // There has been a drift between the actual time and simulated one
+    time->Resynch();
+    request_time = 0;
+    return;
+  }
+
+  // Generally linked to replay: do minimal refresh
+  if (Replay::GetConstInstance()->IsPlaying() && time->IsPaused()) {
+    RefreshInput();
+    if (time_of_next_frame < SDL_GetTicks()) {
+      //printf("Drawing as %u < %u\n", time_of_next_frame, SDL_GetTicks());
+      CallDraw();
+      // How many frame by seconds ?
+      fps->Refresh();
+      uint frame_length =  AppWarmux::GetInstance()->video->GetMaxDelay();
+      time_of_next_frame = time_of_next_frame + frame_length;
+
+      // The rate at which frames are calculated may differ over time.
+      // This if statement assures that time_of_next_frame does not get to far behind
+      // as else it would increase the game speed later.
+      if (time_of_next_frame < SDL_GetTicks())
+        time_of_next_frame = SDL_GetTicks();
+    }
+
+    return;
+  }
+
+  if (!time->IsWaitingForUser()) {
+    // If we are waiting for the network then we have already done those steps.
+    if (!time->IsWaitingForNetwork()) {
+      time->Increase();
+
+      // Refresh clock value
+      RefreshClock();
+
+      // For example the switch of characters can make it necessary to rebuild the body.
+      // If no cacluate frame action is sheduled the frame calculation will be skipped
+      // and the bodies don't get build.
+      // As the draw method needs builded characters we need to build here
+      FOR_ALL_CHARACTERS(team,character) {
+        character->GetBody()->Build();
+        character->GetBody()->RefreshSprites();
+      }
+
+      if (Network::GetInstance()->IsTurnMaster() && !Replay::GetConstInstance()->IsPlaying()) {
+        // The action which verifies the random seed must be the first action scheduled!
         // Otherwise the following could happen:
-        // 1. Action C gets sheduled which draws values from the random source.
-        // 2. Action V gets sheduled which verifies that random seed is X.
+        // 1. Action C gets scheduled which draws values from the random source.
+        // 2. Action V gets scheduled which verifies that random seed is X.
         // 3. Action C gets executed: As a result the random seed has changed to another value Y.
         // 4. Action V gets executed: It fails as the random seed is no longer X but Y.
         RandomSync().Verify();
 
 #ifdef DEBUG
         Action* action = new Action(Action::ACTION_TIME_VERIFY_SYNC);
-        action->Push((int)Time::GetInstance()->Read());
+        action->Push((int)time->Read());
         ActionHandler::GetInstance()->NewAction(action);
 #endif
       }
 
-      if (Time::GetInstance()->Read() % 1000 == 20 && Network::GetInstance()->IsGameMaster())
+      if (time->Read() % 1000 == 20 && Network::GetInstance()->IsGameMaster())
         PingClient();
     }
     StatStart("Game:RefreshInput()");
@@ -798,13 +937,13 @@ void Game::MainLoop()
 
     bool is_turn_master = Network::GetInstance()->IsTurnMaster();
     if (is_turn_master) {
-      Time::GetInstance()->SetWaitingForNetwork(false);
+      time->SetWaitingForNetwork(false);
       Action *a = new Action(Action::ACTION_GAME_CALCULATE_FRAME);
       ActionHandler::GetInstance()->NewAction(a);
     }
     bool actions_executed = ActionHandler::GetInstance()->ExecActionsForOneFrame();
     ASSERT(actions_executed || !is_turn_master);
-    Time::GetInstance()->SetWaitingForNetwork(!actions_executed);
+    time->SetWaitingForNetwork(!actions_executed);
 
     if (actions_executed) {
       StatStart("Game:RefreshObject()");
@@ -836,8 +975,8 @@ void Game::MainLoop()
   if (!force_refresh) {
     // try to adjust to max Frame by seconds
     draw = time_of_next_frame < SDL_GetTicks();
-    // Only display if the physic engine isn't late
-    draw = draw && !(Time::GetInstance()->CanBeIncreased() && !Time::GetInstance()->IsWaiting());
+    // Only display if the physic engine isn't much too late
+    draw = draw && time->CanDraw();
   }
 
   if (draw) {
@@ -855,8 +994,8 @@ void Game::MainLoop()
     if (time_of_next_frame < SDL_GetTicks())
       time_of_next_frame = SDL_GetTicks();
   }
-  if (!Time::GetInstance()->IsWaiting())
-    Time::GetInstance()->LetRealTimePassUntilFrameEnd();
+  if (!time->IsWaiting())
+    time->LetRealTimePassUntilFrameEnd();
 }
 
 bool Game::NewBox()
@@ -909,14 +1048,19 @@ void Game::RequestBonusBoxDrop()
 {
   ObjBox* current_box = Game::GetInstance()->GetCurrentBox();
   if (current_box) {
+    Action a(Action::ACTION_DROP_BONUS_BOX);
+    Replay *replay = Replay::GetInstance();
+
+    if (replay->IsRecording())
+      replay->StoreAction(&a);
+
     if (Network::GetInstance()->IsTurnMaster()) {
-      Action a(Action::ACTION_DROP_BONUS_BOX);
       Network::GetInstance()->SendActionToAll(a);
 
       current_box->DropBox();
     } else {
-      Action a(Action::ACTION_REQUEST_BONUS_BOX_DROP);
-      Network::GetInstance()->SendActionToAll(a);
+      Action b(Action::ACTION_REQUEST_BONUS_BOX_DROP);
+      Network::GetInstance()->SendActionToAll(b);
     }
   }
 }
@@ -947,7 +1091,6 @@ void Game::SetState(game_loop_state_t new_state, bool begin_game)
   // Little pause at the end of the turn
   case END_TURN:
     __SetState_END_TURN();
-    interf->DisableControl();
     m_current_turn++;
     break;
   }
@@ -1119,7 +1262,7 @@ bool Game::MenuQuitPause()
 {
   JukeBox::GetInstance()->Pause();
 
-  Time::GetInstance()->SetWaitingForUser(true);
+  GameTime::GetInstance()->SetWaitingForUser(true);
 
   Action a(Action::ACTION_ANNOUNCE_PAUSE);
   Network::GetInstance()->SendActionToAll(a);
@@ -1130,7 +1273,7 @@ bool Game::MenuQuitPause()
   delete menu;
   menu = NULL;
 
-  Time::GetInstance()->SetWaitingForUser(false);
+  GameTime::GetInstance()->SetWaitingForUser(false);
 
   JukeBox::GetInstance()->Resume();
 
@@ -1141,7 +1284,7 @@ void Game::MenuHelpPause()
 {
   JukeBox::GetInstance()->Pause();
 
-  Time::GetInstance()->SetWaitingForUser(true);
+  GameTime::GetInstance()->SetWaitingForUser(true);
 
   Action a(Action::ACTION_ANNOUNCE_PAUSE);
   Network::GetInstance()->SendActionToAll(a);
@@ -1151,7 +1294,7 @@ void Game::MenuHelpPause()
   delete menu;
   menu = NULL;
 
-  Time::GetInstance()->SetWaitingForUser(false);
+  GameTime::GetInstance()->SetWaitingForUser(false);
 
   JukeBox::GetInstance()->Resume();
 }

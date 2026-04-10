@@ -158,16 +158,21 @@ int Surface::SetAlpha(Uint32 flags, Uint8 alpha)
  * Lock the surface to permit direct access.
  *
  */
-int Surface::InternalLock()
+void Surface::Lock()
 {
-  return SDL_LockSurface(surface);
+  if (SDL_MUSTLOCK(surface)) {
+    if (SDL_LockSurface(surface) < 0) {
+      fprintf(stderr, "Failed to lock surface: %s\n", SDL_GetError());
+      exit(-1);
+    }
+  }
 }
 
 /**
  * Unlock the surface.
  *
  */
-void Surface::InternalUnlock()
+void Surface::Unlock()
 {
   SDL_UnlockSurface(surface);
 }
@@ -189,7 +194,11 @@ void Surface::SwapClipRect(Rectanglei& rect)
 
 int Surface::Blit(const Surface& src, SDL_Rect *srcRect, SDL_Rect *dstRect)
 {
-  return SDL_BlitSurface(src.surface, srcRect, surface, dstRect);
+  int ret = SDL_BlitSurface(src.surface, srcRect, surface, dstRect);
+  if (ret < 0) {
+    printf("Blit failed (code=%i): %s\n", ret, SDL_GetError());
+  }
+  return ret;
 }
 
 /**
@@ -230,11 +239,11 @@ int Surface::Blit(const Surface& src, const Rectanglei &srcRect, const Point2i &
  */
 void Surface::MergeSurface(Surface &spr, const Point2i &pos)
 {
-  SDL_PixelFormat* cur_fmt = surface->format;
-  SDL_PixelFormat * spr_fmt = spr.surface->format;
-
   spr.Lock();
   Lock();
+
+  SDL_PixelFormat* cur_fmt = surface->format;
+  SDL_PixelFormat * spr_fmt = spr.surface->format;
 
   // for each pixel lines of a source image
   if (cur_fmt->BytesPerPixel == spr_fmt->BytesPerPixel && cur_fmt->BytesPerPixel == 4) {
@@ -242,7 +251,6 @@ void Surface::MergeSurface(Surface &spr, const Point2i &pos)
     Uint32* cur_ptr   = (Uint32*)surface->pixels;
     int     spr_pitch = (spr.surface->pitch>>2);
     Uint32* spr_ptr   = (Uint32*)spr.surface->pixels;
-    // shift necessary to move the RGB triplet into the LSBs
     Uint32  spr_pix, cur_pix, a, p_a;
     Point2i offset;
 
@@ -642,7 +650,7 @@ end:
 
 #if SDL_GFXPRIMITIVES_MICRO > 20
 template<typename pixel>
-void
+static void
 mirror(void *d, uint dpitch,
        const void* s, uint spitch,
        int w, int h)
@@ -669,8 +677,10 @@ Surface Surface::Mirror()
   SDL_Surface *surf = SDL_CreateRGBSurface(surface->flags, surface->w, surface->h, fmt->BitsPerPixel,
                                            fmt->Rmask, fmt->Gmask, fmt->Bmask, fmt->Amask);
 
-  if (USE_LOCK) SDL_LockSurface(surface);
-  if (USE_LOCK) SDL_LockSurface(surf);
+  if (SDL_MUSTLOCK(surface))
+    SDL_LockSurface(surface);
+  if (SDL_MUSTLOCK(surf))
+    SDL_LockSurface(surf);
 
   switch (fmt->BitsPerPixel)
   {
@@ -705,17 +715,17 @@ Surface Surface::Mirror()
   default: fprintf(stderr, "Unsupported bpp %i\n", fmt->BitsPerPixel); exit(1);
   }
 
-  if (USE_LOCK) SDL_UnlockSurface(surf);
-  if (USE_LOCK) SDL_UnlockSurface(surface);
+  SDL_UnlockSurface(surf);
+  SDL_UnlockSurface(surface);
 
   if (surface->flags & SDL_SRCALPHA)
     SDL_SetAlpha(surf, SDL_SRCALPHA, surface->format->alpha);
   if (surface->flags & SDL_SRCCOLORKEY)
-    SDL_SetColorKey(surf, SDL_SRCCOLORKEY, surface->format->colorkey);
+    SDL_SetColorKey(surf, SDL_SRCCOLORKEY|SDL_RLEACCEL, surface->format->colorkey);
 
   return Surface(surf);
 #else
-  return Surface(zoomSurface(surface, -1, 1, 0));
+  return Surface(zoomSurface(surface, -1, 1, 1)).DisplayFormatAlpha();
 #endif
 }
 
@@ -883,7 +893,8 @@ SDL_Rect Surface::GetSDLRect(const Point2i &pt)
 }
 
 Surface Surface::DisplayFormatColorKey(const uint32_t* data, SDL_PixelFormat *sfmt,
-                                       int w, int h, int stride, uint8_t threshold)
+                                       int w, int h, int stride,
+                                       uint8_t threshold, bool rle)
 {
   SDL_PixelFormat *fmt   = SDL_GetVideoSurface()->format;
   uint             bpp   = fmt->BitsPerPixel==16 ? 16 : 24;
@@ -906,16 +917,20 @@ Surface Surface::DisplayFormatColorKey(const uint32_t* data, SDL_PixelFormat *sf
   }
 
   surf.Unlock();
-  surf.SetColorKey(SDL_SRCCOLORKEY, ckey);
+  if (rle)
+    surf.SetColorKey(SDL_SRCCOLORKEY|SDL_RLEACCEL, ckey);
+  else
+    surf.SetColorKey(SDL_SRCCOLORKEY, ckey);
 
   return surf;
 }
 
-Surface Surface::DisplayFormatColorKey(uint8_t alpha_threshold)
+Surface Surface::DisplayFormatColorKey(uint8_t alpha_threshold, bool rle)
 {
   Lock();
   Surface tmp = DisplayFormatColorKey((uint32_t*)surface->pixels, surface->format,
-                                      surface->w, surface->h, surface->pitch, alpha_threshold);
+                                      surface->w, surface->h, surface->pitch,
+                                      alpha_threshold, rle);
   Unlock();
   return tmp;
 }

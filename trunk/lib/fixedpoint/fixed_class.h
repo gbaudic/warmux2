@@ -77,9 +77,7 @@ struct fixed_point {
   /*explicit*/ fixed_point(float f) : intValue(float2fix<p>(f)) {}
   /*explicit*/ fixed_point(double d) : intValue(float2fix<p>((float)d)) {}
   /*explicit*/ fixed_point(unsigned int u) : intValue(((fixint_t)u) << p) {}
-#if LONG_MAX != INT_MAX
-  /*explicit*/ fixed_point(size_t i) : intValue(((fixint_t)i) << p) {}
-#endif
+  /*explicit*/ fixed_point(unsigned long int u) : intValue(((fixint_t)u) << p) {}
 
   fixed_point& operator += (const fixed_point& r) { intValue += r.intValue; return *this; }
   fixed_point& operator -= (const fixed_point& r) { intValue -= r.intValue; return *this; }
@@ -119,7 +117,7 @@ struct fixed_point {
   operator int() const
   {
     fixuint_t sign = ((fixuint_t)intValue)>>(FIXINT_BITS-1);
-    return ((fixint_t)(intValue+(sign<<p)-sign))>>p;
+    return int(((fixint_t)(intValue+(sign<<p)-sign))>>p);
   }
 
   // Must be used explicily as we don't want to calculate with doubles!
@@ -212,7 +210,7 @@ inline int uround(const fixed_point<p>& r);
 template<>
 inline int uround(const fixed_point<16>& r)
 {
-  return (r.intValue + 32768)>>16;
+  return int((r.intValue + 32768)>>16);
 }
 
 namespace detail {

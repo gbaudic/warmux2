@@ -17,15 +17,15 @@
 #endif
 
 1 VERSIONINFO
-FILEVERSION 0,11,1,0
-PRODUCTVERSION 0,11,1,0
+FILEVERSION 0,11,4,0
+PRODUCTVERSION 0,11,4,0
 FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
 FILEFLAGS VS_FF_DEBUG | VS_FF_SPECIALBUILD
 #else
 FILEFLAGS VS_FF_SPECIALBUILD
 #endif
-FILEOS VOS__WINDOWS32
+FILEOS VOS_NT_WINDOWS32
 FILETYPE VFT_APP
 {
     BLOCK "StringFileInfo"
@@ -34,15 +34,15 @@ FILETYPE VFT_APP
         {
             VALUE "Comments","Localization support: " IS_NLS_ENABLED "."
             VALUE "CompanyName", "\000"
-            VALUE "FileDescription", "WarMUX is a convivial mass murder game."
+            VALUE "FileDescription", "Warmux is a convivial mass murder game."
             VALUE "FileVersion", PACKAGE_VERSION
             VALUE "InternalName", "warmux"
-            VALUE "LegalCopyright", "Copyright (C) 2001-2011 The WarMUX Project"
+            VALUE "LegalCopyright", "Copyright (C) 2001-2010 The Warmux Project"
             //VALUE "LegalTrademarks", "test"
             VALUE "OriginalFilename", "warmux.exe"
             VALUE "ProductName", "warmux"
             VALUE "ProductVersion", PACKAGE_VERSION
-            VALUE "SpecialBuild", "$Revision: 9347 $, build on " __DATE__ ", " __TIME__ " with compiler version " __VERSION__
+            VALUE "SpecialBuild", "$Revision: 9893 $, build on " __DATE__ ", " __TIME__ " with compiler version " __VERSION__
         }
     }
     BLOCK "VarFileInfo"

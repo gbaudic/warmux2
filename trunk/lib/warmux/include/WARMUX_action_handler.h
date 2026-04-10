@@ -25,7 +25,6 @@
 #include <map>
 #include <list>
 #include <WARMUX_action.h>
-#include <WARMUX_singleton.h>
 #include <WARMUX_types.h>
 //-----------------------------------------------------------------------------
 
@@ -34,12 +33,6 @@ struct SDL_mutex;
 
 class WActionHandler
 {
-private:
-  /* If you need this, you probably made an error in your code... */
-  WActionHandler(const WActionHandler&);
-  const WActionHandler& operator=(const WActionHandler&);
-  /****************************************************************/
-
   // Mutex needed to be thread safe for the network
   SDL_mutex* mutex;
 
@@ -73,6 +66,8 @@ public:
   void Register(Action::Action_t action, const std::string &name, callback_t fct);
 
   const std::string &GetActionName(Action::Action_t action) const;
+
+  bool IsEmpty() const { return queue.empty(); }
 };
 
 #endif

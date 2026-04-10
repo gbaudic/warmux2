@@ -48,8 +48,6 @@ WeaponHelp::WeaponHelp()
   // Polygon Size
   background = LOAD_RES_IMAGE("interface/background_help");
 
-  GetResourceManager().UnLoadXMLProfile(res);
-
   help.SetMaxWidth(background.GetWidth() - 10 - ICON_SIZE - 2*5);
 }
 
@@ -68,10 +66,10 @@ void WeaponHelp::SetWeapon(Weapon& item)
 void WeaponHelp::Show()
 {
   if (!show) {
-    if (motion_start_time + ICONS_DRAW_TIME < Time::GetInstance()->Read())
-      motion_start_time = Time::GetInstance()->Read();
+    if (motion_start_time + ICONS_DRAW_TIME < GameTime::GetInstance()->Read())
+      motion_start_time = GameTime::GetInstance()->Read();
     else
-      motion_start_time = Time::GetInstance()->Read() - (ICONS_DRAW_TIME - (Time::GetInstance()->Read() - motion_start_time));
+      motion_start_time = GameTime::GetInstance()->Read() - (ICONS_DRAW_TIME - (GameTime::GetInstance()->Read() - motion_start_time));
     show = true;
 
     JukeBox::GetInstance()->Play("default", "menu/weapon_menu_show");
@@ -81,10 +79,10 @@ void WeaponHelp::Show()
 void WeaponHelp::Hide(bool play_sound)
 {
   if (show) {
-    if (motion_start_time + ICONS_DRAW_TIME < Time::GetInstance()->Read())
-      motion_start_time = Time::GetInstance()->Read();
+    if (motion_start_time + ICONS_DRAW_TIME < GameTime::GetInstance()->Read())
+      motion_start_time = GameTime::GetInstance()->Read();
     else
-      motion_start_time = Time::GetInstance()->Read() - (ICONS_DRAW_TIME - (Time::GetInstance()->Read() - motion_start_time));
+      motion_start_time = GameTime::GetInstance()->Read() - (ICONS_DRAW_TIME - (GameTime::GetInstance()->Read() - motion_start_time));
     show = false;
 
     if (play_sound)
@@ -100,7 +98,7 @@ void WeaponHelp::Reset()
 
 void WeaponHelp::Draw()
 {
-  if (!show && (motion_start_time == 0 || Time::GetInstance()->Read() >= motion_start_time + ICONS_DRAW_TIME))
+  if (!show && (motion_start_time == 0 || GameTime::GetInstance()->Read() >= motion_start_time + ICONS_DRAW_TIME))
     return;
 
   // Init animation parameter
@@ -108,7 +106,7 @@ void WeaponHelp::Draw()
   uint x = (window.GetWidth() - background.GetWidth())>>1;
   Point2i pos(x, -background.GetHeight());
   Point2i end(x, 10);
-  int   diff = Time::GetInstance()->Read() - motion_start_time;
+  int   diff = GameTime::GetInstance()->Read() - motion_start_time;
   float coef = diff / (float)ICONS_DRAW_TIME;
   coef = coef > 0.0f ? coef : 0.0f;
   coef = coef < 1.0f ? coef : 1.0f;

@@ -45,7 +45,7 @@ extern "C" {
 
 extern "C"
 	{
-	static SDL_keysym *TranslateKey(_THIS, int scancode, SDL_keysym *keysym);
+	static SDL_keysym *TranslateKey(_THIS, int scancode, unsigned int icode, SDL_keysym *keysym);
 	void SDL_PauseAudio(int);
 	int SDL_PrivateResize(int, int);
 	}
@@ -53,7 +53,7 @@ extern "C"
 //extern "C" {
 /* The translation tables from a console scancode to a SDL keysym */
 static SDLKey keymap[MAX_SCANCODE];
-static SDL_keysym *TranslateKey(_THIS, int scancode, SDL_keysym *keysym);
+static SDL_keysym *TranslateKey(_THIS, int scancode, unsigned int icode, SDL_keysym *keysym);
 void DisableKeyBlocking(_THIS);
 
 //} /* extern "C" */
@@ -83,6 +83,7 @@ void ResetKeyMap()
 		keymap['A' + i] = (SDLKey)(SDLK_a+i);
 	}
 
+	keymap[EStdKeySpace]        = SDLK_SPACE;
 	keymap[EStdKeyBackspace]    = SDLK_BACKSPACE;
 	keymap[EStdKeyTab]          = SDLK_TAB;
 	keymap[EStdKeyEnter]        = SDLK_RETURN;
@@ -108,7 +109,7 @@ void ResetKeyMap()
 	keymap[EStdKeyLeftFunc]     = SDLK_LMETA;
 	keymap[EStdKeyRightFunc]    = SDLK_RMETA;
 	keymap[EStdKeyInsert]       = SDLK_INSERT;
-	keymap[EStdKeyComma]        = SDLK_COMMA;
+	keymap[EStdKeyComma]        = SDLK_PERIOD;//SDLK_COMMA;
 	keymap[EStdKeyFullStop]     = SDLK_PERIOD;
 	keymap[EStdKeyForwardSlash] = SDLK_SLASH;
 	keymap[EStdKeyBackSlash]    = SDLK_BACKSLASH;
@@ -305,37 +306,40 @@ LOCAL_C TInt PointerEvent(_THIS, const TWsEvent& aWsEvent)
     return posted;
     }
 
+LOCAL_C TInt KeyEvent(_THIS, const TWsEvent& aWsEvent)
+    {
+    SDL_keysym keysym;
+    TKeyEvent *event = aWsEvent.Key();
+    TranslateKey(_this, event->iScanCode, event->iCode, &keysym);
+    return SDL_PrivateKeyboard(SDL_PRESSED, &keysym);
+    }
+
 LOCAL_C TInt KeyDownEvent(_THIS, const TWsEvent& aWsEvent)
     {
     SDL_keysym keysym;
-    TranslateKey(_this, aWsEvent.Key()->iScanCode, &keysym);
+    TKeyEvent *event = aWsEvent.Key();
+    if (SDL_TranslateUNICODE)
+        return 0;
+    
+    TranslateKey(_this, event->iScanCode, event->iCode, &keysym);
     return SDL_PrivateKeyboard(SDL_PRESSED, &keysym);
     }
 
 LOCAL_C TInt KeyUpEvent(_THIS, const TWsEvent& aWsEvent)
     {
     SDL_keysym keysym;
-    TranslateKey(_this, aWsEvent.Key()->iScanCode, &keysym);
+    TKeyEvent *event = aWsEvent.Key();
+    TranslateKey(_this, event->iScanCode, event->iCode, &keysym);
     return SDL_PrivateKeyboard(SDL_RELEASED, &keysym);
     }
 
 LOCAL_C TInt FocusGainedEvent(_THIS)
     {
-    Private->iFlags |= EFocusedWindow;
-    DisableKeyBlocking(_this);  //Markus: guess why:-)
-    EpocSdlEnv::ResumeDsa();
-    SDL_PauseAudio(0);
     return SDL_PrivateAppActive(1, SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS);
     }
 
 LOCAL_C TInt FocusLostEvent(_THIS)
     {
-    Private->iFlags &= ~EFocusedWindow;
-    SDL_PauseAudio(1);
-    if(EpocSdlEnv::Flags(CSDL::EEnableFocusStop))
-        {
-        EpocSdlEnv::WaitDsaAvailable();
-        }
     return SDL_PrivateAppActive(0, SDL_APPINPUTFOCUS|SDL_APPMOUSEFOCUS);
     }
 
@@ -366,29 +370,10 @@ LOCAL_C TInt ModifiersChangedEvent(const TWsEvent& aWsEvent)
     }
 
 
-LOCAL_C TInt PointerBufferReadyEvent(_THIS/*, const TTime& aEventTime*/)
+LOCAL_C TInt PointerBufferReadyEvent(_THIS)
     {
     // Own threaded is not supported - it is fair easy to do, but needs some work so I would implemented
     // it only upon request :-) 
-    
-    /*
-    TTime time;
-    time.UniversalTime();
-    TTimeIntervalMicroSeconds d = time.MicroSecondsFrom(aEventTime);
-    
-    TInt skipcount  = 1;
-    
-    if(d < TTimeIntervalMicroSeconds(5000))
-        skipcount = -1;
-    else if (d < TTimeIntervalMicroSeconds(50000))
-        {
-        skipcount = (50000 - d.Int64()) / 5000;
-        }
-    
-    RDebug::Print(_L("skipCount %d"), skipcount);
-    
-    TInt skip = skipcount;
-    */
     RWindow* win = EnvUtils::IsOwnThreaded() ? NULL : EpocSdlEnv::Window();
     TInt posted = 0;
     if(win != NULL)
@@ -398,23 +383,14 @@ LOCAL_C TInt PointerBufferReadyEvent(_THIS/*, const TTime& aEventTime*/)
         User::LeaveIfError(win->RetrievePointerMoveBuffer(buf));
         const TInt count = buf.Length() / sizeof(TPoint);
         
-        
         for(TInt i = 0; i < count; i++)
             {
-      /*      --skip;
-            if(!skip)
+            const TPoint point = points[i] - Private->iScreenPos; 
+            const TPoint mousePos = EpocSdlEnv::WindowCoordinates(point);
+            if(mousePos.iX >= 0 && mousePos.iY >= 0 && mousePos.iX < _this->screen->w && mousePos.iY < _this->screen->h)
                 {
-                skip = skipcount;
+                posted += SDL_PrivateMouseMotion(0, 0, mousePos.iX, mousePos.iY); /* Absolute position on screen */
                 }
-            else
-                {*/
-                const TPoint point = points[i] - Private->iScreenPos; 
-                const TPoint mousePos = EpocSdlEnv::WindowCoordinates(point);
-                if(mousePos.iX >= 0 && mousePos.iY >= 0 && mousePos.iX < _this->screen->w && mousePos.iY < _this->screen->h)
-                    {
-                    posted += SDL_PrivateMouseMotion(0, 0, mousePos.iX, mousePos.iY); /* Absolute position on screen */
-                    }
-                //}
             }
         }
     return posted;
@@ -450,9 +426,11 @@ int HandleWsEvent(_THIS, const TWsEvent& aWsEvent)
 			SDL_PrivateQuit();
 			return 0;
     	case EEventPointerBufferReady:
-    	    return PointerBufferReadyEvent(_this/*, aWsEvent.Time()*/);
+    	    return PointerBufferReadyEvent(_this);
         case EEventPointer: /* Mouse pointer events */
             return PointerEvent(_this, aWsEvent);
+        case EEventKey: /* Key events */
+            return KeyEvent(_this, aWsEvent);
         case EEventKeyDown: /* Key events */
             return KeyDownEvent(_this, aWsEvent);
         case EEventKeyUp: /* Key events */
@@ -499,7 +477,7 @@ void InitOSKeymap(_THIS)
 	EpocSdlEnv::ObserverEvent(MSDLObserver::EEventKeyMapInit ,0);
 	}
 
-static SDL_keysym* TranslateKey(_THIS, int scancode, SDL_keysym* keysym)
+static SDL_keysym* TranslateKey(_THIS, int scancode, unsigned int icode, SDL_keysym* keysym)
 {
 //    char debug[256];
     //SDL_TRACE1("SDL: TranslateKey, scancode=%d", scancode); //!!
@@ -551,13 +529,17 @@ static SDL_keysym* TranslateKey(_THIS, int scancode, SDL_keysym* keysym)
 	/* If UNICODE is on, get the UNICODE value for the key */
 	keysym->unicode = 0;
 
-#if 0 // !!TODO:unicode
+#if 1 // !!TODO:unicode
 
-	if ( SDL_TranslateUNICODE ) 
-    {
-		/* Populate the unicode field with the ASCII value */
-		keysym->unicode = scancode;
-	}
+	if ( SDL_TranslateUNICODE && icode != 0)
+		{
+		if (scancode < 0x80)
+			{
+			/* Populate the unicode field with the ASCII value */
+			keysym->unicode = icode;
+			}
+		}
+
 #endif
 
     //!!

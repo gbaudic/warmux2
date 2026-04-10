@@ -20,17 +20,18 @@
  *****************************************************************************/
 #include <algorithm>
 #include <iostream>
+
+#include <WARMUX_file_tools.h>
 #include <WARMUX_team_config.h>
+
 #include "character/character.h"
 #include "character/body_list.h"
-#include "include/action.h"
 #include "game/config.h"
 #include "network/network.h"
 #include "network/randomsync.h"
 #include "team/team.h"
 #include "team/team_energy.h"
 #include "team/teams_list.h"
-#include <WARMUX_file_tools.h>
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -97,7 +98,7 @@ Team& TeamsList::ActiveTeam()
 bool TeamsList::LoadOneTeam(const std::string &dir, const std::string &team_name)
 {
   // Skip '.', '..' and hidden files
-  if (team_name[0] == '.')
+  if (team_name[0] == '.' || team_name == "SVN~1")
     return false;
 
   // Is it a directory ?
@@ -135,7 +136,8 @@ void TeamsList::LoadList()
   FolderSearch *f = OpenFolder(dirname);
   if (f) {
     const char *name;
-    while ((name = FolderSearchNext(f)) != NULL)
+    bool search_file = false;
+    while ((name = FolderSearchNext(f, search_file)) != NULL)
       LoadOneTeam(dirname, name);
     CloseFolder(f);
   } else {
@@ -146,8 +148,9 @@ void TeamsList::LoadList()
   dirname = config->GetPersonalDataDir() + "team" PATH_SEPARATOR;
   f = OpenFolder(dirname);
   if (f) {
+    bool search_files = false;
     const char *name;
-    while ((name = FolderSearchNext(f)) != NULL)
+    while ((name = FolderSearchNext(f, search_files)) != NULL)
       LoadOneTeam(dirname, name);
     CloseFolder(f);
   } else {

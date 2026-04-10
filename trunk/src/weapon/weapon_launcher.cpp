@@ -62,10 +62,10 @@ WeaponBullet::WeaponBullet(const std::string &name,
 }
 
 // Signal that the bullet has hit the ground
-void WeaponBullet::SignalGroundCollision(const Point2d& speed_before)
+void WeaponBullet::SignalGroundCollision(const Point2d& speed_before, const Double& contactAngle)
 {
   JukeBox::GetInstance()->Play("default", "weapon/ricoche1");
-  WeaponProjectile::SignalGroundCollision(speed_before);
+  WeaponProjectile::SignalGroundCollision(speed_before, contactAngle);
   launcher->IncMissedShots();
 }
 
@@ -81,8 +81,15 @@ void WeaponBullet::SignalObjectCollision(const Point2d& my_speed_before,
                                          const Point2d& /*obj_speed*/)
 {
 #if 1
-  if (cfg.speed_on_hit.IsNotZero())
-    obj->AddSpeed(cfg.speed_on_hit, my_speed_before.ComputeAngle());
+  if (cfg.speed_on_hit.IsNotZero()) {
+    Double angle = my_speed_before.ComputeAngle();
+    if (angle > ZERO && angle <= HALF_PI)        angle -= ONE_HALF * QUARTER_PI;
+    else if (angle > HALF_PI && angle <= PI)     angle += ONE_HALF * QUARTER_PI;
+    else if (angle <= ZERO && angle >= -HALF_PI) angle -= ONE_HALF * QUARTER_PI;
+    else if (angle < -HALF_PI && angle >= -PI)   angle += ONE_HALF * QUARTER_PI;
+
+    obj->AddSpeed(cfg.speed_on_hit, angle);
+  }
 #else
   // multiply by ten to get something more funny
   Double bullet_mass = GetMass()/* * 10*/;
@@ -307,7 +314,7 @@ void WeaponProjectile::SignalObjectCollision(const Point2d& /* my_speed_before *
 }
 
 // projectile explode when hiting the ground
-void WeaponProjectile::SignalGroundCollision(const Point2d& /*speed_before*/)
+void WeaponProjectile::SignalGroundCollision(const Point2d& /*speed_before*/, const Double& /*contactAngle*/)
 {
   MSG_DEBUG("weapon.projectile", "SignalGroundCollision \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   if (explode_with_collision)
@@ -407,12 +414,12 @@ int WeaponProjectile::GetTotalTimeout() const
 
 void WeaponProjectile::StartTimeout()
 {
-  timeout_start = Time::GetInstance()->Read();
+  timeout_start = GameTime::GetInstance()->Read();
 }
 
 uint WeaponProjectile::GetMSSinceTimeoutStart() const
 {
-  uint now = Time::GetInstance()->Read();
+  uint now = GameTime::GetInstance()->Read();
   ASSERT (timeout_start  != INVALID_TIMEOUT_START);
   ASSERT(now >= timeout_start);
   return now - timeout_start;
@@ -465,15 +472,6 @@ int WeaponLauncher::GetDamage() const
   return cfg().damage;
 }
 
-Double WeaponLauncher::GetWindFactor() const
-{
-  return projectile->GetWindFactor();
-}
-
-Double WeaponLauncher::GetMass() const
-{
-  return projectile->GetMass();
-}
 
 bool WeaponLauncher::p_Shoot()
 {
@@ -554,85 +552,10 @@ void WeaponLauncher::IncMissedShots()
     GameMessages::GetInstance()->Add(_("Your shot has missed!"), ActiveTeam().GetColor());
 }
 
-void WeaponLauncher::HandleKeyReleased_Num1()
-{
-  SetTimeoutForAllPlayers(1);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num2()
-{
-  SetTimeoutForAllPlayers(2);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num3()
-{
-  SetTimeoutForAllPlayers(3);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num4()
-{
-  SetTimeoutForAllPlayers(4);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num5()
-{
-  SetTimeoutForAllPlayers(5);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num6()
-{
-  SetTimeoutForAllPlayers(6);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num7()
-{
-  SetTimeoutForAllPlayers(7);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num8()
-{
-  SetTimeoutForAllPlayers(8);
-}
-
-void WeaponLauncher::HandleKeyReleased_Num9()
-{
-  SetTimeoutForAllPlayers(9);
-}
-
-void WeaponLauncher::HandleKeyReleased_Less()
-{
-  SetTimeoutForAllPlayers(GetTimeout() - 1);
-}
-
-void WeaponLauncher::HandleKeyReleased_More()
-{
-  SetTimeoutForAllPlayers(GetTimeout() + 1);
-}
-
 void WeaponLauncher::SetTimeoutForAllPlayers(int timeout)
 {
   Action * a = new Action(Action::ACTION_WEAPON_SET_TIMEOUT, timeout);
   ActionHandler::GetInstance()->NewAction(a);
-}
-
-void WeaponLauncher::SetTimeout(int timeout)
-{
-  GetProjectile()->SetTimeOut(timeout);
-}
-
-int WeaponLauncher::GetTimeout()
-{
-  return GetProjectile()->GetTotalTimeout();
-}
-
-void WeaponLauncher::HandleMouseWheelUp(bool /*shift*/)
-{
-  SetTimeoutForAllPlayers(GetTimeout() + 1);
-}
-
-void WeaponLauncher::HandleMouseWheelDown(bool /*shift*/)
-{
-  SetTimeoutForAllPlayers(GetTimeout() - 1);
 }
 
 ExplosiveWeaponConfig& WeaponLauncher::cfg() const

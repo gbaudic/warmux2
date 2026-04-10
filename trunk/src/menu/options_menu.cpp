@@ -121,8 +121,17 @@ OptionMenu::OptionMenu() :
                               option_size, 30, 5, 20,  60);
 #endif
   graphic_options->AddWidget(opt_max_fps);
-
+  std::vector< std::pair<std::string, std::string> > qualities;
+  qualities.push_back(std::pair<std::string, std::string>("0", _("Low memory")));
+  qualities.push_back(std::pair<std::string, std::string>("1", _("Medium")));
 #ifndef HAVE_HANDHELD
+  qualities.push_back(std::pair<std::string, std::string>("2", _("High")));
+#endif
+  opt_quality = new ComboBox(_("Quality"), "menu/fps", option_size,
+                             qualities, qualities[config->GetQuality()].first);
+  graphic_options->AddWidget(opt_quality);
+
+#ifndef HAVE_TOUCHSCREEN
   // Get available video resolution
   const std::list<Point2i>& video_res = app->video->GetAvailableConfigs();
   std::list<Point2i>::const_iterator mode;
@@ -160,7 +169,7 @@ OptionMenu::OptionMenu() :
   /* Team editor */
 
   // bug #12193 : Missed assertion in game option (custom team editor) while playing
-  if (!Game::IsRunning()) {
+  if (!GameIsRunning()) {
     Box * teams_editor = new HBox(option_size.y, false, false, true);
 
     lbox_teams = new ItemBox(option_size, false);
@@ -229,6 +238,7 @@ OptionMenu::OptionMenu() :
     team_name = NULL;
   }
 
+#if USE_MISC_TAB
   /* Misc options */
   Box * misc_options = new GridBox(3, 3, 0, false);
 
@@ -253,7 +263,7 @@ OptionMenu::OptionMenu() :
                               option_size, 50, 5, 5, 80);
   misc_options->AddWidget(opt_scroll_border_size);
 #endif
-#if !defined (MAEMO) && !defined (__SYMBIAN32__)
+
   tabs->AddNewTab("unused", _("Misc"), misc_options);
 #endif
 
@@ -345,7 +355,7 @@ OptionMenu::OptionMenu() :
     AddLanguageItem("עברית (Hebrew)",      "he");
     AddLanguageItem("Magyar",              "hu");
     AddLanguageItem("Italiano",            "it");
-    AddLanguageItem("日本語 (japanese)",    "ja_JP");
+    AddLanguageItem("日本語 (japanese)",   "ja_JP");
     AddLanguageItem("Kernewek",            "kw");
     AddLanguageItem("latviešu valoda",     "lv");
     AddLanguageItem("Norsk (bokmål)",      "nb");
@@ -361,18 +371,19 @@ OptionMenu::OptionMenu() :
     AddLanguageItem("Suomi",               "fi");
     AddLanguageItem("Svenska",             "sv");
     AddLanguageItem("Türkçe",              "tr");
-    AddLanguageItem("украї́нська мо́ва",     "ua");
+    AddLanguageItem("украї́нська мо́ва",   "uk");
     AddLanguageItem("中文（简体）Simplified Chinese",  "zh_CN");
     AddLanguageItem("中文（正體）Traditional Chinese", "zh_TW");
 #endif
 
+#if USE_MISC_TAB
   opt_updates->SetValue(config->GetCheckUpdates());
-#ifndef HAVE_TOUCHSCREEN
+# ifndef HAVE_TOUCHSCREEN
   opt_lefthanded_mouse->SetValue(config->GetLeftHandedMouse());
   opt_scroll_on_border->SetValue(config->GetScrollOnBorder());
   opt_scroll_border_size->SetValue(config->GetScrollBorderSize());
+# endif
 #endif
-  GetResourceManager().UnLoadXMLProfile(res);
 
   widgets.AddWidget(tabs);
   widgets.Pack();
@@ -405,7 +416,6 @@ void OptionMenu::OnClickUp(const Point2i &mousePosition, int button)
   else if (w == NULL && lbox_teams->Contains(mousePosition)) {
     SelectTeam();
   }
-
 }
 
 void OptionMenu::SaveOptions()
@@ -415,7 +425,7 @@ void OptionMenu::SaveOptions()
   // Graphic options
   config->SetWindParticlesPercentage(opt_wind_particles_percentage->GetValue());
   // bug #11826 : Segmentation fault while exiting the menu.
-  if (Game::IsRunning())
+  if (GameIsRunning())
     Wind::GetRef().Reset();
 
 #ifndef HAVE_HANDHELD
@@ -425,11 +435,13 @@ void OptionMenu::SaveOptions()
   config->SetDisplayNameCharacter(opt_display_name->GetValue());
 
   // Misc options
+#if USE_MISC_TAB
   config->SetCheckUpdates(opt_updates->GetValue());
-#ifndef HAVE_TOUCHSCREEN
+# ifndef HAVE_TOUCHSCREEN
   config->SetLeftHandedMouse(opt_lefthanded_mouse->GetValue());
   config->SetScrollOnBorder(opt_scroll_on_border->GetValue());
   config->SetScrollBorderSize(opt_scroll_border_size->GetValue());
+# endif
 #endif
 
   // Sound settings - volume already saved
@@ -438,23 +450,27 @@ void OptionMenu::SaveOptions()
 #endif
   config->SetSoundMusic(music_cbox->GetValue());
   config->SetSoundEffects(effects_cbox->GetValue());
+  int quality = 0;
+  sscanf(opt_quality->GetValue().c_str(), "%i", &quality);
+  config->SetQuality((Quality)quality);
 
   AppWarmux * app = AppWarmux::GetInstance();
   app->video->SetMaxFps(opt_max_fps->GetValue());
+  Surface &window = app->video->window;
 
-#ifndef HAVE_HANDHELD
+#ifdef HAVE_TOUCHSCREEN
+  app->video->SetConfig(window.GetWidth(), window.GetHeight(), true);
+#else
   // Video mode
   std::string s_mode = cbox_video_mode->GetValue();
 
   int w, h;
   sscanf(s_mode.c_str(),"%dx%d", &w, &h);
 
-
   app->video->SetConfig(w, h, full_screen->GetValue());
 
-
-  uint x = (app->video->window.GetWidth() - actions_buttons->GetSizeX())/2;
-  uint y = app->video->window.GetHeight() - actions_buttons->GetSizeY();
+  uint x = (window.GetWidth() - actions_buttons->GetSizeX())/2;
+  uint y = window.GetHeight() - actions_buttons->GetSizeY();
 
   SetActionButtonsXY(x, y);
 #endif
@@ -482,7 +498,7 @@ void OptionMenu::SaveOptions()
   config->Save();
 
   //Team editor
-  if (!Game::IsRunning()) {
+  if (!GameIsRunning() && TeamInfoValid()) {
     if (!lbox_teams->IsItemSelected()) {
       AddTeam();
     }
@@ -506,6 +522,7 @@ bool OptionMenu::signal_cancel()
 
 void OptionMenu::CheckUpdates()
 {
+#if USE_MISC_TAB
   if (!Config::GetInstance()->GetCheckUpdates()
       || Constants::WARMUX_VERSION.find("svn") != std::string::npos)
     return;
@@ -526,6 +543,7 @@ void OptionMenu::CheckUpdates()
     AppWarmux::DisplayError(Format(_("Version verification failed because: %s"),
                                    dl->GetLastError().c_str()));
   }
+#endif
 }
 
 uint OptionMenu::toVolume(uint level)
@@ -557,24 +575,33 @@ bool OptionMenu::TeamInfoValid()
 
 void OptionMenu::AddTeam()
 {
-  if (Game::IsRunning())
+  if (GameIsRunning())
     return;
 
-  if (!TeamInfoValid())
+  if (!TeamInfoValid()) {
+    Question question(Question::NO_TYPE);
+    question.Set(_("You must fill Head Commander and all player names"), true, 0);
+    question.Ask();
     return;
+  }
 
   CustomTeam *new_team = new CustomTeam(tbox_team_name->GetText());
 
   selected_team = new_team;
   SaveTeam();
 
+  Question question(Question::NO_TYPE);
+  question.Set(_("Team saved"), true, 0);
+  question.Ask();
+
   ReloadTeamList();
   lbox_teams->NeedRedrawing();
+  widgets.Pack();
 }
 
 void OptionMenu::DeleteTeam()
 {
-  if (Game::IsRunning())
+  if (GameIsRunning())
     return;
 
   if (selected_team) {
@@ -583,15 +610,19 @@ void OptionMenu::DeleteTeam()
     if (lbox_teams->IsItemSelected()) {
       lbox_teams->Deselect();
     }
+    Question question(Question::NO_TYPE);
+    question.Set(_("Team deleted"), true, 0);
+    question.Ask();
     ReloadTeamList();
     LoadTeam();
     lbox_teams->NeedRedrawing();
+    widgets.Pack();
   }
 }
 
 void OptionMenu::LoadTeam()
 {
-  if (Game::IsRunning())
+  if (GameIsRunning())
     return;
 
   if (selected_team) {
@@ -613,7 +644,7 @@ void OptionMenu::LoadTeam()
 
 void OptionMenu::ReloadTeamList()
 {
-  if (Game::IsRunning())
+  if (GameIsRunning())
     return;
 
   lbox_teams->Clear();
@@ -640,7 +671,7 @@ void OptionMenu::ReloadTeamList()
 
 bool OptionMenu::SaveTeam()
 {
-  if (Game::IsRunning())
+  if (GameIsRunning())
     return false;
 
   if (!TeamInfoValid())
@@ -661,7 +692,7 @@ bool OptionMenu::SaveTeam()
 
 void OptionMenu::SelectTeam()
 {
-  if (Game::IsRunning())
+  if (GameIsRunning())
     return;
 
   if (lbox_teams->IsItemSelected()) {

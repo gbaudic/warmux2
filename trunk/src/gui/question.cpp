@@ -42,7 +42,6 @@ Question::Question(type _type)
     icon = NULL;
     break;
   }
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 Question::~Question()
@@ -138,7 +137,7 @@ int Question::Ask(bool onKeyUp)
       }
 
       // We might be put inactive while there
-      AppWarmux::CheckInactive(evnt);
+      AppWarmux::GetInstance()->CheckInactive(evnt);
 
       if ((onKeyUp && evnt.type == SDL_KEYUP) || evnt.type == SDL_KEYDOWN) {
         answer = TreatsKey(evnt);
@@ -180,7 +179,6 @@ void Question::Set (const std::string &pmessage,
     Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
     background = new Sprite(LOAD_RES_IMAGE(bg_sprite));
     background->ScaleSize(GetMainWindow().GetSize());
-    GetResourceManager().UnLoadXMLProfile( res);
   } else {
     text->SetMaxWidth(GetMainWindow().GetWidth()/2);
   }

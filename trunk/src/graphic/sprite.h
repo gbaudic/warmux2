@@ -25,11 +25,13 @@
 #ifndef _SPRITE_H
 #define _SPRITE_H
 
-#include <WARMUX_base.h>
 #include <SDL.h>
 #include <vector>
 #include <assert.h>
+
+#include <WARMUX_base.h>
 #include <WARMUX_debug.h>
+
 #include "spritecache.h"
 #include "spriteanimation.h"
 
@@ -72,7 +74,7 @@ public:
   void Init(Surface& surface, const Point2i &frameSize, int nb_frames_x, int nb_frames_y);
   Surface& GetSurface()
   {
-    assert(!current_surface.IsNull());
+    ASSERT(!current_surface.IsNull());
     return current_surface;
   }
   bool IsFlipped() const { return flipped; }

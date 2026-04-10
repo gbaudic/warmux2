@@ -33,7 +33,7 @@ Widget::Widget()
   , has_focus(false)
   , visible(true)
   , is_highlighted(false)
-  , border_color(white_color)
+  , border_color(transparent_color)
   , border_size(0)
   , background_color(transparent_color)
   , highlight_bg_color(transparent_color)
@@ -51,7 +51,7 @@ Widget::Widget(const Point2i &size, bool clickable)
   , has_focus(false)
   , visible(true)
   , is_highlighted(false)
-  , border_color(white_color)
+  , border_color(transparent_color)
   , border_size(0)
   , background_color(transparent_color)
   , highlight_bg_color(transparent_color)
@@ -70,7 +70,7 @@ Widget::Widget(Profile * _profile,
   , has_focus(false)
   , visible(true)
   , is_highlighted(false)
-  , border_color(white_color)
+  , border_color(transparent_color)
   , border_size(0)
   , background_color(transparent_color)
   , highlight_bg_color(transparent_color)
@@ -115,7 +115,7 @@ void Widget::RedrawForeground() const
 
 void Widget::ParseXMLMisc(void)
 {
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return;
   }
   XmlReader * xmlFile = profile->GetXMLDocument();
@@ -125,7 +125,7 @@ void Widget::ParseXMLMisc(void)
 
 void Widget::ParseXMLBorder(void)
 {
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return;
   }
   XmlReader * xmlFile = profile->GetXMLDocument();
@@ -139,7 +139,7 @@ void Widget::ParseXMLBorder(void)
 
 void Widget::ParseXMLBackground(void)
 {
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return;
   }
   XmlReader * xmlFile = profile->GetXMLDocument();
@@ -168,7 +168,7 @@ int Widget::ParseHorizontalTypeAttribut(const std::string & attributName,
 {
   int finalValue = defaultValue;
 
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return finalValue;
   }
 
@@ -188,7 +188,7 @@ int Widget::ParseVerticalTypeAttribut(const std::string & attributName,
 {
   int finalValue = defaultValue;
 
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return finalValue;
   }
 
@@ -205,7 +205,7 @@ int Widget::ParseVerticalTypeAttribut(const std::string & attributName,
 
 void Widget::ParseXMLGeometry(void)
 {
-  if (NULL == profile || NULL == widgetNode) {
+  if (!profile || !widgetNode) {
     return;
   }
 
@@ -230,9 +230,10 @@ void Widget::ParseXMLGeometry(void)
   }
 }
 
-void Widget::Update(const Point2i &mousePosition,
+bool Widget::Update(const Point2i &mousePosition,
                     const Point2i &lastMousePosition)
 {
+  bool updated = false;
   if (need_redrawing ||
       (Rectanglei::Contains(mousePosition) && mousePosition != lastMousePosition) ||
       (Rectanglei::Contains(lastMousePosition) && !Rectanglei::Contains(mousePosition))) {
@@ -246,14 +247,15 @@ void Widget::Update(const Point2i &mousePosition,
       Draw(mousePosition);
     }
     RedrawForeground();
+    updated = true;
   }
   need_redrawing = false;
+  return updated;
 }
 
 void Widget::SetFocus(bool focus)
 {
-  if (has_focus != focus
-      || is_highlighted != focus) {
+  if (has_focus != focus || is_highlighted != focus) {
     has_focus = focus;
     is_highlighted = focus;
     NeedRedrawing();
@@ -288,11 +290,6 @@ void Widget::SetVisible(bool _visible)
   }
 }
 
-bool Widget::Contains(const Point2i& point) const
-{
-  return (Rectanglei::Contains(point) && visible);
-}
-
 void Widget::SetBorder(const Color &_border_color, uint _border_size)
 {
   if (border_color != _border_color || border_size != _border_size) {
@@ -308,11 +305,6 @@ void Widget::SetBackgroundColor(const Color &bg_color)
     background_color = bg_color;
     NeedRedrawing();
   }
-}
-
-bool Widget::IsHighlighted() const
-{
-  return (is_highlighted || HasFocus());
 }
 
 void Widget::SetHighlighted(bool focus)

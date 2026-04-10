@@ -17,16 +17,19 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************/
 
+#include <algorithm>
+
 #include <WARMUX_action.h>
 #include <WARMUX_error.h>
 #include <WARMUX_i18n.h>
 #include <WARMUX_index_server.h>
-#include <config.h>
-#include <server.h>
+#include "config.h"
+#include "server.h"
 
 NetworkGame::NetworkGame(const std::string& _game_name, const std::string& _password) :
-  game_name(_game_name), password(_password), game_started(false)
+  game_name(_game_name), password(_password), game_started(false), selected_map("dummy")
 {
+  ResetWaiting();
 }
 
 const std::string& NetworkGame::GetName() const
@@ -43,6 +46,8 @@ void NetworkGame::AddCpu(DistantComputer* cpu)
 {
   cpulist.push_back(cpu);
 
+  start_waiting = SDL_GetTicks();
+
   std::string msg = Format("[Game %s] New client connected: %s - total: %zd",
                            game_name.c_str(), cpu->ToString().c_str(), cpulist.size());
 
@@ -51,37 +56,23 @@ void NetworkGame::AddCpu(DistantComputer* cpu)
   SendAdminMessage(msg);
 }
 
-std::list<DistantComputer*>& NetworkGame::GetCpus()
-{
-  return cpulist;
-}
-
-const std::list<DistantComputer*>& NetworkGame::GetCpus() const
-{
-  return cpulist;
-}
-
-bool NetworkGame::AcceptNewComputers() const
-{
-  if (game_started || cpulist.size() >= 4) {
-    return false;
-  }
-
-  return true;
-}
-
 std::list<DistantComputer*>::iterator
 NetworkGame::CloseConnection(std::list<DistantComputer*>::iterator closed)
 {
   std::list<DistantComputer*>::iterator it;
   DistantComputer *host = *closed;
 
+  start_waiting = SDL_GetTicks();
   it = cpulist.erase(closed);
 
   DPRINT(INFO, "[Game %s] Client disconnected: %s - total: %zd", game_name.c_str(),
          host->ToString().c_str(), cpulist.size());
 
   delete host;
+
+  // Update list
+  if (!cpulist.empty())
+    SendMapsList(cpulist.front());
 
   return it;
 }
@@ -117,31 +108,46 @@ void NetworkGame::ElectGameMaster()
 
   Action a(Action::ACTION_NETWORK_SET_GAME_MASTER);
   SendActionToOne(a, host);
+
+  SendMapsList(host);
+}
+
+void NetworkGame::SendMapsList(DistantComputer *host)
+{
+  std::vector<uint> index_list = DistantComputer::GetCommonMaps(cpulist);
+  Action a(Action::ACTION_GAME_SET_MAP_LIST);
+
+  a.Push(index_list.size());
+  for (uint i=0; i<index_list.size(); i++) {
+    std::map<std::string, uint>::const_iterator it = name_index_map.begin();
+    while (it != name_index_map.end()) {
+      if (it->second == index_list[i]) {
+        a.Push(it->first);
+        break;
+      }
+      ++it;
+    }
+  }
+
+  SendActionToOne(a, host);
 }
 
 void NetworkGame::SendAdminMessage(const std::string& message)
 {
-  Action a(Action::ACTION_CHAT_MESSAGE);
+  Action a(Action::ACTION_CHAT_MENU_MESSAGE);
   std::string msg = "***" + message;
   a.Push(0);
   a.Push(msg);
   SendActionToAll(a);
 }
 
-// Send Messages
-void NetworkGame::SendActionToAll(const Action& a) const
+void NetworkGame::SendSingleAdminMessage(DistantComputer* client, const std::string& message)
 {
-  SendAction(a, NULL, false);
-}
-
-void NetworkGame::SendActionToOne(const Action& a, DistantComputer* client) const
-{
-  SendAction(a, client, true);
-}
-
-void NetworkGame::SendActionToAllExceptOne(const Action& a, DistantComputer* client) const
-{
-  SendAction(a, client, false);
+  Action a(Action::ACTION_CHAT_MENU_MESSAGE);
+  std::string msg = "***" + message;
+  a.Push(0);
+  a.Push(msg);
+  SendActionToOne(a, client);
 }
 
 // if (client == NULL) sending to every clients
@@ -159,10 +165,8 @@ void NetworkGame::SendAction(const Action& a, DistantComputer* client, bool clt_
     ASSERT(client);
     client->SendData(packet, size);
   } else {
-
     for (std::list<DistantComputer*>::const_iterator it = cpulist.begin();
          it != cpulist.end(); it++) {
-
       if ((*it) != client) {
         (*it)->SendData(packet, size);
       }
@@ -176,6 +180,9 @@ void NetworkGame::StartGame()
 {
   DPRINT(INFO, "[Game %s] started with %zd players", game_name.c_str(), cpulist.size());
 
+  // Reset any wait - task #6684
+  ResetWaiting();
+
   std::list<DistantComputer*>::iterator it;
   int i = 0;
   for (it = cpulist.begin(); it != cpulist.end(); it++, i++) {
@@ -188,23 +195,98 @@ void NetworkGame::StartGame()
 void NetworkGame::StopGame()
 {
   DPRINT(INFO, "[Game %s] finished with %zd players", game_name.c_str(), cpulist.size());
+  ResetWaiting();
   game_started = false;
+}
+
+void NetworkGame::UpdateWaited()
+{
+  uint not_ready = 0;
+  waited = NULL;
+
+  std::list<DistantComputer*>::iterator it = cpulist.begin();
+  while (it != cpulist.end()) {
+    if ((int)(*it)->GetPlayers().size() != (*it)->GetNumberOfPlayersWithState(Player::STATE_INITIALIZED)) {
+      not_ready++;
+      waited = (*it);
+    }
+    ++it;
+  }
+  if (not_ready == 1) {
+    start_waiting = SDL_GetTicks();
+    DPRINT(INFO, "%p is the last not ready!\n", waited);
+  }
+}
+
+void NetworkGame::CheckWaited()
+{
+  if (waited) {
+    int wait = SDL_GetTicks()-start_waiting;
+    if (wait > 30000 && !warned) {
+      SendSingleAdminMessage(waited,
+                             "Game waiting for you for more than 30s -"
+                             " in 30s you'll get kicked!\n");
+      warned = true;
+    } else if (warned && wait>60000) {
+      std::list<DistantComputer*>::iterator dst_cpu = std::find(cpulist.begin(), cpulist.end(), waited);
+      if (dst_cpu != cpulist.end()) {
+        bool was_master = IsGameMaster(dst_cpu);
+        SendSingleAdminMessage(waited, "More than 60s of inactivity, you're out!\n");
+        CloseConnection(dst_cpu);
+        if (was_master)
+          ElectGameMaster();
+        ResetWaiting();
+      }
+    }
+  }
 }
 
 void NetworkGame::ForwardPacket(const char *buffer, size_t len, DistantComputer* sender)
 {
   std::list<DistantComputer*>::iterator it;
+  Action a(buffer, sender);
+
+  if (Action::GetType(buffer) == Action::ACTION_NETWORK_CLIENT_CHANGE_STATE) {
+    Action a(buffer, sender);
+    int player_id = a.PopInt();
+    WNet::net_game_state_t state = (WNet::net_game_state_t)a.PopInt();
+    if (state == WNet::NETWORK_MENU_OK) {
+      sender->GetPlayer(player_id)->SetState(Player::STATE_INITIALIZED);
+      UpdateWaited();
+    }
+  }
 
   for (it = cpulist.begin(); it != cpulist.end(); it++) {
-
     if ((*it) != sender) {
       (*it)->SendData(buffer, len);
     }
   }
 
-  if (sender == cpulist.front()) {
+  if (Action::GetType(buffer) == Action::ACTION_GAME_SET_MAP_LIST) {
+    // The game server is the only one having the full list of available maps
     Action a(buffer, sender);
-    if (a.GetType() == Action::ACTION_NETWORK_MASTER_CHANGE_STATE) {
+    int num = a.PopInt();
+    std::vector<uint>& list = a.GetCreator()->GetAvailableMaps();
+
+    list.resize(num);
+    // Check each map and add it to the pool of known map indices
+    while (num--) {
+      std::string map_name = a.PopString();
+      std::map<std::string, uint>::const_iterator it = name_index_map.find(map_name);
+      if (it == name_index_map.end()) {
+        // Not present, increase size and add
+        uint size = name_index_map.size();
+        printf("Associated %s to %u\n", map_name.c_str(), size);
+        name_index_map[map_name] = size;
+        list[num] = size;
+      } else {
+        list[num] = it->second;
+      }
+    }
+  } else if (sender == cpulist.front()) {
+    if (Action::GetType(buffer) == Action::ACTION_NETWORK_MASTER_CHANGE_STATE) {
+      // We need to track the game started/stopped state
+      Action a(buffer, sender);
       int net_state = a.PopInt();
       if (net_state == WNet::NETWORK_LOADING_DATA) {
         StartGame();
@@ -212,6 +294,10 @@ void NetworkGame::ForwardPacket(const char *buffer, size_t len, DistantComputer*
       else if (net_state == WNet::NETWORK_NEXT_GAME) {
         StopGame();
       }
+    } else if (Action::GetType(buffer) == Action::ACTION_GAME_SET_MAP) {
+      // We need to know the selected map
+      Action a(buffer, sender);
+      selected_map = a.PopString();
     }
   }
 }
@@ -454,30 +540,31 @@ void GameServer::RunLoop()
     if (num_ready == -1) { // Means an error
       fprintf(stderr, "SDLNet_CheckSockets: %s\n", SDLNet_GetError());
       continue; //Or break?
-    } else if (num_ready == 0) {
-      // nothing to do
-      continue;
     }
 
-    char *buffer;
-    size_t packet_size;
+    std::map<uint, NetworkGame>::iterator gamelst_it = games.begin();
+    for (; gamelst_it != games.end(); gamelst_it++) {
+      // task #6684 - check waited
+      NetworkGame& game = gamelst_it->second;
+      game.CheckWaited();
 
-    std::map<uint, NetworkGame>::iterator gamelst_it;
-    std::list<DistantComputer*>::iterator dst_cpu;
+      if (num_ready == 0) {
+        // nothing to do
+        continue;
+      }
 
-    for (gamelst_it = games.begin(); gamelst_it != games.end(); gamelst_it++) {
-
-      for (dst_cpu = gamelst_it->second.GetCpus().begin();
-           dst_cpu != gamelst_it->second.GetCpus().end();
-           dst_cpu++) {
+      std::list<DistantComputer*>::iterator dst_cpu = game.GetCpus().begin();
+      for (; dst_cpu != game.GetCpus().end(); dst_cpu++) {
 
         if ((*dst_cpu)->SocketReady()) {// Check if this socket contains data to receive
+          char *buffer;
+          size_t packet_size;
 
           if (!(*dst_cpu)->ReceiveData(&buffer, &packet_size)) {
             // An error occured during the reception
 
-            bool turn_master_lost = (dst_cpu == gamelst_it->second.GetCpus().begin());
-            dst_cpu = gamelst_it->second.CloseConnection(dst_cpu);
+            bool turn_master_lost = game.IsGameMaster(dst_cpu);
+            dst_cpu = game.CloseConnection(dst_cpu);
 
             if (clients_socket_set->NbSockets() + 1 == clients_socket_set->MaxNbSockets()) {
               // A new player will be able to connect, so we reopen the socket
@@ -487,7 +574,7 @@ void GameServer::RunLoop()
               server_socket.AcceptIncoming(port);
             }
 
-            if (gamelst_it->second.GetCpus().size() != 0) {
+            if (!game.GetCpus().empty()) {
               if (turn_master_lost) {
                 GetGame(gamelst_it->first).ElectGameMaster();
               }
@@ -508,34 +595,21 @@ void GameServer::RunLoop()
   } // while (true)
 }
 
-uint Action_TimeStamp()
-{
-  return 0;
-}
-
 void WARMUX_ConnectHost(DistantComputer& host)
 {
-  std::string hostname = host.GetAddress();
-  std::string nicknames = host.GetNicknames();
-
   Action a(Action::ACTION_INFO_CLIENT_CONNECT);
   ASSERT(host.GetPlayers().size() == 1);
   int player_id = host.GetPlayers().back().GetId();
   a.Push(player_id);
-  a.Push(hostname);
-  a.Push(nicknames);
+  a.Push(host.ToString());
 
   GameServer::GetInstance()->GetGame(host.GetGameId()).SendActionToAllExceptOne(a, &host);
 }
 
 void WARMUX_DisconnectHost(DistantComputer& host)
 {
-  std::string hostname = host.GetAddress();
-  std::string nicknames = host.GetNicknames();
-
   Action a(Action::ACTION_INFO_CLIENT_DISCONNECT);
-  a.Push(hostname);
-  a.Push(nicknames);
+  a.Push(host.ToString());
   a.Push(int(host.GetPlayers().size()));
 
   std::list<Player>::const_iterator player_it;

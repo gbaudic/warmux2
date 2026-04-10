@@ -27,16 +27,36 @@
 
 const uint living_time = 5000;
 
-WaterParticle::WaterParticle() :
-  Particle("water_particle")
+WaterParticle::WaterParticle()
+  : Particle("water_particle")
 {
-  SetCollisionModel(false, false, false);
-  m_left_time_to_live = 100;
+  assert(ActiveMap()->GetWaterType() != "no");
+  particle_spr type = CLEARWATER_spr;
+  if (ActiveMap()->GetWaterType() == "lava")
+    type = LAVA_spr;
+  else if (ActiveMap()->GetWaterType() == "radioactive")
+    type = RADIOACTIVE_spr;
+  else if (ActiveMap()->GetWaterType() == "dirtywater")
+    type = DIRTYWATER_spr;
+  else if (ActiveMap()->GetWaterType() == "chocolate_drop")
+    type = CHOCOLATEWATER_spr;
+
+  SetDefaults(type);
+}
+
+WaterParticle::WaterParticle(particle_spr type)
+  : Particle("water_particle")
+{
+  SetDefaults(type);
+}
+
+void WaterParticle::SetDefaults(particle_spr type)
+{
+  SetCollisionModel(true, false, false);
+  m_time_left_to_live = 100;
   m_check_move_on_end_turn = false;
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "weapons.xml", false);
-  image = GetResourceManager().LoadSprite(res, ActiveMap()->GetWaterType() + "_drop");
-  GetResourceManager().UnLoadXMLProfile(res);
+  image = new Sprite(*ParticleEngine::GetSprite(type));
 
   image->SetRotation_HotSpot(bottom_center);
   SetSize(image->GetSize());
@@ -44,16 +64,20 @@ WaterParticle::WaterParticle() :
 
 WaterParticle::~WaterParticle()
 {
+  // Don't delete image here, it will be freed through ~Particle
 }
 
 void WaterParticle::Refresh()
 {
-  uint now = Time::GetInstance()->Read();
+  // No need to continue if no longer really existing
+  if (!m_time_left_to_live)
+    return;
+
+  uint now = GameTime::GetInstance()->Read();
   UpdatePosition();
   image->Update();
 
-  if (image->GetSize().x != 0 && image->GetSize().y != 0)
-  {
+  if (image->GetSize().x != 0 && image->GetSize().y != 0) {
     int dx = (GetWidth() - image->GetWidth()) / 2;
     int dy = std::max(0, GetHeight() - 2);
     SetTestRect(dx, dx, dy, 1);
@@ -67,52 +91,11 @@ void WaterParticle::Refresh()
 
 void WaterParticle::Draw()
 {
+  // No need to continue if no longer really existing
+  if (!m_time_left_to_live)
+    return;
+
   Point2i draw_pos = GetPosition();
   draw_pos.y += GetHeight()/2;
   image->Draw( draw_pos );
-}
-
-void WaterParticle::SignalDrowning()
-{
-  m_left_time_to_live = 0;
-}
-
-void WaterParticle::SignalOutOfMap()
-{
-  m_left_time_to_live = 0;
-}
-
-ClearWaterParticle::ClearWaterParticle()
-{
-  // delete std water image
-  delete image;
-  image = ParticleEngine::GetSprite(CLEARWATER_spr);
-}
-
-LavaParticle::LavaParticle()
-{
-  // delete std water image
-  delete image;
-  image = ParticleEngine::GetSprite(LAVA_spr);
-}
-
-RadioactiveParticle::RadioactiveParticle()
-{
-  // delete std water image
-  delete image;
-  image = ParticleEngine::GetSprite(RADIOACTIVE_spr);
-}
-
-DirtyWaterParticle::DirtyWaterParticle()
-{
-  // delete std water image
-  delete image;
-  image = ParticleEngine::GetSprite(DIRTYWATER_spr);
-}
-
-ChocolateWaterParticle::ChocolateWaterParticle()
-{
-  // delete std water image
-  delete image;
-  image = ParticleEngine::GetSprite(CHOCOLATEWATER_spr);
 }

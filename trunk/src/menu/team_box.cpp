@@ -115,8 +115,6 @@ TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
   nb_characters = new SpinButtonWithPicture(_("Number of characters"), "menu/ico_play",
                                             Point2i(110, 120), 6, 1, 1, 10);
   AddWidget(nb_characters);
-
-  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 void TeamBox::ClearTeam()
@@ -125,11 +123,6 @@ void TeamBox::ClearTeam()
   ai_name = NO_AI_NAME;
 
   NeedRedrawing();
-}
-
-Team* TeamBox::GetTeam() const
-{
-  return associated_team;
 }
 
 CustomTeam* TeamBox::GetCustomTeam() const
@@ -158,7 +151,7 @@ void TeamBox::UpdatePlayerNameColor()
   }
 }
 
-void TeamBox::Update(const Point2i &mousePosition,
+bool TeamBox::Update(const Point2i &mousePosition,
                      const Point2i &lastMousePosition)
 {
   UpdatePlayerNameColor();
@@ -182,6 +175,7 @@ void TeamBox::Update(const Point2i &mousePosition,
 
   //SwapWindowClip(r);
   need_redrawing = false;
+  return true;
 }
 
 Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)

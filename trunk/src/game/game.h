@@ -23,6 +23,8 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <vector>
+
 #include <WARMUX_base.h>
 #include <WARMUX_singleton.h>
 #include "network/chat.h"
@@ -46,6 +48,12 @@ public:
     END_TURN = 2
   } game_loop_state_t;
 
+  typedef enum {
+    NO_REQUEST,
+    START_PAUSE,
+    END_PAUSE
+  } PauseRequest;
+
 protected:
   virtual bool Run();         // Main loop
 
@@ -64,6 +72,7 @@ protected:
   std::vector< std::pair<float, float> > bench_res;
 
   friend class Singleton<Game>;
+  friend bool GameIsRunning();
   Game();
   virtual ~Game();
 
@@ -77,11 +86,12 @@ private:
   bool                ask_for_menu;
   bool                ask_for_help_menu;
   bool                ask_for_end;
+  PauseRequest        request_pause;
+  Double              request_speed;
+  uint                request_time;
 
   FramePerSecond      *fps;
 
-  // Time to wait between 2 loops
-  int                 delay;
   // Time to display the next frame
   uint                time_of_next_frame;
   // Time to compute the next physic engine frame
@@ -99,6 +109,7 @@ private:
   // Initialization
   void InitEverything();
   void InitGameData_NetGameMaster();
+  void InitGameData_RePlay();
   void EndInitGameData_NetGameMaster();
   void EndInitGameData_NetClient();
   void InitMap();
@@ -113,7 +124,7 @@ private:
 
   // Input management (keyboard/mouse)
   void RefreshInput();
-  void IgnorePendingInputEvents() const;
+  static void IgnorePendingInputEvents();
 
   void PingClient() const;
 
@@ -145,7 +156,6 @@ public:
   static Game * GetInstance();
   static std::string GetUniqueId();
   static void ResetUniqueIds() { last_unique_id = 0; }
-  static bool IsRunning() { return (singleton) ? singleton->IsGameLaunched() : false; }
   uint GetCurrentTurn();
   WeaponsList * GetWeaponsList() const { return weapons_list; }
   void UpdateTranslation();
@@ -172,8 +182,12 @@ public:
   game_loop_state_t ReadState() const { return state; }
   void SetState(game_loop_state_t new_state, bool begin_game=false);
 
-  void UserAsksForMenu() { ask_for_menu = true; };
-  void UserAsksForHelpMenu() { ask_for_help_menu = true; };
+  void UserAsksForEnd() { ask_for_end = true; }
+  void UserAsksForMenu() { ask_for_menu = true; }
+  void UserAsksForHelpMenu() { ask_for_help_menu = true; }
+  void RequestPause(bool pause) { request_pause = pause ? START_PAUSE : END_PAUSE; }
+  void RequestSpeed(const Double& speed) { request_speed = speed; }
+  void RequestTime(uint time) { request_time = time; }
 
   // Signal death of a player
   void SignalCharacterDeath(const Character *character, const Character* killer = NULL);
@@ -192,4 +206,7 @@ public:
 
   float GetLastFrameRate() const;
 };
+
+inline bool GameIsRunning() { return (Game::singleton) ? Game::singleton->IsGameLaunched() : false; }
+
 #endif // GAME_H

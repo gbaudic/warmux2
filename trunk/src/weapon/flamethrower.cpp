@@ -57,7 +57,7 @@ protected:
   void ShootSound();
   void RandomizeShoot(Double &angle, Double &strength);
   void DoExplosion();
-  void SignalGroundCollision(const Point2d& speed_before);
+  void SignalGroundCollision(const Point2d& speed_before, const Double& contactAngle);
   void SignalDrowning();
 };
 
@@ -95,9 +95,9 @@ void FlameThrowerBullet::DoExplosion()
   particle.AddNow(pos, 2, particle_SMOKE, true, 0, 1);
 }
 
-void FlameThrowerBullet::SignalGroundCollision(const Point2d& speed_before)
+void FlameThrowerBullet::SignalGroundCollision(const Point2d& speed_before, const Double& contactAngle)
 {
-  WeaponProjectile::SignalGroundCollision(speed_before);
+  WeaponProjectile::SignalGroundCollision(speed_before, contactAngle);
   launcher->IncMissedShots();
 }
 
@@ -157,10 +157,10 @@ bool FlameThrower::p_Shoot()
   Point2i pos;
   ActiveCharacter().GetHandPosition(pos);
   Double angle = - HALF_PI - ActiveCharacter().GetDirection()
-               * (Double)(Time::GetInstance()->Read() % 100) * QUARTER_PI / (Double)100;
+               * (Double)(GameTime::GetInstance()->Read() % 100) * QUARTER_PI / (Double)100;
 
   particle.AddNow(pos, 1, particle_SMOKE, true, angle,
-                  5.0 + (Time::GetInstance()->Read() % 6));
+                  5.0 + (GameTime::GetInstance()->Read() % 6));
   announce_missed_shots = false;
   return true;
 }

@@ -61,16 +61,22 @@ TeamScrollBox::~TeamScrollBox()
 
 void TeamScrollBox::SetNbTeams(uint nb)
 {
-  if (nb < count) {
-    count = 0;
-    vbox->Empty();
+  // Reset the list and readd the widget
+  count = 0;
+  vbox->Empty();
+
+  for (uint i = 0; count < nb; i++) {
+    ASSERT(i < teams.size());
+
+    // It is easy to have hole in the selection
+    // with network game
+    if (teams[i]->GetTeam()) {
+      AddWidget(teams[i]);
+      count++;
+    }
   }
+  ASSERT(count == nb);
 
-  for (uint i=count; i<nb; i++)
-    AddWidget(teams[i]);
-  count = nb;
-
-  //printf("Set nb=%u\n", nb);
   Pack();
   NeedRedrawing();
 }
@@ -127,7 +133,7 @@ TeamsSelectionBox::TeamsSelectionBox(const Point2i &_size, bool network, bool w_
     // through this mechanism, but with a manual one. This manual mechanism
     // requires we have a *real* copy of the vector for when it is destroyed.
     list_box = new TeamScrollBox(teams_selections, Point2i(box_w-20, _size.y-10));
-    list_box->SetNbTeams(GetTeamsList().playing_list.size());
+    list_box->SetNbTeams(0);
 
     AddWidget(list_box);
   } else {
@@ -177,6 +183,7 @@ LocalTeamsSelectionBox::LocalTeamsSelectionBox(const Point2i &size, bool border)
     local_teams_nb->SetValue(2);
     teams_selections.at(1)->SetAIName(DEFAULT_AI_NAME);
   } else {
+    SetNbTeams(j);
     local_teams_nb->SetValue(j);
   }
 }

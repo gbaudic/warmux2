@@ -61,7 +61,6 @@ POTFILES = \
         src/gui/text_box.cpp \
         src/gui/widget.cpp \
         src/gui/widget_list.cpp \
-        src/include/action.cpp \
         src/include/action_handler.cpp \
         src/include/constant.cpp \
         src/interface/cursor.cpp \
@@ -98,6 +97,7 @@ POTFILES = \
         src/menu/network_teams_selection_box.cpp \
         src/menu/options_menu.cpp \
         src/menu/pause_menu.cpp \
+        src/menu/replay_menu.cpp \
         src/menu/results_menu.cpp \
         src/menu/team_box.cpp \
         src/menu/teams_selection_box.cpp \

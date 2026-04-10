@@ -44,6 +44,7 @@ public:
 
 private:
   uint8_t m_alpha_threshold;
+  bool    m_use_alpha;
 
 public:
   Tile ();
@@ -86,14 +87,12 @@ public:
   const Point2i& GetPreviewSize() const { return m_preview_size; };
   const Rectanglei& GetPreviewRect() const { return m_preview_rect; };
   uint GetLastPreviewRedrawTime() const { return m_last_preview_redraw; };
+  bool IsPreviewHQ() const { return m_use_alpha; }
   void SetPreviewSizeDelta(int delta);
 
   // Translate world coordinates into a preview ones and vice versa
   Point2i PreviewCoordinates(const Point2i& pos) { return (pos-m_upper_left_offset)>>m_shift; };
   Point2i FromPreviewCoordinates(const Point2i& pos) { return (pos<<m_shift) + m_upper_left_offset; };
-
-  // Check if a title is empty, so we can delete it
-  void CheckEmptyTiles();
 
   // Refresh the list of tiles to resynch
   SynchTileList GetTilesToSynch();
@@ -102,7 +101,7 @@ public:
 
 protected:
   void InitTile(const Point2i &pSize, const Point2i & upper_left_offset, const Point2i & lower_right_offset);
-  TileItem_NonEmpty* GetNonEmpty(uint x, uint y, uint8_t bpp);
+  TileItem_NonEmpty* GetNonEmpty(uint x, uint y);
   TileItem_NonEmpty* CreateNonEmpty(uint8_t *ptr, int stride);
 
   void FreeMem();

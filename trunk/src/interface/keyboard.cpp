@@ -19,9 +19,14 @@
  * Keyboard management.
  *****************************************************************************/
 
-#include "interface/keyboard.h"
 #include "game/game.h"
+#include "interface/keyboard.h"
 #include "network/chat.h"
+#ifdef DEBUG
+#include "network/randomsync.h"
+#endif
+#include "tool/xml_document.h"
+
 #include <SDL_events.h>
 #include <libxml/tree.h>
 
@@ -87,6 +92,7 @@ bool Keyboard::SaveKeyEvent(Key_t at, int raw_key_code,
 Keyboard::Keyboard()
   : ManMachineInterface()
   , modifier_bits(0)
+  , modifier_only_bits(0)
 {
   //Disable repeated events when a key is kept down
   SDL_EnableKeyRepeat(0,0);
@@ -249,11 +255,11 @@ bool Keyboard::IsModifier(int raw_key_code)
   return raw_key_code>=SDLK_NUMLOCK && raw_key_code<=SDLK_COMPOSE;
 }
 
-void Keyboard::HandleKeyEvent(const SDL_Event& evnt)
+bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
 {
   // Not a registred event
   if (!IsRegistredEvent(evnt.type))
-    return;
+    return false;
 
   Key_Event_t event_type;
   switch(evnt.type) {
@@ -264,7 +270,7 @@ void Keyboard::HandleKeyEvent(const SDL_Event& evnt)
     event_type = KEY_RELEASED;
     break;
   default:
-    return;
+    return false;
   }
 
   //Handle input text for Chat session in Network game
@@ -273,43 +279,80 @@ void Keyboard::HandleKeyEvent(const SDL_Event& evnt)
       Game::GetInstance()->chatsession.HandleKeyPressed(evnt);
     else if (event_type == KEY_RELEASED)
       Game::GetInstance()->chatsession.HandleKeyReleased(evnt);
-    return;
+    return false;
   }
 
-  int previous_modifier_bits = modifier_bits;
-  modifier_bits = GetModifierBitsFromSDL();
   SDLKey basic_key_code = evnt.key.keysym.sym;
+
+#ifdef DEBUG
+  if (IsLOGGING("killsynchro")
+      && basic_key_code == SDLK_k
+      && event_type == KEY_RELEASED) {
+    fprintf(stderr, "\n\nKILLING NETWORK SYNCHRONISATION!\n\n");
+    RandomSync().SetSeed(0);
+  }
+#endif
+
   // Also ignore real key code of a modifier, fix bug #15238
-  if (IsModifier(basic_key_code))
-    return;
+  if (IsModifier(basic_key_code)) {
+    int modifier_changed = modifier_only_bits ^ GetModifierBitsFromSDL();
+    if (event_type == KEY_RELEASED) {
+      for (std::set<SDLKey>::const_iterator it = pressed_keys.begin(); it != pressed_keys.end(); it++ ) {
+        int key_code = *it + MODIFIER_OFFSET * modifier_changed;
+        HandleKeyComboEvent(key_code, KEY_RELEASED);
+      }
+    } else if (modifier_only_bits && event_type == KEY_PRESSED) {
+      for (std::set<SDLKey>::const_iterator it = pressed_keys.begin(); it != pressed_keys.end(); it++ ) {
+        int key_code = *it + MODIFIER_OFFSET * modifier_only_bits;
+        HandleKeyComboEvent(key_code, KEY_RELEASED);
+      }
+    }
+    modifier_only_bits = GetModifierBitsFromSDL();
+    return false;
+  }
 #ifdef MAEMO
   if (SDL_GetModState() & KMOD_MODE) {
     if (basic_key_code == SDLK_LEFT) basic_key_code = SDLK_UP;
     if (basic_key_code == SDLK_RIGHT) basic_key_code = SDLK_DOWN;
   }
 #endif
+
   int key_code;
+  int previous_modifier_bits = modifier_bits;
+  modifier_bits = GetModifierBitsFromSDL();
+
   if (modifier_bits != previous_modifier_bits) {
-    std::set<SDLKey>::iterator it;
-    for (it = pressed_keys.begin();  it !=  pressed_keys.end(); it++) {
-      int basic_key_code_it = *it;
-      if (basic_key_code != basic_key_code_it) {
-        key_code = basic_key_code_it + MODIFIER_OFFSET * previous_modifier_bits;
-        HandleKeyComboEvent(key_code, KEY_RELEASED);
-        key_code = basic_key_code_it + MODIFIER_OFFSET * modifier_bits;
+    std::set<SDLKey>::const_iterator it = pressed_keys.find(basic_key_code);
+    if (it !=  pressed_keys.end()) {
+      key_code = basic_key_code + MODIFIER_OFFSET * previous_modifier_bits;
+      HandleKeyComboEvent(key_code, KEY_RELEASED);
+      if (key_code != basic_key_code)
+        HandleKeyComboEvent(basic_key_code, KEY_RELEASED);
+      pressed_keys.erase(basic_key_code);
+      if (event_type == KEY_PRESSED) {
+        key_code = basic_key_code + MODIFIER_OFFSET * modifier_bits;
         HandleKeyComboEvent(key_code, KEY_PRESSED);
+        pressed_keys.insert(basic_key_code);
       }
+      return true;
     }
   }
 
   if (event_type == KEY_PRESSED) {
     key_code = basic_key_code + (MODIFIER_OFFSET * modifier_bits);
     HandleKeyComboEvent(key_code, KEY_PRESSED);
+    if (previous_modifier_bits ^ modifier_bits) {
+      key_code = basic_key_code + (MODIFIER_OFFSET * previous_modifier_bits);
+      HandleKeyComboEvent(key_code, KEY_RELEASED);
+    }
     pressed_keys.insert(basic_key_code);
   } else {
     ASSERT(event_type == KEY_RELEASED);
     key_code = basic_key_code + (MODIFIER_OFFSET * previous_modifier_bits);
     HandleKeyComboEvent(key_code, KEY_RELEASED);
+    if (key_code != basic_key_code)
+      HandleKeyComboEvent(basic_key_code, KEY_RELEASED);
     pressed_keys.erase(basic_key_code);
   }
+  return true;
 }

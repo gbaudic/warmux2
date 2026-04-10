@@ -20,6 +20,7 @@
  *****************************************************************************/
 
 #include <string>
+#include <algorithm>
 #include <WARMUX_distant_cpu.h>
 #include "graphic/colors.h"
 #include "include/app.h"
@@ -28,14 +29,15 @@
 
 static void PrintHelp()
 {
+  AppWarmux *app = AppWarmux::GetInstance();
   std::string msg = "help: " + std::string(_("Displays this message"));
-  AppWarmux::GetInstance()->ReceiveMsgCallback(msg, light_gray_color);
+  app->ReceiveMsgCallback(msg, light_gray_color);
   msg = "kick <nickname>: " + std::string(_("Kicks the player designated by <nickname> out of the game"));
-  AppWarmux::GetInstance()->ReceiveMsgCallback(msg, light_gray_color);
+  app->ReceiveMsgCallback(msg, light_gray_color);
   msg = "list: " + std::string(_("Lists the connected players"));
-  AppWarmux::GetInstance()->ReceiveMsgCallback(msg, light_gray_color);
+  app->ReceiveMsgCallback(msg, light_gray_color);
   msg = "address: " + std::string(_("Shows the designated player address"));
-  AppWarmux::GetInstance()->ReceiveMsgCallback(msg, light_gray_color);
+  app->ReceiveMsgCallback(msg, light_gray_color);
 }
 
 typedef enum
@@ -54,7 +56,8 @@ static void UserCommand(const std::string& nick, UserCommandType type)
        cpu != hosts.end();
        ++cpu) {
 
-    if ((*cpu)->GetNicknames() == nick) {
+    const std::vector<std::string>& nicks = (*cpu)->GetNicknames();
+    if (std::find(nicks.begin(), nicks.end(), nick) != nicks.end()) {
       found = true;
 
       switch (type) {
@@ -97,8 +100,7 @@ static void ListPlayers()
   for (std::list<DistantComputer*>::iterator cpu = hosts.begin();
       cpu != hosts.end();
       ++cpu) {
-    std::string msg = std::string(Format("%s (%s)", (*cpu)->GetNicknames().c_str(), (*cpu)->GetAddress().c_str()));
-    AppWarmux::GetInstance()->ReceiveMsgCallback(msg, primary_red_color);
+    AppWarmux::GetInstance()->ReceiveMsgCallback((*cpu)->ToString(), primary_red_color);
   }
 
   Network::GetInstance()->UnlockRemoteHosts();
@@ -108,17 +110,16 @@ void ProcessCommand(const std::string & cmd)
 {
   if (cmd == "/help") {
     PrintHelp();
-  } else if (cmd.substr(0, 6) == "/kick ") {
+  } else if (!cmd.compare(0, 6, "/kick ")) {
     std::string nick = cmd.substr(6, cmd.size() - 6);
     UserCommand(nick, USER_KICK);
-  } else if (cmd.substr(0, 9) == "/address ") {
+  } else if (!cmd.compare(0, 9, "/address ")) {
     std::string nick = cmd.substr(9, cmd.size() - 9);
     UserCommand(nick, USER_ADDRESS);
-  } else if (cmd.substr(0, 5) == "/list") {
+  } else if (!cmd.compare(0, 5, "/list")) {
     ListPlayers();
   } else {
     AppWarmux::GetInstance()->ReceiveMsgCallback(_("Unknown command"), primary_red_color);
     PrintHelp();
   }
 }
-

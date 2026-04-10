@@ -8,7 +8,7 @@
 &EN
 
 ; Package header format: Package Name, UID, Major version, Minor Version, Build Number,Package-Options
-#{"Warmux"},(0xECF75E71),11,01,0,NC
+#{"Warmux"},(0xECF75E71),11,04,0
 
 ;Localised Vendor name
 %{"www.warmux.org-EN"}
@@ -16,19 +16,35 @@
 ;Unique Vendor name
 :"www.warmux.org"
 
-="..\..\..\data\icon\warmux.mif", "image/x-mif", ""
+;Supports S60 5th Edition
+[0x1028315F], 0, 0, 0, {"Series60ProductID"}
+
+;Supports Symbian^3
+[0x20022E6D], 0, 0, 0, {"Series60ProductID"}
 
 ;*"\certificates\selfsigned.key", "\certificates\selfsigned.cer"
 
 ;Files to install
 ;You should change the source paths to match that of your environment
 ;<source> <destination>
+
+IF EXISTS("z:\system\install\Series60v5.2.sis")
+; install Symbian^3 specific files
+"../res/sdl_param_s3.txt" - "c:\private\ecf75e71\sdl_param.txt"
+"../res/sdl_flags_s3.txt" - "c:\private\ecf75e71\sdl_flags.txt"
+"warmux_sdl_s3.dll" - "!:\sys\bin\warmux_sdl.dll"
+ELSE
+"../res/sdl_param_s1.txt" - "c:\private\ecf75e71\sdl_param.txt"
+"../res/sdl_flags_s1.txt" - "c:\private\ecf75e71\sdl_flags.txt"
+"warmux_sdl_s1.dll" - "!:\sys\bin\warmux_sdl.dll"
+ENDIF
+
 "$(EPOCROOT)epoc32\release\$(PLATFORM)\$(TARGET)\warmux.exe" - "!:\sys\bin\Warmux.exe"
+;"$(EPOCROOT)epoc32\release\$(PLATFORM)\$(TARGET)\warmux_sdl.dll" - "!:\sys\bin\warmux_sdl.dll"
 "$(EPOCROOT)Epoc32\data\z\private\10003a3f\apps\warmux_reg.rsc" - "!:\private\10003a3f\import\apps\warmux_reg.rsc"
 "$(EPOCROOT)Epoc32\data\z\resource\apps\warmux.rsc" - "!:\resource\apps\Warmux.rsc"
 "..\..\..\data\icon\warmux.mif" - "!:\resource\apps\Warmux.mif"
-"../res/sdl_param.txt" - "c:\private\ecf75e71\sdl_param.txt"
-"../res/sdl_flags.txt" - "c:\private\ecf75e71\sdl_flags.txt"
+"..\..\..\data\icon\warmux.mbm" - "!:\resource\apps\Warmux.mbm"
 "../../../data/authors.dtd" - "!:\private\ecf75e71\data/authors.dtd"
 "../../../data/authors.xml" - "!:\private\ecf75e71\data/authors.xml"
 "../../../data/body/aliases.xml" - "!:\private\ecf75e71\data/body/aliases.xml"
@@ -808,7 +824,7 @@
 "../../../data/interface/not_skin/background_control_interface.png" - "!:\private\ecf75e71\data/interface/not_skin/background_control_interface.png"
 "../../../data/interface/not_skin/background_help.png" - "!:\private\ecf75e71\data/interface/not_skin/background_help.png"
 "../../../data/interface/not_skin/background_interface.png" - "!:\private\ecf75e71\data/interface/not_skin/background_interface.png"
-"../../../data/interface/not_skin/readme.txt" - "!:\private\ecf75e71\data/interface/not_skin/readme.txt"
+"../../../data/interface/not_skin/background_replay.png" - "!:\private\ecf75e71\data/interface/not_skin/background_replay.png"
 "../../../data/interface/not_skin/small_background_interface.png" - "!:\private\ecf75e71\data/interface/not_skin/small_background_interface.png"
 "../../../data/interface/whitetheme/arrow_jump.png" - "!:\private\ecf75e71\data/interface/whitetheme/arrow_jump.png"
 "../../../data/interface/whitetheme/arrow_turn.png" - "!:\private\ecf75e71\data/interface/whitetheme/arrow_turn.png"
@@ -884,11 +900,11 @@
 "../../../data/map/desert/desert.png" - "!:\private\ecf75e71\data/map/desert/desert.png"
 "../../../data/map/desert/desert_bg.jpg" - "!:\private\ecf75e71\data/map/desert/desert_bg.jpg"
 "../../../data/map/desert/desert_preview.jpg" - "!:\private\ecf75e71\data/map/desert/desert_preview.jpg"
-"../../../data/map/funkyisland/clouds.png" - "!:\private\ecf75e71\data/map/funkyisland/clouds.png"
-"../../../data/map/funkyisland/config.xml" - "!:\private\ecf75e71\data/map/funkyisland/config.xml"
-"../../../data/map/funkyisland/island.png" - "!:\private\ecf75e71\data/map/funkyisland/island.png"
-"../../../data/map/funkyisland/island_bg.jpg" - "!:\private\ecf75e71\data/map/funkyisland/island_bg.jpg"
-"../../../data/map/funkyisland/preview.jpg" - "!:\private\ecf75e71\data/map/funkyisland/preview.jpg"
+"../../../data/map/funky_island/clouds.png" - "!:\private\ecf75e71\data/map/funky_island/clouds.png"
+"../../../data/map/funky_island/config.xml" - "!:\private\ecf75e71\data/map/funky_island/config.xml"
+"../../../data/map/funky_island/island.png" - "!:\private\ecf75e71\data/map/funky_island/island.png"
+"../../../data/map/funky_island/island_bg.jpg" - "!:\private\ecf75e71\data/map/funky_island/island_bg.jpg"
+"../../../data/map/funky_island/preview.jpg" - "!:\private\ecf75e71\data/map/funky_island/preview.jpg"
 "../../../data/map/greehills/config.xml" - "!:\private\ecf75e71\data/map/greehills/config.xml"
 "../../../data/map/greehills/greenhills.png" - "!:\private\ecf75e71\data/map/greehills/greenhills.png"
 "../../../data/map/greehills/greenhills_sky.jpg" - "!:\private\ecf75e71\data/map/greehills/greenhills_sky.jpg"
@@ -1004,6 +1020,7 @@
 "../../../data/menu/help_ingame.jpg" - "!:\private\ecf75e71\data/menu/help_ingame.jpg"
 "../../../data/menu/help_interface.png" - "!:\private\ecf75e71\data/menu/help_interface.png"
 "../../../data/menu/help_minimap.png" - "!:\private\ecf75e71\data/menu/help_minimap.png"
+"../../../data/menu/help_replay.png" - "!:\private\ecf75e71\data/menu/help_replay.png"
 "../../../data/menu/help_shortkeys.png" - "!:\private\ecf75e71\data/menu/help_shortkeys.png"
 "../../../data/menu/help_team_selection.jpg" - "!:\private\ecf75e71\data/menu/help_team_selection.jpg"
 "../../../data/menu/help_touch_interface.png" - "!:\private\ecf75e71\data/menu/help_touch_interface.png"
@@ -1021,6 +1038,7 @@
 "../../../data/menu/i_options.png" - "!:\private\ecf75e71\data/menu/i_options.png"
 "../../../data/menu/i_play.png" - "!:\private\ecf75e71\data/menu/i_play.png"
 "../../../data/menu/i_quit.png" - "!:\private\ecf75e71\data/menu/i_quit.png"
+"../../../data/menu/i_replay.png" - "!:\private\ecf75e71\data/menu/i_replay.png"
 "../../../data/menu/i_update.png" - "!:\private\ecf75e71\data/menu/i_update.png"
 "../../../data/menu/left-right_mouse.png" - "!:\private\ecf75e71\data/menu/left-right_mouse.png"
 "../../../data/menu/left.png" - "!:\private\ecf75e71\data/menu/left.png"
@@ -1039,6 +1057,7 @@
 "../../../data/menu/refresh.png" - "!:\private\ecf75e71\data/menu/refresh.png"
 "../../../data/menu/resolution.png" - "!:\private\ecf75e71\data/menu/resolution.png"
 "../../../data/menu/right.png" - "!:\private\ecf75e71\data/menu/right.png"
+"../../../data/menu/save.png" - "!:\private\ecf75e71\data/menu/save.png"
 "../../../data/menu/scroll_on_border.png" - "!:\private\ecf75e71\data/menu/scroll_on_border.png"
 "../../../data/menu/send_txt.png" - "!:\private\ecf75e71\data/menu/send_txt.png"
 "../../../data/menu/sound_effects_enable.png" - "!:\private\ecf75e71\data/menu/sound_effects_enable.png"

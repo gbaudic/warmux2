@@ -50,12 +50,14 @@ BaseSnipeRifle::BaseSnipeRifle(Weapon_type type, const std::string &id)
 {
   m_category = RIFLE;
 
-  last_angle = 0.0;
+  last_angle = 0.0f;
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_fire"));
 
   targeting_something = false;
   m_laser_image = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_laser"));
   laser_beam_color = GetResourceManager().LoadColor(weapons_res_profile,m_id+"_laser_color");
+  laser_beam_end_color = laser_beam_color;
+  laser_beam_end_color.SetAlpha(0);
 }
 
 BaseSnipeRifle::~BaseSnipeRifle()
@@ -101,8 +103,8 @@ void BaseSnipeRifle::ComputeCrossPoint(bool force = false)
   uint distance = 0;
   targeting_something = false;
   // While test is not finished
-  float PI_3_div_4 = (3*M_PI)/4;
-  float PI_div_4 = M_PI/4;
+  float PI_3_div_4 = (float)(3*M_PI)/4;
+  float PI_div_4 = (float)M_PI/4;
   while (distance < SNIPE_RIFLE_MAX_BEAM_SIZE) {
     // going upwards ( -3pi/4 < angle <-pi/4 )
     if (angle < -PI_div_4 && angle > -PI_3_div_4) {
@@ -140,55 +142,59 @@ void BaseSnipeRifle::ComputeCrossPoint(bool force = false)
 // Reset crosshair when switching from a weapon to another to avoid misused
 void BaseSnipeRifle::p_Deselect()
 {
-  ActiveCharacter().SetFiringAngle(0.);
+  ActiveCharacter().SetFiringAngle(ZERO);
   ActiveCharacter().SetMovement("breathe");
 }
 
 void BaseSnipeRifle::DrawBeam()
 {
-  Point2i pos1 = laser_beam_start - Camera::GetInstance()->GetPosition();
-  Point2i pos2 = targeted_point - Camera::GetInstance()->GetPosition();
   Double dst = laser_beam_start.Distance(targeted_point);
 
-  GetMainWindow().
-    AAFadingLineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color, laser_beam_color);
+  // Safeguard - this should not happen though
+  if (dst < EPSILON)
+    return;
 
-  // GetMainWindow().AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color);
+  Point2i cam_pos = Camera::GetInstance()->GetPosition();
+  Point2i pos1    = laser_beam_start - cam_pos;
+  Point2i pos2    = targeted_point - cam_pos;
+
+  GetMainWindow().AAFadingLineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color, laser_beam_end_color);
 
   // Set area of the screen to be redrawn:
   // Splited into little rectangles to avoid too large area of redraw
   Double redraw_size = 20.0;
-  Point2d pos = Point2d(laser_beam_start.x, laser_beam_start.y);
+  Point2d pos = laser_beam_start;
   Point2d delta = (Point2d(targeted_point.x, targeted_point.y) - pos) * redraw_size / dst;
-  Point2i delta_i((int)delta.x, (int)delta.y);
+  Point2i delta_i = delta;
 
-  if(delta_i.x < 0) delta_i.x = - delta_i.x; // the Map::ToRedraw method doesn't support negative rectangles
-  if(delta_i.y < 0) delta_i.y = - delta_i.y;
-  delta_i.x += 6; // We have to increase the size of the rectangle so the corner of the rectangles overlaps
+  // the Map::ToRedraw method doesn't support negative rectangles
+  if (delta_i.x < 0)
+    delta_i.x = - delta_i.x;
+  if (delta_i.y < 0)
+    delta_i.y = - delta_i.y;
+  // We have to increase the size of the rectangle so the corner of the rectangles overlaps
+  delta_i.x += 6;
   delta_i.y += 6;
 
   int i = 0;
-  while (redraw_size * i < dst)
-  {
+  while (redraw_size * i < dst) {
     // Double to int conversion...
-    Point2i pos_i((int)pos.x, (int)pos.y);
-    if(delta.x < ZERO)
-    {
+    Point2i pos_i = pos;
+    if (delta.x < ZERO) {
       pos_i.x -= delta_i.x;
       pos_i.x += 3;
     }
     else
       pos_i.x -= 3;
 
-    if(delta.y < ZERO)
-    {
+    if (delta.y < ZERO) {
       pos_i.y -= delta_i.y;
       pos_i.y += 3;
     }
     else
       pos_i.y -= 3;
 
-    GetWorld().ToRedrawOnMap(Rectanglei( pos_i, delta_i ));
+    GetWorld().ToRedrawOnMap(Rectanglei(pos_i, delta_i));
     pos += delta;
     i++;
   }
@@ -197,12 +203,12 @@ void BaseSnipeRifle::DrawBeam()
 void BaseSnipeRifle::Draw()
 {
   WeaponLauncher::Draw();
-  if( Game::GetInstance()->ReadState() != Game::PLAYING || IsOnCooldownFromShot() ) return;
+  if (Game::GetInstance()->ReadState()!=Game::PLAYING || IsOnCooldownFromShot()) return;
   ComputeCrossPoint();
   DrawBeam();
   // Draw the laser impact
-  if( targeting_something )
-    m_laser_image->Draw(targeted_point - (m_laser_image->GetSize()/2));
+  if (targeting_something)
+    m_laser_image->Draw(targeted_point - (m_laser_image->GetSize()>>1));
 }
 
 //------------------------------------------------------------------------------

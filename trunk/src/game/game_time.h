@@ -28,7 +28,7 @@
 #include "game/stopwatch.h"
 
 // XXX uint wrap-around (or at least system timer) not handled
-class Time : public Singleton<Time>
+class GameTime : public Singleton<GameTime>
 {
 private:
   Stopwatch   stopwatch;
@@ -39,26 +39,32 @@ private:
   Stopwatch   network_wait_time_stopwatch;
 
 protected:
-  friend class Singleton<Time>;
-  Time();
+  friend class Singleton<GameTime>;
+  GameTime();
 
 public:
 
   void Reset();
-  uint Read() const { return current_time; };
-  uint ReadSec() const { return Read() / 1000; };
-  uint ReadMin() const { return ReadSec() / 60; };
+  uint Read() const { return current_time; }
+  uint ReadSec() const { return Read() / 1000; }
+  uint ReadMin() const { return ReadSec() / 60; }
+
+  void SetPause(bool pause) { stopwatch.SetPause(pause); }
+  bool IsPaused() const { return stopwatch.IsPaused(); }
+  void SetSpeed(const Double& speed);
+  const Double& GetSpeed() const { return stopwatch.GetSpeed(); }
 
   void Increase();
-  bool CanBeIncreased();
+  bool CanBeIncreased() const { return stopwatch.GetValue() >= current_time; }
+  bool CanDraw() const { return stopwatch.GetValue()<current_time+20 || IsWaiting(); }
   void LetRealTimePassUntilFrameEnd();
+  void Resynch() { stopwatch.Resynch(current_time); }
 
-  bool IsWaiting();
-
-  bool IsWaitingForUser();
+  bool IsWaiting() const { return waiting_for_user || waiting_for_network; }
+  bool IsWaitingForUser() const { return waiting_for_user; }
   void SetWaitingForUser(bool value);
 
-  bool IsWaitingForNetwork();
+  bool IsWaitingForNetwork() const { return waiting_for_network; }
   void SetWaitingForNetwork(bool value);
   uint GetMSWaitingForNetwork();
 

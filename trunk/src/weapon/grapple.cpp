@@ -44,8 +44,8 @@ const uint DT_MVT = 15; //delta_t between 2 up/down/left/right mvt
 const uint DST_MIN = 4;  //dst_minimal between 2 nodes
 const int SKIP_DST = 8;
 
-bool find_first_contact_point (Point2i from, Double angle, uint length,
-                               int skip, Point2i &contact_point)
+static bool find_first_contact_point(Point2i from, Double angle, uint length,
+                                     int skip, Point2i &contact_point)
 {
   Point2d posd;
   Double x_step, y_step;
@@ -73,72 +73,64 @@ bool find_first_contact_point (Point2i from, Double angle, uint length,
   // make it return the last point still in vacuum
   Point2i new_contact_point = contact_point;
   bool contact_point_uncertain = true;
-  while(!GetWorld().IsOutsideWorld(new_contact_point) &&
-        (length > 0))
-    {
-      if ( !GetWorld().IsInVacuum( new_contact_point ) )
-      {
-        ASSERT( contact_point_uncertain || GetWorld().IsInVacuum( contact_point ) );
+  while(!GetWorld().IsOutsideWorld(new_contact_point) && length>0) {
+    if (!GetWorld().IsInVacuum(new_contact_point)) {
+      ASSERT(contact_point_uncertain || GetWorld().IsInVacuum(contact_point));
 
-        // for uncertain contact points, see if it's in vacuum
-        if ( contact_point_uncertain && !GetWorld().IsInVacuum( contact_point ) )
-        {
-           // it's not, so try our best to return a contact point in vacuum
-           // try searching in area NxN around our original point and return
-           // the closest pixel in vacuum
+      // for uncertain contact points, see if it's in vacuum
+      if (contact_point_uncertain && !GetWorld().IsInVacuum(contact_point)) {
+         // it's not, so try our best to return a contact point in vacuum
+         // try searching in area NxN around our original point and return
+         // the closest pixel in vacuum
 
-           // FIXME: can be optimized!
-           const int search_radius = 5; // 121 pixels to search
+         // FIXME: can be optimized!
+         const int search_radius = 5; // 121 pixels to search
 
-           Point2i closest_point;
-           Point2i cur;
-           int closest_point_distance = 2 * search_radius * search_radius + 1;// max
-           bool found = false;
+         Point2i closest_point;
+         Point2i cur;
+         int closest_point_distance = 2 * search_radius * search_radius + 1;// max
+         bool found = false;
 
-           for ( int i = -search_radius; i <= search_radius; i ++ )
-           {
-             for ( int j = -search_radius; j <= search_radius; j ++ )
-             {
-               cur = contact_point + Point2i( i, j );
-               if ( GetWorld().IsInVacuum( cur ) )
-               {
-                 // check for new closest
-                 int distance = i * i + j * j;
-                 if ( distance < closest_point_distance )
-                 {
-                   closest_point_distance = distance;
-                   closest_point = cur;
-                   found = true;
-                 }
+         for (int i=-search_radius; i<=search_radius; i++) {
+           for (int j=-search_radius; j<=search_radius; j++)    {
+             cur = contact_point + Point2i(i, j);
+             if (!GetWorld().IsOutsideWorld(cur) && GetWorld().IsInVacuum(cur)) {
+               // check for new closest
+               int distance = i * i + j * j;
+               if (distance < closest_point_distance) {
+                 closest_point_distance = distance;
+                 closest_point = cur;
+                 found = true;
                }
              }
            }
+         }
 
-           if ( found )
-             contact_point = closest_point;
-        }
-        return true ;
+         if (found)
+           contact_point = closest_point;
       }
-
-      contact_point = new_contact_point;
-      contact_point_uncertain = false; //now we know that it's in vacuum
-      posd.x += x_step ;
-      posd.y += y_step ;
-      new_contact_point.x = (int)round(posd.x) ;
-      new_contact_point.y = (int)round(posd.y) ;
-      length--;
+      return true;
     }
 
-  return false ;
+    contact_point = new_contact_point;
+    contact_point_uncertain = false; //now we know that it's in vacuum
+    posd.x += x_step;
+    posd.y += y_step;
+    new_contact_point.x = (int)round(posd.x);
+    new_contact_point.y = (int)round(posd.y);
+    length--;
+  }
+
+  return false;
 }
 
 class GrappleConfig : public EmptyWeaponConfig
 {
- public:
+public:
   uint max_rope_length; // Max rope length in pixels
   int push_force;
 
- public:
+public:
   GrappleConfig();
   void LoadXml(const xmlNode* elem);
 };
@@ -183,7 +175,7 @@ bool Grapple::p_Shoot()
 {
   last_broken_node_angle = 100;
 
-  last_mvt = Time::GetInstance()->Read();
+  last_mvt = GameTime::GetInstance()->Read();
 
   if (!TryAttachRope()) // We have failed to attach!
     return false;
@@ -236,22 +228,21 @@ bool Grapple::TryAddNode()
 
   // Check if the rope collide something
 
-  if (find_first_contact_point(m_fixation_point, angle, lg, SKIP_DST, contact_point))
-    {
-      rope_angle = ActiveCharacter().GetRopeAngle() ;
+  if (find_first_contact_point(m_fixation_point, angle, lg, SKIP_DST, contact_point)) {
+    rope_angle = ActiveCharacter().GetRopeAngle();
 
-      // if contact point is the same as position of the last node
-      // (can happen because of jitter applied in find_first_contact_point),
-      // give up adding such node
-      if ( rope_nodes.size() > 0 && rope_nodes.back().pos == contact_point )
-        return false;
+    // if contact point is the same as position of the last node
+    // (can happen because of jitter applied in find_first_contact_point),
+    // give up adding such node
+    if (!rope_nodes.empty() && rope_nodes.back().pos == contact_point)
+      return false;
 
-      // The rope has collided something...
-      // Add a node on the rope and change the fixation point
-      AttachNode(contact_point, rope_angle);
+    // The rope has collided something...
+    // Add a node on the rope and change the fixation point
+    AttachNode(contact_point, rope_angle);
 
-      return true;
-    }
+    return true;
+  }
 
   return false;
 }
@@ -297,7 +288,7 @@ void Grapple::NotifyMove(bool collision)
     if (delta_len.IsNotZero()) {
       // The character tryed to change the rope size.
       // There has been a collision, so we cancel the rope length change.
-      ActiveCharacter().ChangePhysRopeSize (-delta_len);
+      ActiveCharacter().ChangePhysRopeSize(-delta_len);
       delta_len = 0;
     }
     return;
@@ -319,7 +310,7 @@ void Grapple::NotifyMove(bool collision)
 void Grapple::Refresh()
 {
   if (!attached)
-    return ;
+    return;
 
   if (move_left_pressed && !move_right_pressed) {
     GoLeft();
@@ -335,6 +326,10 @@ void Grapple::Refresh()
 
   ActiveCharacter().SetMovement("ninja-rope");
   ActiveCharacter().UpdatePosition();
+
+  if (attached && Camera::GetInstance()->GetFollowedObj() != &ActiveCharacter()) {
+    Camera::GetInstance()->FollowObject(&ActiveCharacter());
+  }
 }
 
 void Grapple::Draw()
@@ -359,40 +354,43 @@ void Grapple::Draw()
   x = handPos.x;
   y = handPos.y;
 
-  quad.x1 = (int)round((Double)x - 2 * cos(angle));
-  quad.y1 = (int)round((Double)y + 2 * sin(angle));
-  quad.x2 = (int)round((Double)x + 2 * cos(angle));
-  quad.y2 = (int)round((Double)y - 2 * sin(angle));
+  quad.x1 = (int)round(x - 2 * cos(angle));
+  quad.y1 = (int)round(y + 2 * sin(angle));
+  quad.x2 = (int)round(x + 2 * cos(angle));
+  quad.y2 = (int)round(y - 2 * sin(angle));
 
   for (std::list<rope_node_t>::reverse_iterator it = rope_nodes.rbegin();
-       it != rope_nodes.rend(); it++)
-    {
-      quad.x3 = (int)round((Double)it->pos.x + 2 * cos(angle));
-      quad.y3 = (int)round((Double)it->pos.y - 2 * sin(angle));
-      quad.x4 = (int)round((Double)it->pos.x - 2 * cos(angle));
-      quad.y4 = (int)round((Double)it->pos.y + 2 * sin(angle));
+       it != rope_nodes.rend(); it++) {
+    quad.x3 = (int)round(it->pos.x + 2 * cos(angle));
+    quad.y3 = (int)round(it->pos.y - 2 * sin(angle));
+    quad.x4 = (int)round(it->pos.x - 2 * cos(angle));
+    quad.y4 = (int)round(it->pos.y + 2 * sin(angle));
 
-      Double dx = sin(angle) * (Double)m_node_sprite->GetHeight();
-      Double dy = cos(angle) * (Double)m_node_sprite->GetHeight();
-      int step = 0;
-      int size = (quad.x1-quad.x4) * (quad.x1-quad.x4)
-                +(quad.y1-quad.y4) * (quad.y1-quad.y4);
-      size -= m_node_sprite->GetHeight();
-      while( (step*dx*step*dx)+(step*dy*step*dy) < size ) {
-  m_node_sprite->Draw(Point2i(quad.x4 + (int)((Double) step * dx),
-            quad.y4 + (int)((Double) step * dy)));
-        step++;
-      }
-      quad.x1 = quad.x4 ;
-      quad.y1 = quad.y4 ;
-      quad.x2 = quad.x3 ;
-      quad.y2 = quad.y3 ;
-      prev_angle = angle;
-      angle = it->angle ;
+    Double dx = sin(angle) * m_node_sprite->GetHeight();
+    Double dy = cos(angle) * m_node_sprite->GetHeight();
+    Double dx2 = dx*dx;
+    Double dy2 = dy*dy;
+    int step = quad.y1-quad.y4;
+    int size = quad.x1-quad.x4;
+    size *= size;
+    size += step*step; step = 0;
+    size -= m_node_sprite->GetHeight();
+    while ((dx2+dy2)*(step*step) < size) {
+      m_node_sprite->Draw(Point2i(quad.x4 + (int)(step * dx),
+                                  quad.y4 + (int)(step * dy)));
+      step++;
     }
 
+    quad.x1 = quad.x4;
+    quad.y1 = quad.y4;
+    quad.x2 = quad.x3;
+    quad.y2 = quad.y3;
+    prev_angle = angle;
+    angle = it->angle;
+  }
+
   m_hook_sprite->SetRotation_rad(-prev_angle);
-  m_hook_sprite->Draw( rope_nodes.front().pos - m_hook_sprite->GetSize()/2);
+  m_hook_sprite->Draw(rope_nodes.front().pos - m_hook_sprite->GetSize()/2);
 }
 
 void Grapple::AttachRope(const Point2i& contact_point)
@@ -411,11 +409,10 @@ void Grapple::AttachRope(const Point2i& contact_point)
   Point2i pos;
   ActiveCharacter().GetRelativeHandPosition(pos);
 
-  ActiveCharacter().SetPhysFixationPointXY(
-                                           contact_point.x * METER_PER_PIXEL,
+  ActiveCharacter().SetPhysFixationPointXY(contact_point.x * METER_PER_PIXEL,
                                            contact_point.y * METER_PER_PIXEL,
-                                           (Double)pos.x * METER_PER_PIXEL,
-                                           (Double)pos.y * METER_PER_PIXEL);
+                                           pos.x * METER_PER_PIXEL,
+                                           pos.y * METER_PER_PIXEL);
 
   m_fixation_point = contact_point;
 
@@ -424,10 +421,11 @@ void Grapple::AttachRope(const Point2i& contact_point)
   root_node.angle = 0;
   rope_nodes.push_back(root_node);
 
-  ActiveCharacter().ChangePhysRopeSize (((Double)(-10)) * METER_PER_PIXEL);
+  ActiveCharacter().ChangePhysRopeSize(-10 * METER_PER_PIXEL);
   ActiveCharacter().SetMovement("ninja-rope");
 
   ActiveCharacter().SetFiringAngle(-PI / 3);
+  ActiveCharacter().StopBackJumping();
 
   // Camera should focus on it!
   Camera::GetInstance()->FollowObject(&ActiveCharacter());
@@ -435,6 +433,9 @@ void Grapple::AttachRope(const Point2i& contact_point)
 
 void Grapple::DetachRope()
 {
+  if (!attached)
+    return;
+
   ActiveCharacter().UnsetPhysFixationPoint();
   rope_nodes.clear();
   attached = false;
@@ -451,8 +452,8 @@ void Grapple::AttachNode(const Point2i& contact_point, Double angle)
 
   ActiveCharacter().SetPhysFixationPointXY(contact_point.x * METER_PER_PIXEL,
                                            contact_point.y * METER_PER_PIXEL,
-                                           (Double)pos.x * METER_PER_PIXEL,
-                                           (Double)pos.y * METER_PER_PIXEL);
+                                           pos.x * METER_PER_PIXEL,
+                                           pos.y * METER_PER_PIXEL);
 
   m_fixation_point = contact_point;
   rope_node_t node;
@@ -460,25 +461,25 @@ void Grapple::AttachNode(const Point2i& contact_point, Double angle)
   node.angle = angle;
   rope_nodes.push_back(node);
 
-  MSG_DEBUG("grapple.node", "+ %d,%d %s", node.pos.x, node.pos.y, Double2str(node.angle).c_str());
+  MSG_DEBUG("grapple.node", "+ %d,%d %.3f", node.pos.x, node.pos.y, node.angle.tofloat());
 }
 
 void Grapple::DetachNode()
 {
-  ASSERT(rope_nodes.size() >= 1);
+  ASSERT(!rope_nodes.empty());
 
 #ifdef DEBUG
   { // for debugging only
     rope_node_t node;
     node = rope_nodes.back();
-    MSG_DEBUG("grapple.node", "- %d,%d %s", node.pos.x, node.pos.y, Double2str(node.angle).c_str());
+    MSG_DEBUG("grapple.node", "- %d,%d %.3f", node.pos.x, node.pos.y, node.angle.tofloat());
   }
 #endif
 
   // remove last node
   rope_nodes.pop_back();
 
-  m_fixation_point = rope_nodes.back().pos ;
+  m_fixation_point = rope_nodes.back().pos;
 
   Point2i pos;
   ActiveCharacter().GetRelativeHandPosition(pos);
@@ -494,19 +495,19 @@ void Grapple::DetachNode()
 void Grapple::SetRopeSize(Double length) const
 {
   Double delta = length - ActiveCharacter().GetRopeLength();
-  ActiveCharacter().ChangePhysRopeSize (delta);
+  ActiveCharacter().ChangePhysRopeSize(delta);
 }
 
 void Grapple::GoUp()
 {
-  if(Time::GetInstance()->Read()<last_mvt+DT_MVT)
+  if(GameTime::GetInstance()->Read() < last_mvt+DT_MVT)
     return;
-  last_mvt = Time::GetInstance()->Read();
+  last_mvt = GameTime::GetInstance()->Read();
 
-  delta_len = -0.1 ;
-  ActiveCharacter().ChangePhysRopeSize (delta_len);
+  delta_len = -0.1;
+  ActiveCharacter().ChangePhysRopeSize(delta_len);
   ActiveCharacter().UpdatePosition();
-  delta_len = 0 ;
+  delta_len = 0;
 }
 
 void Grapple::StopUp()
@@ -516,17 +517,17 @@ void Grapple::StopUp()
 
 void Grapple::GoDown()
 {
-  if(Time::GetInstance()->Read()<last_mvt+DT_MVT)
+  if (GameTime::GetInstance()->Read() < last_mvt+DT_MVT)
     return;
-  last_mvt = Time::GetInstance()->Read();
+  last_mvt = GameTime::GetInstance()->Read();
 
   if (ActiveCharacter().GetRopeLength()*PIXEL_PER_METER >= (int)cfg().max_rope_length)
     return;
 
-  delta_len = 0.1 ;
-  ActiveCharacter().ChangePhysRopeSize (delta_len) ;
-  ActiveCharacter().UpdatePosition() ;
-  delta_len = 0 ;
+  delta_len = 0.1;
+  ActiveCharacter().ChangePhysRopeSize(delta_len);
+  ActiveCharacter().UpdatePosition();
+  delta_len = 0;
 }
 
 void Grapple::StopDown()
@@ -539,18 +540,18 @@ void Grapple::GoRight()
   if (!go_right) {
     cable_sound.Play("default", "weapon/grapple_cable");
   }
-  go_right = true ;
+  go_right = true;
   ActiveCharacter().SetExternForce(cfg().push_force,0);
   ActiveCharacter().SetDirection(DIRECTION_RIGHT);
-  ActiveCharacter().UpdatePosition() ;
+  ActiveCharacter().UpdatePosition();
 }
 
 void Grapple::StopRight()
 {
-  go_right = false ;
+  go_right = false;
 
   if (go_left || go_right)
-    return ;
+    return;
 
   ActiveCharacter().SetExternForce(0,0);
 }
@@ -560,18 +561,18 @@ void Grapple::GoLeft()
   if (!go_left) {
     cable_sound.Play("default", "weapon/grapple_cable");
   }
-  go_left = true ;
+  go_left = true;
   ActiveCharacter().SetExternForce(-cfg().push_force,0);
   ActiveCharacter().SetDirection(DIRECTION_LEFT);
-  ActiveCharacter().UpdatePosition() ;
+  ActiveCharacter().UpdatePosition();
 }
 
 void Grapple::StopLeft()
 {
-  go_left = false ;
+  go_left = false;
 
   if (go_left || go_right)
-    return ;
+    return;
 
   ActiveCharacter().SetExternForce(0,0);
 }
@@ -707,12 +708,11 @@ void Grapple::PrintDebugRope()
   }
 }
 
-std::string Grapple::GetWeaponWinString(const char *TeamName, uint items_count ) const
+std::string Grapple::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
-  return Format(ngettext(
-            "%s team has won %u grapple!",
-            "%s team has won %u grapples!",
-            items_count), TeamName, items_count);
+  return Format(ngettext("%s team has won %u grapple!",
+                         "%s team has won %u grapples!",
+                         items_count), TeamName, items_count);
 }
 
 //-----------------------------------------------------------------------------

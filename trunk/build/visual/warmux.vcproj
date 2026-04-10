@@ -51,9 +51,11 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				UseUnicodeResponseFiles="false"
+				AdditionalOptions="/MP"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)..\..\src&quot;;&quot;$(ProjectDir)..\..\lib\warmux\include&quot;;&quot;$(ProjectDir)..\..\lib\fixedpoint&quot;;&quot;$(ProjectDir)..\..\src\msvc&quot;"
-				PreprocessorDefinitions="WIN32;DEBUG;_DEBUG;WMX_LOG;FRIBIDI_STATICLIB;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\Ubuntu-R.ttf\&quot;;M_PI=3.14159265358979323846;M_PI_2=1.57079632679489661923;M_PI_4=0.78539816339744830962;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS"
+				PreprocessorDefinitions="WIN32;DEBUG;_DEBUG;WMX_LOG;FRIBIDI_STATICLIB;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\Ubuntu-R.ttf\&quot;;M_PI=3.14159265358979323846f;M_PI_2=1.57079632679489661923f;M_PI_4=0.78539816339744830962f;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS"
+				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				FloatingPointExceptions="true"
@@ -62,7 +64,7 @@
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
-				DisableSpecificWarnings="4005;4138;4244;4267;4305;4312;4251;4996;4800"
+				DisableSpecificWarnings="4138;4244;4267;4355;4800;4996"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -75,7 +77,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="advapi32.lib kernel32.lib shell32.lib user32.lib Ws2_32.lib winmm.lib SDL.lib SDLmain.lib SDL_mixer.lib SDL_image.lib SDL_net.lib SDL_ttf.lib sdlgfx.lib intl.lib libcurl.lib wldap32.lib libxml2.lib fribidid.lib libpng.lib zlib.lib $(NOINHERIT)"
+				AdditionalDependencies="advapi32.lib kernel32.lib shell32.lib user32.lib Ws2_32.lib winmm.lib SDL.lib SDLmain.lib SDL_mixer.lib SDL_image.lib SDL_net.lib SDL_ttf.lib SDL_gfx.lib intl.lib libcurl.lib wldap32.lib libxml2.lib fribidid.lib libpng.lib zlib.lib $(NOINHERIT)"
 				OutputFile="$(ProjectDir)..\..\$(ProjectName)d.exe"
 				LinkIncremental="2"
 				IgnoreDefaultLibraryNames="msvcrt.lib;libcmt.lib"
@@ -142,6 +144,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				UseUnicodeResponseFiles="false"
+				AdditionalOptions="/MP"
 				Optimization="3"
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
@@ -149,19 +152,23 @@
 				OmitFramePointers="true"
 				EnableFiberSafeOptimizations="true"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)..\..\src&quot;;&quot;$(ProjectDir)..\..\lib\warmux\include&quot;;&quot;$(ProjectDir)..\..\lib\fixedpoint&quot;;&quot;$(ProjectDir)..\..\src\msvc&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;FRIBIDI_STATICLIB;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\Ubuntu-R.ttf\&quot;;M_PI=3.14159265358979323846;M_PI_2=1.57079632679489661923;M_PI_4=0.78539816339744830962;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS"
+				PreprocessorDefinitions="WIN32;NDEBUG;FRIBIDI_STATICLIB;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\Ubuntu-R.ttf\&quot;;M_PI=3.14159265358979323846f;M_PI_2=1.57079632679489661923f;M_PI_4=0.78539816339744830962f;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
+				MinimalRebuild="true"
+				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
 				RuntimeLibrary="2"
 				BufferSecurityCheck="false"
-				FloatingPointModel="0"
-				FloatingPointExceptions="true"
+				EnableFunctionLevelLinking="true"
+				EnableEnhancedInstructionSet="2"
+				FloatingPointModel="2"
+				FloatingPointExceptions="false"
 				RuntimeTypeInfo="true"
-				UsePrecompiledHeader="0"
+				UsePrecompiledHeader="1"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
-				DisableSpecificWarnings="4005;4138;4244;4267;4305;4312;4251;4996;4800"
+				DisableSpecificWarnings="4138;4244;4267;4355;4800;4996"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -174,7 +181,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="advapi32.lib kernel32.lib shell32.lib user32.lib Ws2_32.lib winmm.lib SDL.lib SDLmain.lib SDL_mixer.lib SDL_image.lib SDL_net.lib SDL_ttf.lib sdlgfx.lib intl.lib libcurl.lib wldap32.lib libpng.lib libxml2.lib fribidi.lib zlib.lib $(NOINHERIT)"
+				AdditionalDependencies="advapi32.lib kernel32.lib shell32.lib user32.lib Ws2_32.lib winmm.lib SDL.lib SDLmain.lib SDL_mixer.lib SDL_image.lib SDL_net.lib SDL_ttf.lib SDL_gfx.lib intl.lib libcurl.lib wldap32.lib libpng.lib libxml2.lib fribidi.lib zlib.lib $(NOINHERIT)"
 				OutputFile="$(ProjectDir)..\..\$(ProjectName).exe"
 				LinkIncremental="1"
 				IgnoreDefaultLibraryNames="msvcrtd.lib;libcmt.lib"
@@ -242,18 +249,20 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				UseUnicodeResponseFiles="false"
+				AdditionalOptions="/MP"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)..\..\src&quot;;&quot;$(ProjectDir)..\..\lib\warmux\include&quot;;&quot;$(ProjectDir)..\..\lib\fixedpoint&quot;;&quot;$(ProjectDir)..\..\src\msvc&quot;"
 				PreprocessorDefinitions="WIN32;DEBUG;_DEBUG;HAVE_HANDHELD;WMX_LOG;FRIBIDI_STATICLIB;CURL_STATICLIB;main=SDL_main;INSTALL_DATADIR=\&quot;data\&quot;;INSTALL_LOCALEDIR=\&quot;locale\&quot;;FONT_FILE=\&quot;data\\font\\Ubuntu-R.ttf\&quot;;M_PI=3.14159265358979323846;M_PI_2=1.57079632679489661923;M_PI_4=0.78539816339744830962;snprintf=_snprintf;_CRT_SECURE_NO_WARNINGS"
+				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				FloatingPointExceptions="true"
-				UsePrecompiledHeader="0"
+				UsePrecompiledHeader="1"
 				PrecompiledHeaderThrough=""
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
-				DisableSpecificWarnings="4005;4138;4244;4267;4305;4312;4251;4996;4800"
+				DisableSpecificWarnings="4138;4244;4267;4355;4800;4996"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -266,7 +275,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="advapi32.lib kernel32.lib shell32.lib user32.lib Ws2_32.lib winmm.lib SDL.lib SDLmain.lib SDL_mixer.lib SDL_image.lib SDL_net.lib SDL_ttf.lib sdlgfx.lib intl.lib libcurl.lib wldap32.lib libxml2.lib fribidid.lib libpng.lib zlib.lib $(NOINHERIT)"
+				AdditionalDependencies="advapi32.lib kernel32.lib shell32.lib user32.lib Ws2_32.lib winmm.lib SDL.lib SDLmain.lib SDL_mixer.lib SDL_image.lib SDL_net.lib SDL_ttf.lib SDL_gfx.lib intl.lib libcurl.lib wldap32.lib libxml2.lib fribidid.lib libpng.lib zlib.lib $(NOINHERIT)"
 				OutputFile="$(ProjectDir)..\..\$(ProjectName)h.exe"
 				LinkIncremental="2"
 				IgnoreDefaultLibraryNames="msvcrt.lib;libcmt.lib"
@@ -500,6 +509,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\game\game_time.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\game\stopwatch.cpp"
 					>
 				</File>
@@ -509,10 +522,6 @@
 				</File>
 				<File
 					RelativePath="..\..\src\game\time.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\src\game\time.h"
 					>
 				</File>
 			</Filter>
@@ -712,7 +721,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\src\gui\figure_widget.h"
+					RelativePath="..\..\src\gui\file_list_box.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\gui\file_list_box.h"
 					>
 				</File>
 				<File
@@ -895,14 +908,6 @@
 			<Filter
 				Name="include"
 				>
-				<File
-					RelativePath="..\..\src\include\action.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\src\include\action.h"
-					>
-				</File>
 				<File
 					RelativePath="..\..\src\include\action_handler.cpp"
 					>
@@ -1225,6 +1230,14 @@
 				</File>
 				<File
 					RelativePath="..\..\src\menu\pause_menu.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\menu\replay_menu.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\menu\replay_menu.h"
 					>
 				</File>
 				<File
@@ -1621,6 +1634,14 @@
 				</File>
 				<File
 					RelativePath="..\..\src\tool\affine_transform.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\tool\ansi_convert.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\tool\ansi_convert.h"
 					>
 				</File>
 				<File
@@ -2040,6 +2061,30 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="replay"
+				>
+				<File
+					RelativePath="..\..\src\replay\game_mode_info.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\replay\replay.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\replay\replay.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\replay\replay_info.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\replay\replay_info.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Gettext"
@@ -2184,280 +2229,6 @@
 				RelativePath="..\..\po\zh_TW.po"
 				>
 			</File>
-		</Filter>
-		<Filter
-			Name="LibWarmux"
-			>
-			<Filter
-				Name="action"
-				>
-				<File
-					RelativePath="..\..\lib\warmux\action\action.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Handheld|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\action\action_handler.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Handheld|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-				</File>
-			</Filter>
-			<Filter
-				Name="base"
-				>
-
-				<File
-					RelativePath="..\..\lib\warmux\base\error.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\base\i18n.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\base\singleton.cpp"
-					>
-				</File>
-			</Filter>
-			<Filter
-				Name="include"
-				>
-				<File
-					RelativePath="..\..\lib\warmux\include\config_visual.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_action.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_action_handler.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_base.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_config.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_debug.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_distant_cpu.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_download.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_error.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_euler_vector.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_file_tools.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_i18n.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_index_server.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_index_svr_msg.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_network.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_player.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_point.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_random.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_rectangle.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_singleton.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_socket.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_team_config.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_types.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\include\WARMUX_vector2.h"
-					>
-				</File>
-			</Filter>
-			<Filter
-				Name="maths"
-				>
-				<File
-					RelativePath="..\..\lib\warmux\maths\euler_vector.cpp"
-					>
-				</File>
-			</Filter>
-			<Filter
-				Name="net"
-				>
-				<File
-					RelativePath="..\..\lib\warmux\net\distant_cpu.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\download.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\extSDL_net.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\extSDL_net.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\index_server.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\network.cpp"
-					>
-					<FileConfiguration
-						Name="Debug|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Release|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-					<FileConfiguration
-						Name="Handheld|Win32"
-						>
-						<Tool
-							Name="VCCLCompilerTool"
-							ObjectFile="$(IntDir)\$(InputName)1.obj"
-							XMLDocumentationFileName="$(IntDir)\$(InputName)1.xdc"
-						/>
-					</FileConfiguration>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\player.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\net\socket.cpp"
-					>
-				</File>
-			</Filter>
-			<Filter
-				Name="tools"
-				>
-				<File
-					RelativePath="..\..\lib\warmux\tools\debug.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\tools\file_tools.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\..\lib\warmux\tools\random.cpp"
-					>
-				</File>
-			</Filter>
 		</Filter>
 		<Filter
 			Name="XML"
@@ -2818,38 +2589,6 @@
 					</FileConfiguration>
 				</File>
 			</Filter>
-		</Filter>
-		<Filter
-			Name="Double"
-			>
-			<File
-				RelativePath="..\..\lib\fixedpoint\fixasintab.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\lib\fixedpoint\fixatantab.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\lib\fixedpoint\fixed_class.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\lib\fixedpoint\fixed_func.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\lib\fixedpoint\fixed_func.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\lib\fixedpoint\fixsintab.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\lib\fixedpoint\stdint_fallback.h"
-				>
-			</File>
 		</Filter>
 	</Files>
 	<Globals>

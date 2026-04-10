@@ -38,14 +38,14 @@
 // This constant defines how how much damage is worth killing one character?
 // e.g. Killing one Character with 20 health is about the same worth like doing a sum of 120 damage (60 each) to two characters without killing them. Both cases would get a rating of 120 when this constant is 100.
 const float BONUS_FOR_KILLING_CHARACTER = 100;
-const float MALUS_PER_UNUSED_DAMGE_POINT = 0.1;
-const float MIN_GROUND_BONUS = 0.1;
-const float MAX_GROUND_BONUS = 1.0;
-const float GROUND_BONUS_RANGE = 2000.0;
+const float MALUS_PER_UNUSED_DAMGE_POINT = 0.1f;
+const float MIN_GROUND_BONUS = 0.1f;
+const float MAX_GROUND_BONUS = 1.0f;
+const float GROUND_BONUS_RANGE = 2000.0f;
 // At the time this code has been written the
 // bazooka did about 30-60 additional damage at 2500 force
-const float MIN_DAMAGE_PER_FORCE_UNIT = 30.0/2500.0;
-const float MAX_DAMAGE_PER_FORCE_UNIT = 60.0/2500.0;
+const float MIN_DAMAGE_PER_FORCE_UNIT = 30.0f/2500.0f;
+const float MAX_DAMAGE_PER_FORCE_UNIT = 60.0f/2500.0f;
 
 bool AIIdea::CanUseWeapon(const Weapon * weapon)
 {
@@ -138,14 +138,29 @@ AIStrategy * WasteAmmoUnitsIdea::CreateStrategy() const
                                   ActiveCharacter().GetDirection(), max_angle, used_ammo_units);
 }
 
-ShootDirectlyAtEnemyIdea::ShootDirectlyAtEnemyIdea(WeaponsWeighting & weapons_weighting,
-                                                   Character & shooter, Character & enemy,
+bool AIShootIdea::NoLongerPossible() const
+{
+  return shooter.IsDead() || enemy.IsDead();
+}
+
+float AIShootIdea::GetMaxRating(bool one_shot) const
+{
+  const WeaponsList *weapons_list = Game::GetInstance()->GetWeaponsList();
+  const WeaponLauncher *weapon = weapons_list->GetWeaponLauncher(weapon_type);
+  int damage = weapon->GetDamage();
+  int units = (one_shot) ? 1 : weapon->ReadInitialNbUnit();
+
+  if (weapon_type == Weapon::WEAPON_SHOTGUN)
+    damage *= SHOTGUN_BULLETS;
+
+  return weapons_weighting.GetFactor(weapon_type)*damage*units;
+}
+
+ShootDirectlyAtEnemyIdea::ShootDirectlyAtEnemyIdea(const WeaponsWeighting & weapons_weighting,
+                                                   const Character & shooter, const Character & enemy,
                                                    Weapon::Weapon_type weapon_type,
                                                    int max_distance)
-  : weapons_weighting(weapons_weighting)
-  , shooter(shooter)
-  , enemy(enemy)
-  , weapon_type(weapon_type)
+  : AIShootIdea(weapons_weighting, shooter, enemy, weapon_type)
   , max_sq_distance(max_distance*max_distance)
 {
   // do nothing
@@ -322,13 +337,10 @@ AIStrategy * ShootDirectlyAtEnemyIdea::CreateStrategy() const {
 FireMissileWithFixedDurationIdea::FireMissileWithFixedDurationIdea(const WeaponsWeighting & weapons_weighting,
                                                                    const Character & shooter, const Character & enemy,
                                                                    Weapon::Weapon_type weapon_type,
-                                                                   float duration, int timeout):
-  weapons_weighting(weapons_weighting),
-  shooter(shooter),
-  enemy(enemy),
-  weapon_type(weapon_type),
-  duration(duration),
-  timeout(timeout)
+                                                                   float duration, int timeout)
+  : AIShootIdea(weapons_weighting, shooter, enemy, weapon_type)
+  , duration(duration)
+  , timeout(timeout)
 {
   // do nothing
 }

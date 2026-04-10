@@ -27,7 +27,8 @@
 #include <WARMUX_base.h>
 #include <WARMUX_point.h>
 #include <WARMUX_rectangle.h>
-#include "graphic/surface.h"
+
+class Surface;
 
 class Sky
 {
@@ -35,8 +36,8 @@ class Sky
   std::vector<const Surface*> images;
   Point2i last_pos;
 
-  void RedrawParticleList(std::list<Rectanglei> &list) const;
-  void RedrawParticle(const Rectanglei &particle) const;
+  void RedrawParticleList(const std::list<Rectanglei>& list) const;
+  void RedrawParticle(const Rectanglei &particle, const std::vector<Point2i>& sky_pos) const;
   Point2i GetSkyPos(uint layer) const;
 
 public:

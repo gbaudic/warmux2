@@ -38,11 +38,13 @@ protected:
   static float RateDamageDoneToEnemy(int damage, const Character & enemy);
   static float RateDamageDoneToEnemy(int min_damage, int max_damage, const Character & enemy);
   static float RateExplosion(const Character & shooter, const Point2i& position,
-                              const ExplosiveWeaponConfig & cfg,
-                              const float& expected_additional_distance);
+                             const ExplosiveWeaponConfig & cfg,
+                             const float& expected_additional_distance);
 public:
   virtual AIStrategy * CreateStrategy() const = 0;
   virtual ~AIIdea() {}
+  virtual bool NoLongerPossible() const { return false; }
+  virtual float GetMaxRating(bool) const { return 0.0f; }
 };
 
 class SkipTurnIdea : public AIIdea
@@ -57,28 +59,35 @@ public:
   virtual AIStrategy * CreateStrategy() const;
 };
 
-class ShootDirectlyAtEnemyIdea : public AIIdea
+class AIShootIdea : public AIIdea
 {
-private:
+protected:
   const WeaponsWeighting & weapons_weighting;
   const Character & shooter;
   const Character & enemy;
   Weapon::Weapon_type weapon_type;
+
+  AIShootIdea(const WeaponsWeighting & w,
+              const Character & s, const Character & e,
+              Weapon::Weapon_type t)
+    : weapons_weighting(w), shooter(s), enemy(e), weapon_type(t) { }
+public:
+  virtual bool NoLongerPossible() const;
+  virtual float GetMaxRating(bool one_shot) const;
+};
+
+class ShootDirectlyAtEnemyIdea : public AIShootIdea
+{
   int max_sq_distance;
 public:
-  ShootDirectlyAtEnemyIdea(WeaponsWeighting & weapons_weighting,
-                           Character & shooter, Character & enemy,
+  ShootDirectlyAtEnemyIdea(const WeaponsWeighting & weapons_weighting,
+                           const Character & shooter, const Character & enemy,
                            Weapon::Weapon_type weapon_type, int max_distance);
   virtual AIStrategy * CreateStrategy() const;
 };
 
-class FireMissileWithFixedDurationIdea : public AIIdea
+class FireMissileWithFixedDurationIdea : public AIShootIdea
 {
-private:
-  const WeaponsWeighting & weapons_weighting;
-  const Character & shooter;
-  const Character & enemy;
-  Weapon::Weapon_type weapon_type;
   float duration;
   int timeout; // if positive the character will set it to the specified value.
 public:

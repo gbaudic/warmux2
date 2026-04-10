@@ -85,7 +85,8 @@ public:
 
   virtual bool LoadXMLConfiguration(void) { return false; };
 
-  virtual void Update(const Point2i &mousePosition,
+  /** Returns whether it actually was updated, which might be useful to the parent */
+  virtual bool Update(const Point2i &mousePosition,
                       const Point2i &lastMousePosition); // Virtual for widget_list: to remove!
 
   virtual void Draw(const Point2i & mousePosition) = 0;
@@ -100,13 +101,13 @@ public:
   // widget may be hidden
   void SetVisible(bool _visible);
   bool IsVisible() const { return visible; }
-  virtual bool Contains(const Point2i & point) const; // always false if !visible
+  virtual bool Contains(const Point2i & point) const { return (Rectanglei::Contains(point) && visible); }
 
   // manage mouse/keyboard focus
   bool HasFocus() const { return has_focus; };
   void SetFocus(bool focus);
 
-  bool IsHighlighted() const;
+  bool IsHighlighted() const { return (is_highlighted || HasFocus()); }
   virtual void SetHighlighted(bool focus);
 
   // border, background color

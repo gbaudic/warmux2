@@ -20,6 +20,7 @@
  *****************************************************************************/
 
 #include <iostream>
+#include "graphic/color.h"
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
 #include <WARMUX_file_tools.h>
@@ -76,8 +77,9 @@ bool XmlReader::Load(const std::string &filename)
   // Activate Entities
   xmlSubstituteEntitiesDefault(1);
 
-  // Read file
   doc = xmlParseFile(filename.c_str());
+  if (!doc)
+    return false;
 
   // Activate XInclude (to include content of other files)
   int nb_subst = xmlXIncludeProcessFlags(doc, XML_PARSE_NOENT);
@@ -92,9 +94,9 @@ bool XmlReader::Load(const std::string &filename)
   //#endif
 
   // Activate DTD validation parser
-  //  parser.set_validate (true);
+  //  parser.set_validate(true);
 
-  return IsOk();
+  return true;
 }
 
 bool XmlReader::LoadFromString(const std::string &contents)
