@@ -89,18 +89,19 @@ DistantComputer::~DistantComputer()
   if (force_disconnect)
     std::cerr << GetAddress() << " have been kicked" << std::endl;
 
-  SDLNet_TCP_Close(sock);
-  SDLNet_TCP_DelSocket(Network::GetInstance()->socket_set, sock);
-
   if (Network::GetInstance()->IsConnected())
-  for (std::list<std::string>::iterator team = owned_teams.begin();
-      team != owned_teams.end();
-      ++team)
   {
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_MENU_DEL_TEAM, *team));
+    for (std::list<std::string>::iterator team = owned_teams.begin();
+         team != owned_teams.end();
+         ++team)
+    {
+      ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_MENU_DEL_TEAM, *team));
+    }
   }
   owned_teams.clear();
 
+  SDLNet_TCP_Close(sock);
+  SDLNet_TCP_DelSocket(Network::GetInstance()->socket_set, sock);
   SDL_DestroyMutex(sock_lock);
 }
 
@@ -212,12 +213,20 @@ void DistantComputer::ManageTeam(Action* team)
 
     int index = 0;
     Team * tmp = GetTeamsList().FindById(name, index);
-    tmp->SetRemote();
-
-    Action* copy = new Action(Action::ACTION_MENU_ADD_TEAM, name);
-    copy->Push( team->PopString() );
-    copy->Push( team->PopInt() );
-    ActionHandler::GetInstance()->NewAction(copy, false);
+    if (tmp != NULL) 
+    {
+      tmp->SetRemote();
+      
+      Action* copy = new Action(Action::ACTION_MENU_ADD_TEAM, name);
+      copy->Push( team->PopString() );
+      copy->Push( team->PopInt() );
+      ActionHandler::GetInstance()->NewAction(copy, false);
+    } 
+    else 
+    {
+      std::cerr << "Team "<< name << "does not exist!" << std::endl;
+      ASSERT(false);
+    }
   }
   else if(team->GetType() == Action::ACTION_MENU_DEL_TEAM)
   {
@@ -228,8 +237,11 @@ void DistantComputer::ManageTeam(Action* team)
       force_disconnect = true;
       return;
     }
-    owned_teams.erase(it);
-    ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_MENU_DEL_TEAM, name), false);
+    if (it != owned_teams.end()) 
+    {
+      owned_teams.erase(it);
+      ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_MENU_DEL_TEAM, name), false);
+    }
   }
   else
     ASSERT(false);

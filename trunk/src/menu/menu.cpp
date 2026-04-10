@@ -29,6 +29,8 @@
 #include "sound/jukebox.h"
 #include "tool/resource_manager.h"
 
+static const int MENU_DELAY = 100;  // 10 fps, much sufficient for menu
+
 Menu::Menu(const std::string& bg, t_action _actions) :
   actions(_actions)
 {
@@ -39,7 +41,7 @@ Menu::Menu(const std::string& bg, t_action _actions) :
   uint y = app->video->window.GetHeight() - 50;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-  background = new Sprite( resource_manager.LoadImage( res, bg));
+  background = new Sprite( resource_manager.LoadImage( res, bg), true);
   background->cache.EnableLastFrameCache();
 
   b_ok = NULL;
@@ -134,13 +136,13 @@ void Menu::key_cancel()
 
 void Menu::key_up()
 {
-  widgets.SetFocusOnPreviousWidget();
+  widgets.SetKeyboardFocusOnPreviousWidget();
   RedrawMenu();
 }
 
 void Menu::key_down()
 {
-  widgets.SetFocusOnNextWidget();
+  widgets.SetKeyboardFocusOnNextWidget();
   RedrawMenu();
 }
 
@@ -158,7 +160,7 @@ void Menu::DrawBackground()
   background->Blit(AppWormux::GetInstance()->video->window, 0, 0);
 }
 
-void Menu::Redraw(const Rectanglei& rect, Surface& surf)
+void Menu::RedrawBackground(const Rectanglei& rect, Surface& surf)
 {
   background->Blit(surf, rect, rect.GetPosition());
 }
@@ -166,7 +168,7 @@ void Menu::Redraw(const Rectanglei& rect, Surface& surf)
 void Menu::RedrawMenu()
 {
   DrawBackground();
-  widgets.ForceRedraw();
+  widgets.NeedRedrawing();
 }
 
 void Menu::Run (bool skip_menu)
@@ -186,6 +188,9 @@ void Menu::Run (bool skip_menu)
 
   do
   {
+    // this is the current menu (here in case we had run a submenu)
+    AppWormux::GetInstance()->SetCurrentMenu(this);
+
     // Poll and treat events
     SDL_Event event;
 
@@ -256,8 +261,6 @@ void Menu::Run (bool skip_menu)
 void Menu::Display(const Point2i& mousePosition)
 {
   // to limit CPU
-  uint sleep_fps=0;
-  uint delay = 0;
   uint start = SDL_GetTicks();
 
   widgets.Update(mousePosition, AppWormux::GetInstance()->video->window);
@@ -265,12 +268,9 @@ void Menu::Display(const Point2i& mousePosition)
   AppWormux::GetInstance()->video->Flip();
 
   // to limit CPU
-  delay = SDL_GetTicks()-start;
-  if (delay < AppWormux::GetInstance()->video->GetSleepMaxFps())
-    sleep_fps = AppWormux::GetInstance()->video->GetSleepMaxFps() - delay;
-  else
-    sleep_fps = 0;
-  SDL_Delay(sleep_fps);
+  int delay = MENU_DELAY - (SDL_GetTicks()-start);
+  if (delay > 0)
+    SDL_Delay(delay);
 }
 
 void Menu::SetActionButtonsXY(int x, int y){

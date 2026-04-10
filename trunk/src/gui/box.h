@@ -27,7 +27,6 @@
 class Box : public WidgetList
 {
  protected:
-  bool visible;
   uint margin;
   Point2i border;
 
@@ -37,10 +36,6 @@ class Box : public WidgetList
 
   void Update(const Point2i &mousePosition,
               const Point2i &lastMousePosition,
-              Surface& surf);
-  void Draw(const Point2i &mousePosition,
-            Surface& surf) const;
-  void Redraw(const Rectanglei& rect,
               Surface& surf);
   Widget* Click(const Point2i &mousePosition, uint button) { return WidgetList::Click(mousePosition, button); };
   Widget* ClickUp(const Point2i &mousePosition, uint button) { return WidgetList::ClickUp(mousePosition, button); };

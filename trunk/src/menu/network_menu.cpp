@@ -278,7 +278,7 @@ bool NetworkMenu::signal_ok()
 void NetworkMenu::key_ok()
 {
   // return was pressed while chat texbox still had focus (player wants to send his msg)
-  if (line_to_send_tbox->have_focus)
+  if (line_to_send_tbox->HasFocus())
   {
     SendChatMsg();
     return;
@@ -382,7 +382,7 @@ void NetworkMenu::WaitingForServer()
 
   waiting_for_server = true;
   b_ok->SetVisible(false);
-  actions_buttons->ForceRedraw();
+  actions_buttons->NeedRedrawing();
 
   msg_box->NewMessage(_("Waiting for server, all you can do is cancel or chat!"), c_red);
 
@@ -427,7 +427,7 @@ void NetworkMenu::WaitingForServer()
     }
 
     Menu::Display(mousePosition);
-    widgets.SetFocusOn(line_to_send_tbox);
+    widgets.SetMouseFocusOn(line_to_send_tbox);
 
   } while (Network::GetInstance()->GetState() == Network::NETWORK_MENU_OK &&
            Network::GetInstance()->IsConnected());

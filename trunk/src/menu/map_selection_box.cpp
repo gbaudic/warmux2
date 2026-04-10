@@ -23,8 +23,9 @@
 #include "game/config.h"
 #include "gui/button.h"
 #include "gui/label.h"
-#include "gui/picture_widget.h"
 #include "gui/null_widget.h"
+#include "gui/picture_widget.h"
+#include "gui/question.h"
 #include "include/action_handler.h"
 #include "map/maps_list.h"
 #include "network/network.h"
@@ -84,6 +85,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
     previews_box->AddWidget(bt_map_minus);
   } else {
     previews_box->AddWidget(new NullWidget(*bt_map_minus));
+    delete bt_map_minus;
   }
 
   map_preview_before2 = new PictureWidget(Point2i(map_preview_width *3/4, map_preview_height*3/4));
@@ -106,6 +108,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
     previews_box->AddWidget(bt_map_plus);
   }else {
     previews_box->AddWidget(new NullWidget(*bt_map_plus));
+    delete bt_map_plus;
   }
 
   tmp_map_box->AddWidget(previews_box);
@@ -126,7 +129,7 @@ MapSelectionBox::MapSelectionBox(const Point2i &_size, bool _display_only) :
 
   // If network game skip random generated maps 
   if (Network::GetInstance()->IsServer() && i != MapsList::GetInstance()->lst.size()) {
-    for (; MapsList::GetInstance()->lst[i].IsRandomGenerated(); i = (i + 1) % MapsList::GetInstance()->lst.size());
+    for (; MapsList::GetInstance()->lst[i]->IsRandomGenerated(); i = (i + 1) % MapsList::GetInstance()->lst.size());
   }
   ChangeMap(i);
 }
@@ -151,7 +154,7 @@ void MapSelectionBox::ChangeMap(uint index)
   // Callback other network players
   if (Network::GetInstance()->IsServer()) {
     if (index != MapsList::GetInstance()->lst.size()
-	&& MapsList::GetInstance()->lst[index].IsRandomGenerated()) // Cant select random generated maps in network mode
+	&& MapsList::GetInstance()->lst[index]->IsRandomGenerated()) // Cant select random generated maps in network mode
       return;
     selected_map_index = index;
     // We need to do it here to send the right map to still not connected clients
@@ -193,28 +196,48 @@ void MapSelectionBox::UpdateMapInfo(PictureWidget * widget, uint index, bool sel
     return;
   }
 
-  widget->SetSurface(MapsList::GetInstance()->lst[index].ReadPreview(), true);
-  if((display_only && !selected) || (MapsList::GetInstance()->lst[index].IsRandomGenerated() && Network::GetInstance()->IsServer()))
+  InfoMap* info = MapsList::GetInstance()->lst[index];
+  try {
+    widget->SetSurface(info->ReadPreview(), true, true);
+  }
+  catch (const char* msg) {
+    Question question;
+    std::string err = Format("Map %s in folder '%s' is invalid: %s",
+                             info->GetRawName().c_str(), info->GetDirectory().c_str(), msg);
+    std::cerr << err << std::endl;
+    question.Set(err, 1, 0);
+    question.Ask();
+
+    // Crude
+    MapsList::iterator it = MapsList::GetInstance()->lst.begin();
+    while (index--)
+      it++;
+    //delete *it;
+    MapsList::GetInstance()->lst.erase(it);
+    return;
+  }
+
+  if((display_only && !selected) || (MapsList::GetInstance()->lst[index]->IsRandomGenerated() && Network::GetInstance()->IsServer()))
     widget->Disable();
   else
     widget->Enable();
   // If selected update general information
   if(selected) {
-    map_name_label->SetText(MapsList::GetInstance()->lst[index].ReadFullMapName());
-    map_author_label->SetText(MapsList::GetInstance()->lst[index].ReadAuthorInfo());
+    map_name_label->SetText(MapsList::GetInstance()->lst[index]->ReadFullMapName());
+    map_author_label->SetText(MapsList::GetInstance()->lst[index]->ReadAuthorInfo());
   }
 }
 
 void MapSelectionBox::UpdateRandomMapInfo(PictureWidget * widget, bool selected)
 {
-  widget->SetSurface(random_map_preview, true);
-  if((display_only && !selected) || Network::GetInstance()->IsServer())
+  widget->SetSurface(random_map_preview, true, true);
+  if ((display_only && !selected))
     widget->Disable();
   else
     widget->Enable();
 
   // If selected update general information
-  if(selected) {
+  if (selected) {
     map_name_label->SetText(_("Random map"));
     map_author_label->SetText(_("Choose randomly between the different maps"));
   }
@@ -264,7 +287,7 @@ void MapSelectionBox::ValidMapSelection()
 	MapsList::GetInstance()->SelectMapByName(map_name);
       }
   } else {
-    map_name = MapsList::GetInstance()->lst[selected_map_index].GetRawName();
+    map_name = MapsList::GetInstance()->lst[selected_map_index]->GetRawName();
     MapsList::GetInstance()->SelectMapByIndex(selected_map_index);
   }
 

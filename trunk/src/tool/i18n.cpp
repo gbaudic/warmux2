@@ -33,6 +33,24 @@
 #endif
 #include "game/config.h"
 
+#ifdef USE_FRIBIDI
+#include <fribidi/fribidi.h>
+FriBidiCharType pbase_dir = FRIBIDI_TYPE_ON;
+
+FriBidiChar unicode_buffer[16384];
+char buffer[16384];
+
+char * localization(char * message) {
+  char * string = gettext(message);
+  int l = strlen(string);
+  int l_u;
+  l_u = fribidi_utf8_to_unicode(string, l, unicode_buffer);
+  fribidi_log2vis(unicode_buffer, l_u, &pbase_dir, unicode_buffer, NULL, NULL, NULL);
+  fribidi_unicode_to_utf8(unicode_buffer, l, (char *)buffer);
+  return buffer;
+}
+#endif /* USE_FRIBIDI */
+
 std::string Format(const char *format, ...)
 {
   const int bufferSize = 256;
@@ -63,7 +81,6 @@ std::string Format(const char *format, ...)
   }
 
   va_end(argp);
-
   return result;
 }
 

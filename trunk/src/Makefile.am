@@ -61,6 +61,7 @@ wormux_SOURCES = \
         gui/text_box.cpp gui/text_box.h \
         gui/widget.cpp gui/widget.h \
         gui/widget_list.cpp gui/widget_list.h \
+	gui/big/button_pic.cpp gui/big/button_pic.h \
         include/action.cpp include/action.h \
         include/action_handler.cpp include/action_handler.h \
         include/app.h main.cpp \
@@ -97,6 +98,7 @@ wormux_SOURCES = \
         menu/network_menu.cpp menu/network_menu.h \
         menu/network_teams_selection_box.cpp menu/network_teams_selection_box.h \
         menu/options_menu.cpp menu/options_menu.h \
+	menu/pause_menu.cpp menu/pause_menu.h \
         menu/results_menu.cpp menu/results_menu.h \
         menu/team_box.cpp menu/team_box.h \
         menu/teams_selection_box.cpp menu/teams_selection_box.h \
@@ -126,6 +128,7 @@ wormux_SOURCES = \
         particles/bullet.cpp particles/bullet.h \
         particles/dark_smoke.cpp particles/dark_smoke.h \
         particles/explosion_smoke.cpp particles/explosion_smoke.h \
+        particles/fading_text.cpp particles/fading_text.h \
         particles/fire.cpp particles/fire.h \
         particles/ground_particles.cpp particles/ground_particles.h \
         particles/ill_bubble.cpp particles/ill_bubble.h \
@@ -144,19 +147,20 @@ wormux_SOURCES = \
         team/team_energy.cpp team/team_energy.h \
         team/teams_list.cpp team/teams_list.h \
         tool/affine_transform.cpp tool/affine_transform.h \
+        tool/copynpaste.cpp tool/copynpaste.h \
         tool/debug.cpp tool/debug.h \
         tool/error.cpp tool/error.h \
         tool/euler_vector.cpp tool/euler_vector.h \
         tool/file_tools.cpp tool/file_tools.h \
-        tool/isnan.h \
         tool/i18n.cpp tool/i18n.h \
+        tool/isnan.h \
         tool/math_tools.cpp tool/math_tools.h \
         tool/random.cpp tool/random.h \
         tool/rectangle.h tool/point.h \
         tool/resource_manager.cpp tool/resource_manager.h \
         tool/stats.cpp tool/stats.h \
         tool/string_tools.cpp tool/string_tools.h \
-	tool/text_handling.cpp tool/text_handling.h \
+        tool/text_handling.cpp tool/text_handling.h \
         tool/vector2.h \
         tool/xml_document.cpp tool/xml_document.h \
         weapon/air_attack.cpp weapon/air_attack.h \
@@ -174,7 +178,7 @@ wormux_SOURCES = \
         weapon/disco_grenade.cpp weapon/disco_grenade.h \
         weapon/dynamite.cpp weapon/dynamite.h \
         weapon/explosion.cpp weapon/explosion.h \
-	weapon/flamethrower.cpp weapon/flamethrower.h \
+        weapon/flamethrower.cpp weapon/flamethrower.h \
         weapon/gnu.cpp weapon/gnu.h \
         weapon/grapple.cpp weapon/grapple.h \
         weapon/grenade.cpp weapon/grenade.h \
@@ -214,4 +218,8 @@ LIBS+=@LIBINTL@
 	@WINDRES@ -o $@ -i $<
 else
 AM_CXXFLAGS += -Werror
+endif
+
+if STATIC
+LIBS += -lssl -lcrypto -lz -lpthread
 endif

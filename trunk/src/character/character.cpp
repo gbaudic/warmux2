@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Refresh d'un ver de terre.
+ * Character of a team.
  *****************************************************************************/
 
 #include <sstream>
@@ -37,11 +37,13 @@
 #include "network/network.h"
 #include "network/randomsync.h"
 #include "particles/particle.h"
+#include "particles/fading_text.h"
 #include "sound/jukebox.h"
 #include "team/team.h"
 #include "team/macro.h"
-#include "tool/random.h"
 #include "tool/math_tools.h"
+#include "tool/random.h"
+#include "tool/string_tools.h"
 #include "weapon/explosion.h"
 
 const uint HAUT_FONT_MIX = 13;
@@ -83,8 +85,8 @@ void Character::SetBody(Body* char_body)
   SetClothe("normal");
   SetMovement("breathe");
 
-  SetDirection(randomSync.GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
-  body->SetFrame(randomObj.GetLong(0, body->GetFrameCount()-1));
+  SetDirection(randomObj.GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
+  body->SetFrame(randomObj.GetLong(0, body->GetFrameCount() - 1));
   SetSize(body->GetSize());
 }
 
@@ -110,7 +112,7 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   lost_energy(0),
   hidden(false),
   channel_step(-1),
-  bubble_engine(new ParticleEngine(500)),
+  particle_engine(new ParticleEngine(500)),
   previous_strength(0),
   body(NULL)
 {
@@ -121,7 +123,8 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   SetBody(char_body);
 
   ResetConstants();
-
+  // Allow player to go outside of map by upper bound (bug #10420)
+  m_allow_negative_y = true;
   // Name Text object
   if (Config::GetInstance()->GetDisplayNameCharacter())
     name_text = new Text(character_name);
@@ -167,7 +170,7 @@ Character::Character (const Character& acharacter) :
   lost_energy(acharacter.lost_energy),
   hidden(acharacter.hidden),
   channel_step(acharacter.channel_step),
-  bubble_engine(new ParticleEngine(250)),
+  particle_engine(new ParticleEngine(250)),
   previous_strength(acharacter.previous_strength),
   body(NULL)
 {
@@ -189,11 +192,11 @@ Character::~Character()
     delete body;
   if(name_text)
     delete name_text;
-  if(bubble_engine)
-    delete bubble_engine;
+  if(particle_engine)
+    delete particle_engine;
   body          = NULL;
   name_text     = NULL;
-  bubble_engine = NULL;
+  particle_engine = NULL;
 #ifdef DEBUG_SKIN
   delete skin_text;
 #endif
@@ -295,6 +298,12 @@ void Character::SetEnergyDelta(int delta, bool do_report)
 
 void Character::SetEnergy(int new_energy)
 {
+  int diff = new_energy - energy;
+  if(diff < 0) {
+    Particle *tmp = new FadingText(long2str(diff));
+    tmp->SetXY(GetPosition());
+    ParticleEngine::AddNow(tmp);
+  }
   if(!Network::GetInstance()->IsLocal())
   {
     if( m_alive == DEAD && new_energy > 0)
@@ -554,7 +563,7 @@ void Character::Refresh()
     Point2i bubble_pos = GetPosition();
     if(GetDirection() == DIRECTION_LEFT)
       bubble_pos.x += GetWidth();
-    bubble_engine->AddPeriodic(bubble_pos, particle_ILL_BUBBLE, false,
+    particle_engine->AddPeriodic(bubble_pos, particle_ILL_BUBBLE, false,
                               - M_PI_2 - (float)GetDirection() * M_PI_4, 20.0);
   }
 
@@ -618,11 +627,13 @@ bool Character::CanMoveRL() const
   return pause_bouge_dg < Time::GetInstance()->Read();
 }
 
-void Character::BeginMovementRL(uint pause)
+void Character::BeginMovementRL(uint pause, bool slowly)
 {
   walking_time = Time::GetInstance()->Read();
   do_nothing_time = Time::GetInstance()->Read();
-  SetMovement("walk");
+  if (!slowly) {
+    SetMovement("walk");
+  }
   CharacterCursor::GetInstance()->Hide();
   step_sound_played = true;
   pause_bouge_dg = Time::GetInstance()->Read()+pause;
@@ -630,10 +641,10 @@ void Character::BeginMovementRL(uint pause)
 
 bool Character::CanStillMoveRL(uint pause)
 {
-  if(pause_bouge_dg+pause<Time::GetInstance()->Read())
+  if (pause_bouge_dg + pause < Time::GetInstance()->Read())
   {
     walking_time = Time::GetInstance()->Read();
-    pause_bouge_dg += pause;
+    pause_bouge_dg = pause_bouge_dg + pause;
     return true;
   }
   return false;
@@ -811,9 +822,10 @@ void Character::SetClotheOnce(const std::string& name)
 
 uint Character::GetTeamIndex() const
 {
-  uint index = 0;
-  GetTeamsList().FindPlayingById( GetTeam().GetId(), index);
-  return index;
+  int index;
+  GetTeamsList().FindPlayingById(GetTeam().GetId(), index);
+  ASSERT(index != -1);
+  return (uint)index;
 }
 
 uint Character::GetCharacterIndex() const
@@ -836,7 +848,7 @@ uint Character::GetCharacterIndex() const
 // #################### MOVE_RIGHT
 void Character::HandleKeyPressed_MoveRight(bool shift)
 {
-  BeginMovementRL(PAUSE_MOVEMENT);
+  BeginMovementRL(GameMode::GetInstance()->character.walking_pause, shift);
   body->StartWalk();
 
   HandleKeyRefreshed_MoveRight(shift);
@@ -859,7 +871,7 @@ void Character::HandleKeyReleased_MoveRight(bool)
 // #################### MOVE_LEFT
 void Character::HandleKeyPressed_MoveLeft(bool shift)
 {
-  BeginMovementRL(PAUSE_MOVEMENT);
+  BeginMovementRL(GameMode::GetInstance()->character.walking_pause, shift);
   body->StartWalk();
 
   HandleKeyRefreshed_MoveLeft(shift);

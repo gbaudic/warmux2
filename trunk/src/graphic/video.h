@@ -28,31 +28,32 @@
 class Video{
  private:
   uint m_max_fps;     // If equals to zero, it means no limit
-  uint m_sleep_max_fps;
+  uint m_max_delay;
   bool SDLReady;
   bool fullscreen;
+  SDL_Surface *icon;
 
   std::list<Point2i> available_configs;
   void ComputeAvailableConfigs();
 
-  void SetWindowIcon(const std::string& icon) const;
+  void SetWindowIcon(const std::string& icon);
   void InitSDL(void);
 
 public:
   Surface window;
   void SetWindowCaption(const std::string& caption) const;
   void SetMaxFps(uint max_fps);
-  uint GetMaxFps() const;
-  uint GetSleepMaxFps() const;
+  uint GetMaxFps() const { return m_max_fps; };
+  uint GetMaxDelay() const { return m_max_delay; };
   void AddConfigIfAbsent(int w, int h);
 
 public:
   Video();
   ~Video();
 
-  bool IsFullScreen() const;
+  bool IsFullScreen() const { return fullscreen; };
 
-  const std::list<Point2i>& GetAvailableConfigs() const;
+  const std::list<Point2i>& GetAvailableConfigs() const { return available_configs; };
   bool SetConfig(int width, int height, bool fullscreen);
   void ToggleFullscreen();
 

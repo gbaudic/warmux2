@@ -23,52 +23,72 @@
 #define GUI_WIDGET_H
 
 #include "include/base.h"
+#include "graphic/color.h"
+#include "gui/container.h"
 #include "tool/rectangle.h"
 #include "tool/point.h"
 
-class Container;
 class Surface;
 struct SDL_keysym;
 
-class Widget : public Rectanglei
+class Widget : public Rectanglei, public Container
 {
+  bool has_focus;
+  bool visible;
+  bool is_highlighted;
+
+  Color border_color;
+  uint border_size;
+  Color background_color;
+  Color highlight_bg_color;
+
   Widget(const Widget&);
   const Widget& operator=(const Widget&);
 
  protected:
   Container * ct;
   bool need_redrawing;
+
   void StdSetSizePosition(const Rectanglei &rect);
+  virtual void __Update(const Point2i &/* mousePosition */,
+			const Point2i &/* lastMousePosition */,
+			Surface& /* surf */) {};
+
+  void RedrawBackground(const Rectanglei& rect,
+			Surface& surf);
 
  public:
-  bool have_focus;
-  bool is_selected;
-
   Widget();
   Widget(const Rectanglei &rect);
   virtual ~Widget() { };
 
   virtual void Update(const Point2i &mousePosition,
-                      const Point2i &lastMousePosition,
-                      Surface& surf); // virtual only for Box and ListBox
+		      const Point2i &lastMousePosition,
+		      Surface& surf); // Virtual for widget_list: to remove!
+
+
   virtual void Draw(const Point2i &mousePosition,
                     Surface& surf) const = 0;
-  virtual void ForceRedraw() { need_redrawing = true; }; // set need_redrawing to true; -- virtual for widget_list
+  virtual void NeedRedrawing() { need_redrawing = true; }; // set need_redrawing to true; -- virtual for widget_list
 
   virtual bool SendKey(const SDL_keysym&) { return false; };
-  virtual Widget* Click(const Point2i &, uint)
-  {
-    need_redrawing = true;
-    return this;
-  };
-  virtual Widget* ClickUp(const Point2i &, uint)
-  {
-    need_redrawing = true;
-    return this;
-  };
-  bool IsSelected() const { return is_selected; };
-  virtual void Select() { is_selected = true; need_redrawing = true; };
-  virtual void Unselect() { is_selected = false; need_redrawing = true; };
+  virtual Widget* Click(const Point2i &mousePosition, uint button);
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
+
+  // widget may be hidden
+  void SetVisible(bool _visible);
+
+  // manage mouse/keyboard focus
+  bool HasFocus() const { return has_focus; };
+  void SetFocus(bool focus);
+
+  bool IsHighlighted() const;
+  void SetHighlighted(bool focus);
+
+  // border, background color
+  void SetBorder(const Color &border_color, uint boder_size);
+  void SetBackgroundColor(const Color &background_color);
+  void SetHighlightBgColor(const Color &highlight_bg_color);
 
   void SetContainer(Container * _ct) { ct = _ct; };
 

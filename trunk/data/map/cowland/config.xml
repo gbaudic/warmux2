@@ -19,8 +19,8 @@
   <is_open>1</is_open>
   <!-- pad is given in pixel count. -->
   <add_pad>1</add_pad>
-  <point name="upper_left_pad" x="1000" y="500" />
-  <point name="lower_right_pad" x="1000" y="0" />
+  <point name="upper_left_pad" x="1300" y="800" />
+  <point name="lower_right_pad" x="1300" y="0" />
 
   <sprite name="wind_particle">
     <image file="nuage.png">
@@ -28,7 +28,7 @@
     </image>
   </sprite>
   <wind>
-    <nbr_sprite>20</nbr_sprite>
+    <nbr_sprite>7</nbr_sprite>
     <need_flip>true</need_flip>
 
     <mass>0.5</mass>

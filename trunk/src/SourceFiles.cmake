@@ -32,6 +32,7 @@ graphic/surface.cpp
 graphic/text.cpp
 graphic/text_list.cpp
 graphic/video.cpp
+gui/big/button_pic.cpp
 gui/box.cpp
 gui/button.cpp
 gui/button_text.cpp
@@ -88,6 +89,7 @@ menu/network_connection_menu.cpp
 menu/network_menu.cpp
 menu/network_teams_selection_box.cpp
 menu/options_menu.cpp
+menu/pause_menu.cpp
 menu/results_menu.cpp
 menu/team_box.cpp
 menu/teams_selection_box.cpp
@@ -117,6 +119,7 @@ particles/body_member.cpp
 particles/bullet.cpp
 particles/dark_smoke.cpp
 particles/explosion_smoke.cpp
+particles/fading_text.cpp
 particles/fire.cpp
 particles/ground_particles.cpp
 particles/ill_bubble.cpp
@@ -133,6 +136,7 @@ team/team.cpp
 team/team_energy.cpp
 team/teams_list.cpp
 tool/affine_transform.cpp
+tool/copynpaste.cpp
 tool/debug.cpp
 tool/error.cpp
 tool/euler_vector.cpp

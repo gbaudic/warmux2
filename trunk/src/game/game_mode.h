@@ -62,6 +62,7 @@ public:
     double super_jump_angle;
     uint back_jump_strength;
     double back_jump_angle;
+    uint walking_pause;
   } character;
 
   int allow_character_selection;
@@ -85,6 +86,7 @@ private:
   std::string GetObjectsFilename() const;
 
 public:
+  static void CleanUp() { if (singleton) delete singleton; singleton = NULL; };
   static GameMode * GetInstance();
 
   const std::string& GetName() const;

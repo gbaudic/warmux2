@@ -143,9 +143,9 @@ bool Team::LoadCharacters()
 
       MSG_DEBUG("team", "Add %s in team %s", character_name.c_str(), m_name.c_str());
 
-        // C'est la fin ?
+        // Did we reach the end ?
       ++it;
-    } while (it!=nodes.end() && characters.size() < nb_characters );
+    } while (it != nodes.end() && characters.size() < nb_characters );
 
     active_character = characters.begin();
 
@@ -183,11 +183,6 @@ uint Team::ReadEnergy () const
 void Team::UpdateEnergyBar ()
 {
   energy.SetValue(ReadEnergy());
-}
-
-TeamEnergy & Team::GetEnergyBar()
-{
-  return energy;
 }
 
 void Team::SelectCharacter(uint index)
@@ -386,12 +381,6 @@ void Team::SetNbCharacters(uint howmany)
   nb_characters = howmany;
 }
 
-void Team::SetPlayerName(const std::string& _player_name)
-{
-  m_player_name = _player_name;
-  // energy.SetTeamName(m_player_name+" - "+m_name);
-}
-
 void Team::DrawEnergy(const Point2i& pos)
 {
   energy.Draw(pos);
@@ -414,35 +403,4 @@ bool Team::IsSameAs(const Team& other) const
 bool Team::IsActiveTeam() const
 {
   return this == &ActiveTeam();
-}
-
-bool Team::IsLocal() const
-{
-  if (type_of_player == TEAM_human_local)
-    return true;
-
-  return false;
-}
-
-bool Team::IsLocalAI() const
-{
-  if (type_of_player == TEAM_ai_local)
-    return true;
-
-  return false;
-}
-
-void Team::SetLocal()
-{
-  type_of_player = TEAM_human_local;
-}
-
-void Team::SetLocalAI()
-{
-  type_of_player = TEAM_ai_local;
-}
-
-void Team::SetRemote()
-{
-  type_of_player = TEAM_remote;
 }

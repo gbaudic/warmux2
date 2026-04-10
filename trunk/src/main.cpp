@@ -36,6 +36,7 @@ using namespace std;
 #include <SDL.h>
 #include "game/config.h"
 #include "game/game.h"
+#include "game/game_mode.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "graphic/font.h"
@@ -43,6 +44,8 @@ using namespace std;
 #include "graphic/text.h"
 #include "include/action_handler.h"
 #include "include/constant.h"
+#include "interface/mouse.h"
+#include "map/camera.h"
 #include "map/map.h"
 #include "map/maps_list.h"
 #include "menu/credits_menu.h"
@@ -58,9 +61,8 @@ using namespace std;
 #include "tool/debug.h"
 #include "tool/i18n.h"
 #include "tool/random.h"
+#include "weapon/weapons_list.h"
 
-
-static Menu *menu = NULL;
 static MainMenu::menu_item choice = MainMenu::NONE;
 static bool skip_menu = false;
 static NetworkConnectionMenu::network_menu_action_t net_action = NetworkConnectionMenu::NET_BROWSE_INTERNET;
@@ -77,7 +79,8 @@ AppWormux *AppWormux::GetInstance()
 }
 
 AppWormux::AppWormux():
-  video(new Video())
+  video(new Video()),
+  menu(NULL)
 {
   jukebox.Init();
 
@@ -86,9 +89,11 @@ AppWormux::AppWormux():
 
 AppWormux::~AppWormux()
 {
-  singleton = NULL;
   delete video;
-  TeamsListCleanup();
+  Font::ReleaseInstances();
+  delete Mouse::GetInstance();
+  delete Camera::GetInstance();
+  singleton = NULL;
 }
 
 int AppWormux::Main(void)
@@ -177,12 +182,12 @@ void AppWormux::DisplayLoadingPicture()
   Config *config = Config::GetInstance();
 
   string txt_version =
-    _("Version") + string(" ") + Constants::VERSION;
+    _("Version") + string(" ") + Constants::WORMUX_VERSION;
   string filename = config->GetDataDir() + PATH_SEPARATOR + "menu"
                          + PATH_SEPARATOR + "loading.png";
 
   Surface surfaceLoading = Surface(filename.c_str());
-  Sprite loading_image = Sprite(surfaceLoading);
+  Sprite loading_image = Sprite(surfaceLoading, true);
 
   loading_image.cache.EnableLastFrameCache();
   loading_image.ScaleSize(video->window.GetSize());
@@ -202,6 +207,11 @@ void AppWormux::DisplayLoadingPicture()
                    + Point2i(0, (*Font::GetInstance(Font::FONT_HUGE, Font::FONT_NORMAL)).GetHeight() + 20));
 
   video->window.Flip();
+}
+
+void AppWormux::SetCurrentMenu(Menu* _menu)
+{
+  menu = _menu;
 }
 
 void AppWormux::RefreshDisplay()
@@ -224,9 +234,15 @@ void AppWormux::End() const
   Config::GetInstance()->Save();
 
   jukebox.End();
+  TeamsList::CleanUp();
+  MapsList::CleanUp();
+  WeaponsList::CleanUp();
   delete Config::GetInstance();
+  Game::CleanUp();
+  GameMode::CleanUp();
   delete Time::GetInstance();
   delete Constants::GetInstance();
+  Downloader::CleanUp();
 
 #ifdef ENABLE_STATS
   SaveStatToXML("stats.xml");
@@ -238,7 +254,7 @@ void AppWormux::End() const
 
 void DisplayWelcomeMessage()
 {
-  cout << "=== " << _("Wormux version ") << Constants::VERSION << endl;
+  cout << "=== " << _("Wormux version ") << Constants::WORMUX_VERSION << endl;
   cout << "=== " << _("Authors:") << ' ';
   for (vector < string >::iterator it = Constants::GetInstance()->AUTHORS.begin(),
        fin = Constants::GetInstance()->AUTHORS.end(); it != fin; ++it)
@@ -252,7 +268,7 @@ void DisplayWelcomeMessage()
     << endl;
 
   // print the disclaimer
-  cout << "Wormux version " << Constants::VERSION
+  cout << "Wormux version " << Constants::WORMUX_VERSION
     << ", Copyright (C) 2001-2007 Wormux Team" << endl
     << "Wormux comes with ABSOLUTELY NO WARRANTY." << endl
     << "This is free software and you are welcome to redistribute it" << endl
@@ -289,7 +305,9 @@ void ParseArgs(int argc, char * argv[])
         case 'h':
           printf("usage: %s [-h|--help] [-v|--version] [-p|--play]"
                  " [-i|--internet] [-s|--server] [-c|--client [ip]]"
-                 " [-d|--debug debug_masks]\n", argv[0]);
+                 " [-d|--debug <debug_masks>|all]\n", argv[0]);
+          printf("\nWith :\n");
+          printf(" <debug_msg> ::= { action | action_handler | action_handler.menu | ai | ai.move | body | body.state | bonus | box | camera.tracking | character | damage | downloader | explosion | game | game.endofturn | game_mode | game.pause | game.statechange | ghost | grapple.hook | grapple.node | ground_generator.element | index_server | jukebox | jukebox.play | lst_objects | map | map.load | map.random | menu | mine | mouse | network | network.traffic | network.turn_master | physical | physical.mem | physic.compute | physic.fall | physic.move | physic.move | physic.overlapping | physic.overlapping | physic.pendulum | physic.physic | physic.position | physic.state | physic.state | socket | sprite | team | weapon.change | weapon.handposition | weapon.projectile | weapon.shoot | wind }\n");
           exit(0);
           break;
         case 'v':

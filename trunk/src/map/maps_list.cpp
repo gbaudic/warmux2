@@ -61,41 +61,39 @@ InfoMap::InfoMap(const std::string &map_name,
   wind.rotation_speed = 0;
 }
 
-bool InfoMap::LoadBasicInfo()
+void InfoMap::LoadBasicInfo()
 {
   if(is_basic_info_loaded)
-    return true;
-  std::string nomfich;
+    return;
+
   try
     {
-      nomfich = m_directory + "config.xml";
+      std::string nomfich = m_directory + "config.xml";
 
       // Load resources
       if (!IsFileExist(nomfich))
-        return false;
+        throw _("no configuration file!");
       // FIXME: not freed
-      res_profile = resource_manager.LoadXMLProfile(nomfich, true),
+      res_profile = resource_manager.LoadXMLProfile(nomfich, true);
+      if (!res_profile)
+        throw _("couldn't load config");
       // Load preview
       preview = resource_manager.LoadImage(res_profile, "preview");
+      is_basic_info_loaded = true;
       // Load other informations
       XmlReader doc;
-      is_basic_info_loaded = true;
-      if (!doc.Load(nomfich)) return false;
-      if (!ProcessXmlData(doc.GetRoot())) return false;
+      if (!doc.Load(nomfich) || !ProcessXmlData(doc.GetRoot()))
+        throw _("error parsing the config file");
     }
 
   catch (const xmlpp::exception &e)
     {
-      std::cout << std::endl
-                << Format(_("XML error during loading map '%s' :"), m_map_name.c_str())
-                << std::endl
-                << e.what() << std::endl;
-      return false;
+      std::string msg = Format(_("XML error during loading map '%s': "), m_map_name.c_str());
+      msg += e.what();
+      throw msg.c_str();
     }
 
   MSG_DEBUG("map.load", "Map loaded: %s", m_map_name.c_str());
-
-  return true;
 }
 
 bool InfoMap::ProcessXmlData(const xmlpp::Element *xml)
@@ -167,6 +165,12 @@ bool InfoMap::ProcessXmlData(const xmlpp::Element *xml)
   return true;
 }
 
+InfoMap::~InfoMap()
+{
+  if (res_profile)
+    delete res_profile;
+}
+
 void InfoMap::LoadData()
 {
   if (is_data_loaded)
@@ -222,6 +226,12 @@ MapsList* MapsList::GetInstance()
   return singleton;
 }
 
+
+static bool compareMaps(const InfoMap* a, const InfoMap* b)
+{
+  return a->GetRawName() < b->GetRawName();
+}
+
 MapsList::MapsList()
 {
   active_map_index = 0;
@@ -270,15 +280,21 @@ MapsList::MapsList()
   SelectMapByName(Config::GetInstance()->GetMapName());
 }
 
+MapsList::~MapsList()
+{
+  for (uint i=0; i < lst.size(); ++i)
+    delete lst[i];
+}
+
 void MapsList::LoadOneMap (const std::string &dir, const std::string &map_name)
 {
   if (map_name[0] == '.') return;
 
   std::string fullname = dir + map_name;
   if (!IsFolderExist(fullname))
-          return;
+    return;
 
-  InfoMap nv_terrain(map_name, fullname + PATH_SEPARATOR);
+  InfoMap *nv_terrain = new InfoMap(map_name, fullname + PATH_SEPARATOR);
 
   std::cout << (lst.empty()?" ":", ") << map_name;
   std::cout.flush();
@@ -287,12 +303,9 @@ void MapsList::LoadOneMap (const std::string &dir, const std::string &map_name)
 
 int MapsList::FindMapById (const std::string &id) const
 {
-  // XXX Not used !?
-  //iterator terrain=lst.begin(), fin_terrain=lst.end();
-
   uint i=0;
   for (; i < lst.size(); ++i)
-    if (lst[i].GetRawName() == id)
+    if (lst[i]->GetRawName() == id)
       return i;
   return -1;
 }
@@ -319,7 +332,7 @@ void MapsList::SelectMapByName (const std::string &name)
 
   // standard case!
   int index = FindMapById (name);
-  
+
   if (index == -1){
     index = 0;
     if(name != "")
@@ -351,27 +364,20 @@ int MapsList::GetActiveMapIndex () const
 void MapsList::FillActionMenuSetMap(Action& a) const
 {
   if (!random_map) {
-    a.Push(lst.at(active_map_index).GetRawName());
+    a.Push(lst.at(active_map_index)->GetRawName());
   } else {
     a.Push("random");
-    a.Push(lst.at(active_map_index).GetRawName());
+    a.Push(lst.at(active_map_index)->GetRawName());
   }
 }
 
-InfoMap& MapsList::ActiveMap()
+InfoMap* MapsList::ActiveMap()
 {
   ASSERT (0 <= active_map_index);
   return lst.at(active_map_index);
 }
 
-InfoMap& ActiveMap()
+InfoMap* ActiveMap()
 {
   return MapsList::GetInstance()->ActiveMap();
 }
-
-bool compareMaps(const InfoMap& a, const InfoMap& b)
-{
-  return a.GetRawName() < b.GetRawName();
-}
-
-

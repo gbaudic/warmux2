@@ -46,6 +46,7 @@ private:
   static Font* FONT_ARRAY[6];
   static Font* FONT_ARRAY_BOLD[6];
   static Font* FONT_ARRAY_ITALIC[6];
+  static bool  LIB_INIT;
 
   std::map<std::string, Surface> surface_text_table;
   TTF_Font *m_font;
@@ -73,6 +74,7 @@ public:
 
   // type: defined as static consts above
   static Font* GetInstance(font_size_t size, font_style_t style = FONT_NORMAL);
+  static void ReleaseInstances(void);
 
   ~Font();
 

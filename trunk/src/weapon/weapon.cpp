@@ -114,7 +114,7 @@ Weapon::Weapon(Weapon_type type,
       m_image->cache.EnableLastFrameCache();
   }
 
-  icon = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_ico"));
+  icon = new Sprite(resource_manager.LoadImage(weapons_res_profile,m_id+"_ico"), true);
   icon->cache.EnableLastFrameCache();
 
   mouse_character_selection = true;
@@ -147,11 +147,12 @@ Weapon::Weapon(Weapon_type type,
     XmlReader::ReadIntAttr(elem, "dx", hole_delta.x);
     XmlReader::ReadIntAttr(elem, "dy", hole_delta.y);
   }
-
 }
 
 Weapon::~Weapon()
 {
+  if (m_image) delete m_image;
+  if (m_weapon_fire) delete m_weapon_fire;
   if(extra_params) delete extra_params;
   if(icon) delete icon;
 }

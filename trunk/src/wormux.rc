@@ -5,6 +5,9 @@
 #  include "config.h"
 #else
 #  include "msvc/config.h"
+// Is build automatically by a pre-built event
+#  include "../visual/resource.h"
+#  define __VERSION__ "Visual Studio"
 #endif
 
 #if ENABLE_NLS
@@ -14,8 +17,8 @@
 #endif
 
 1 VERSIONINFO
-FILEVERSION 0,8,1,0
-PRODUCTVERSION 0,8,1,0
+FILEVERSION 0,8,0,3
+PRODUCTVERSION 0,8,0,3
 FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
 FILEFLAGS VS_FF_DEBUG | VS_FF_SPECIALBUILD
@@ -39,11 +42,7 @@ FILETYPE VFT_APP
             VALUE "OriginalFilename", "wormux.exe"
             VALUE "ProductName", "wormux"
             VALUE "ProductVersion", PACKAGE_VERSION
-#ifdef __MINGW32__
-            VALUE "SpecialBuild", "$Revision: 3086 $, build on " __DATE__ ", " __TIME__ " with compiler version " __VERSION__
-#else
-            VALUE "SpecialBuild", "$Revision: 3086 $"
-#endif
+            VALUE "SpecialBuild", "$Revision: 3779 $, build on " __DATE__ ", " __TIME__ " with compiler version " __VERSION__
         }
     }
     BLOCK "VarFileInfo"

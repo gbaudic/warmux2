@@ -27,6 +27,7 @@
 #include <iostream>
 #include <png.h>
 #include "tool/i18n.h"
+#include "tool/math_tools.h"
 
 /* texturedPolygon import from SDL_gfx v2.0.15 */
 #if (SDL_GFXPRIMITIVES_MAJOR == 2) && (SDL_GFXPRIMITIVES_MINOR == 0) && (SDL_GFXPRIMITIVES_MICRO < 14)
@@ -34,6 +35,8 @@
 #endif /* texturedPolygon import from SDL_gfx v2.0.15 */
 
 #include "graphic/fading_effect.h"
+
+#define BUGGY_SDLGFX 1
 
 /**
  * Default constructor.
@@ -78,7 +81,7 @@ Surface::Surface(const std::string &filename){
   surface = NULL;
   autoFree = true;
   if( !ImgLoad(filename) )
-  Error( Format("Unable to open image file '%s': %s", filename.c_str(), IMG_GetError() ) );
+    Error( Format("Unable to open image file '%s': %s", filename.c_str(), IMG_GetError() ) );
 }
 
 /**
@@ -660,7 +663,22 @@ static const double ratio_deg_to_rad = 180 / M_PI;
 Surface Surface::RotoZoom(double angle, double zoomx, double zoomy, int smooth){
   Surface newSurf;
 
-  newSurf.SetSurface( rotozoomSurfaceXY(surface, angle * ratio_deg_to_rad , zoomx, zoomy, smooth) );
+#ifdef BUGGY_SDLGFX
+  /* From SDLGFX website, 
+   * 'zoomx' and 'zoomy' are scaling factors that
+   * can also be negative. In this case the corresponding axis is flipped.
+   * Note: Flipping currently only works with antialiasing turned off
+   */ 
+  if (zoomx < 0.0 || zoomy < 0.0)
+    smooth = SMOOTHING_OFF;
+#endif
+
+  if (fabs(angle) < EPS_ZERO)
+    newSurf.SetSurface( zoomSurface(surface, zoomx, zoomy, smooth) );
+  else if (zoomx == zoomy && zoomx > 0.0)
+    newSurf.SetSurface( rotozoomSurface(surface, angle * ratio_deg_to_rad , zoomx, smooth) );
+  else
+    newSurf.SetSurface( rotozoomSurfaceXY(surface, angle * ratio_deg_to_rad , zoomx, zoomy, smooth) );
 
   if( newSurf.IsNull() )
     Error( "Unable to make a rotozoom on the surface !" );

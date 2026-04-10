@@ -49,14 +49,14 @@ PictureWidget::~PictureWidget()
     delete spr;
 }
 
-void PictureWidget::SetSurface(const Surface& s, bool enable_scaling)
+void PictureWidget::SetSurface(const Surface& s, bool enable_scaling, bool antialiasing)
 {
-  need_redrawing = true;
+  NeedRedrawing();
 
   if (spr != NULL)
     delete spr;
 
-  spr = new Sprite(s);
+  spr = new Sprite(s, antialiasing);
   if (enable_scaling) {
     float scale = std::min( float(GetSizeY())/spr->GetHeight(),
                             float(GetSizeX())/spr->GetWidth() ) ;
@@ -67,7 +67,7 @@ void PictureWidget::SetSurface(const Surface& s, bool enable_scaling)
 
 void PictureWidget::SetNoSurface()
 {
-  need_redrawing = true;
+  NeedRedrawing();
 
   if (spr != NULL)
     delete spr;

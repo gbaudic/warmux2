@@ -54,7 +54,7 @@ private:
 
 public:
   friend TeamsList &GetTeamsList(void);
-  friend void TeamsListCleanup(void);
+  static void CleanUp() { if (singleton) delete singleton; singleton = NULL; };
   void NextTeam();
   Team* GetNextTeam();
   Team& ActiveTeam();
@@ -74,12 +74,13 @@ public:
   void RefreshSort (); //Refresh energy bar position
   void ChangeSelection (const std::list<uint>& liste);
   bool IsSelected (uint index);
+  static bool IsLoaded() { return singleton != NULL; }
 
   // Find a team by its id or index (in full_list)
   Team* FindById (const std::string &id, int &pos);
   Team* FindByIndex (uint index);
   // Find a team by its id or index (in playing full_list)
-  Team* FindPlayingById(const std::string &id, uint &index);
+  Team* FindPlayingById(const std::string &id, int &index);
   Team* FindPlayingByIndex(uint index);
 };
 
@@ -96,8 +97,6 @@ Character& ActiveCharacter();
 bool compareTeams(const Team *a, const Team *b);
 
 inline TeamsList &GetTeamsList(void) { return *TeamsList::GetInstance(); };
-
-inline void TeamsListCleanup(void) { delete TeamsList::GetInstance(); };
 
 //-----------------------------------------------------------------------------
 #endif

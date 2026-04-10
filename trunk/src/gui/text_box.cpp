@@ -23,12 +23,15 @@
 #include "gui/text_box.h"
 #include "graphic/text.h"
 #include "tool/text_handling.h"
+#include "tool/copynpaste.h"
 
 TextBox::TextBox (const std::string &label, const Point2i &_size,
                   Font::font_size_t fsize, Font::font_style_t fstyle) :
   Label(label, _size, fsize, fstyle),
   cursor_pos(label.size())
 {
+  Widget::SetBorder(defaultOptionColorRect, 1);
+  Widget::SetHighlightBgColor(highlightOptionColorBox);
 }
 
 void TextBox::BasicSetText(std::string const &new_txt)
@@ -63,7 +66,7 @@ bool TextBox::SendKey(const SDL_keysym& key)
 {
   bool used = true;
 
-  need_redrawing = true;
+  NeedRedrawing();
 
   std::string new_txt = GetText();
 
@@ -77,14 +80,22 @@ bool TextBox::SendKey(const SDL_keysym& key)
 
 void TextBox::Draw(const Point2i &mousePosition, Surface& surf) const
 {
-  if (!hidden)
-    {
-      if (have_focus)
-        surf.BoxColor(*this, highlightOptionColorBox);
-
-      surf.RectangleColor(*this, defaultOptionColorRect);
-
-      Label::Draw(mousePosition, surf);
-      txt_label->DrawCursor(position, cursor_pos);
-    }
+  Label::Draw(mousePosition, surf);
+  txt_label->DrawCursor(position, cursor_pos);
 }
+
+Widget* TextBox::ClickUp(const Point2i &, uint button)
+{
+  bool used = true;
+
+  NeedRedrawing();
+  if (button == SDL_BUTTON_MIDDLE)
+  {
+    std::string new_txt = GetText();
+    used = RetrieveBuffer(new_txt, cursor_pos);
+
+    if (new_txt != GetText())
+      BasicSetText(new_txt);
+  }
+  return used ? this : NULL;
+};

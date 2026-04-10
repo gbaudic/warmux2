@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8beta3], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8beta4], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -62,13 +62,15 @@ AC_ARG_ENABLE([static],
               [static=no])
 
 # Check whether user supplied the option to statically link binaries.
-#if test "$static" = yes; then
+if test "$static" = yes; then
 # if we're using gcc, add `-static' to LDFLAGS
-#       if test -n "$GCC" || test "$ac_cv_prog_gcc" = "yes"; then
-#               STATIC_LD="-static"
-#               LDFLAGS="$LDFLAGS -static"
-#       fi
-#fi
+       if test -n "$GCC" || test "$ac_cv_prog_gcc" = "yes"; then
+               STATIC_LD="-static"
+               LDFLAGS="$LDFLAGS -static"
+               LIBCURL="$(curl-config --libs)"
+               LIBCURL="${LIBCURL:--lcurl} -lssl -lcrypto -ldl -lz"
+       fi
+fi
 
 if test "x${prefix}" = "xNONE"; then
   prefix="${ac_default_prefix}"
@@ -87,6 +89,9 @@ case "${host}" in
      AC_SUBST(WINDRES)
      ;;
   *cygwin*) WIN32="yes" ;;
+  *-apple-darwin*)
+     LIBS="$LIBS -Wl,-framework,Carbon"
+     ;;
   *) WIN32="no" ;;
 esac
 AM_CONDITIONAL([WIN32], test "$WIN32" = "yes")
@@ -192,14 +197,39 @@ if test "x$PACKAGE_CONFIG" = "xnone"; then
   AC_MSG_ERROR([*** pkg-config, needed to check for libxml++ existence has not been found.])
 fi
 
-dnl === Check for PNG ==================================================
+dnl === Check for X11 =====================================================
+AC_CHECK_LIB(X11, XOpenDisplay, check_x11="yes", check_x11="no")
+if test x${check_x11} = xyes ; then
+  AC_CHECK_HEADERS(X11/Xlib.h,,check_x11="no")
+fi
+if test x${check_x11} = xyes ; then LIBS="$LIBS -lX11" ; fi
+
+dnl === Check for FriBidi =================================================
+AC_ARG_ENABLE(fribidi, AC_HELP_STRING([--enable-fribidi], [enable bi-directional unicode support]) )
+if test "${enable_fribidi}" = "yes"; then
+   use_fribidi="true"
+   AC_CHECK_LIB(fribidi, fribidi_log2vis,
+                [ LIBS="$LIBS `fribidi-config --libs`"
+                  CFLAGS="$CFLAGS `fribidi-config --cflags`"
+                  AC_DEFINE(USE_FRIBIDI, 1, [Define to use FriBidi]) ],
+                [ AC_MSG_WARN([unable to use FriBidi])
+                  use_fribidi="false" ],
+                [ `fribidi-config --libs` ])
+   if ! ${use_fribidi}; then
+     AC_MSG_WARN([fribidi is disable. If you want bi-directional text rendering, please install fribidi dev package.])
+   fi
+else
+  AC_MSG_WARN([fribidi is disable. If you want bi-directional text rendering, please use configure with this option : --enable-fribidi])
+fi
+
+dnl === Check for PNG =====================================================
 
 AC_MSG_CHECKING(for libpng)
 for PNG in png png12 png13 dummypng; do
   if $PACKAGE_CONFIG --exists lib$PNG > /dev/null 2>&1 ; then
     LIBPNG_CFLAGS=`$PACKAGE_CONFIG --cflags lib$PNG`
     LIBPNG_LIB=`$PACKAGE_CONFIG --libs lib$PNG`
-    CFLAGS="$CFLAGS $LIBPNG_CFLAGS"
+    CXXFLAGS="$CXXFLAGS $LIBPNG_CFLAGS"
     LIBS="$LIBS $LIBPNG_LIB"
     break
   fi
@@ -222,6 +252,9 @@ if test "x$SDL_GFX_PREFIX" != "x"; then
   CXXFLAGS="$CXXFLAGS -I$SDL_GFX_PREFIX/include/SDL"
   LIBS="-L$SDL_GFX_PREFIX/lib $LIBS"
 fi
+if test "$static" = yes; then
+  LIBS="$LIBS -lm -ldl -lfreetype -lz"
+fi
 AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,,check_sdl_gfx="no")
 AC_CHECK_HEADERS(SDL_rotozoom.h,,check_sdl_gfx="no")
 
@@ -233,7 +266,8 @@ AC_ARG_WITH(curl-prefix,
 if test "x$CURL_PREFIX" != "x"; then CURL_BIN="$CURL_PREFIX/bin/curl-config"
 else                                 CURL_BIN=curl-config; fi
 AC_SUBST(CURL_PREFIX)
-AC_CHECK_LIB(curl, curl_easy_init,check_curl="yes",check_curl="no")
+
+LIBCURL_CHECK_CONFIG([yes],[7.0],[check_curl=yes],[check_curl=no])
 
 dnl === Check for SDL image, mixer, etc., libxml++, libcurl and libpng ==============
 
@@ -242,7 +276,7 @@ AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
 AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
 AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
 AC_CHECK_LIB([SDL_net], [SDLNet_Init],,check_sdl_net="no")
-if test "${WIN32}" = "yes"; then LIBS="$LIBS -lwsock32 -lws2_32"; fi
+if test "${WIN32}" = "yes"; then LIBS="$LIBS -lwsock32 -lws2_32 -luser32"; fi
 
 AC_MSG_CHECKING(for libxml++)
 
@@ -351,6 +385,8 @@ else
    echo "* Game data will be installed into $DATADIR"
    echo "* Game locale will be installed into $LOCALEDIR"
    echo "* Font file will be $FONTFILE"
+   echo ""
+   echo "* [[Optional]] Bi-directional rendering : ${enable_fribidi:-no}"
 fi
 echo ""
 echo "Execute make to compile then execute make install to $INSTALL_OP"

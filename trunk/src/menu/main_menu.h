@@ -27,7 +27,7 @@
 
 // Forward declarations
 class Text;
-class ButtonText;
+class ButtonPic;
 
 class MainMenu : public Menu
 {
@@ -36,7 +36,7 @@ class MainMenu : public Menu
   MainMenu operator=(const MainMenu&);
   /**********************************************/
 
-  ButtonText *play, *network, *options, *infos, *quit;
+  ButtonPic *play, *network, *options, *help, *credits, *quit;
 
   Text *version_text, *website_text;
 
@@ -59,7 +59,7 @@ public:
   ~MainMenu();
   menu_item Run ();
 
-  void Redraw(const Rectanglei& rect, Surface& surf);
+  void RedrawBackground(const Rectanglei& rect, Surface& surf);
 
 protected:
    bool signal_ok();

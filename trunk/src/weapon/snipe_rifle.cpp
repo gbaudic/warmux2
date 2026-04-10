@@ -40,7 +40,7 @@
 
 
 const uint SNIPE_RIFLE_BEAM_START = 5;
-const uint SNIPE_RIFLE_BULLET_SPEED = 20;
+const uint SNIPE_RIFLE_BULLET_SPEED = 28;
 const uint SNIPE_RIFLE_MAX_BEAM_SIZE = 500;
 const uint SNIPE_RIFLE_FADE_BEAM_SIZE = 400;
 
@@ -69,7 +69,8 @@ void SnipeBullet::ShootSound()
 
 SnipeRifle::SnipeRifle() : WeaponLauncher(WEAPON_SNIPE_RIFLE,"snipe_rifle", new ExplosiveWeaponConfig())
 {
-  m_name = _("Sniper Rifle");
+  UpdateTranslationStrings();
+
   m_category = RIFLE;
 
   last_angle = 0.0;
@@ -80,6 +81,13 @@ SnipeRifle::SnipeRifle() : WeaponLauncher(WEAPON_SNIPE_RIFLE,"snipe_rifle", new 
   laser_beam_color = resource_manager.LoadColor(weapons_res_profile,m_id+"_laser_color");
 
   ReloadLauncher();
+}
+
+void SnipeRifle::UpdateTranslationStrings()
+{
+  m_name = _("Sniper Rifle");
+  /* TODO: FILL IT */
+  /* m_help = _(""); */
 }
 
 WeaponProjectile * SnipeRifle::GetProjectileInstance()
@@ -230,8 +238,8 @@ void SnipeRifle::Draw()
 std::string SnipeRifle::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
   return Format(ngettext(
-            "%s team has won %u snipe rifle! Shout it him between the eyes!",
-            "%s team has won %u snipe rifles! Shout it him between the eyes!",
+            "%s team has won %u snipe rifle! Shoot it him between the eyes!",
+            "%s team has won %u snipe rifles! Shoot it him between the eyes!",
             items_count), TeamName, items_count);
 }
 

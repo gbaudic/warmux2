@@ -35,7 +35,7 @@
 #include "team/team.h"
 #include "tool/i18n.h"
 
-const double JETPACK_FORCE = 2500.0;
+const double JETPACK_FORCE = 1800.0;
 
 const uint DELTA_FUEL_DOWN = 100 ;  // Delta time between 2 fuel unit consumption.
 
@@ -43,7 +43,8 @@ JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack",
                             new WeaponConfig(),
                             NEVER_VISIBLE)
 {
-  m_name = _("Jetpack");
+  UpdateTranslationStrings();
+
   m_category = MOVE;
   m_unit_visibility = VISIBLE_ONLY_WHEN_ACTIVE;
 
@@ -51,6 +52,13 @@ JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack",
 
   m_x_force = 0.0;
   m_y_force = 0.0;
+}
+
+void JetPack::UpdateTranslationStrings()
+{
+  m_name = _("Jetpack");
+  /* TODO: FILL IT */
+  /* m_help = _(""); */
 }
 
 void JetPack::Refresh()

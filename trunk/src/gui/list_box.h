@@ -68,14 +68,16 @@ protected:
   Button *m_up, *m_down;
 
   // Colors
-  Color border_color;
-  Color background_color;
   Color selected_item_color;
   Color default_item_color;
 
+  uint margin; // for ListBoxWithLabel
+
+  virtual void __Update(const Point2i &mousePosition,
+			const Point2i &lastMousePosition,
+			Surface& surf);
+
 public:
-  void SetBorderColor(const Color & border) { border_color = border; };
-  void SetBackgroundColor(const Color & background) { background_color = background; };
   void SetSelectedItemColor(const Color & selected_item) { selected_item_color = selected_item; };
   void SetDefaultItemColor(const Color & default_item) { default_item_color = default_item; };
 
@@ -83,9 +85,6 @@ public:
   ~ListBox();
 
   void Draw(const Point2i &mousePosition, Surface& surf) const;
-  void Update(const Point2i &mousePosition,
-              const Point2i &lastMousePosition,
-              Surface& surf);
 
   Widget* Click(const Point2i &mousePosition, uint button);
   Widget* ClickUp(const Point2i &mousePosition, uint button);

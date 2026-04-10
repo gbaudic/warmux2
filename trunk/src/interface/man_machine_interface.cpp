@@ -21,7 +21,6 @@
 
 #include <SDL_events.h>
 #include "interface/man_machine_interface.h"
-#include "interface/cursor.h"
 #include "interface/interface.h"
 #include "character/character.h"
 #include "ai/ai_engine_stupid.h"
@@ -219,8 +218,7 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
         Game::GetInstance()->chatsession.ShowInput();
       return;
     case KEY_CENTER:
-      CharacterCursor::GetInstance()->FollowActiveCharacter();
-      Camera::GetInstance()->FollowObject (&ActiveCharacter(), true);
+      Camera::GetInstance()->CenterOnActiveCharacter();
       return;
     case KEY_TOGGLE_INTERFACE:
       Interface::GetInstance()->EnableDisplay (!Interface::GetInstance()->IsDisplayed());
@@ -242,11 +240,12 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
   // Shoot when in turn
   if (key == KEY_SHOOT) {
 
-    if (Game::GetInstance()->ReadState() == Game::END_TURN &&
-        !Network::IsConnected()) {
+    if (Game::GetInstance()->ReadState() == Game::END_TURN) {
       ObjBox* current_box = Game::GetInstance()->GetCurrentBox();
       if (current_box != NULL) {
-        current_box->DropBox();
+        Action * a = new Action(Action::ACTION_DROP_BONUS_BOX);
+        current_box->StoreValue(a);
+        ActionHandler::GetInstance()->NewAction(a);
       }
     } else if (Game::GetInstance()->ReadState() == Game::PLAYING &&
                ActiveTeam().IsLocal() &&

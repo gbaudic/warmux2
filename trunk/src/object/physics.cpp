@@ -34,6 +34,7 @@
 #include "tool/debug.h"
 #include "tool/isnan.h"
 #include "tool/math_tools.h"
+#include "include/action.h"
 
 // Physical constants
 const double STOP_REBOUND_LIMIT = 0.5 ;
@@ -126,6 +127,45 @@ void Physics::GetSpeed(double &norm, double &angle) const
       ASSERT(false);
       break ;
   }
+}
+
+
+void Physics::StoreValue(Action *a)
+{
+  a->Push((int)m_motion_type);
+  a->Push(m_pos_x);
+  a->Push(m_pos_y);
+  a->Push(m_extern_force);
+  a->Push((int)m_last_move);
+  a->Push(m_phys_width);
+  a->Push(m_phys_height);
+  a->Push(m_fix_point_gnd);
+  a->Push(m_fix_point_dxy);
+  a->Push(m_rope_angle);
+  a->Push(m_rope_length);
+  a->Push(m_rope_elasticity);
+  a->Push(m_elasticity_damping);
+  a->Push(m_balancing_damping);
+  a->Push(m_elasticity_off);
+}
+
+void Physics::GetValueFromAction(Action *a)
+{
+  m_motion_type        = (MotionType_t)a->PopInt();
+  m_pos_x              = a->PopEulerVector();
+  m_pos_y              = a->PopEulerVector();
+  m_extern_force       = a->PopPoint2d();
+  m_last_move          = (uint)a->PopInt();
+  m_phys_width         = a->PopDouble();
+  m_phys_height        = a->PopDouble();
+  m_fix_point_gnd      = a->PopPoint2d();
+  m_fix_point_dxy      = a->PopPoint2d();
+  m_rope_angle         = a->PopEulerVector();
+  m_rope_length        = a->PopEulerVector();
+  m_rope_elasticity    = a->PopDouble();
+  m_elasticity_damping = a->PopDouble();
+  m_balancing_damping  = a->PopDouble();
+  m_elasticity_off     = a->PopInt();
 }
 
 void Physics::SetExternForceXY (const Point2d& vector)

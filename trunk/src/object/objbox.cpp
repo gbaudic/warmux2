@@ -72,6 +72,7 @@ void ObjBox::SignalCollision()
   SetAirResistFactor(1.0);
   Game::GetInstance()->SetCurrentBox(NULL);
   MSG_DEBUG("box", "End of the fall: parachute=%d", parachute);
+  hit.Play("share", "box/hitting_ground");
   if (!parachute) return;
 
   MSG_DEBUG("box", "Start of the animation 'fold of the parachute'.");
@@ -123,6 +124,7 @@ void ObjBox::SignalGhostState(bool /*was_already_dead*/)
 
 void ObjBox::GetValueFromAction(Action * a)
 {
+  PhysicalObj::GetValueFromAction(a);
   start_life_points = a->PopInt();
   SetXY(a->PopPoint2i());
   SetSpeedXY(a->PopPoint2d());
@@ -130,6 +132,7 @@ void ObjBox::GetValueFromAction(Action * a)
 
 void ObjBox::StoreValue(Action *a)
 {
+  PhysicalObj::StoreValue(a);
   a->Push(start_life_points);
   a->Push(GetPosition());
   a->Push(GetSpeed());

@@ -107,6 +107,7 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
   explode_colliding_character = false;
   explode_with_timeout = true;
   explode_with_collision = true;
+  can_drown = true;
 
   image = resource_manager.LoadSprite( weapons_res_profile, name);
   image->EnableRotationCache(32);
@@ -125,7 +126,7 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
 
 WeaponProjectile::~WeaponProjectile()
 {
-  //  delete image; /*-> it causes a segfault :-/ */
+  delete image;
 }
 
 void WeaponProjectile::Shoot(double strength)
@@ -264,7 +265,8 @@ void WeaponProjectile::SignalDrowning()
   if (launcher != NULL && !launcher->ignore_drowning_signal)
     launcher->SignalProjectileDrowning();
 
-  jukebox.Play("share", "sink");
+  if (can_drown) jukebox.Play("share", "sink");
+  //else jukebox.Play("share", "pschiiit");
 }
 
 // Default behavior : signal to launcher a projectile is going out of water

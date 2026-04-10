@@ -143,10 +143,6 @@ int Network::ThreadRun(void*/*no_param*/)
 {
   MSG_DEBUG("network", "Thread created: %u", SDL_ThreadID());
   GetInstance()->ReceiveActions();
-#ifndef WIN32
-  Disconnect(); // this is really needed but it causes a deadlock on WIN32 for unknown reason
-#endif
-  std::cout << "Network : end of thread" << std::endl;
   return 1;
 }
 
@@ -168,15 +164,18 @@ void Network::ReceiveActions()
     {
       WaitActionSleep();
 
-      if (IsClient() && cpu.size() == 0) {
-	fprintf(stderr, "you are alone!\n");
-	stop_thread = true;
+      if (cpu.empty()) {
+        if (IsClient()) {
+          fprintf(stderr, "you are alone!\n");
+	  stop_thread = true;
+        }
+        // Even for server, as Visual Studio in debug mode has trouble with that loop
 	continue;
       }
 
       // Check forced disconnections
       for (dst_cpu = cpu.begin();
-           dst_cpu != cpu.end() && ThreadToContinue();
+           ThreadToContinue() && dst_cpu != cpu.end();
            dst_cpu++)
       {
         if((*dst_cpu)->force_disconnect)
@@ -191,19 +190,15 @@ void Network::ReceiveActions()
       if (num_ready>0)
         break;
       // Means an error
-#ifndef WIN32
-      // XXX Under windows (and MSVC build?), SDLNet_CheckSockets returns -1
-      //     until first client is connected, but there is no actual error.
-      //     So we keep on looping even on error.
       else if (num_ready == -1)
       {
         fprintf(stderr, "SDLNet_CheckSockets: %s\n", SDLNet_GetError());
+        continue; //Or break?
       }
-#endif
     }
 
     for (dst_cpu = cpu.begin();
-         dst_cpu != cpu.end() && ThreadToContinue();
+         ThreadToContinue() && dst_cpu != cpu.end();
          dst_cpu++)
     {
       if((*dst_cpu)->SocketReady()) // Check if this socket contains data to receive
@@ -212,6 +207,9 @@ void Network::ReceiveActions()
         int packet_size = (*dst_cpu)->ReceiveDatas(packet);
         if( packet_size == -1) { // An error occured during the reception
           dst_cpu = CloseConnection(dst_cpu);
+          // Please Visual Studio that in debug mode has trouble with continuing
+          if (cpu.empty())
+            break;
           continue;
         } else
         if (packet_size == 0) // We didn't receive the full packet yet
@@ -227,10 +225,17 @@ void Network::ReceiveActions()
 #endif
 
         Action* a = new Action(packet, (*dst_cpu));
-        MSG_DEBUG("network.traffic","Received action %s",
-                        ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
-
-	HandleAction(a, *dst_cpu);
+#ifdef DEBUG
+        MSG_DEBUG("network.crc", "CRC : received %d, computed %d", a->GetCRC(), a->ComputeCRC());
+#endif
+        if(!a->CheckCRC()) {
+          MSG_DEBUG("network.crc_bad","!!! Bad CRC for action received !!!");
+          delete a;
+        } else {
+          MSG_DEBUG("network.traffic", "Received action %s",
+                    ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+          HandleAction(a, *dst_cpu);
+        }
         free(packet);
       }
     }
@@ -261,7 +266,7 @@ void Network::Init()
 void Network::Disconnect()
 {
   // restore Windows title
-  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::VERSION);
+  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION);
 
   if (singleton != NULL) {
     singleton->stop_thread = true;
@@ -271,16 +276,11 @@ void Network::Disconnect()
   }
 }
 
-static inline void sdl_thread_wait_for(SDL_Thread* thread, uint /*timeout*/)
-{
-  SDL_WaitThread(thread, NULL);
-}
-
 // Protected method for client and server
 void Network::DisconnectNetwork()
 {
   if (thread != NULL && SDL_ThreadID() != SDL_GetThreadID(thread)) {
-    sdl_thread_wait_for(thread, 4000);
+    SDL_WaitThread(thread, NULL);
   }
 
   thread = NULL;
@@ -466,7 +466,7 @@ connection_state_t Network::ClientStart(const std::string &host,
   } else if (prev != NULL) {
     delete prev;
   }
-  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::VERSION + " - Client mode");
+  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION + " - Client mode");
   return error;
 }
 
@@ -493,7 +493,7 @@ connection_state_t Network::ServerStart(const std::string& port)
   } else if (prev != NULL) {
 
     // that's ok
-    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::VERSION + " - Server mode");
+    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION + " - Server mode");
     delete prev;
   }
   return error;

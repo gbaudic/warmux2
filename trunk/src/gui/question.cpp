@@ -122,6 +122,7 @@ int Question::Ask ()
     AppWormux::GetInstance()->video->Flip();
   } while (!end_of_boucle);
 
+  AppWormux::GetInstance()->RefreshDisplay();
   Mouse::GetInstance()->SetPointer(prev_pointer);
 
   return answer;
@@ -144,7 +145,7 @@ void Question::Set (const std::string &pmessage,
   if(bg_sprite != "")
   {
     Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
-    background = new Sprite(resource_manager.LoadImage(res,bg_sprite));
+    background = new Sprite(resource_manager.LoadImage(res,bg_sprite), true);
     background->cache.EnableLastFrameCache();
     background->ScaleSize(AppWormux::GetInstance()->video->window.GetSize());
     resource_manager.UnLoadXMLProfile( res);

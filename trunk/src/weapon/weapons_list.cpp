@@ -42,31 +42,30 @@ WeaponsList * WeaponsList::GetInstance()
   if (weapon_list == NULL) {
     weapon_list = new WeaponsList();
   }
-  weapon_list->ref_counter++;
   return weapon_list;
+}
+
+void WeaponsList::CleanUp()
+{
+  if (weapon_list)
+    delete weapon_list;
+  weapon_list = NULL;
 }
 
 WeaponsList::~WeaponsList()
 {
-  ref_counter--;
-  /* we can delete the list iif nobody has an instance somewhere */
-  if (ref_counter == 0)
-    {
-      weapons_list_it it=m_weapons_list.begin(), end=m_weapons_list.end();
-      for (; it != end; ++it)
-        {
-          delete *it;
-        }
-      weapon_list = NULL;
-      resource_manager.UnLoadXMLProfile(weapons_res_profile);
-      weapons_res_profile = NULL;
-    }
+  weapons_list_it it=m_weapons_list.begin(), end=m_weapons_list.end();
+  for (; it != end; ++it)
+    delete *it;
+
+  delete weapons_res_profile;
+  weapons_res_profile = NULL;
+  weapon_list = NULL;
 }
 
 //-----------------------------------------------------------------------------
 
-WeaponsList::WeaponsList():
-  ref_counter(0)
+WeaponsList::WeaponsList()
 {
   weapons_res_profile = resource_manager.LoadXMLProfile( "weapons.xml", false);
   m_weapons_list.push_back(new Bazooka);
@@ -109,6 +108,16 @@ void WeaponsList::Refresh () const
   ActiveTeam().AccessWeapon().Manage();
 }
 
+void WeaponsList::UpdateTranslation()
+{
+  if (weapon_list == NULL) return;
+    
+
+  weapons_list_it it = GetInstance()->m_weapons_list.begin(), end=GetInstance()->m_weapons_list.end();
+  for (; it != end; it++) {
+    (*it)->UpdateTranslationStrings();
+  }
+}
 
 //-----------------------------------------------------------------------------
 
@@ -130,7 +139,7 @@ bool WeaponsList::GetWeaponBySort(Weapon::category_t sort, Weapon::Weapon_type &
       } while(it != end
               && ((*it)->Category() != sort
                   || ActiveTeam().ReadNbAmmos((*it)->GetType()) == 0
-                  || (!(*it)->CanBeUsedOnClosedMap() && ActiveMap().IsOpened()))
+                  || (!(*it)->CanBeUsedOnClosedMap() && ActiveMap()->IsOpened()))
               );
 
       /* Ok, a weapon was found let's return it */
@@ -155,7 +164,7 @@ bool WeaponsList::GetWeaponBySort(Weapon::category_t sort, Weapon::Weapon_type &
   while(it != end
       && ((*it)->Category() != sort
         || ActiveTeam().ReadNbAmmos((*it)->GetType()) == 0
-        || (!(*it)->CanBeUsedOnClosedMap() && ActiveMap().IsOpened())))
+        || (!(*it)->CanBeUsedOnClosedMap() && ActiveMap()->IsOpened())))
     ++it;
 
   /* Ok, a weapon was found let's return it if it is not the one active */

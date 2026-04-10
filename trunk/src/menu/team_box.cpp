@@ -84,14 +84,14 @@ void TeamBox::SetTeam(Team& _team, bool read_team_values)
     nb_characters->SetValue(_team.GetNbCharacters());
   }
 
-  ForceRedraw();
+  NeedRedrawing();
 }
 
 void TeamBox::ClearTeam()
 {
   associated_team=NULL;
 
-  ForceRedraw();
+  NeedRedrawing();
 }
 
 Team* TeamBox::GetTeam() const
@@ -111,7 +111,7 @@ void TeamBox::Update(const Point2i &mousePosition,
   if (associated_team != NULL){
     WidgetList::Update(mousePosition, surf);
   } else {
-    Redraw(*this, surf);
+    RedrawBackground(*this, surf);
   }
 
   if (associated_team != NULL && previous_name != player_name->GetText()) {

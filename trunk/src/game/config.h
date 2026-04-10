@@ -60,7 +60,7 @@ public:
   static const int ALPHA = 0;
   static const int COLORKEY = 1;
 
-  const ObjectConfig &GetOjectConfig(const std::string &name,
+  const ObjectConfig &GetObjectConfig(const std::string &name,
                                      const std::string &xml_config) const;
   void RemoveAllObjectConfigs();
 
@@ -84,9 +84,6 @@ public:
 
   inline bool GetScrollOnBorder() const { return scroll_on_border; };
   inline void SetScrollOnBorder(const bool sob) { scroll_on_border = sob; };
-
-  inline bool IsNetworkActivated() const { return enable_network; };
-  inline void SetNetworkActivated(const bool set_net) { enable_network = set_net; };
 
   inline bool IsVideoFullScreen() const { return video_fullscreen; };
   inline void SetVideoFullScreen(const bool set_fullscreen) { video_fullscreen = set_fullscreen; };
@@ -125,7 +122,7 @@ public:
   inline std::string GetPersonalDir() const { return personal_dir; };
 
   static Config * GetInstance();
-  ~Config() { singleton = NULL; };
+  ~Config() { RemoveAllObjectConfigs(); singleton = NULL; };
 
   bool Save();
   inline const std::string &GetGameMode() const { return m_game_mode; }
@@ -188,7 +185,7 @@ private:
   void LoadXml(const xmlpp::Element *xml);
 
   /* this is mutable in order to be able to load config on fly when calling
-   * GetOjectConfig() witch is not supposed to modify the object itself */
+   * GetObjectConfig() witch is not supposed to modify the object itself */
   mutable std::map<std::string, ObjectConfig *> config_set;
 };
 

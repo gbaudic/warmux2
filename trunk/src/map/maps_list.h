@@ -81,13 +81,15 @@ private:
 
   bool ProcessXmlData(const xmlpp::Element *xml);
   void LoadData();
-  bool LoadBasicInfo();
+  void LoadBasicInfo(); // Fails with abort if error
 
 public:
   InfoMap(const std::string&, const std::string&);
+  ~InfoMap();
   void FreeData();
 
   const std::string& GetRawName() const { return m_map_name; };
+  const std::string& GetDirectory() const { return m_directory; };
   const std::string& ReadFullMapName() { LoadBasicInfo(); return name; };
   const std::string& ReadAuthorInfo() { LoadBasicInfo(); return author_info; };
   const std::string& ReadMusicPlaylist() { LoadBasicInfo(); return music_playlist; };
@@ -118,19 +120,21 @@ public:
 class MapsList
 {
 public:
-  std::vector<InfoMap> lst;
-  typedef std::vector<InfoMap>::iterator iterator;
+  std::vector<InfoMap*> lst;
+  typedef std::vector<InfoMap*>::iterator iterator;
 
 private:
   int active_map_index;
   bool m_init;
   bool random_map;
-  static MapsList * singleton;
 
   void LoadOneMap (const std::string &dir, const std::string &file);
   MapsList();
+  ~MapsList();
+  static MapsList * singleton;
 
 public:
+  static void CleanUp(void) { if (singleton) delete singleton; singleton = NULL; };
   static MapsList * GetInstance();
 
   // Return -1 if fails
@@ -139,13 +143,11 @@ public:
   void SelectRandomMapByName(const std::string &nom);
   void SelectMapByIndex (uint index);
   int GetActiveMapIndex () const;
-  InfoMap& ActiveMap();
+  InfoMap* ActiveMap();
 
   void FillActionMenuSetMap(Action& a) const;
 };
 
-InfoMap& ActiveMap();
-
-bool compareMaps(const InfoMap& a, const InfoMap& b);
+InfoMap* ActiveMap();
 
 #endif

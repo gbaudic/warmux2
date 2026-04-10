@@ -58,6 +58,7 @@ private:
   ParticleEngine smoke_engine;
   SoundSample flying_sound;
 protected:
+  double m_initial_strength;
   double angle_local;
   Point2i m_targetPoint;
   bool m_targeted;
@@ -85,6 +86,8 @@ RPG::RPG(AutomaticBazookaConfig& cfg, WeaponLauncher * p_launcher) :
 
 void RPG::Shoot(double strength)
 {
+  m_initial_strength = strength;
+
   // Sound must be launched before WeaponProjectile::Shoot
   // in case that the projectile leave the battlefield
   // during WeaponProjectile::Shoot (#bug 10241)
@@ -108,7 +111,7 @@ void RPG::Refresh()
     if(angle_local > M_PI) angle_local = -M_PI;
 
     // TPS_AV_ATTIRANCE msec later being launched, the rocket is homing to the target
-    if(flying_time>1000 * GetTotalTimeout())
+    if(flying_time > (1000 * GetTotalTimeout()) * (m_initial_strength/ActiveTeam().AccessWeapon().max_strength))
     {
       m_targeted = true;
       SetSpeed(0,0);
@@ -201,8 +204,8 @@ struct target_t
 AutomaticBazooka::AutomaticBazooka() :
   WeaponLauncher(WEAPON_AUTOMATIC_BAZOOKA, "automatic_bazooka",new AutomaticBazookaConfig() )
 {
-  m_name = _("Automatic Bazooka");
-  m_help = _("Howto use it : left clic on target\nInitial fire angle : Up/Down\nFire : keep space key pressed until the desired strength\nan ammo per turn");
+  UpdateTranslationStrings();
+
   m_category = HEAVY;
   mouse_character_selection = false;
   m_allow_change_timeout = true;
@@ -210,6 +213,18 @@ AutomaticBazooka::AutomaticBazooka() :
   m_target->selected = false;
   m_target->image = resource_manager.LoadImage( weapons_res_profile, "baz_cible");
   ReloadLauncher();
+}
+
+void AutomaticBazooka::UpdateTranslationStrings()
+{
+  m_name = _("Automatic Bazooka");
+  m_help = _("Howto use it : left clic on target\nInitial fire angle : Up/Down\nFire : keep space key pressed until the desired strength\nan ammo per turn");
+}
+
+AutomaticBazooka::~AutomaticBazooka()
+{
+  if (m_target)
+    delete m_target;
 }
 
 WeaponProjectile * AutomaticBazooka::GetProjectileInstance()

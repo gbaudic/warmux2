@@ -108,7 +108,7 @@ void GameInit::InitMap()
 
   loading_sreen.StartLoading(1, "map_icon", _("Maps"));
   world.Reset();
-  MapsList::GetInstance()->ActiveMap().FreeData();
+  MapsList::GetInstance()->ActiveMap()->FreeData();
 
   lst_objects.PlaceBarrels();
 }
@@ -158,6 +158,8 @@ void GameInit::InitData()
   // initialize gaming data
   if (Network::GetInstance()->IsServer())
     InitGameData_NetServer();
+  else if (Network::GetInstance()->IsLocal())
+    randomSync.Init();
 
   // GameMode::GetInstance()->Load(); : done in the game menu to adjust some parameters for local games
   // done in action_handler for clients
@@ -180,7 +182,6 @@ GameInit::GameInit():
   bool enable_sound = jukebox.UseEffects();
   jukebox.ActiveEffects(false);
 
-  Mouse::GetInstance()->CenterPointer();
   Mouse::GetInstance()->Hide();
 
   // Init all needed data
@@ -194,7 +195,8 @@ GameInit::GameInit():
 
   ParticleEngine::Load();
 
-  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
+  Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);  
+  Mouse::GetInstance()->CenterPointer();
 
   // First "selection" of a weapon -> fix bug 6576
   ActiveTeam().AccessWeapon().Select();

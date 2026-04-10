@@ -33,6 +33,16 @@
 #include "graphic/colors.h"
 #endif
 
+void TileItem::ScalePreview(uint8_t *odata, uint opitch, uint shift)
+{
+  for (int j=0; j<CELL_SIZE.y>>shift; j++)
+  {
+    memset(odata, 0, (CELL_SIZE.x>>shift)<<2);
+    odata += opitch;
+  }
+}
+
+
 // === Common to all TileItem_* except TileItem_Emtpy ==============================
 void TileItem_AlphaSoftware::Draw(const Point2i &pos){
   AppWormux::GetInstance()->video->window.Blit(GetSurface(),
@@ -163,6 +173,62 @@ void TileItem_AlphaSoftware::Dig(const Point2i &center, const uint radius){
 void TileItem_AlphaSoftware::MergeSprite(const Point2i &position, Surface& spr)
 {
   m_surface.MergeSurface(spr, position);
+}
+
+void TileItem_AlphaSoftware::ScalePreview(uint8_t *odata, uint opitch, uint shift)
+{
+  const Uint8*   idata  = m_surface.GetPixels();
+  uint           ipitch = m_surface.GetPitch();
+
+  for (int j=0; j<m_size.y>>shift; j++)
+  {
+    for (int i=0; i<m_size.x>>shift; i++)
+    {
+      uint p0 = 0, p1 = 0, p2 = 0, p3 = 0;
+      const Uint8* ptr = idata + (i<<(2+shift));
+      for (uint u=0; u<(1U<<shift); u++)
+      {
+        for (uint v=0; v<(1U<<shift); v++)
+        {
+          p0 += ptr[4*v+0];
+          p1 += ptr[4*v+1];
+          p2 += ptr[4*v+2];
+          p3 += ptr[4*v+3];
+        }
+        ptr += ipitch;
+      }
+
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+      p3 = (p3 + (1<<(2*shift-1)))>>(2*shift);
+      if (p3 < 160)
+      {
+        memset(odata+4*i, 0, 4);
+      }
+      else
+      {
+        odata[4*i+0] = (p0 + (1<<(2*shift-1)))>>(2*shift);
+        odata[4*i+1] = (p1 + (1<<(2*shift-1)))>>(2*shift);
+        odata[4*i+2] = (p2 + (1<<(2*shift-1)))>>(2*shift);
+        odata[4*i+3] = 255;
+      }
+#else
+      p0 = (p0 + (1<<(2*shift-1)))>>(2*shift);
+      if (p0 < 160)
+      {
+        memset(odata+4*i, 0, 4);
+      }
+      else
+      {
+        odata[4*i+0] = 255;
+        odata[4*i+1] = (p1 + (1<<(2*shift-1)))>>(2*shift);
+        odata[4*i+2] = (p2 + (1<<(2*shift-1)))>>(2*shift);
+        odata[4*i+3] = (p3 + (1<<(2*shift-1)))>>(2*shift);
+      }
+#endif
+    }
+    odata += opitch;
+    idata += ipitch<<shift;
+  }
 }
 
 void TileItem_AlphaSoftware::Empty(const int start_x, const int end_x, unsigned char* buf, const int bpp) const

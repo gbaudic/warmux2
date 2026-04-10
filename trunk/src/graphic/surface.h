@@ -72,8 +72,7 @@ public:
    *
    * Should be used carefully.
    */
-  inline SDL_Surface *GetSurface()
-  { return surface; };
+  inline SDL_Surface *GetSurface() { return surface; };
 
   void NewSurface(const Point2i &size, Uint32 flags, bool useAlpha = true);
   int SetAlpha(Uint32 flags, Uint8 alpha);
@@ -121,7 +120,7 @@ public:
 
   int ImgLoad(const std::string& filename);
   int ImgSave(const std::string& filename);
-  Surface RotoZoom(double angle, double zoomx, double zoomy, int smooth);
+  Surface RotoZoom(double angle, double zoomx, double zoomy, int smooth=1 /* auto-aliasing = ON */);
   Surface DisplayFormatAlpha();
   Surface DisplayFormat();
   Uint32 GetPixel(int x, int y) const;

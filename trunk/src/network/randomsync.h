@@ -26,14 +26,15 @@
 #include "tool/point.h"
 
 class RandomSync{
-  //Pregenerated table of random number (mainly usefull for network)
-  std::list<double> rnd_table;
+#ifdef DEBUG
+  uint nb_get;
+#endif
 
-  double GetRand();
-  void GenerateTable();
 public:
   RandomSync();
   void Init();
+
+  uint GetRand(); // public only to check synchronization
 
   bool GetBool();
   double GetDouble();
@@ -44,8 +45,7 @@ public:
   Point2i GetPoint(const Point2i &pt);
 
   //to fill the pregenerated tables
-  void SetRandMax(double rand_max);
-  void AddToTable(double nbr);
+  void SetRand(uint seed);
 };
 
 extern RandomSync randomSync;

@@ -145,7 +145,7 @@ void Action_Network_Check_Phase1 (Action */*a*/)
     return;
 
   Action b(Action::ACTION_NETWORK_CHECK_PHASE2);
-  b.Push(ActiveMap().GetRawName());
+  b.Push(ActiveMap()->GetRawName());
 
   TeamsList::iterator it = GetTeamsList().playing_list.begin();
   for (; it != GetTeamsList().playing_list.end() ; ++it) {
@@ -175,8 +175,8 @@ void Action_Network_Check_Phase2 (Action *a)
 
   // Check the map
   std::string map = a->PopString();
-  if (map != ActiveMap().GetRawName()) {
-    std::cerr << map << " != " << ActiveMap().GetRawName() << std::endl;
+  if (map != ActiveMap()->GetRawName()) {
+    std::cerr << map << " != " << ActiveMap()->GetRawName() << std::endl;
     Error_in_Network_Check_Phase2(a);
     return;
   }
@@ -249,18 +249,23 @@ void Action_NewBonusBox (Action *a)
   Game::GetInstance()->AddNewBox(box);
 }
 
+void Action_DropBonusBox (Action *a)
+{
+  ObjBox* current_box = Game::GetInstance()->GetCurrentBox();
+  if(current_box != NULL) {
+    current_box->GetValueFromAction(a);
+    current_box->DropBox();
+  }
+}
+
 void Action_Game_SetState (Action *a)
 {
-  int random = a->PopInt();
+  // to re-synchronize random number generator
+  uint seed = a->PopInt();
+  randomSync.SetRand(seed);
 
-  if (!Network::GetInstance()->IsTurnMaster()) {
-    if (random != int(randomSync.GetLong(0, 65535))) {
-      Error("Network random generator is desynchronized!");
-      ASSERT(false);
-    }
-  }
-
-  Game::GetInstance()->Really_SetState(Game::game_loop_state_t(a->PopInt()));
+  Game::game_loop_state_t state = Game::game_loop_state_t(a->PopInt());
+  Game::GetInstance()->Really_SetState(state);
 }
 
 // ########################################################
@@ -308,7 +313,7 @@ void SendGameMode()
 void Action_Rules_AskVersion (Action */*a*/)
 {
   if (!Network::GetInstance()->IsClient()) return;
-  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_RULES_SEND_VERSION, Constants::VERSION));
+  ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_RULES_SEND_VERSION, Constants::WORMUX_VERSION));
 }
 
 void Action_Rules_SendVersion (Action *a)
@@ -317,11 +322,11 @@ void Action_Rules_SendVersion (Action *a)
   std::string version= a->PopString();
   ASSERT(a->creator != NULL);
 
-  if (version != Constants::VERSION)
+  if (version != Constants::WORMUX_VERSION)
   {
     a->creator->force_disconnect = true;
     std::string str = Format(_("%s tries to connect with a different version : client=%s, me=%s."),
-                               a->creator->GetAddress().c_str(), version.c_str(), Constants::VERSION.c_str());
+                               a->creator->GetAddress().c_str(), version.c_str(), Constants::WORMUX_VERSION.c_str());
     Network::GetInstance()->network_menu->ReceiveMsgCallback(str);
     std::cerr << str << std::endl;
     return;
@@ -382,10 +387,12 @@ void Action_Menu_AddTeam (Action *a)
 
   MSG_DEBUG("action_handler.menu", "+ %s", the_team.id.c_str());
 
-  GetTeamsList().AddTeam (the_team);
+  GetTeamsList().AddTeam(the_team);
 
   if (Network::GetInstance()->network_menu != NULL)
+  {
     Network::GetInstance()->network_menu->AddTeamCallback(the_team.id);
+  }
 }
 
 void Action_Menu_UpdateTeam (Action *a)
@@ -605,16 +612,10 @@ void Action_Wind (Action *a)
   wind.SetVal (a->PopInt());
 }
 
-void Action_Network_RandomAdd (Action *a)
-{
-  ASSERT(Network::GetInstance()->IsClient())
-  randomSync.AddToTable(a->PopDouble());
-}
-
 void Action_Network_RandomInit (Action *a)
 {
-  ASSERT(Network::GetInstance()->IsClient());
-  randomSync.SetRandMax(a->PopDouble());
+  MSG_DEBUG("random", "Initialization from network");
+  randomSync.SetRand(a->PopInt());
 }
 
 void Action_Network_SyncBegin (Action */*a*/)
@@ -786,8 +787,8 @@ ActionHandler::ActionHandler():
   // ########################################################
   Register (Action::ACTION_NICKNAME, "nickname", Action_Nickname);
   Register (Action::ACTION_NETWORK_CHANGE_STATE, "NETWORK_change_state", &Action_Network_ChangeState);
-  Register (Action::ACTION_NETWORK_CHECK_PHASE1, "NETWORK_check", &Action_Network_Check_Phase1);
-  Register (Action::ACTION_NETWORK_CHECK_PHASE2, "NETWORK_check", &Action_Network_Check_Phase2);
+  Register (Action::ACTION_NETWORK_CHECK_PHASE1, "NETWORK_check1", &Action_Network_Check_Phase1);
+  Register (Action::ACTION_NETWORK_CHECK_PHASE2, "NETWORK_check2", &Action_Network_Check_Phase2);
 
   // ########################################################
   Register (Action::ACTION_PLAYER_CHANGE_WEAPON, "PLAYER_change_weapon", &Action_Player_ChangeWeapon);
@@ -839,6 +840,7 @@ ActionHandler::ActionHandler():
 
   // Bonus box
   Register (Action::ACTION_NEW_BONUS_BOX, "BONUSBOX_new_box", &Action_NewBonusBox);
+  Register (Action::ACTION_DROP_BONUS_BOX, "BONUSBOX_drop_box", &Action_DropBonusBox);
   // ########################################################
   Register (Action::ACTION_NETWORK_SYNC_BEGIN, "NETWORK_sync_begin", &Action_Network_SyncBegin);
   Register (Action::ACTION_NETWORK_SYNC_END, "NETWORK_sync_end", &Action_Network_SyncEnd);
@@ -847,7 +849,6 @@ ActionHandler::ActionHandler():
   Register (Action::ACTION_EXPLOSION, "explosion", &Action_Explosion);
   Register (Action::ACTION_WIND, "wind", &Action_Wind);
   Register (Action::ACTION_NETWORK_RANDOM_INIT, "NETWORK_random_init", &Action_Network_RandomInit);
-  Register (Action::ACTION_NETWORK_RANDOM_ADD, "NETWORK_random_add", &Action_Network_RandomAdd);
   Register (Action::ACTION_NETWORK_DISCONNECT, "NETWORK_disconnect", &Action_Network_Disconnect);
   Register (Action::ACTION_NETWORK_CONNECT, "NETWORK_connect", &Action_Network_Connect);
 

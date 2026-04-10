@@ -33,10 +33,12 @@ class AutomaticBazooka : public WeaponLauncher
   target_t       *m_target;
   public:
     AutomaticBazooka();
+    ~AutomaticBazooka();
     void Draw ();
     bool IsReady() const;
     virtual void ChooseTarget(Point2i mouse_pos);
     AutomaticBazookaConfig &cfg();
+    void UpdateTranslationStrings();
     std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
   protected:
     void Refresh();

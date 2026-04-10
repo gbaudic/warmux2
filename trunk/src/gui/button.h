@@ -35,7 +35,6 @@ class Button : public Widget
   Button(const Button&);
   Button operator=(const Button&);
   /*********************************************/
-  bool hidden;
 
 protected:
   bool img_scale;
@@ -48,10 +47,6 @@ public:
 
   virtual void Draw(const Point2i &mousePosition, Surface& surf) const;
   virtual void SetSizePosition(const Rectanglei &rect);
-
-  Sprite* GetSprite() { return image; };
-
-  void SetVisible(bool visible);
 };
 
 #endif

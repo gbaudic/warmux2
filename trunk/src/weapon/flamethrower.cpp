@@ -57,6 +57,8 @@ class FlameThrowerBullet : public WeaponBullet
     void ShootSound();
     void RandomizeShoot(double &angle, double &strength);
     void DoExplosion();
+    void SignalGroundCollision();
+    void SignalDrowning();
 };
 
 
@@ -65,6 +67,7 @@ FlameThrowerBullet::FlameThrowerBullet(ExplosiveWeaponConfig& cfg,
   WeaponBullet("flamethrower_bullet", cfg, p_launcher), particle(40)
 {
   explode_colliding_character = true;
+  can_drown = false;
 }
 
 void FlameThrowerBullet::RandomizeShoot(double &angle, double &/*strength*/)
@@ -84,11 +87,25 @@ void FlameThrowerBullet::DoExplosion()
   particle.AddNow(pos, 2, particle_SMOKE, true, 0, 1);
 }
 
+void FlameThrowerBullet::SignalGroundCollision()
+{
+  WeaponProjectile::SignalGroundCollision();
+  launcher->IncMissedShots();
+}
+
+void FlameThrowerBullet::SignalDrowning()
+{
+  particle.AddNow(GetPosition(), 2, particle_SMOKE, true, 0, 1);
+  launcher->IncMissedShots();
+  Ghost();
+}
+
 //-----------------------------------------------------------------------------
 
 FlameThrower::FlameThrower() : WeaponLauncher(WEAPON_FLAMETHROWER, "flamethrower", new ExplosiveWeaponConfig())
 {
-  m_name = _("Flame Thrower");
+  UpdateTranslationStrings();
+
   m_category = RIFLE;
 
   ignore_collision_signal = true;
@@ -103,6 +120,13 @@ FlameThrower::FlameThrower() : WeaponLauncher(WEAPON_FLAMETHROWER, "flamethrower
   m_weapon_fire->EnableRotationCache(32);
 
   ReloadLauncher();
+}
+
+void FlameThrower::UpdateTranslationStrings()
+{
+  m_name = _("Flame Thrower");
+  /* TODO: FILL IT */
+  /* m_help = _(""); */
 }
 
 // Return a projectile instance for the submachine gun

@@ -29,6 +29,7 @@
 Font* Font::FONT_ARRAY[] = {NULL, NULL, NULL, NULL, NULL, NULL};
 Font* Font::FONT_ARRAY_BOLD[] = {NULL, NULL, NULL, NULL, NULL, NULL};
 Font* Font::FONT_ARRAY_ITALIC[] = {NULL, NULL, NULL, NULL, NULL, NULL};
+bool  Font::LIB_INIT = false;
 
 /*
  * Constants
@@ -42,10 +43,11 @@ Font* Font::GetInstance(font_size_t ftype, font_style_t fstyle) {
 
   if (FONT_ARRAY[ftype] == NULL) {
     try {
-      if (TTF_Init() == -1) {
+      if (!LIB_INIT && TTF_Init() == -1) {
         Error(Format("Initialisation of TTF library failed: %s", TTF_GetError()));
         exit(1);
       }
+      LIB_INIT = true;
 
       // Load the font in the different styles
       FONT_ARRAY_BOLD[type] = new Font(FONT_SIZE[type]);
@@ -108,6 +110,38 @@ Font::~Font(){
        ++it ){
     //SDL_FreeSurface(it->second);
     surface_text_table.erase(it->first);
+  }
+}
+
+void Font::ReleaseInstances(void)
+{
+  uint i;
+
+  for (i=0; i<sizeof(FONT_ARRAY)/sizeof(Font*); i++)
+  {
+    if (FONT_ARRAY[i])
+    {
+      delete FONT_ARRAY[i];
+      FONT_ARRAY[i] = NULL;
+    }
+  }
+
+  for (i=0; i<sizeof(FONT_ARRAY_BOLD)/sizeof(Font*); i++)
+  {
+    if (FONT_ARRAY_BOLD[i])
+    {
+      delete FONT_ARRAY_BOLD[i];
+      FONT_ARRAY_BOLD[i] = NULL;
+    }
+  }
+
+  for (i=0; i<sizeof(FONT_ARRAY_ITALIC)/sizeof(Font*); i++)
+  {
+    if (FONT_ARRAY_ITALIC[i])
+    {
+      delete FONT_ARRAY_ITALIC[i];
+      FONT_ARRAY_ITALIC[i] = NULL;
+    }
   }
 
   TTF_Quit();

@@ -31,7 +31,7 @@
 #ifdef WIN32
 #  include <direct.h>
 #endif
-#ifdef OSX_BUNDLE
+#ifdef __APPLE__
 #  include <CoreFoundation/CoreFoundation.h>
 #endif
 #include "graphic/video.h"
@@ -48,6 +48,7 @@
 #include "tool/string_tools.h"
 #include "tool/i18n.h"
 #include "tool/xml_document.h"
+#include "weapon/weapons_list.h"
 #ifdef USE_AUTOPACKAGE
 #  include "include/binreloc.h"
 #endif
@@ -139,7 +140,7 @@ Config::Config():
   locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, br_find_locale_dir(INSTALL_LOCALEDIR));
   filename     = data_dir + PATH_SEPARATOR + "font" + PATH_SEPARATOR + "DejaVuSans.ttf";
   ttf_filename = GetEnv(Constants::ENV_FONT_PATH, br_find_locale_dir(filename.c_str()));
-#elif defined(OSX_BUNDLE)
+#elif defined(__APPLE__)
   // the following code will enable wormux to find its data when placed in an app bundle on mac OS X.
   // configure with './configure ... CPPFLAGS=-DOSX_BUNDLE' to enable
   char path[1024];
@@ -149,10 +150,25 @@ Config::Config():
   CFStringGetCString(cfStringRef, path, 1024, kCFStringEncodingASCII);
   CFRelease(mainBundleURL);
   CFRelease(cfStringRef);
+
   std::string contents = std::string(path) + std::string("/Contents");
-  data_dir = contents + std::string("/Resources/data");
-  ttf_filename = contents + std::string("/Resources/data/font/DejaVuSans.ttf");
-  locale_dir = contents + std::string("/Resources/locale");
+  if(contents.find(".app") != std::string::npos){
+      // executable is inside an app bundle, use app bundle-relative paths
+      std::string default_data_dir = contents + std::string("/Resources/data");
+      std::string default_ttf_filename = contents + std::string("/Resources/data/font/DejaVuSans.ttf");
+      std::string default_locale_dir = contents + std::string("/Resources/locale");
+
+      // if environment variables exist, they will override default values
+      data_dir     = GetEnv(Constants::ENV_DATADIR, default_data_dir);
+      locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, default_locale_dir);
+      ttf_filename = GetEnv(Constants::ENV_FONT_PATH, default_ttf_filename);
+  }
+  else {
+      // executable is installed Unix-style, use default paths
+      data_dir     = GetEnv(Constants::ENV_DATADIR, INSTALL_DATADIR);
+      locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, INSTALL_LOCALEDIR);
+      ttf_filename = GetEnv(Constants::ENV_FONT_PATH, FONT_FILE);
+  }
 #else
 #  ifdef _WIN32
   std::string basepath = GetWormuxPath();
@@ -189,6 +205,8 @@ void Config::SetLanguage(const std::string language)
 {
   default_language = language;
   InitI18N(TranslateDirectory(locale_dir), language);
+
+  WeaponsList::UpdateTranslation();
 }
 
 /*
@@ -196,7 +214,7 @@ void Config::SetLanguage(const std::string language)
  * This tries to find already loaded data in the map<> config_set and actually
  * load it if it cannot be found.
  */
-const ObjectConfig &Config::GetOjectConfig(const std::string &name, const std::string &xml_config) const
+const ObjectConfig &Config::GetObjectConfig(const std::string &name, const std::string &xml_config) const
 {
   ObjectConfig * objcfg;
 
@@ -281,6 +299,7 @@ void Config::LoadDefaultValue()
       if(tmp.GetX() > 0 && tmp.GetY() > 0)
         resolution_available.push_back(tmp);
     }*/
+    delete res;
   } catch (const xmlpp::exception &e) {
     std::cout << "o "
         << _("Error while loading default configuration file: %s") << std::endl
@@ -385,7 +404,7 @@ bool Config::SaveXml()
 
   doc.Create(m_filename, "config", "1.0", "utf-8");
   xmlpp::Element *root = doc.GetRoot();
-  doc.WriteElement(root, "version", Constants::VERSION);
+  doc.WriteElement(root, "version", Constants::WORMUX_VERSION);
 
   //=== Map ===
   //The map name is modified when the player validate its choice in the
@@ -398,17 +417,21 @@ bool Config::SaveXml()
   //=== Teams ===
   xmlpp::Element *team_elements = root->add_child("teams");
 
-  TeamsList::iterator
-    it=GetTeamsList().playing_list.begin(),
-    fin=GetTeamsList().playing_list.end();
-
-  for (int i=0; it != fin; ++it, i++)
+  if (TeamsList::IsLoaded())
   {
-    if ((**it).IsLocal() || (**it).IsLocalAI()) { 
-      xmlpp::Element *a_team = team_elements->add_child("team_"+ulong2str(i));
-      doc.WriteElement(a_team, "id", (**it).GetId());
-      doc.WriteElement(a_team, "player_name", (**it).GetPlayerName());
-      doc.WriteElement(a_team, "nb_characters", ulong2str((**it).GetNbCharacters()));
+    TeamsList::iterator
+      it = GetTeamsList().playing_list.begin(),
+      end = GetTeamsList().playing_list.end();
+
+    for (int i=0; it != end; ++it, i++)
+    {
+      if ((**it).IsLocal() || (**it).IsLocalAI())
+      {
+        xmlpp::Element *a_team = team_elements->add_child("team_"+ulong2str(i));
+        doc.WriteElement(a_team, "id", (**it).GetId());
+        doc.WriteElement(a_team, "player_name", (**it).GetPlayerName());
+        doc.WriteElement(a_team, "nb_characters", ulong2str((**it).GetNbCharacters()));
+      }
     }
   }
 
@@ -443,7 +466,6 @@ bool Config::SaveXml()
 
   //=== Network ===
   xmlpp::Element *net_node = root->add_child("network");
-  //doc.WriteElement(net_node, "enable_network",  ulong2str(IsNetworkActivated()));
   doc.WriteElement(net_node, "host", m_network_host);
   doc.WriteElement(net_node, "port", m_network_port);
 
