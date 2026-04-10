@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.7.3], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.7.4], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -132,7 +132,7 @@ if test "x$GCC" = "xyes"; then
     GCC_FLAGS="$GCC_FLAGS -Wno-unused-parameter"
 
     if test "${debug}" = "yes"; then
-        GCC_FLAGS="$GCC_FLAGS -O0 -g -DDEBUG"
+        GCC_FLAGS="$GCC_FLAGS -O0 -g -DDEBUG -Werror"
     else
         GCC_FLAGS="$GCC_FLAGS -O2"
     fi
