@@ -7,7 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Μετάφραση Σκουλήκιουξ\n"
 "Report-Msgid-Bugs-To: wormux-dev@gna.org\n"
-"PO-Revision-Date: 2009-05-21 18:23+0200\n"
+"POT-Creation-Date: 2010-01-26 21:11+0100\n"
+"PO-Revision-Date: 2010-02-24 19:48+0200\n"
 "Last-Translator: Steve <gba2211 AT gmail DOT com>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -24,14 +25,14 @@ msgstr ""
 msgid "! Map %s not found :-("
 msgstr "! Ο χάρτης %s δεν βρέθηκε :-("
 
-#: src/menu/network_menu.cpp:108 src/menu/network_menu.cpp:325
+#: src/menu/network_menu.cpp:123 src/menu/network_menu.cpp:354
 #, c-format
 msgid "%i player connected"
 msgid_plural "%i players connected"
 msgstr[0] "%i παίκτης συνδέθηκε"
 msgstr[1] "%i παίκτες συνδέθηκαν"
 
-#: src/menu/network_menu.cpp:112 src/menu/network_menu.cpp:335
+#: src/menu/network_menu.cpp:127 src/menu/network_menu.cpp:364
 #, c-format
 msgid "%i player ready"
 msgid_plural "%i players ready"
@@ -48,13 +49,13 @@ msgstr "%s <%s> γνωστός και ως %s από %s"
 msgid "%s <%s> from %s"
 msgstr "%s <%s> από %s"
 
-#: src/menu/team_box.cpp:218
+#: src/menu/team_box.cpp:236
 #, c-format
 msgid "%s Team"
 msgstr "Ομάδα %s"
 
 #. translators: this is the team listing and will expand in a context like "OOo team - Remote"
-#: src/menu/team_box.cpp:210
+#: src/menu/team_box.cpp:228
 #, c-format
 msgid "%s Team - Remote"
 msgstr "Ομάδα %s - Απομακρυσμένη"
@@ -64,42 +65,43 @@ msgstr "Ομάδα %s - Απομακρυσμένη"
 msgid "%s fps"
 msgstr "%s εικ./δευτ."
 
-#: src/game/game.cpp:992
+#: src/game/game.cpp:996
 #, c-format
 msgid "%s from %s team commited suicide!"
 msgstr "O %s από την ομάδα %s αυτοκτόνησε!"
 
-#: src/game/game.cpp:1025
+#: src/game/game.cpp:1029
 #, c-format
 msgid "%s from %s team has died."
 msgstr "O %s από την ομάδα %s πέθανε."
 
-#: src/game/game.cpp:983
+#: src/game/game.cpp:987
 #, c-format
 msgid "%s from %s team has fallen into the water!"
 msgstr "O %s από την ομάδα %s έπεσε στο νερό!"
 
-#: src/game/game.cpp:977
+#: src/game/game.cpp:981
 #, c-format
 msgid "%s from %s team has fallen off the map!"
 msgstr "O %s από την ομάδα %s έπεσε εκτός χάρτη!"
 
-#: src/game/game.cpp:998
+#: src/game/game.cpp:1002
 #, c-format
 msgid "%s from %s team has hit the ground too hard!"
 msgstr "Ο %s από την ομάδα %s χτύπησε στο έδαφος πολύ δυνατά!"
 
-#: src/game/game.cpp:1005
+#: src/game/game.cpp:1009
 #, c-format
 msgid "%s from %s team is dead because he is clumsy!"
 msgstr "O %s από την ομάδα %s πέθανε από αδεξιότητα!"
 
-#: src/weapon/polecat.cpp:114
+#: src/weapon/polecat.cpp:115
 #, c-format
 msgid ""
 "%s has done something for the environment, he has not ordered the polecat to "
 "fart."
 msgstr ""
+"Ο %s έκανε κάτι για το περιβάλλον, δε διέταξε τον ασβό να αφήσει αέρια."
 
 #: src/object/medkit.cpp:69
 #, c-format
@@ -108,20 +110,20 @@ msgid_plural "%s has won %u points of energy!"
 msgstr[0] "Ο παίκτης %s κέρδισε %u πόντο ζωής!"
 msgstr[1] "Ο παίκτης %s κέρδισε %u πόντους ζωής!"
 
-#: src/game/game.cpp:1017
+#: src/game/game.cpp:1021
 #, c-format
 msgid "%s is a psychopath, he has killed a member of the %s team!"
 msgstr "O %s είναι ψυχοπαθής, σκότωσε ένα μέλος της ομάδας του (%s)!"
 
-#: src/weapon/mine.cpp:126
+#: src/weapon/mine.cpp:120
 #, c-format
 msgid "%s is next to a mine!"
 msgstr "O %s είναι δίπλα σε νάρκη!"
 
-#: src/include/action_handler.cpp:388
+#: src/include/action_handler.cpp:401
 #, c-format
 msgid "%s needs a pause."
-msgstr ""
+msgstr "Ο %s χρειάζεται ένα διάλειμμα."
 
 #. Can happen if the configuration is wrong...
 #: src/object/bonus_box.cpp:69
@@ -142,7 +144,7 @@ msgid_plural "%s team has won %u Cluster bazookas!"
 msgstr[0] "Η ομάδα %s κέρδισε %u μπαζούκα διασποράς!"
 msgstr[1] "Η ομάδα %s κέρδισε %u μπαζούκας διασποράς!"
 
-#: src/weapon/gnu.cpp:251
+#: src/weapon/gnu.cpp:252
 #, c-format
 msgid "%s team has won %u Gnu! Blow them all, cowboy!"
 msgid_plural "%s team has won %u Gnus! Blow them all, cowboy!"
@@ -200,7 +202,7 @@ msgstr[0] "Η ομάδα %s κέρδισε %u μπαζούκα!"
 msgstr[1] "Η ομάδα %s κέρδισε %u μπαζούκας!"
 
 #  chalumeau
-#: src/weapon/blowtorch.cpp:148
+#: src/weapon/blowtorch.cpp:154
 #, c-format
 msgid ""
 "%s team has won %u blowtorch! If you're under 18, ask your parents to use it."
@@ -214,7 +216,7 @@ msgstr[1] ""
 "Η ομάδα %s κέρδισε %u  λυχνίες συγκόλλησης! Αν είσαι κάτω από 18, ζήτα από "
 "τους γονείς σου να τις χρησιμοποιήσουν!"
 
-#: src/weapon/bounce_ball.cpp:112
+#: src/weapon/bounce_ball.cpp:113
 #, c-format
 msgid "%s team has won %u bounce ball! Boing!"
 msgid_plural "%s team has won %u bounce balls! Boing!"
@@ -241,7 +243,7 @@ msgstr[0] "Η ομάδα %s κέρδισε %u κατασκευή! Μη ξεχά�
 msgstr[1] "Η ομάδα %s κέρδισε %u κατασκευές! Μη ξεχάσεις το κράνος σου!"
 
 #  Bouge ton corps !
-#: src/weapon/disco_grenade.cpp:169
+#: src/weapon/disco_grenade.cpp:170
 #, c-format
 msgid "%s team has won %u disco grenade! Shake your body when throwing it!"
 msgid_plural ""
@@ -249,7 +251,7 @@ msgid_plural ""
 msgstr[0] "Η ομάδα %s κέρδισε %u χειροβομβίδα ντισκοτέκ! Κούνα το κορμί σου!"
 msgstr[1] "Η ομάδα %s κέρδισε %u χειροβομβίδες ντισκοτέκ! Κούνα το κορμί σου!"
 
-#: src/weapon/dynamite.cpp:149
+#: src/weapon/dynamite.cpp:150
 #, c-format
 msgid "%s team has won %u dynamite!"
 msgid_plural "%s team has won %u dynamites!"
@@ -271,14 +273,14 @@ msgid_plural "%s team has won %u football bombs!"
 msgstr[0] "Η ομάδα %s κέρδισε %u εκρηκτική μπάλα!"
 msgstr[1] "Η ομάδα %s κέρδισε %u εκρηκτικές μπάλες!"
 
-#: src/weapon/grapple.cpp:811
+#: src/weapon/grapple.cpp:766
 #, c-format
 msgid "%s team has won %u grapple!"
 msgid_plural "%s team has won %u grapples!"
 msgstr[0] "Η ομάδα %s κέρδισε %u γάντζο!"
 msgstr[1] "Η ομάδα %s κέρδισε %u γάντζους!"
 
-#: src/weapon/grenade.cpp:89
+#: src/weapon/grenade.cpp:90
 #, c-format
 msgid "%s team has won %u grenade!"
 msgid_plural "%s team has won %u grenades!"
@@ -293,7 +295,7 @@ msgstr[0] "Η ομάδα %s κέρδισε %u πιστόλι!"
 msgstr[1] "Η ομάδα %s κέρδισε %u πιστόλια!"
 
 # Ça plane pour l'équipe %s ! Elle a gagné %u jetpack !
-#: src/weapon/jetpack.cpp:208
+#: src/weapon/jetpack.cpp:209
 #, c-format
 msgid "%s team has won %u jetpack! Groovy!"
 msgid_plural "%s team has won %u jetpacks! Groovy!"
@@ -301,23 +303,27 @@ msgstr[0] "Πετάει η ομάδα %s! Κέρδισε %u σακίδιο τζ�
 msgstr[1] "Πετάει η ομάδα %s! Κέρδισε %u σακίδια τζετ! "
 
 #: src/weapon/lowgrav.cpp:84
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "%s team has won %u lowgrav! Small step for man, giant leap for free software!"
 msgid_plural ""
 "%s team has won %u lowgravs! Small step for man, giant leap for free "
 "software!"
-msgstr[0] "Η ομάδα %s κέρδισε %u αντιβαρύτητα! Είμαι ο Neil Armstrong!"
-msgstr[1] "Η ομάδα %s κέρδισε %u  αντιβαρύτητες! Είμαι ο Neil Armstrong!"
+msgstr[0] ""
+"Η ομάδα %s κέρδισε %u αντιβαρύτητα! Ένα μικρό βήμα για τον άνθρωπο, ένα "
+"γιγάντιο άλμα για το ελεύθερο λογισμικό!"
+msgstr[1] ""
+"Η ομάδα %s κέρδισε %u  αντιβαρύτητες! Ένα μικρό βήμα για τον άνθρωπο, ένα "
+"γιγάντιο άλμα για το ελεύθερο λογισμικό!"
 
-#: src/weapon/mine.cpp:262
+#: src/weapon/mine.cpp:256
 #, c-format
 msgid "%s team has won %u mine!"
 msgid_plural "%s team has won %u mines!"
 msgstr[0] "Η ομάδα %s κέρδισε %u νάρκη!"
 msgstr[1] "Η ομάδα %s κέρδισε %u νάρκες!"
 
-#: src/weapon/parachute.cpp:174
+#: src/weapon/parachute.cpp:176
 #, c-format
 msgid "%s team has won %u parachute!"
 msgid_plural "%s team has won %u parachutes!"
@@ -325,8 +331,8 @@ msgstr[0] "Η ομάδα %s κέρδισε %u αλεξίπτωτο!"
 msgstr[1] "Η ομάδα %s κέρδισε %u αλεξίπτωτα!"
 
 #  Sortez les masques à gaz
-#: src/weapon/polecat.cpp:276
-#, fuzzy, c-format
+#: src/weapon/polecat.cpp:277
+#, c-format
 msgid "%s team has won %u polecat! You have your gas mask, right?"
 msgid_plural "%s team has won %u polecats! You have your gas mask, right?"
 msgstr[0] "Η ομάδα %s κέρδισε %u ασβό! Βγάλτε τις αντιασφυξιογόνες μάσκες!"
@@ -371,7 +377,7 @@ msgid_plural "%s team has won %u submachine guns!"
 msgstr[0] "Η ομάδα %s κέρδισε %u M16!"
 msgstr[1] "Η ομάδα %s κέρδισε %u M16!"
 
-#: src/weapon/suicide.cpp:76
+#: src/weapon/suicide.cpp:78
 #, c-format
 msgid "%s team has won %u suicide!"
 msgid_plural "%s team has won %u suicides! Use them all for an extra bonus!"
@@ -402,7 +408,7 @@ msgstr[1] ""
 "Η ομάδα %s κέρδισε %u παραλείψεις γύρου!  Ωωω, τι όπλο μεγάλης ισχύος!"
 
 # Depuis quand les pingouins savent voler ??
-#: src/weapon/supertux.cpp:313
+#: src/weapon/supertux.cpp:315
 #, c-format
 msgid "%s team has won %u tux launcher! Never seen a flying penguin?"
 msgid_plural "%s team has won %u tux launchers! Never seen a flying penguin?"
@@ -418,12 +424,12 @@ msgstr[1] ""
 msgid "%s team was fragged down."
 msgstr "Η ομάδα %s αποδεκατίστηκε."
 
-#: src/game/game.cpp:1013
+#: src/game/game.cpp:1017
 #, c-format
 msgid "%s took a member of the %s team to the grave with him!"
 msgstr "Ο %s πήρε ένα μέλος της ομάδας %s μαζί του στον τάφο!"
 
-#: src/interface/interface.cpp:199
+#: src/interface/interface.cpp:200
 msgid "(dead)"
 msgstr "(πεθαμένος)"
 
@@ -437,12 +443,12 @@ msgid "(unknown time)"
 msgstr "(άγνωστο χρόνο)"
 
 #. Display number of ammo
-#: src/interface/interface.cpp:230
+#: src/interface/interface.cpp:231
 msgid "(unlimited)"
 msgstr "(απεριόριστο)"
 
 #: src/menu/options_menu.cpp:463
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "A new version %s is available, while your version is %s. You may want to "
 "check whether an update is available for your OS!"
@@ -518,32 +524,31 @@ msgstr "Πριν τη δράση"
 msgid "Blitz"
 msgstr "Αστραπιαίος πόλεμος"
 
-#: src/weapon/blowtorch.cpp:64
+#: src/weapon/blowtorch.cpp:63
 msgid "Blowtorch"
 msgstr "Λυχνία Συγκόλλησης"
 
-#: src/weapon/bounce_ball.cpp:88
+#: src/weapon/bounce_ball.cpp:89
 msgid "Bounce Ball"
 msgstr "Μπάλα Αναπήδησης"
 
-#: src/weapon/supertux.cpp:175
-#, fuzzy
+#: src/weapon/supertux.cpp:177
 msgid "Bye bye Tux..."
 msgstr "Άντε γεια tux..."
 
-#: src/menu/network_teams_selection_box.cpp:235 src/team/teams_list.cpp:485
-#: src/team/teams_list.cpp:518 src/team/teams_list.cpp:527
-#: src/team/teams_list.cpp:533 src/team/teams_list.cpp:597
+#: src/team/teams_list.cpp:487 src/team/teams_list.cpp:521
+#: src/team/teams_list.cpp:530 src/team/teams_list.cpp:536
+#: src/team/teams_list.cpp:600
 #, c-format
 msgid "Can't find team %s!"
 msgstr "Αδύνατον να βρεθεί η ομάδα %s!"
 
-#: src/team/teams_list.cpp:151
+#: src/team/teams_list.cpp:150
 #, c-format
 msgid "Cannot open personal teams directory (%s)!"
 msgstr "Αδύνατον να ανοίξει ο φάκελος με τις προσωπικές ομάδες (%s)!"
 
-#: src/menu/skin_menu.cpp:76 src/team/teams_list.cpp:139
+#: src/menu/skin_menu.cpp:76 src/team/teams_list.cpp:138
 #, c-format
 msgid "Cannot open teams directory (%s)!"
 msgstr "Αδύνατον να ανοίξει ο φάκελος με τις ομάδες (%s)!"
@@ -554,27 +559,22 @@ msgid "Cannot open the custom teams directory (%s)!"
 msgstr "Αδύνατον να ανοίξει ο φάκελος με τις προσωπικές ομάδες (%s)!"
 
 #: src/menu/help_menu.cpp:94
-#, fuzzy
 msgid "Center the camera on the character"
 msgstr "Κέντραρε την κάμερα στο χαρακτήρα σου"
 
 #: src/menu/help_menu.cpp:93
-#, fuzzy
 msgid "Change the active character"
 msgstr "Αλλάζει τον ενεργό χαρακτήρα"
 
 #: src/menu/help_menu.cpp:84
-#, fuzzy
 msgid "Change the aim angle"
 msgstr "Αλλαγή γωνίας σκόπευσης"
 
 #: src/menu/help_menu.cpp:82
-#, fuzzy
 msgid "Change the weapon category"
 msgstr "Αλλαγή κατηγορίας όπλου"
 
 #: src/menu/help_menu.cpp:83
-#, fuzzy
 msgid "Change the weapon countdown"
 msgstr "Αλλαγή αντίστροφης μέτρησης όπλου"
 
@@ -599,12 +599,11 @@ msgid "Classic"
 msgstr "Κλασικό"
 
 #: src/menu/help_menu.cpp:77
-#, fuzzy
 msgid "Click: Center the camera on the character"
 msgstr "Κλικ: Κέντραρε την κάμερα στο χαρακτήρα σου"
 
 #. Client Mode
-#: src/menu/network_menu.cpp:148 src/network/network.cpp:443
+#: src/menu/network_menu.cpp:163 src/network/network.cpp:461
 msgid "Client mode"
 msgstr "Σε κατάσταση πελάτη"
 
@@ -622,7 +621,7 @@ msgstr "Χειροβομβίδα διασποράς"
 msgid "Cluzooka"
 msgstr "Μπαζούκα διασποράς"
 
-#: src/weapon/suicide.cpp:44
+#: src/weapon/suicide.cpp:46
 msgid "Commit Suicide"
 msgstr "Αυτοκτονία"
 
@@ -630,7 +629,7 @@ msgstr "Αυτοκτονία"
 msgid "Configuration menu"
 msgstr "Μενού Διαμόρφωσης"
 
-#: src/menu/network_connection_menu.cpp:211
+#: src/menu/network_connection_menu.cpp:210
 msgid "Connect to game"
 msgstr "Συνδεθείτε σε παιχνίδι"
 
@@ -664,7 +663,7 @@ msgstr "Απόδοση Τιμών"
 msgid "Damage per turn during death mode"
 msgstr "Τραυματισμός ανά γύρο κατά τη διάρκεια της κατάστασης θανάτου"
 
-#: src/weapon/disco_grenade.cpp:156
+#: src/weapon/disco_grenade.cpp:157
 msgid "Disco Grenade"
 msgstr "Χειροβομβίδα Ντισκοτέκ"
 
@@ -672,12 +671,11 @@ msgstr "Χειροβομβίδα Ντισκοτέκ"
 msgid "Displays this message"
 msgstr "Εμφανίζει αυτό το μήνυμα"
 
-#: src/menu/network_menu.cpp:132
+#: src/menu/network_menu.cpp:165
 msgid "Don't forget to validate once you have selected your team(s)!"
-msgstr ""
+msgstr "Μη ξεχάσεις να επικυρώσεις μόλις επιλέξεις την ομάδα σου!"
 
 #: src/menu/help_menu.cpp:76
-#, fuzzy
 msgid "Drag&drop: Move the camera"
 msgstr "Σύρε & άφησε: Μετακίνησε την κάμερα"
 
@@ -690,11 +688,11 @@ msgstr "Διάρκεια μέχρι την κατάσταση θανάτου"
 msgid "Duration of a turn"
 msgstr "Διάρκεια ενός γύρου"
 
-#: src/weapon/dynamite.cpp:115
+#: src/weapon/dynamite.cpp:116
 msgid "Dynamite"
 msgstr "Δυναμίτης"
 
-#: src/game/game.cpp:477
+#: src/game/game.cpp:478
 msgid "END OF GAME"
 msgstr "ΤΕΛΟΣ ΠΑΙΧΝΙΔΙΟΥ"
 
@@ -707,16 +705,16 @@ msgstr "Ένταση ηχητικών εφέ"
 msgid "Energy"
 msgstr "Ενέργεια"
 
-#: src/include/action_handler.cpp:248
+#: src/include/action_handler.cpp:260
 #, c-format
 msgid "Error initializing network: Client %s does not agree with you!! - %s"
 msgstr "Λάθος αρχικοποίησης δικτύου: Ο πελάτης %s δεν συμφωνεί μαζί σου!! - %s"
 
-#: src/team/custom_teams_list.cpp:106 src/team/teams_list.cpp:115
+#: src/team/custom_teams_list.cpp:106 src/team/teams_list.cpp:114
 msgid "Error loading team :"
 msgstr "Λάθος στη φόρτωση της ομάδας:"
 
-#: src/game/config.cpp:543 src/team/custom_team.cpp:155
+#: src/game/config.cpp:549 src/team/custom_team.cpp:155
 #: src/team/custom_team.cpp:166 src/team/custom_team.cpp:177
 #, c-format
 msgid ""
@@ -740,7 +738,7 @@ msgstr ""
 "Λάθος κατά τη διαγραφή του αρχείου \"%s\". Αδύνατον να διαγραφεί η προσωπική "
 "ομάδα."
 
-#: src/game/game.cpp:361
+#: src/game/game.cpp:362
 #, c-format
 msgid ""
 "Error:\n"
@@ -750,18 +748,18 @@ msgstr ""
 "%s"
 
 #. translators: %s:%s will expand to something like "example.org:9999"
-#: src/menu/network_connection_menu.cpp:503
+#: src/menu/network_connection_menu.cpp:500
 #, c-format
 msgid "Error: Unable to connect to %s:%s"
 msgstr "Αδύνατη η σύνδεση στο %s:%s"
 
-#: src/menu/network_connection_menu.cpp:453
+#: src/menu/network_connection_menu.cpp:450
 msgid "Error: Unable to contact the index server to host a game"
 msgstr ""
 "Αδύνατη η επικοινωνία με το δείκτη διακομιστή για τη δημιουργία ενός "
 "παιχνιδιού."
 
-#: src/menu/network_connection_menu.cpp:369
+#: src/menu/network_connection_menu.cpp:366
 msgid ""
 "Error: Unable to contact the index server to search for an internet game"
 msgstr ""
@@ -769,15 +767,14 @@ msgstr ""
 "διαδίκτυο."
 
 # Impossible de se connecter à %s : %s
-#: src/menu/network_connection_menu.cpp:481
-#, fuzzy
+#: src/menu/network_connection_menu.cpp:478
 msgid "Error: Unable to start the server"
 msgstr "Αδύνατη η έναρξη του διακομιστή."
 
 # Erreur : Votre serveur n'est pas accessible depuis Internet. Vérifier la configuration de votre firewall : le port TCP %s doit accepter les connexions extérieures. Si vous n'êtes pas directement connecté à Internet, vérifier la configuration de votre routeur : le port TCP %s doit être redirigé vers votre ordinateur.
-#: src/menu/network_connection_menu.cpp:474
+#: src/menu/network_connection_menu.cpp:471
 #: tools/servers/game_server/server.cpp:312
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "Error: Your server is not reachable from the internet. Check your firewall "
 "configuration: TCP Port %s must accept connections from the outside. If you "
@@ -790,7 +787,7 @@ msgstr ""
 "ρύθμιση του δρομολογητή:  Η TCP θύρα %s πρέπει να διαβιβάζεται στον "
 "υπολογιστή σας."
 
-#: src/team/team.cpp:115
+#: src/team/team.cpp:116
 #, c-format
 msgid "Error: can't find the body \"%s\" for the team \"%s\"."
 msgstr "Λάθος: αδύνατον να βρεθεί το σώμα \"%s\" για την ομάδα \"%s\"."
@@ -812,7 +809,7 @@ msgstr "Πλήρης οθόνη / παράθυρο"
 msgid "Fullscreen?"
 msgstr "Πλήρης οθόνη;"
 
-#: src/menu/game_menu.cpp:85
+#: src/menu/game_menu.cpp:93
 msgid "Game"
 msgstr "Παιχνίδι"
 
@@ -820,20 +817,19 @@ msgstr "Παιχνίδι"
 msgid "Game mode"
 msgstr "Κατάσταση παιχνιδιού"
 
-#: src/menu/network_connection_menu.cpp:234
+#: src/menu/network_connection_menu.cpp:233
 msgid "Game name:"
 msgstr "Όνομα παιχνιδιού:"
 
-#: src/weapon/gnu.cpp:172
+#: src/weapon/gnu.cpp:173
 msgid "Gnu Launcher"
 msgstr "Εκτόξευση Gnu"
 
 #: src/menu/options_menu.cpp:118
-#, fuzzy
 msgid "Graphics"
 msgstr "Γραφικά"
 
-#: src/weapon/grapple.cpp:168
+#: src/weapon/grapple.cpp:171
 msgid "Grapple"
 msgstr "Γάντζος"
 
@@ -841,7 +837,7 @@ msgstr "Γάντζος"
 msgid "Gravity"
 msgstr "Βαρύτητα"
 
-#: src/weapon/grenade.cpp:75
+#: src/weapon/grenade.cpp:76
 msgid "Grenade"
 msgstr "Χειροβομβίδα"
 
@@ -853,18 +849,17 @@ msgstr "Αρχικοποίηση εδάφους..."
 msgid "Gun"
 msgstr "Πιστόλι"
 
-#. Skip a line
-#: src/menu/network_connection_menu.cpp:284
+#: src/menu/network_connection_menu.cpp:281
 msgid "Have a good game!"
 msgstr "Καλό παιχνίδι!"
 
-#: src/menu/options_menu.cpp:136 src/menu/team_box.cpp:67
-#: src/menu/team_box.cpp:76
+#: src/menu/options_menu.cpp:136 src/menu/team_box.cpp:84
+#: src/menu/team_box.cpp:93
 msgid "Head commander"
 msgstr "Διοικητής"
 
 #. Display player's name
-#: src/interface/interface.cpp:190
+#: src/interface/interface.cpp:191
 msgid "Head commander: "
 msgstr "Διοικητής: "
 
@@ -876,12 +871,11 @@ msgstr "Βοήθεια"
 msgid "High jump"
 msgstr "Ψηλό άλμα"
 
-#: src/menu/network_connection_menu.cpp:258
+#: src/menu/network_connection_menu.cpp:257
 msgid "Host a game"
 msgstr "Δημιουργήστε ένα παιχνίδι"
 
-#: src/weapon/blowtorch.cpp:65
-#, fuzzy
+#: src/weapon/blowtorch.cpp:64
 msgid ""
 "How to use it : keep the space key pressed\n"
 "Angle : Up/Down\n"
@@ -892,7 +886,6 @@ msgstr ""
 "ένα από τα πολεμοφόδια ανά γύρο"
 
 #: src/weapon/airhammer.cpp:77
-#, fuzzy
 msgid ""
 "How to use it : keep the space key pressed\n"
 "an ammo per turn"
@@ -901,7 +894,6 @@ msgstr ""
 "ένα από τα πολεμοφόδια ανά γύρο"
 
 #: src/weapon/auto_bazooka.cpp:221
-#, fuzzy
 msgid ""
 "How to use it : left click on the target\n"
 "Initial fire angle : Up/Down\n"
@@ -916,7 +908,6 @@ msgstr ""
 # Usage : clic gauche sur la cible\n
 # une munition par tour
 #: src/weapon/anvil.cpp:142
-#, fuzzy
 msgid ""
 "How to use it : left click on the target\n"
 "an ammo per turn"
@@ -930,7 +921,6 @@ msgstr "Κάνε γρήγορα, είσαι πολύ αργός!!"
 
 # Si vous trouvez un bug ou si vous pensez qu'il manque quelque chose à Wormux, envoyez un mail (en anglais, svp) :
 #: src/main.cpp:287
-#, fuzzy
 msgid ""
 "If you found a bug or have a feature request send us an email (in english, "
 "please):"
@@ -945,7 +935,6 @@ msgstr "Αρχική ενέργεια"
 
 #: src/weapon/bazooka.cpp:123 src/weapon/cluzooka.cpp:389
 #: src/weapon/riot_bomb.cpp:120
-#, fuzzy
 msgid ""
 "Initial fire angle : Up/Down\n"
 "Fire : keep the space key pressed until the desired strength\n"
@@ -955,35 +944,30 @@ msgstr ""
 "Πυρ: κράτησε το πλήκτρο space μέχρι την επιθυμητή δύναμη\n"
 "ένα από τα πυρομαχικά ανά γύρο"
 
-#: src/game/game.cpp:126
+#: src/game/game.cpp:127
 msgid "Initialisation"
 msgstr "Αρχικοποίηση"
 
 #. Load the map
-#: src/game/game.cpp:143
+#: src/game/game.cpp:144
 msgid "Initialise map"
 msgstr "Αρχικοποίηση χάρτη"
 
-#: src/game/game.cpp:154
+#: src/game/game.cpp:155
 msgid "Initialise sounds"
 msgstr "Αρχικοποίηση ήχων"
 
-#: src/game/game.cpp:150
+#: src/game/game.cpp:151
 msgid "Initialise teams"
 msgstr "Αρχικοποίηση ομάδων"
 
-#: src/game/game.cpp:859
+#: src/game/game.cpp:863
 msgid "It's a present!"
 msgstr "Πάρε ένα δωράκι!"
 
 #: src/weapon/jetpack.cpp:57
 msgid "Jetpack"
 msgstr "Σακίδιο Τζετ"
-
-# Venez sur #wormux-fr sur irc.freenode.net pour trouver des adversaires.
-#: src/menu/network_connection_menu.cpp:282
-msgid "Join #wormux on irc.freenode.net to find some opponents."
-msgstr "Μπείτε στο #wormux-fr στο irc.freenode.net για να βρείτε αντίπαλους."
 
 #: src/menu/help_menu.cpp:74
 msgid "Jump"
@@ -1003,7 +987,7 @@ msgstr "Γλώσσα"
 
 #: src/menu/options_menu.cpp:198
 msgid "Left-handed mouse?"
-msgstr ""
+msgstr "Ποντίκι για αριστερόχειρες;"
 
 #: src/network/admin_commands.cpp:34
 msgid "List the connected players"
@@ -1013,7 +997,7 @@ msgstr "Λίστα συνδεδεμένων παικτών"
 msgid "Load maps:"
 msgstr "Φόρτωση χαρτών:"
 
-#: src/team/teams_list.cpp:127
+#: src/team/teams_list.cpp:126
 msgid "Load teams:"
 msgstr "Φόρτωση ομάδων:"
 
@@ -1027,11 +1011,12 @@ msgstr "Αντιβαρύτητα"
 
 #. #############################
 #. Manual connection
-#: src/menu/network_connection_menu.cpp:176
+#: src/menu/network_connection_menu.cpp:175
 msgid "Manual connection"
 msgstr "Χειροποίητη σύνδεση"
 
-#: src/menu/game_menu.cpp:77
+#: src/menu/game_menu.cpp:76 src/menu/game_menu.cpp:80
+#: src/menu/network_menu.cpp:94 src/menu/network_menu.cpp:98
 msgid "Map"
 msgstr "Χάρτης"
 
@@ -1040,11 +1025,11 @@ msgstr "Χάρτης"
 msgid "Map %s, a creation of: "
 msgstr "Χάρτης %s. Δημιουργός:"
 
-#: src/game/game.cpp:144
+#: src/game/game.cpp:145
 msgid "Maps"
 msgstr "Χάρτες"
 
-#: src/menu/network_menu.cpp:396 src/menu/network_menu.cpp:397
+#: src/menu/network_menu.cpp:424 src/menu/network_menu.cpp:425
 msgid "Master mode"
 msgstr "Κατάσταση αφέντη"
 
@@ -1056,7 +1041,7 @@ msgstr "Μέγιστη ενέργεια"
 msgid "Maximum FPS"
 msgstr "Μέγιστο πλήθος εικόνων/δευτ."
 
-#: src/weapon/mine.cpp:218
+#: src/weapon/mine.cpp:212
 msgid "Mine"
 msgstr "Νάρκη"
 
@@ -1085,18 +1070,16 @@ msgid "Most violent"
 msgstr "Πιο βίαιος"
 
 #: src/menu/help_menu.cpp:90
-#, fuzzy
 msgid "Move the camera with mouse or arrows"
 msgstr "Μετακίνησε την κάμερα με το ποντίκι ή με τα βέλη"
 
 #: src/menu/help_menu.cpp:85
-#, fuzzy
 msgid "Move the character"
 msgstr "Μετακίνησε χαρακτήρα"
 
 #: src/menu/options_menu.cpp:78
 msgid "Multi-layer sky?"
-msgstr ""
+msgstr "Πολυεπίπεδος ουρανός;"
 
 #: src/menu/options_menu.cpp:222
 msgid "Music volume"
@@ -1106,9 +1089,7 @@ msgstr "Ένταση μουσικής"
 msgid "Music?"
 msgstr "Μουσική;"
 
-#: src/game/game.cpp:167
-#, fuzzy
-#| msgid "Network Game"
+#: src/game/game.cpp:168
 msgid "Network"
 msgstr "Δικτυακό Παιχνίδι"
 
@@ -1129,7 +1110,7 @@ msgstr "Νέο δικτυακό παιχνίδι σε "
 msgid "New player warning?"
 msgstr "Προειδοποίηση νέου παίκτη;"
 
-#: src/weapon/weapon.cpp:650
+#: src/weapon/weapon.cpp:661
 #, c-format
 msgid "No element <%s> found in the xml config file!"
 msgstr "Κανένα στοιχείο <%s> δεν βρέθηκε στο αρχείο διαμόρφωσης XML!"
@@ -1142,7 +1123,7 @@ msgstr "Κανένας παίκτης συνδέδεμένος"
 msgid "Nobody!"
 msgstr "Κανένας!"
 
-#: src/menu/team_box.cpp:88
+#: src/menu/team_box.cpp:105
 msgid "Number of characters"
 msgstr "Πλήθος παικτών ανά ομάδα"
 
@@ -1151,7 +1132,6 @@ msgid "Number of teams:"
 msgstr "Πλήθος ομάδων:"
 
 #: src/menu/help_menu.cpp:87
-#, fuzzy
 msgid "On a character: Select it"
 msgstr "Πάνω σε χαρακτήρα: Αλλάζει τον ενεργό χαρακτήρα"
 
@@ -1171,9 +1151,9 @@ msgstr "Επιλογές"
 msgid "Parachute"
 msgstr "Αλεξίπτωτο"
 
-#: src/menu/network_connection_menu.cpp:168
-#: src/menu/network_connection_menu.cpp:206
-#: src/menu/network_connection_menu.cpp:246
+#: src/menu/network_connection_menu.cpp:167
+#: src/menu/network_connection_menu.cpp:205
+#: src/menu/network_connection_menu.cpp:245
 msgid "Password:"
 msgstr "Κωδικός:"
 
@@ -1181,7 +1161,7 @@ msgstr "Κωδικός:"
 msgid "Play"
 msgstr "Παίξε"
 
-#: src/menu/network_menu.cpp:105
+#: src/menu/network_menu.cpp:120
 msgid "Play several times"
 msgstr "Παίξτε πολλές φορές"
 
@@ -1198,22 +1178,22 @@ msgid "Player's name?"
 msgstr "Ονόματα παικτών;"
 
 # Lance putois
-#: src/weapon/polecat.cpp:195
+#: src/weapon/polecat.cpp:196
 msgid "Polecat Launcher"
 msgstr "Εκτόξευση Ασβού"
 
-#: src/menu/network_connection_menu.cpp:195
-#: src/menu/network_connection_menu.cpp:223
+#: src/menu/network_connection_menu.cpp:194
+#: src/menu/network_connection_menu.cpp:222
 msgid "Port:"
 msgstr "Θύρα:"
 
-#: src/menu/network_connection_menu.cpp:155
+#: src/menu/network_connection_menu.cpp:154
 msgid "Public battles"
 msgstr "Δημόσιες μάχες"
 
 #: src/menu/help_menu.cpp:95
 msgid "Quickly quit game with Ctrl"
-msgstr ""
+msgstr "Γρήγορα εγκατάλειψε το παιχνίδι με το Ctrl"
 
 # quitter
 #: src/menu/main_menu.cpp:74
@@ -1237,12 +1217,10 @@ msgid "Random map"
 msgstr "Τυχαίος χάρτης"
 
 #: src/game/config.cpp:362
-#, fuzzy
 msgid "Reading the default config file"
 msgstr "Ανάγνωση προκαθορισμένου αρχείου διαμόρφωσης"
 
 #: src/game/config.cpp:420
-#, fuzzy
 msgid "Reading the personal config file"
 msgstr "Ανάγνωση προσωπικού αρχείου διαμόρφωσης"
 
@@ -1271,17 +1249,17 @@ msgstr "Μέγεθος ξετυλίγματος στα όρια"
 msgid "Scroll on border"
 msgstr "Ξετύλιγμα στα όρια"
 
-#: src/menu/network_connection_menu.cpp:184
+#: src/menu/network_connection_menu.cpp:183
 msgid "Server address:"
 msgstr "Διεύθυνση διακομιστή:"
 
 #. Available on internet ?
-#: src/menu/network_connection_menu.cpp:254
+#: src/menu/network_connection_menu.cpp:253
 msgid "Server available on Internet"
 msgstr "Διακομιστής διαθέσιμος στο διαδίκτυο"
 
 #. Server Mode
-#: src/menu/network_menu.cpp:152 src/network/network.cpp:473
+#: src/menu/network_menu.cpp:169 src/network/network.cpp:491
 msgid "Server mode"
 msgstr "Κατάσταση διακομιστή"
 
@@ -1290,17 +1268,14 @@ msgid "Shotgun"
 msgstr "Καραμπίνα"
 
 #: src/menu/help_menu.cpp:88
-#, fuzzy
 msgid "Show the weapons menu"
 msgstr "Δείξε το μενού με τα όπλα"
 
 #: src/menu/help_menu.cpp:78
-#, fuzzy
 msgid "Show/hide the interface"
 msgstr "Δείξε/Κρύψε τη διεπαφή"
 
 #: src/menu/help_menu.cpp:92
-#, fuzzy
 msgid "Show/hide the minimap"
 msgstr "Δείξε/Κρύψε το μίνι χάρτη"
 
@@ -1331,13 +1306,13 @@ msgid "Someone put a booby trap into the crate!"
 msgstr "Κάποιος παγίδευσε το κιβώτιο!"
 
 # Désolé, il n'y a actuellement aucun jeu en attente de joueurs
-#: src/menu/network_connection_menu.cpp:374
+#: src/menu/network_connection_menu.cpp:371
 msgid "Sorry, currently, no game is waiting for players"
 msgstr "Συγγνώμη, δεν υπάρχει κανένα παιχνίδι να περιμένει παίκτες"
 
-#: src/menu/network_connection_menu.cpp:423
+#: src/menu/network_connection_menu.cpp:420
 #: tools/servers/game_server/server.cpp:297
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "Sorry, your version is not supported anymore. Supported versions are %s. You "
 "can download an updated version from http://www.wormux.org/wiki/download.php"
@@ -1359,15 +1334,15 @@ msgid "Sound frequency"
 msgstr "Συχνότητα ήχου"
 
 #. Load teams' sound profiles
-#: src/game/game.cpp:156
+#: src/game/game.cpp:157
 msgid "Sounds"
 msgstr "Ηχητικές επιλογές"
 
-#: src/game/game.cpp:187
+#: src/game/game.cpp:188
 msgid "Starting a new game"
 msgstr "Έναρξη νέου παιχνιδιού"
 
-#: src/interface/interface.cpp:230
+#: src/interface/interface.cpp:231
 msgid "Stock:"
 msgstr "Απόθεμα:"
 
@@ -1375,7 +1350,7 @@ msgstr "Απόθεμα:"
 msgid "Submachine Gun"
 msgstr "Οπλοπολυβόλο"
 
-#: src/weapon/supertux.cpp:222
+#: src/weapon/supertux.cpp:224
 msgid "SuperTux"
 msgstr "Υπέρ-Tux"
 
@@ -1384,7 +1359,6 @@ msgid "Syringe"
 msgstr "Σύριγγα"
 
 #: src/menu/help_menu.cpp:81
-#, fuzzy
 msgid "Talk in network battles"
 msgstr "Μίλησε σε δικτυακή μάχη"
 
@@ -1396,7 +1370,8 @@ msgstr "Γράφημα ομάδων"
 msgid "Team stats"
 msgstr "Στατιστικά ομάδων"
 
-#: src/game/game.cpp:151 src/menu/game_menu.cpp:65
+#: src/game/game.cpp:152 src/menu/game_menu.cpp:75 src/menu/game_menu.cpp:79
+#: src/menu/network_menu.cpp:93 src/menu/network_menu.cpp:97
 msgid "Teams"
 msgstr "Ομάδες"
 
@@ -1418,14 +1393,12 @@ msgid "The Football Bomb has left the battlefield before it could explode."
 msgstr "Η εκρηκτική μπάλα εγκατέλειψε το πεδίο μάχης πριν την έκρηξη."
 
 # Le Gnu a déserté le champ de bataille avant d'exploser.
-#: src/weapon/gnu.cpp:147
-#, fuzzy
+#: src/weapon/gnu.cpp:148
 msgid "The Gnu left the battlefield before exploding!"
-msgstr "Ο Gnu εγκατέλειψε το πεδίο μάχης πριν ανατιναχτεί."
+msgstr "Το Gnu εγκατέλειψε το πεδίο μάχης πριν ανατιναχτεί."
 
 # Le putois
-#: src/weapon/polecat.cpp:172
-#, fuzzy
+#: src/weapon/polecat.cpp:173
 msgid "The Polecat left the battlefield before exploding!"
 msgstr "Ο Ασβός εγκατέλειψε το πεδίο μάχης πριν την έκρηξη."
 
@@ -1435,8 +1408,7 @@ msgid "The automatic rocket has left the battlefield..."
 msgstr "Η αυτόματη ρουκέτα έφυγε για άλλους κόσμους..."
 
 # La balle rebondissante a quitté le champ de bataille avant d'exploser.
-#: src/weapon/bounce_ball.cpp:71
-#, fuzzy
+#: src/weapon/bounce_ball.cpp:72
 msgid "The ball left the battlefield before exploding!"
 msgstr "Η μπάλα αναπήδησης εγκατέλειψε το πεδίο μάχης πριν την έκρηξη."
 
@@ -1455,29 +1427,25 @@ msgid "The connection timed out. Check there is no firewall in the way!"
 msgstr "Η σύνδεση έληξε. Επιβεβαίωσε ότι δεν υπάρχει τείχος προστασίας!"
 
 # La grenade disco a quitté la piste de danse avant d'exploser.
-#: src/weapon/disco_grenade.cpp:126
-#, fuzzy
+#: src/weapon/disco_grenade.cpp:127
 msgid "The disco grenade has left the dance floor before exploding!"
 msgstr "Η χειροβομβίδα ντισκοτέκ εγκατέλειψε την πίστα χορού πριν την έκρηξη."
 
-#: src/game/game.cpp:701
+#: src/game/game.cpp:702
 msgid "The game was interrupted because you got disconnected."
 msgstr "Το παιχνίδι διακόπηκε διότι αποσυνδεθήκατε."
 
 # La grenade a quitté le champ de bataille avant d'exploser.
-#: src/weapon/grenade.cpp:57
-#, fuzzy
+#: src/weapon/grenade.cpp:58
 msgid "The grenade left the battlefield before exploding!"
 msgstr "Η χειροβομβίδα εγκατέλειψε το πεδίο μάχης πριν την έκρηξη."
 
 # Les autres t'attendent ! Réveille-toi :-)
-#: src/menu/network_menu.cpp:342
-#, fuzzy
+#: src/menu/network_menu.cpp:370
 msgid "The others are waiting for you! Wake up! :-)"
 msgstr "Εσένα θα περιμένουμε; Ξύπνα :-)"
 
 #: src/weapon/parachute.cpp:91
-#, fuzzy
 msgid "The parachute is activated automatically."
 msgstr "Το αλεξίπτωτο ενεργοποιείται αυτομάτως."
 
@@ -1497,14 +1465,16 @@ msgstr "Ο διακομιστής απέρριψε τη σύνδεση."
 msgid "The server rejected the connection: wrong password!"
 msgstr "Ο διακομιστής απέρριψε τη σύνδεση: λάθος κωδικός!"
 
-#: src/weapon/weapon.cpp:662
+#: src/weapon/weapon.cpp:673
 #, c-format
 msgid ""
 "The weapon %s has infinite ammo, but bonus boxes might contain ammo for it!"
 msgstr ""
+"Το όπλο %s έχει άπειρα πολεμοφόδια, αλλά τα κουτιά δώρο μπορεί να έχουν "
+"πολεμοφόδια για αυτό!"
 
 # Il n'y a que %i équipe.
-#: src/menu/network_menu.cpp:241
+#: src/menu/network_menu.cpp:271
 #, c-format
 msgid "There is only %i team."
 msgid_plural "There are only %i teams."
@@ -1517,7 +1487,6 @@ msgid "Time"
 msgstr "Χρόνος"
 
 #: src/weapon/cluster_bomb.cpp:188 src/weapon/footbomb.cpp:158
-#, fuzzy
 msgid ""
 "Timeout : Mouse wheel or Page Up/Down\n"
 "Angle : Up/Down\n"
@@ -1529,8 +1498,7 @@ msgstr ""
 "Πυρ: κρατήστε το space μέχρι την επιθυμητή δύναμη\n"
 "ένα από τα πολεμοφόδια ανά γύρο"
 
-#: src/weapon/bounce_ball.cpp:89
-#, fuzzy
+#: src/weapon/bounce_ball.cpp:90
 msgid ""
 "Timeout : Mouse wheel or Page Up/Down\n"
 "Angle : Up/Down\n"
@@ -1543,17 +1511,16 @@ msgstr ""
 "ένα από τα πολεμοφόδια ανά γύρο"
 
 #: src/network/net_error_msg.cpp:35
-#, fuzzy
 msgid "Unable to contact the host."
 msgstr "Αδύνατη η σύνδεση στο διακομιστή."
 
 #: src/map/maps_list.cpp:274
-#, fuzzy, c-format
+#, c-format
 msgid "Unable to open the maps directory (%s)!"
 msgstr "Αδύνατον να ανοίξει ο φάκελος με τους χάρτες (%s)!"
 
 #: src/map/maps_list.cpp:286
-#, fuzzy, c-format
+#, c-format
 msgid "Unable to open the personal maps directory (%s)!"
 msgstr "Αδύνατον να ανοίξει ο φάκελος με τους προσωπικούς χάρτες (%s)!"
 
@@ -1578,34 +1545,36 @@ msgstr "Έκδοση"
 msgid "Version verification failed because: %s"
 msgstr "Η επαλήθευση της έκδοσης απέτυχε διότι: %s"
 
-#: src/menu/network_menu.cpp:256
+#: src/menu/network_menu.cpp:432
+msgid "Wait until some opponent(s) connect!"
+msgstr "Περίμενε μέχρι να συνδεθεί κάποιος αντίπαλος!"
+
+#: src/menu/network_menu.cpp:285
 #, c-format
 msgid "Wait! %i player is not ready yet!"
 msgid_plural "Wait! %i players are not ready yet!"
 msgstr[0] "Περίμενε! %i παίκτης δεν είναι έτοιμος ακόμα!"
 msgstr[1] "Περίμενε! %i παίκτες δεν είναι έτοιμοι ακόμα!"
 
-#: src/game/game.cpp:607
+#: src/game/game.cpp:608
 #, c-format
 msgid "Waiting for %s"
-msgstr ""
+msgstr "Περιμένοντας τον %s"
 
-#: src/game/game.cpp:166
+#: src/game/game.cpp:167
 msgid "Waiting for remote players"
-msgstr ""
+msgstr "Περιμένοντας για απομακρισμένους παίκτες"
 
 # Attente du serveur, vous pouvez annuler ou discuter !
-#: src/menu/network_menu.cpp:460
-#, fuzzy
+#: src/menu/network_menu.cpp:500
 msgid "Waiting for the server. All you can do is cancel or chat!"
 msgstr "Αναμένοντας το διακομιστή, μπορείτε να ακυρώσετε ή να συζητήσετε!"
 
 #: src/menu/help_menu.cpp:91
-#, fuzzy
 msgid "Weapon: Fire / Bonus box: fall fast"
 msgstr "Όπλο: Πυρ / Κουτί δώρο: πέφτει γρήγορα"
 
-#: src/game/game.cpp:147
+#: src/game/game.cpp:148
 msgid "Weapons"
 msgstr "Όπλα"
 
@@ -1615,19 +1584,18 @@ msgstr "Ιστοσελίδα: "
 
 #. First %s will be replaced with the name of the network game,
 #. second %s by the server hostname
-#: src/menu/network_menu.cpp:128
-#, fuzzy, c-format
-#| msgid "Welcome to %s!"
+#: src/menu/network_menu.cpp:155
+#, c-format
 msgid "Welcome to %s on %s!"
-msgstr "Καλώς ήρθες στο παιχνίδι %s!"
+msgstr "Καλώς ήρθες στο παιχνίδι %s στον %s!"
 
-#: src/game/game.cpp:970
+#: src/game/game.cpp:974
 #, c-format
 msgid "What a beautiful homerun! %s from %s team is in another world..."
-msgstr ""
+msgstr "Τι καλό παιχνίδι! O %s από την ομάδα %s είναι στον άλλο κόσμο..."
 
 # Trop la honte pour %s : il a été tué par un simple pistolet !
-#: src/game/game.cpp:1022
+#: src/game/game.cpp:1026
 #, c-format
 msgid "What a shame for %s - he was killed by a simple gun!"
 msgstr "Τι ντροπή για τον %s: σκοτώθηκε από ένα απλό πιστόλι!"
@@ -1651,48 +1619,44 @@ msgstr "Έκδοση του Wormux"
 
 # cyclic redundancy check (CRC) checksum
 # CRC terrain erroné !
-#: src/include/action_handler.cpp:222
+#: src/include/action_handler.cpp:234
 msgid "Wrong map CRC!"
 msgstr "Λάθος CRC χάρτη!"
 
-#: src/include/action_handler.cpp:219
+#: src/include/action_handler.cpp:231
 msgid "Wrong map name!"
 msgstr "Λάθος όνομα χάρτη!"
 
-#: src/include/action_handler.cpp:225
+#: src/include/action_handler.cpp:237
 msgid "Wrong team!"
 msgstr "Λάθος ομάδα!"
 
 # T'es tout seul :-/
-#: src/menu/network_menu.cpp:346
-#, fuzzy
+#: src/menu/network_menu.cpp:374
 msgid "You are alone. :-/"
 msgstr "Είσαι μονάχος :-/"
 
-#: src/menu/network_menu.cpp:250
+#: src/menu/network_menu.cpp:279
 msgid "You are alone..."
 msgstr "Θέλετε σίγουρα να παίξετε μόνος σας;!"
 
-#: src/menu/network_menu.cpp:403
+#: src/menu/network_menu.cpp:431
 msgid "You are the new turn master!"
 msgstr "Είσαι ο νέος αφέντης του γύρου!"
 
 #: src/map/maps_list.cpp:295
-#, fuzzy
 msgid "You need at least one valid map!"
 msgstr "Χρειάζεται τουλάχιστον ένας έγκυρος χάρτης!"
 
-#: src/game/game.cpp:263 src/team/teams_list.cpp:159
-#, fuzzy
+#: src/game/game.cpp:264 src/team/teams_list.cpp:158
 msgid "You need at least two valid teams!"
 msgstr "Χρειάζονται τουλάχιστον δύο έγκυρες ομάδες!"
 
-#: src/menu/network_menu.cpp:225
-#, fuzzy
+#: src/menu/network_menu.cpp:255
 msgid "You won't be able to play before selecting a team!"
 msgstr "Δεν μπορείτε να παίξετε χωρίς να διαλέξετε ομάδα!"
 
-#: src/weapon/weapon_launcher.cpp:523
+#: src/weapon/weapon_launcher.cpp:545
 msgid "Your shot has missed!"
 msgstr "Αστόχησες..."
 
@@ -1701,14 +1665,13 @@ msgid "aka"
 msgstr "ψευδώνυμο:"
 
 #: src/weapon/air_attack.cpp:216
-#, fuzzy
 msgid ""
 "attack direction : Left/Right\n"
 "Bombing : left click on the target\n"
 "one bombing per turn"
 msgstr ""
 "Κατεύθυνση επίθεσης: Αριστερά/Δεξιά\n"
-"Επίθεση: αριστερό κλικ στο στόχο\n"
+"Βομβαρδισμός: αριστερό κλικ στο στόχο\n"
 "ένας βομβαρδισμός ανά γύρο"
 
 #: src/map/maps_list.cpp:77
@@ -1750,6 +1713,11 @@ msgstr "o Φόρτωση ηχητικού προφίλ: %s"
 #, c-format
 msgid "o Opened audio at %d Hz %d bit"
 msgstr "o Άνοιγμα ήχου στα %d Hz %d bit"
+
+# Venez sur #wormux-fr sur irc.freenode.net pour trouver des adversaires.
+#~ msgid "Join #wormux on irc.freenode.net to find some opponents."
+#~ msgstr ""
+#~ "Μπείτε στο #wormux-fr στο irc.freenode.net για να βρείτε αντίπαλους."
 
 #~ msgid "Max number of players:"
 #~ msgstr "Μέγιστο πλήθος παικτών:"

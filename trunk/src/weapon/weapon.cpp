@@ -248,7 +248,10 @@ bool Weapon::Shoot()
             hand.GetY());
   #endif
   ActiveCharacter().body->DebugState();
-  if (!p_Shoot()) return false;
+  if (!p_Shoot()) {
+    MSG_DEBUG("weapon.shoot", "shoot has failed!!");
+    return false;
+  }
   m_last_fire_time = Time::GetInstance()->Read();
 
   MSG_DEBUG("weapon.shoot", "shoot!");
@@ -315,6 +318,10 @@ void Weapon::StartShooting()
 
 void Weapon::StopShooting()
 {
+  if (max_strength != 0 && !IsLoading())
+    /* User has probably exceed the max_strength */
+    return;
+
   if (!ActiveCharacter().IsPreparingShoot()) {
     PrepareShoot();
   }

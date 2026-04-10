@@ -29,6 +29,7 @@
 #include "interface/mouse.h"
 #include <WORMUX_rectangle.h>
 #include <WORMUX_point.h>
+#include "tool/resource_manager.h"
 
 class Surface;
 struct SDL_keysym;
@@ -59,6 +60,10 @@ private:
   Container * ct;
   bool need_redrawing;
 
+  // Attributs for XML loading process
+  Profile * profile;
+  const xmlNode * widgetNode;
+
   virtual void __Update(const Point2i &/* mousePosition */,
 			const Point2i &/* lastMousePosition */) {};
 
@@ -71,10 +76,17 @@ private:
   Font::font_style_t GetFontStyle() const { return font_style; };
   bool IsFontShadowed() const { return font_shadowed; };
 
+  void ParseXMLPosition(void);
+  void ParseXMLSize(void);
+
  public:
   Widget();
   Widget(const Point2i &size);
+  Widget(Profile * profile,
+         const xmlNode * widgetNode);
   virtual ~Widget() { };
+
+  virtual bool LoadXMLConfiguration(void) { return false; };
 
   virtual void Update(const Point2i &mousePosition,
 		      const Point2i &lastMousePosition); // Virtual for widget_list: to remove!

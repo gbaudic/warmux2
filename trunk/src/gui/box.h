@@ -23,6 +23,7 @@
 #define GUI_BOX_H
 
 #include "gui/widget_list.h"
+#include "tool/resource_manager.h"
 
 class Box : public WidgetList
 {
@@ -31,8 +32,12 @@ protected:
   Point2i border;
 
 public:
+  Box(void);
   Box(const Point2i &size, bool _draw_border=true);
   virtual ~Box();
+
+  void ParseXMLBoxParameters(XmlReader * xmlFile,
+                             const xmlNode * boxNode);
 
   void Update(const Point2i &mousePosition,
               const Point2i &lastMousePosition);
@@ -81,7 +86,14 @@ private:
   void PlaceWidget(Widget * a_widget, uint line, uint column);
 
 public:
-  GridBox(uint max_line_width, const Point2i& widget_size, bool _draw_border=true);
+  GridBox(uint max_line_width, 
+          const Point2i & widget_size, 
+          bool _draw_border = true);
+  GridBox(Profile * _profile,
+          const xmlNode * _gridBoxNode);
+
+  virtual bool LoadXMLConfiguration(void);
+
   virtual void Pack();
 };
 #endif

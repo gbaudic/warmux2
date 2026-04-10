@@ -8,6 +8,7 @@
 #include "include/base.h"
 #include <string>
 #include <vector>
+#include "graphic/colors.h"
 
 // Forward declaration
 typedef struct _xmlNode xmlNode;
@@ -34,7 +35,24 @@ public:
   const xmlNode* GetRoot() const;
 
   // Return the direct children matching name
-  static xmlNodeArray GetNamedChildren(const xmlNode* father, const std::string& name);
+  static xmlNodeArray GetNamedChildren(const xmlNode* father, 
+                                       const std::string & name);
+
+  // Return the first child node element named "nodeName" of "father".
+  const xmlNode * GetFirstNamedChild(const xmlNode * father, 
+                                     const std::string & nodeName);
+
+  // Return the current number of children nodes of "father" node.
+  unsigned long GetNbChildren(const xmlNode * father);
+
+  // Return the first child node of "father", otherwise NULL
+  const xmlNode * GetFirstChild(const xmlNode * father);
+
+  // Return the first next sibling element of "node", otherwise NULL
+  const xmlNode * GetNextSibling(const xmlNode * node);
+
+  // Return the name of "node"
+  std::string GetNodeName(const xmlNode * node);
 
   // get a attribute marker
   static bool ReadString(const xmlNode* father,
@@ -72,12 +90,24 @@ public:
   static bool ReadIntAttr(const xmlNode* x,
                           const std::string &name,
                           int &output);
+  bool ReadPercentageAttr(const xmlNode* node,
+                          const std::string & attributName,
+                          double & outputValue);
+  bool ReadPixelAttr(const xmlNode* node,
+                     const std::string & attributName,
+                     int & outputValue);
   static bool ReadUintAttr(const xmlNode* x,
                            const std::string &name,
                            unsigned int &output);
   static bool ReadBoolAttr(const xmlNode* x,
                            const std::string &name,
                            bool &output);
+  bool ReadHexColorAttr(const xmlNode* node,
+                        const std::string & attributName,
+                        Color & outputColor);
+  bool IsAPercentageAttr(const xmlNode* node,
+                         const std::string & attributName);
+
 private:
   // Read marker value
   static bool ReadMarkerValue(const xmlNode* marker, std::string &output);

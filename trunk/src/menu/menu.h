@@ -24,6 +24,8 @@
 
 #include "gui/widget_list.h"
 #include "include/base.h"
+#include "tool/resource_manager.h"
+#include "gui/picture_widget.h"
 
 // Forward declarations
 class Button;
@@ -31,7 +33,6 @@ class Label;
 class Box;
 class HBox;
 class Sprite;
-
 
 typedef enum {
   vOkCancel,
@@ -54,6 +55,10 @@ public:
    Menu(const std::string& bg, t_action actions = vOkCancel);
    virtual ~Menu();
 
+   // Start the xml menu configuration.
+   void LoadMenu(Profile * profile,
+                 const xmlNode * rootMenuNode);
+
    void Run(bool skip=false);
    virtual void RedrawBackground(const Rectanglei& rect);
    virtual void RedrawMenu();
@@ -70,6 +75,16 @@ public:
 private:
    Sprite *background;
    Widget *selected_widget;
+ 
+   // Recursive function wich load the widgets, and fill the containers widgets.
+   void LoadWidget(Profile * profile,
+                   const xmlNode * rootMenuNode,
+                   WidgetList * container);
+   
+   // Detect and instanciate a widget.
+   Widget * CreateWidget(Profile * profile,
+                         const xmlNode * rootMenuNode,
+                         std::string & widgetName);
 
    bool BasicOnClickUp(const Point2i &mousePosition);
    bool HandleGlobalEvent(const SDL_Event& event);

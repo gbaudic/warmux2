@@ -52,7 +52,6 @@
 #include "menu/main_menu.h"
 #include "menu/network_connection_menu.h"
 #include "menu/options_menu.h"
-#include "menu/skin_menu.h"
 #include "particles/particle.h"
 #include "sound/jukebox.h"
 #ifdef WMX_LOG
@@ -61,7 +60,6 @@
 
 static MainMenu::menu_item choice = MainMenu::NONE;
 static bool skip_menu = false;
-static const char* skin = NULL;
 static NetworkConnectionMenu::network_menu_action_t net_action = NetworkConnectionMenu::NET_NOTHING;
 
 AppWormux *AppWormux::singleton = NULL;
@@ -159,13 +157,6 @@ int AppWormux::Main(void)
         case MainMenu::QUIT:
           quit = true;
           break;
-        case MainMenu::SKIN_VIEWER:
-        {
-          SkinMenu skin_menu(skin);
-          SetCurrentMenu(&skin_menu);
-          skin_menu.Run();
-          break;
-        }
         default:
           break;
       }
@@ -330,7 +321,6 @@ void PrintUsage(const char* cmd_name)
   printf("%s -h|--help : show this help\n", cmd_name);
   printf("%s -v|--version : show the version\n", cmd_name);
   printf("%s -r|--reset-config : reset the configuration to default\n", cmd_name);
-  printf("%s -y|--skin-viewer [team] : start the skin viewer (for development only)\n", cmd_name);
   printf("%s [-p|--play] [-g|--game-mode <game_mode>]"
 	 " [-s|--server] [-c|--client [ip]]\n"
 	 " [-l [ip/hostname of index server]]\n"
@@ -356,7 +346,6 @@ void ParseArgs(int argc, char * argv[])
       {"play",       no_argument,       NULL, 'p'},
       {"client",     optional_argument, NULL, 'c'},
       {"server",     no_argument,       NULL, 's'},
-      {"skin-viewer",optional_argument, NULL, 'y'},
       {"game-mode",  required_argument, NULL, 'g'},
       {"debug",      required_argument, NULL, 'd'},
       {"reset-config", no_argument,     NULL, 'r'},
@@ -405,11 +394,6 @@ void ParseArgs(int argc, char * argv[])
         case 'l':
           if (optarg) IndexServer::GetInstance()->SetAddress(optarg);
           else        IndexServer::GetInstance()->SetAddress("127.0.0.1");
-          break;
-        case 'y':
-          choice = MainMenu::SKIN_VIEWER;
-          skin = optarg;
-          skip_menu = true;
           break;
 	case 'g':
 	  printf("Game-mode: %s\n", optarg);

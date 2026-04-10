@@ -14,7 +14,7 @@
  <surface name="preview" file="preview.jpg" />
  
  <name>Arcade Room</name>
-  <water>water</water>
+  <water>no</water>
  <nb_mine>6</nb_mine>
  <is_open>1</is_open>
  
@@ -36,6 +36,6 @@
    <rebound_factor>3.3</rebound_factor>
  </wind>
  
- <music_playlist>funfair</music_playlist>
+ <music_playlist>circux</music_playlist>
  
 </resources>

@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.9.0], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.9.1], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -38,6 +38,9 @@ AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_RANLIB
+AC_CHECK_TOOL(STRIP, strip)
+AC_CHECK_TOOL(WINDRES, windres)
+AC_CHECK_TOOL(PACKAGE_CONFIG, pkg-config)
 
 AC_CHECK_PROG(cxx_present, $CXX, "yes", "no")
 if test "x$cxx_present" != "xyes"; then
@@ -103,11 +106,6 @@ fi
 case "${host}" in
   i[[3456789]]86-*-mingw32*)
      WIN32="yes"
-     AC_PATH_PROGS([WINDRES], [windres $host_alias-windres $host_os-windres])
-     if test "x$WINDRES" = "x"; then
-       AC_MSG_ERROR([windres could not be found within your path.])
-     fi
-     AC_SUBST(WINDRES)
      ;;
   *freebsd*)
      LIBS="$LIBS -lintl" # a temporary hackish workaround
@@ -225,13 +223,6 @@ CFLAGS="$CFLAGS $SDL_CFLAGS"
 CPPFLAGS="$CPPFLAGS $SDL_CFLAGS"
 LIBS="$LIBS $SDL_LIBS"
 
-dnl === Check for pkg-config ===============================================
-
-AC_PATH_PROGS([PACKAGE_CONFIG], [$host_alias-pkg-config pkg-config], [none])
-if test "x$PACKAGE_CONFIG" = "xnone"; then
-  AC_MSG_ERROR([*** pkg-config, needed to check for libxml2 existence has not been found.])
-fi
-
 dnl === Check for X11 =====================================================
 dnl Deactivated on purpose under OSX (in case X11 SDK is installed)
 if test "x$OSX" != "xyes" ; then
@@ -255,12 +246,13 @@ AC_ARG_ENABLE(fribidi, AC_HELP_STRING([--enable-fribidi], [enable bi-directional
 if test "${enable_fribidi}" = "yes"; then
    use_fribidi="true"
    AC_CHECK_LIB(fribidi, fribidi_log2vis,
-                [ LIBS="$LIBS `pkg-config --libs fribidi`"
-                  CFLAGS="$CFLAGS `pkg-config --cflags fribidi`"
+                [ LIBS="$LIBS `$PACKAGE_CONFIG --libs fribidi`"
+                  CFLAGS="$CFLAGS `$PACKAGE_CONFIG --cflags fribidi`"
+                  CXXFLAGS="$CXXFLAGS `$PACKAGE_CONFIG --cflags fribidi`"
                   AC_DEFINE(USE_FRIBIDI, 1, [Define to use FriBidi]) ],
                 [ AC_MSG_WARN([unable to use FriBidi])
                   use_fribidi="false" ],
-                [ `pkg-config --libs fribidi` ])
+                [ `$PACKAGE_CONFIG --libs fribidi` ])
    if ! ${use_fribidi}; then
      AC_MSG_WARN([fribidi is disabled. If you want bi-directional text rendering, please install fribidi dev package.])
    fi
@@ -321,7 +313,7 @@ fi
 
 AC_MSG_CHECKING(for libxml2)
 
-if $PACKAGE_CONFIG libxml-2.0 --libs > /dev/null 2>&1; then
+if $PACKAGE_CONFIG --exists libxml-2.0; then
   AC_MSG_RESULT(yes)
 else
   AC_MSG_RESULT(no)
@@ -403,21 +395,23 @@ AC_SUBST([BUILD_ENV])
 AC_CONFIG_FILES([Makefile
                  data/Makefile
                  src/Makefile
-		 lib/Makefile
-		 lib/wormux/Makefile
-		 lib/wormux-server/Makefile
+                 lib/Makefile
+                 lib/wormux/Makefile
+                 lib/wormux-server/Makefile
+                 build/win32_setup/create_setup.sh
                  doc/Makefile
                  po/Makefile
-		 tools/Makefile
-		 tools/list_games/Makefile
-		 tools/servers/Makefile
-		 tools/servers/game_server/Makefile
-		 tools/servers/index_server/Makefile
+                 tools/Makefile
+                 tools/list_games/Makefile
+                 tools/servers/Makefile
+                 tools/servers/game_server/Makefile
+                 tools/servers/index_server/Makefile
                  ], [AM_POSTPROCESS_PO_MAKEFILE])
 
 AM_CONFIG_HEADER(src/config.h)
 
 AC_OUTPUT
+chmod +x build/win32_setup/create_setup.sh
 
 echo "***********************************************************"
 echo "Configuration complete"

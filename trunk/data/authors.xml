@@ -937,6 +937,14 @@
 	<country>Poland</country>
       </author>
       <author>
+	<nickname>Seb</nickname>
+	<name>Sébastien SABOURET<name>
+	<description>Musics: *ux</description>
+	<website>http://sites.google.com/site/sebsabouret/</website>
+	<email>ssabouret_AT_gmail_DOT_com</email>
+	<country>France</country>
+      </author>
+      <author>
 	<nickname>Sébastien</nickname>
 	<name>Sébastien MATHIER</name>
 	<description>Draw the map Apocalypse</description>
@@ -996,6 +1004,14 @@
 	<description>CSS stylesheet for our old website</description>
 	<email>ddevedjian_AT_tema.rms_DOT_fr</email>
 	<country>France</country>
+      </author>
+      <author>
+	<nickname>FUZxxl</nickname>
+	<name>Robert Clausecker</name>
+	<description>Good job on data-src</description>
+	<email>fuzxxl_AT_gmail_DOT_com</email>
+	<website>http://www.fuzxxl.de</website>
+	<country>Germany</country>
       </author>
       <author>
 	<nickname>Jika</nickname>

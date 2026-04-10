@@ -12,11 +12,6 @@ BINDIR=/mingw
 # Windows registry software path
 HKLM_PATH="SOFTWARE\Games\Wormux"
 
-# Version number in installer
-if [ ! -f "../../configure.ac" ]; then WORMUX_VERSION="0.8.6";
-# configure.ac exists, assume svn version rather than release
-else WORMUX_VERSION="svn"; fi
-
 # Set compression and in/out
 COMPRESSION="/solid lzma"
 DEST=tmp-wormux-win32
@@ -26,34 +21,32 @@ NSIS="$DEST/wormux.nsi"
 rm -rf $NSIS $DEST
 
 # Prepare stuff
+@STRIP@ ../../src/wormux.exe
 if [ "$OSTYPE" == "linux-gnu" ]; then
-  PKG_CONFIG=i586-mingw32msvc-pkg-config
-  SDL_CONFIG=i586-mingw32msvc-sdl-config
   WIN_WORMUXDIR="$PWD/../.."
   LOCAL_PATH="$PWD"
   SEP="/"
-  i586-mingw32msvc-strip ../../src/wormux.exe
 else
-  PKG_CONFIG=pkg-config
-  SDL_CONFIG=sdl-config
   WIN_WORMUXDIR=$(cd "$WORMUXDIR" && cmd /c cd)
   LOCAL_PATH=$(cmd /c cd)
   SEP="\\"
-  strip ../../src/wormux.exe
 fi
+
+if test "@PACKAGE_VERSION@" = "svn"; then VIPV="0.0.0"
+else hen VIPV="@PACKAGE_VERSION@"; fi
 
 mkdir -p $DEST
 
 function pkg_path
 {
   if [ -z "$1" ]; then return ""; fi
-  var=$($PKG_CONFIG --variable=prefix $1 2>/dev/null || exit 1)
+  var=$(@PACKAGE_CONFIG@ --variable=prefix $1 2>/dev/null || exit 1)
   if [ -z "$var" ]; then echo "Couldn't find $1, aborting..." 1>&2; exit 1; fi
   echo "Found $1 in $var" 1>&2
   echo "$var"
 }
 
-if ! pkg-config --help 2>/dev/null 1>&2 ; then
+if ! @PACKAGE_CONFIG@ --help 2>/dev/null 1>&2 ; then
   echo "pkg-config not found, aborting..."
   exit 1
 fi
@@ -69,17 +62,16 @@ cat > $NSIS <<EOF
 
 
 Name "Wormux"
-!define WORMUX_VERSION  "${WORMUX_VERSION}"
 ;Version resource
-VIProductVersion        "0.8.1.0"
+VIProductVersion        "$VIPV.0"
 VIAddVersionKey         "FileDescription"       "Wormux Installer"
 VIAddVersionKey         "ProductName"           "Wormux"
-VIAddVersionKey         "FileVersion"           "${WORMUX_VERSION}"
-VIAddVersionKey         "ProductVersion"        "${WORMUX_VERSION}"
+VIAddVersionKey         "FileVersion"           "@PACKAGE_VERSION@"
+VIAddVersionKey         "ProductVersion"        "@PACKAGE_VERSION@"
 VIAddVersionKey         "LegalCopyright"        "(C) 2001-2008 The Wormux Project"
 
 ;General
-OutFile "${LOCAL_PATH}\Wormux-Setup-${WORMUX_VERSION}.exe"
+OutFile "${LOCAL_PATH}\Wormux-Setup-@PACKAGE_VERSION@.exe"
 SetCompressor ${COMPRESSION}
 ShowInstDetails show
 ShowUninstDetails show
@@ -90,6 +82,7 @@ RequestExecutionLevel highest
 !define WORMUX_UNINSTALL_KEY    "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Wormux"
 !define HKLM_APP_PATHS_KEY      "SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\wormux.exe"
 !define STARTUP_RUN_KEY         "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+!define WORMUX_VERSION          "@PACKAGE_VERSION@"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modern UI Configuration ;;
@@ -148,27 +141,27 @@ RequestExecutionLevel highest
   !insertmacro MUI_LANGUAGE "German"
   LicenseLangString WormuxLicense "German" "${WIN_WORMUXDIR}\doc\license\COPYING.de.txt"
   LangString TITLE_Wormux "German" "Wormux"
-  LangString DESC_Wormux  "German" "Wormux ${WORMUX_VERSION}"
+  LangString DESC_Wormux  "German" "Wormux @PACKAGE_VERSION@"
 
   !insertmacro MUI_LANGUAGE "Spanish"
   LicenseLangString WormuxLicense "Spanish" "${WIN_WORMUXDIR}\doc\license\COPYING.es.txt"
   LangString TITLE_Wormux "Spanish" "Wormux"
-  LangString DESC_Wormux  "Spanish" "Wormux ${WORMUX_VERSION}"
+  LangString DESC_Wormux  "Spanish" "Wormux @PACKAGE_VERSION@"
 
   !insertmacro MUI_LANGUAGE "Dutch"
   LicenseLangString WormuxLicense "Dutch" "${WIN_WORMUXDIR}\doc\license\COPYING.nl.txt"
   LangString TITLE_Wormux "Dutch" "Wormux"
-  LangString DESC_Wormux  "Dutch" "Wormux ${WORMUX_VERSION}"
+  LangString DESC_Wormux  "Dutch" "Wormux @PACKAGE_VERSION@"
 
   !insertmacro MUI_LANGUAGE "Russian"
   LicenseLangString WormuxLicense "Russian" "${WIN_WORMUXDIR}\doc\license\COPYING.ru.txt"
   LangString TITLE_Wormux "Russian" "Wormux"
-  LangString DESC_Wormux  "Russian" "Wormux ${WORMUX_VERSION}"
+  LangString DESC_Wormux  "Russian" "Wormux @PACKAGE_VERSION@"
 
   !insertmacro MUI_LANGUAGE "Slovenian"
   LicenseLangString WormuxLicense "Slovenian" "${WIN_WORMUXDIR}\doc\license\COPYING.sk.txt"
   LangString TITLE_Wormux "Slovenian" "Wormux"
-  LangString DESC_Wormux  "Slovenian" "Wormux ${WORMUX_VERSION}"
+  LangString DESC_Wormux  "Slovenian" "Wormux @PACKAGE_VERSION@"
 
   ;--------------------------------
   ;Installer translations
@@ -324,19 +317,13 @@ Section \$(TITLE_Wormux) Sec_Wormux
   File /r /x .svn "${WIN_WORMUXDIR}\\doc\\license"
 EOF
 
-# Glib (gobject, gthread, glib & gmodule)
-XML_PATH=$(pkg_path libxml-2.0)
-
-# Other libs
-cp "$XML_PATH/bin/libxml2.dll" "$DEST"
-
 # Files that must not be stripped (all MSVC, mainly SDL and vorbis)
 # Make sure freetype, libpng and jpeg dll are matching your libs.
-SDL_PATH=$($SDL_CONFIG --prefix)
+SDL_PATH=$(@SDL_CONFIG@ --prefix)
 cp "$SDL_PATH/bin/"SDL{,_mixer,_ttf,_image,_net}.dll       \
-   "$XML_PATH/bin/"{intl,iconv,zlib1,jpeg62,freetype6}.dll \
-   "$XML_PATH/bin/"lib{png12,tiff3}.dll                    \
-   "$SDL_PATH/bin/"lib{ogg-0,vorbis-0,vorbisfile-3,curl-4}.dll "$DEST"
+   "$SDL_PATH/bin/"{zlib1,jpeg62}.dll                      \
+   "$SDL_PATH/bin/"lib{png3,intl3,iconv2,freetype-6}.dll   \
+   "$SDL_PATH/bin/"lib{ogg-0,vorbis-0,vorbisfile-3}.dll "$DEST"
 
 # Continue producing installer
 cat >> $NSIS <<EOF
@@ -361,9 +348,9 @@ cat >> $NSIS <<EOF
   StrCmp \$R0 "HKCU" _hkcu
     WriteRegStr HKLM "\${HKLM_APP_PATHS_KEY}" "" "\$INSTDIR\wormux.exe"
     WriteRegStr HKLM "\${WORMUX_REG_KEY}" "" "\$INSTDIR"
-    WriteRegStr HKLM "\${WORMUX_REG_KEY}" "Version" "${WORMUX_VERSION}"
+    WriteRegStr HKLM "\${WORMUX_REG_KEY}" "Version" "@PACKAGE_VERSION@"
     WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "DisplayName" "Wormux"
-    WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "DisplayVersion" "${WORMUX_VERSION}"
+    WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "DisplayVersion" "@PACKAGE_VERSION@"
     WriteRegStr HKLM "\${WORMUX_UNINSTALL_KEY}" "UninstallString" "\$INSTDIR\uninstall.exe"
     ;Write language to the registry (for the uninstaller)
     WriteRegStr HKLM "\${WORMUX_REG_KEY}" "Installer Language" \$LANGUAGE
@@ -373,9 +360,9 @@ cat >> $NSIS <<EOF
 
   _hkcu:
     WriteRegStr HKCU "\${WORMUX_REG_KEY}" "" "\$INSTDIR"
-    WriteRegStr HKCU "\${WORMUX_REG_KEY}" "Version" "${WORMUX_VERSION}"
+    WriteRegStr HKCU "\${WORMUX_REG_KEY}" "Version" "@PACKAGE_VERSION@"
     WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "DisplayName" "Pidgin"
-    WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "DisplayVersion" "${WORMUX_VERSION}"
+    WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "DisplayVersion" "@PACKAGE_VERSION@"
     WriteRegStr HKCU "\${WORMUX_UNINSTALL_KEY}" "UninstallString" "\$INSTDIR\\uninstall.exe"
     ;Write language to the registry (for the uninstaller)
     WriteRegStr HKCU "\${WORMUX_REG_KEY}" "Installer Language" \$LANGUAGE
