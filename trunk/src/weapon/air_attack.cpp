@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,9 +34,8 @@
 #include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "team/teams_list.h"
-#include "tool/i18n.h"
 #include "tool/resource_manager.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #include "tool/xml_document.h"
 
 
@@ -85,7 +84,7 @@ Plane::Plane(AirAttackConfig &p_cfg) :
   PhysicalObj("air_attack_plane"),
   cfg(p_cfg)
 {
-  SetCollisionModel(true, false, false);
+  SetCollisionModel(false, false, false);
 
   image = GetResourceManager().LoadSprite(weapons_res_profile, "air_attack_plane");
   SetSize(image->GetSize());

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,8 +37,7 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include "tool/debug.h"
-#include "tool/i18n.h"
+#include <WORMUX_debug.h>
 #include "tool/resource_manager.h"
 #include "weapon/explosion.h"
 
@@ -49,9 +48,6 @@
 #endif
 
 const uint SPEED = 5; // meter / seconde
-// XXX Unused !?
-// const uint NB_MAX_TRY = 20;
-// const uint SPEED_PARACHUTE = 170; // ms par image
 
 ObjBox::ObjBox(const std::string &name)
   : PhysicalObj(name) {
@@ -62,7 +58,7 @@ ObjBox::ObjBox(const std::string &name)
   m_energy = start_life_points;
 
   SetSpeed (SPEED, M_PI_2);
-  SetCollisionModel(false, false, true);
+  SetCollisionModel(true, false, true);
   JukeBox::GetInstance()->Play("default","box/falling");
 }
 
@@ -85,17 +81,23 @@ void ObjBox::CloseParachute()
   anim->Start();
 }
 
-void ObjBox::SignalCollision(const Point2d& /*my_speed_before*/)
+void ObjBox::SignalGroundCollision(const Point2d& /*my_speed_before*/)
 {
   CloseParachute();
 }
 
-void ObjBox::SignalObjectCollision(PhysicalObj * obj, const Point2d& /*my_speed_before*/)
+void ObjBox::SignalObjectCollision(const Point2d& my_speed_before,
+				   PhysicalObj * obj,
+				   const Point2d& /*obj_speed_before*/)
 {
-  //  SignalCollision(); // this is done by the physical engine...
+  // The box has (probably) landed on an object (a barrel for instance)
+  if (my_speed_before.Norm() != 0.0)
+    CloseParachute();
+
   if (obj->IsCharacter())
     ApplyBonus((Character *)obj);
 }
+
 void ObjBox::SignalDrowning()
 {
   CloseParachute();
@@ -103,7 +105,7 @@ void ObjBox::SignalDrowning()
 
 void ObjBox::DropBox()
 {
-  if(parachute) {
+  if (parachute) {
     SetAirResistFactor(1.0);
     parachute = false;
     anim->SetCurrentFrame(anim->GetFrameCount() - 1);

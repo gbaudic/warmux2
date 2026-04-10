@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 #include "team/custom_team.h"
 #include "team/macro.h"
 #include "tool/math_tools.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #include "tool/string_tools.h"
 #include "weapon/explosion.h"
 
@@ -125,7 +125,7 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
 {
 
   m_is_character = true;
-  SetCollisionModel(false, true, true);
+  SetCollisionModel(true, true, true);
   /* body stuff */
   ASSERT(char_body);
   SetBody(char_body);
@@ -333,7 +333,7 @@ void Character::Die()
     body->SetRotation(0.0);
     SetClothe("dead");
     SetMovement("breathe");
-    SetCollisionModel(false, false, false);
+    SetCollisionModel(true, false, false);
 
     if(death_explosion)
       ApplyExplosion(GetCenter(), GameMode::GetInstance()->death_explosion_cfg);
@@ -654,7 +654,7 @@ bool Character::CanStillMoveRL(uint pause)
 }
 
 // Signal the end of a fall
-void Character::SignalCollision(const Point2d& speed_vector)
+void Character::Collision(const Point2d& speed_vector)
 {
   // Do not manage dead characters.
   if (IsDead()) return;
@@ -681,11 +681,10 @@ void Character::SignalCollision(const Point2d& speed_vector)
 
   double norm = speed_vector.Norm();
 
-  MSG_DEBUG("character.collision", "%s collides with speed %f, %f (norm = %f)",
-	    character_name.c_str(), speed_vector.x, speed_vector.y, norm);
-
   if (norm > game_mode->safe_fall && speed_vector.y>0.0)
   {
+    // TODO: take the angle of collision into account!
+
     norm -= game_mode->safe_fall;
     double degat = norm * game_mode->damage_per_fall_unit;
     SetEnergyDelta (-(int)degat);
@@ -699,6 +698,27 @@ void Character::SignalCollision(const Point2d& speed_vector)
 
     SetMovementOnce("hard-land");
   }
+}
+
+void Character::SignalGroundCollision(const Point2d& speed_before)
+{
+  MSG_DEBUG("character.collision", "%s collides on ground with speed %f, %f (norm = %f)",
+	    character_name.c_str(), speed_before.x, speed_before.y, speed_before.Norm());
+
+  Collision(speed_before);
+}
+
+void Character::SignalObjectCollision(const Point2d& my_speed_before,
+				      PhysicalObj * /* obj */,
+				      const Point2d& /* obj_speed */)
+{
+  MSG_DEBUG("character.collision", "%s collides on object with speed %f, %f (norm = %f)",
+	    character_name.c_str(), my_speed_before.x, my_speed_before.y, my_speed_before.Norm());
+
+  // In case an object collides with the character, we don't want
+  // the character to have huge damage because of the speed of the object.
+  // Damage should be applied when felt or when hurted by a weapon.
+  Collision(my_speed_before);
 }
 
 void Character::SignalExplosion()
@@ -952,22 +972,49 @@ void Character::GetValueFromAction(Action *a)
   }
 }
 
+// Static method
+void Character::RetrieveCharacterFromAction(Action *a)
+{
+  int team_no = a->PopInt();
+  int char_no = a->PopInt();
+  Character * c = GetTeamsList().FindPlayingByIndex(team_no)->FindByIndex(char_no);
+  c->GetValueFromAction(a);
+}
+
+// Static method
+void Character::StoreActiveCharacter(Action *a)
+{
+  Character::StoreCharacter(a, ActiveCharacter().GetTeamIndex(), ActiveCharacter().GetCharacterIndex());
+}
+
+// Static method
+void Character::StoreCharacter(Action *a, uint team_no, uint char_no)
+{
+  a->Push((int)team_no);
+  a->Push((int)char_no);
+  Character * c = GetTeamsList().FindPlayingByIndex(team_no)->FindByIndex(char_no);
+  c->StoreValue(a);
+}
+
+// ###################################################################
+// ###################################################################
+// ###################################################################
+
 
 const std::string& Character::GetName() const
 {
     return character_name;
- }
+}
 
 void Character::SetCustomName(const std::string name)
 {
-   if(name.size()>0)
+  if (!name.empty())
   {
     name_text->Set(name);
     character_name = name;
   }
-
-
 }
+
 // ###################################################################
 // ###################################################################
 // ###################################################################

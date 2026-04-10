@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 GroundParticle::GroundParticle(const Point2i& size, const Point2i& position) :
   Particle("ground_particle")
 {
-  SetCollisionModel(true, false, false);
+  SetCollisionModel(false, false, false);
   SetSize(Point2i(1,1));
   m_initial_time_to_live = 1; // used as a boolean because we redefine Refresh!
   m_left_time_to_live = 1; // used as a boolean because we redefine Refresh!

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "sound/jukebox.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #include "weapon/explosion.h"
 #include "weapon/weapon_cfg.h"
 
@@ -39,7 +39,7 @@ FireParticle::FireParticle() :
   on_ground(false),
   oscil_delta(RandomLocal().GetLong(0, dig_ground_time))
 {
-  SetCollisionModel(false, false, false);
+  SetCollisionModel(true, false, false);
   m_left_time_to_live = 100;
   m_check_move_on_end_turn = true;
   m_is_fire = true;

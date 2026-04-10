@@ -18,10 +18,11 @@
  ******************************************************************************
  * Options menu
  *****************************************************************************/
-
-#include "menu/options_menu.h"
-
+#include <sstream>
+#include <string>
 #include <iostream>
+#include <WORMUX_download.h>
+#include "menu/options_menu.h"
 #include "include/app.h"
 #include "include/constant.h"
 #include "game/game_mode.h"
@@ -45,16 +46,12 @@
 #include "gui/question.h"
 #include "map/maps_list.h"
 #include "map/wind.h"
-#include "network/download.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
 #include "team/custom_team.h"
 #include "team/custom_teams_list.h"
-#include "tool/i18n.h"
 #include "tool/string_tools.h"
 #include "tool/resource_manager.h"
-#include <sstream>
-#include <string>
 
 OptionMenu::OptionMenu() :
   Menu("menu/bg_option")
@@ -289,7 +286,8 @@ OptionMenu::OptionMenu() :
   lbox_languages->AddItem(config->GetLanguage() == "it",    "Italiano",            "it");
   lbox_languages->AddItem(config->GetLanguage() == "kw",    "Kernewek",            "kw");
   lbox_languages->AddItem(config->GetLanguage() == "lv",    "latviešu valoda",     "lv");
-  lbox_languages->AddItem(config->GetLanguage() == "nb",    "Norsk",               "nb");
+  lbox_languages->AddItem(config->GetLanguage() == "nb",    "Norsk (bokmål)",      "nb");
+  lbox_languages->AddItem(config->GetLanguage() == "nn",    "Norsk (nynorsk)",     "nn");
   lbox_languages->AddItem(config->GetLanguage() == "nl",    "Nederlands",          "nl");
   lbox_languages->AddItem(config->GetLanguage() == "pl",    "Polski",              "pl");
   lbox_languages->AddItem(config->GetLanguage() == "pt",    "Português",           "pt");
@@ -383,7 +381,10 @@ void OptionMenu::SaveOptions()
 
   int w, h;
   sscanf(s_mode.c_str(),"%dx%d", &w, &h);
-#ifndef __APPLE__
+#ifdef __APPLE__
+  // The mac version of SDL does not support fullscreen properly
+  app->video->SetConfig(w, h, false);
+#else
   app->video->SetConfig(w, h, full_screen->GetValue());
 #endif
 
@@ -453,7 +454,7 @@ void OptionMenu::CheckUpdates()
       }
   }
   catch (const std::string err) {
-    AppWormux::DisplayError(Format(_("Version verification failed because: %s\n"), err.c_str()));
+    AppWormux::DisplayError(Format(_("Version verification failed because: %s"), err.c_str()));
   }
 }
 

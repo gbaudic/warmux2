@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@
 #include "team/macro.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include "tool/i18n.h"
 
 // Should be read from game mode
 GameBlitz::GameBlitz()
@@ -176,37 +175,18 @@ void GameBlitz::__SetState_PLAYING()
   // Select the next team
   ASSERT (!IsGameFinished());
 
-  if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal())
-    {
-      GetTeamsList().NextTeam();
+  if (Network::GetInstance()->IsTurnMaster() || Network::GetInstance()->IsLocal()) {
 
-      if ( GameMode::GetInstance()->auto_change_character )
-        {
-          ActiveTeam().NextCharacter();
-        }
+    GetTeamsList().NextTeam();
 
-      Camera::GetInstance()->FollowObject (&ActiveCharacter(), true);
+    Camera::GetInstance()->FollowObject (&ActiveCharacter(), true);
 
-      if ( Network::GetInstance()->IsTurnMaster() )
-        {
-          // Tell clients which character in the team is now playing
-          Action playing_char(Action::ACTION_GAMELOOP_CHANGE_CHARACTER);
-          playing_char.StoreActiveCharacter();
-          Network::GetInstance()->SendAction(playing_char);
-
-          printf("Action_ChangeCharacter:\n");
-          printf("char_index = %i\n",ActiveCharacter().GetCharacterIndex());
-          printf("Playing character : %i %s\n", ActiveCharacter().GetCharacterIndex(), ActiveCharacter().GetName().c_str());
-          printf("Playing team : %i %s\n", ActiveCharacter().GetTeamIndex(), ActiveTeam().GetName().c_str());
-          printf("Alive characters: %i / %i\n\n",ActiveTeam().NbAliveCharacter(),ActiveTeam().GetNbCharacters());
-        }
-
-      // Are we turn master for next turn ?
-      if (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
-        Network::GetInstance()->SetTurnMaster(true);
-      else
-        Network::GetInstance()->SetTurnMaster(false);
-    }
+    // Are we turn master for next turn ?
+    if (ActiveTeam().IsLocal() || ActiveTeam().IsLocalAI())
+      Network::GetInstance()->SetTurnMaster(true);
+    else
+      Network::GetInstance()->SetTurnMaster(false);
+  }
 
   // initialize counter
   Interface::GetInstance()->UpdateTimer(GetCurrentTeam()->second);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include "object/objects_list.h"
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
-#include "tool/i18n.h"
 #include "tool/xml_document.h"
 #include "game/time.h"
 
@@ -82,7 +81,7 @@ FootBomb::FootBomb(FootBombConfig& cfg,
 void FootBomb::Shoot(const Point2i & pos, double strength, double angle, int recursions)
 {
   m_recursions = recursions;
-  SetCollisionModel( false, true, false ); // a bit hackish...
+  SetCollisionModel(true, true, false ); // a bit hackish...
   // we do need to collide with objects, but if we allow for this, the clusters
   // will explode on spawn (because of colliding with each other)
 

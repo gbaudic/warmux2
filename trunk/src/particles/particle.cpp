@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,8 +26,8 @@
 #include "graphic/sprite.h"
 #include "object/objects_list.h"
 #include "tool/resource_manager.h"
-#include "tool/random.h"
-#include "tool/point.h"
+#include <WORMUX_random.h>
+#include <WORMUX_point.h>
 #include "weapon/explosion.h"
 #include "map/map.h"
 
@@ -56,7 +56,7 @@ Particle::Particle(const std::string &name) :
   m_last_refresh(Time::GetInstance()->Read()),
   image(NULL)
 {
-  SetCollisionModel(true, false, false);
+  SetCollisionModel(false, false, false);
 }
 
 Particle::~Particle()

@@ -2,10 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include "include/base.h"
-#include "tool/error.h"
-#include "tool/i18n.h"
 #ifdef DEBUG
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #endif
 #include "network/chatlogger.h"
 #include "game/config.h"

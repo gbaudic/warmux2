@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ class NetworkMenu : public Menu
   bool waiting_for_server;
 
   /* Options controllers */
+  Label* mode_label;
   SpinButton* player_number;
   Label* connected_players;
   Label* initialized_players;
@@ -58,7 +59,8 @@ class NetworkMenu : public Menu
   void OnClick(const Point2i &mousePosition, int button);
   void OnClickUp(const Point2i &mousePosition, int button);
   void Draw(const Point2i &mousePosition);
-  void WaitingForServer();
+  void WaitingForGameMaster();
+  void HandleEvent(const SDL_Event& event);
 
   void key_ok();
   bool signal_ok();
@@ -72,6 +74,7 @@ public:
   void UpdateTeamCallback(const std::string& old_team_id, const std::string& team_id);
   void DelTeamCallback(const std::string& team_id);
   void ChangeMapCallback();
+  void SetGameMasterCallback();
 
   void ReceiveMsgCallback(const std::string& msg);
 };

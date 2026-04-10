@@ -30,7 +30,6 @@
 #include "network/chat.h"
 #include "network/admin_commands.h"
 #include "network/network.h"
-#include "tool/i18n.h"
 #include "tool/text_handling.h"
 
 const uint HEIGHT=15;
@@ -76,17 +75,23 @@ void Chat::Show()
 
 void Chat::ShowInput()
 {
-  check_input = true;
+  if (!check_input) {
+    check_input = true;
+
+    /* Enable key repeat when chatting :) */
+    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+  }
+
   if (input == NULL){
     input = new Text("", c_white);
     msg = new Text(_("Say: "), c_red);
   }
 
   /* FIXME where do those constants come from ?*/
-  msg->DrawTopLeft(Point2i(25, 500));
+  msg->DrawTopLeft(Point2i(25, 400));
   if (input->GetText() != "") {
-    input->DrawTopLeft(Point2i(25 + msg->GetWidth() + 5, 500));
-    input->DrawCursor(Point2i(25 + msg->GetWidth() + 5, 500), cursor_pos);
+    input->DrawTopLeft(Point2i(25 + msg->GetWidth() + 5, 400));
+    input->DrawCursor(Point2i(25 + msg->GetWidth() + 5, 400), cursor_pos);
   }
 }
 
@@ -111,7 +116,7 @@ void Chat::SendMessage(const std::string &msg)
     return;
 
   Action* a = new Action(Action::ACTION_CHAT_MESSAGE);
-  a->Push(Network::GetInstance()->GetNickname());
+  a->Push(Network::GetInstance()->GetPlayer().GetNickname());
   a->Push(msg);
   ActionHandler::GetInstance()->NewAction(a);
 }
@@ -138,6 +143,9 @@ void Chat::HandleKey(const SDL_Event& event)
 
       input->Set("");
       cursor_pos = 0;
+
+      // Disable key repeat during the game!
+      SDL_EnableKeyRepeat(0, 0);
       break;
 
     default:

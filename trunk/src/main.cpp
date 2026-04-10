@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
  *  Starting file. (the 'main' function is here.)
  *****************************************************************************/
 
-#include "include/app.h"
 #include <algorithm>
 #include <exception>
 #include <sstream>
@@ -30,9 +29,11 @@
 #ifndef WIN32
 #include <signal.h>
 #endif
-using namespace std;
-
 #include <SDL.h>
+#include <WORMUX_debug.h>
+#include <WORMUX_index_server.h>
+#include <WORMUX_random.h>
+#include <WORMUX_singleton.h>
 #include "game/config.h"
 #include "game/game.h"
 #include "game/time.h"
@@ -41,8 +42,9 @@ using namespace std;
 #include "graphic/text.h"
 #include "graphic/video.h"
 #include "include/action_handler.h"
+#include "include/app.h"
+#include "include/base.h"
 #include "include/constant.h"
-#include "include/singleton.h"
 #include "map/map.h"
 #include "menu/credits_menu.h"
 #include "menu/game_menu.h"
@@ -51,12 +53,11 @@ using namespace std;
 #include "menu/network_connection_menu.h"
 #include "menu/options_menu.h"
 #include "menu/skin_menu.h"
-#include "network/index_server.h"
 #include "particles/particle.h"
 #include "sound/jukebox.h"
-#include "tool/debug.h"
-#include "tool/i18n.h"
-#include "tool/random.h"
+#ifdef DEBUG
+#include "include/debugmasks.h"
+#endif
 
 static MainMenu::menu_item choice = MainMenu::NONE;
 static bool skip_menu = false;
@@ -80,7 +81,7 @@ AppWormux::AppWormux():
 {
   JukeBox::GetInstance()->Init();
   RandomLocal().InitRandom();
-  cout << "[ " << _("Run game") << " ]" << endl;
+  std::cout << "[ " << _("Run game") << " ]" << std::endl;
 }
 
 AppWormux::~AppWormux()
@@ -96,11 +97,15 @@ int AppWormux::Main(void)
 {
   bool quit = false;
 
+#ifndef DEBUG
   try
+#endif
   {
     DisplayLoadingPicture();
 
     OptionMenu::CheckUpdates();
+
+    Action_Handler_Init();
 
     do
     {
@@ -108,7 +113,7 @@ int AppWormux::Main(void)
       if (choice == MainMenu::NONE)
       {
         MainMenu main_menu;
-        menu = &main_menu;
+        SetCurrentMenu(&main_menu);
         choice = main_menu.Run();
       }
 
@@ -119,35 +124,35 @@ int AppWormux::Main(void)
         case MainMenu::PLAY:
         {
           GameMenu game_menu;
-          menu = &game_menu;
+          SetCurrentMenu(&game_menu);
           game_menu.Run(skip_menu);
           break;
         }
         case MainMenu::NETWORK:
         {
           NetworkConnectionMenu network_connection_menu(net_action);
-          menu = &network_connection_menu;
+          SetCurrentMenu(&network_connection_menu);
           network_connection_menu.Run(skip_menu);
           break;
         }
         case MainMenu::HELP:
         {
           HelpMenu help_menu;
-          menu = &help_menu;
+          SetCurrentMenu(&help_menu);
           help_menu.Run();
           break;
         }
         case MainMenu::OPTIONS:
         {
           OptionMenu options_menu;
-          menu = &options_menu;
+          SetCurrentMenu(&options_menu);
           options_menu.Run();
           break;
         }
         case MainMenu::CREDITS:
         {
           CreditsMenu credits_menu;
-          menu = &credits_menu;
+          SetCurrentMenu(&credits_menu);
           credits_menu.Run();
           break;
         }
@@ -157,14 +162,14 @@ int AppWormux::Main(void)
         case MainMenu::SKIN_VIEWER:
         {
           SkinMenu skin_menu(skin);
-          menu = &skin_menu;
+          SetCurrentMenu(&skin_menu);
           skin_menu.Run();
           break;
         }
         default:
           break;
       }
-      menu = NULL;
+      SetCurrentMenu(NULL);
       choice = MainMenu::NONE;
       skip_menu = false;
       net_action = NetworkConnectionMenu::NET_NOTHING;
@@ -173,20 +178,22 @@ int AppWormux::Main(void)
 
     End();
   }
-  catch(const exception & e)
+#ifndef DEBUG
+  catch(const std::exception & e)
   {
-    cerr << endl
-	 << "C++ exception caught:" << endl
-	 << e.what() << endl << endl;
+    std::cerr << std::endl
+	 << "C++ exception caught:" << std::endl
+	 << e.what() << std::endl << std::endl;
     AppWormux::DisplayError(e.what());
     WakeUpDebugger();
   }
   catch(...)
   {
-    cerr << endl
-      << "Unexpected exception caught..." << endl << endl;
+    std::cerr << std::endl
+      << "Unexpected exception caught..." << std::endl << std::endl;
     WakeUpDebugger();
   }
+#endif
 
   return 0;
 }
@@ -195,9 +202,9 @@ void AppWormux::DisplayLoadingPicture()
 {
   Config *config = Config::GetInstance();
 
-  string txt_version =
-    _("Version") + string(" ") + Constants::WORMUX_VERSION;
-  string filename = config->GetDataDir() + "menu" PATH_SEPARATOR "loading.png";
+  std::string txt_version =
+    _("Version") + std::string(" ") + Constants::WORMUX_VERSION;
+  std::string filename = config->GetDataDir() + "menu" PATH_SEPARATOR "loading.png";
 
   Surface surfaceLoading(filename.c_str());
   Sprite loading_image(surfaceLoading, true);
@@ -227,28 +234,30 @@ void AppWormux::SetCurrentMenu(Menu* _menu)
   menu = _menu;
 }
 
+Menu* AppWormux::GetCurrentMenu() const
+{
+  return menu;
+}
+
 void AppWormux::RefreshDisplay()
 {
   if (Game::GetInstance()->IsGameLaunched()) {
     GetWorld().DrawSky(true);
     GetWorld().Draw(true);
   }
-  else if (menu) {
-    menu->RedrawMenu();
+  else if (GetCurrentMenu()) {
+    GetCurrentMenu()->RedrawMenu();
   }
 }
 
 void AppWormux::DisplayError(const std::string &msg)
 {
-  if (singleton == NULL) {
-    std::cerr << msg << std::endl;
-    return;
-  }
+  std::cerr << msg << std::endl;
 
   if (Game::GetInstance()->IsGameLaunched()) {
     // nothing to do
-  } else if (singleton->menu) {
-      singleton->menu->DisplayError(msg);
+  } else if (singleton->GetCurrentMenu()) {
+    singleton->GetCurrentMenu()->DisplayError(msg);
   }
 }
 
@@ -257,14 +266,14 @@ void AppWormux::ReceiveMsgCallback(const std::string& msg)
   if (Game::GetInstance()->IsGameLaunched()) {
     //Add message to chat session in Game
     Game::GetInstance()->chatsession.NewMessage(msg);
-  } else if (menu) {
-    menu->ReceiveMsgCallback(msg);
+  } else if (GetCurrentMenu()) {
+    GetCurrentMenu()->ReceiveMsgCallback(msg);
   }
 }
 
 void AppWormux::End() const
 {
-  cout << endl << "[ " << _("Quit Wormux") << " ]" << endl;
+  std::cout << std::endl << "[ " << _("Quit Wormux") << " ]" << std::endl;
 
   /* FIXME calling Config->Save here sucks: it nothing was ever done, it loads
    * the whole stuff just before exiting... This should be moved, but where? */
@@ -275,37 +284,43 @@ void AppWormux::End() const
 #ifdef ENABLE_STATS
   SaveStatToXML("stats.xml");
 #endif
-  cout << "o " << _("If you found a bug or have a feature request "
+  std::cout << "o " << _("If you found a bug or have a feature request "
                     "send us a email (in english, please):")
-    << " " << Constants::EMAIL << endl;
+    << " " << Constants::EMAIL << std::endl;
+}
+
+void AppWormux::EmergencyExit()
+{
+  delete AppWormux::GetInstance();
+  exit(EXIT_SUCCESS);
 }
 
 void DisplayWelcomeMessage()
 {
-  cout << "=== " << _("Wormux version ") << Constants::WORMUX_VERSION << endl;
-  cout << "=== " << _("Authors:") << ' ';
-  for (vector < string >::iterator it = Constants::GetInstance()->AUTHORS.begin(),
+  std::cout << "=== " << _("Wormux version ") << Constants::WORMUX_VERSION << std::endl;
+  std::cout << "=== " << _("Authors:") << ' ';
+  for (std::vector < std::string >::iterator it = Constants::GetInstance()->AUTHORS.begin(),
        fin = Constants::GetInstance()->AUTHORS.end(); it != fin; ++it)
     {
       if (it != Constants::GetInstance()->AUTHORS.begin())
-        cout << ", ";
-      cout << *it;
+        std::cout << ", ";
+      std::cout << *it;
     }
-  cout << endl
-    << "=== " << _("Website: ") << Constants::WEB_SITE << endl
-    << endl;
+  std::cout << std::endl
+    << "=== " << _("Website: ") << Constants::WEB_SITE << std::endl
+    << std::endl;
 
   // print the disclaimer
-  cout << "Wormux version " << Constants::WORMUX_VERSION
-    << ", Copyright (C) 2001-2008 Wormux Team" << endl
-    << "Wormux comes with ABSOLUTELY NO WARRANTY." << endl
-    << "This is free software and you are welcome to redistribute it" << endl
-    << "under certain conditions." << endl << endl
-    << "Read the file COPYING for details." << endl << endl;
+  std::cout << "Wormux version " << Constants::WORMUX_VERSION
+    << ", Copyright (C) 2001-2009 Wormux Team" << std::endl
+    << "Wormux comes with ABSOLUTELY NO WARRANTY." << std::endl
+    << "This is free software and you are welcome to redistribute it" << std::endl
+    << "under certain conditions." << std::endl << std::endl
+    << "Read the file COPYING for details." << std::endl << std::endl;
 
 #ifdef DEBUG
-  cout << "This program was compiled in DEBUG mode (development version)"
-       << endl << endl;
+  std::cout << "This program was compiled in DEBUG mode (development version)"
+       << std::endl << std::endl;
 #endif
 }
 
@@ -325,7 +340,7 @@ void PrintUsage(const char* cmd_name)
 	 , cmd_name);
 #ifdef DEBUG
   printf("\nWith :\n");
-  printf(" <debug_masks> ::= { action | action_handler | action_handler.menu | ai | ai.move | ai.shoot | body | body_anim | body.state | bonus | box | camera.follow | camera.shake | camera.tracking | character | character.collision | character.energy | damage | downloader | explosion | game | game.endofturn | game_mode | game.statechange | ghost | grapple.break | grapple.hook | grapple.node | ground_generator.element | index_server | jukebox | jukebox.cache | jukebox.play | lst_objects | map | map.collision | map.load | map.random | menu | mine | mouse | network | network.crc | network.crc_bad | network.traffic | network.turn_master | physical | physical.mem | physic.compute | physic.fall | physic.move | physic.overlapping | physic.pendulum | physic.physic | physic.position | physic.state | physic.sync | random | random.get | singleton | socket | sprite | team | test_rectangle | weapon | weapon.change | weapon.handposition | weapon.projectile | weapon.shoot | widget.border | wind | xml | xml.tree }\n");
+  printf(" <debug_masks> ::= { %s }\n", used_debug_masks.c_str());
 #endif
 }
 
@@ -388,8 +403,8 @@ void ParseArgs(int argc, char * argv[])
           skip_menu = true;
           break;
         case 'l':
-          if (optarg) IndexServer::GetInstance()->SetLocal(optarg);
-          else        IndexServer::GetInstance()->SetLocal();
+          if (optarg) IndexServer::GetInstance()->SetAddress(optarg);
+          else        IndexServer::GetInstance()->SetAddress("127.0.0.1");
           break;
         case 'y':
           choice = MainMenu::SKIN_VIEWER;

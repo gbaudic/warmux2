@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -56,8 +56,7 @@
 #include "team/macro.h"
 #include "team/team.h"
 #include "team/results.h"
-#include "tool/i18n.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #include "tool/stats.h"
 
 #ifdef DEBUG
@@ -265,11 +264,9 @@ void Game::RefreshInput()
   bool refresh_joystick =  Joystick::GetInstance()->GetNumberOfJoystick() > 0;
   while(SDL_PollEvent(&event)) {
 
-     //Emergency exit
-    if(event.key.keysym.sym == SDLK_ESCAPE && (SDL_GetModState() & KMOD_CTRL) )
-    {
-       exit(0);
-    }
+    // Emergency exit
+    if (event.key.keysym.sym == SDLK_ESCAPE && (SDL_GetModState() & KMOD_CTRL))
+      AppWormux::EmergencyExit();
 
     if ( event.type == SDL_QUIT) {
       std::cout << "SDL_QUIT received ===> exit TODO" << std::endl;
@@ -470,13 +467,15 @@ bool Game::Run()
 #endif
     MessageEndOfGame();
 
+  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+
   return game_finished;
 }
 
 bool Game::HasBeenNetworkDisconnected() const
 {
   const Network* net          = Network::GetInstance();
-  return !net->IsLocal() && net->cpu.empty();
+  return !net->IsLocal() && (net->GetNbHostsConnected() == 0);
 }
 
 void Game::MessageEndOfGame() const
@@ -506,7 +505,7 @@ void Game::MainLoop()
   RefreshClock();
   time_of_next_phy_frame = Time::GetInstance()->Read() + Time::GetInstance()->GetDelta();
 
-  if(Time::GetInstance()->Read() % 1000 == 20 && Network::GetInstance()->IsServer())
+  if (Time::GetInstance()->Read() % 1000 == 20 && Network::GetInstance()->IsGameMaster())
     PingClient();
   StatStart("Game:RefreshInput()");
   RefreshInput();
@@ -626,7 +625,7 @@ void Game::Really_SetState(game_loop_state_t new_state)
 void Game::SetState(game_loop_state_t new_state, bool begin_game) const
 {
   if (begin_game &&
-      (Network::GetInstance()->IsServer() || Network::GetInstance()->IsLocal()))
+      (Network::GetInstance()->IsGameMaster() || Network::GetInstance()->IsLocal()))
     Network::GetInstance()->SetTurnMaster(true);
 
   if (!Network::GetInstance()->IsTurnMaster())

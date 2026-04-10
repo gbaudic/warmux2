@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@
 #include "team/team.h"
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
-#include "tool/i18n.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 
@@ -291,7 +290,7 @@ bool Grapple::TryAddNode(int CurrentSense)
       a.Push(contact_point);
       a.Push(rope_angle);
       a.Push(CurrentSense);
-      Network::GetInstance()->SendAction(a);
+      Network::GetInstance()->SendActionToAll(a);
 
       return true;
     }
@@ -361,7 +360,7 @@ bool Grapple::TryRemoveNodes(int currentSense)
      // Send node suppression over the network
      Action a(Action::ACTION_WEAPON_GRAPPLE);
      a.Push(DETACH_NODE);
-     Network::GetInstance()->SendAction(a);
+     Network::GetInstance()->SendActionToAll(a);
   }
 
   return nodes_to_remove > 0;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,8 +36,7 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include "tool/debug.h"
-#include "tool/i18n.h"
+#include <WORMUX_debug.h>
 #include "network/randomsync.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
@@ -75,7 +74,7 @@ void ObjMine::FakeExplosion()
   }
   if (launcher != NULL) launcher->SignalProjectileTimeout();
   // Mine fall into the ground after a fake explosion
-  SetCollisionModel(false, false, false);
+  SetCollisionModel(true, false, false);
 }
 
 void ObjMine::StartTimeout()

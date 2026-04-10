@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8.3], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8.4], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -37,6 +37,7 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_INSTALL
+AC_PROG_RANLIB
 
 AC_CHECK_PROG(cxx_present, $CXX, "yes", "no")
 if test "x$cxx_present" != "xyes"; then
@@ -97,7 +98,7 @@ case "${host}" in
      fi
      AC_SUBST(WINDRES)
      ;;
-  *freebsd*) 
+  *freebsd*)
      LIBS="$LIBS -lintl" # a temporary hackish workaround
      ;;
   *cygwin*) WIN32="yes" ;;
@@ -388,8 +389,14 @@ AC_SUBST([BUILD_ENV])
 AC_CONFIG_FILES([Makefile
                  data/Makefile
                  src/Makefile
+		 lib/wormux/Makefile
+		 lib/wormux-server/Makefile
                  doc/Makefile
                  po/Makefile
+		 tools/Makefile
+		 tools/servers/Makefile
+		 tools/servers/game_server/Makefile
+		 tools/servers/index_server/Makefile
                  ], [AM_POSTPROCESS_PO_MAKEFILE])
 
 AM_CONFIG_HEADER(src/config.h)

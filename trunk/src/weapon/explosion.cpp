@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,10 +35,10 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include "tool/debug.h"
+#include <WORMUX_debug.h>
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #include "weapon/weapon.h"
 
 Profile *weapons_res_profile = NULL;
@@ -149,7 +149,7 @@ void ApplyExplosion_common (const Point2i &pos,
        continue; // hack to fix bug #8529
      }
 
-     if (!obj->GoesThroughWall() && !obj->IsGhost())
+     if (obj->CollidesWithGround() && !obj->IsGhost())
      {
        double distance = pos.Distance(obj->GetCenter());
        if(distance < 1.0)
@@ -220,7 +220,7 @@ void ApplyExplosion_master (const Point2i &pos,
   ActionHandler* action_handler = ActionHandler::GetInstance();
 
   Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
-  Network::GetInstance()->SendAction(a_begin_sync);
+  Network::GetInstance()->SendActionToAll(a_begin_sync);
 
   TeamsList::iterator
     it=GetTeamsList().playing_list.begin(),
@@ -245,12 +245,12 @@ void ApplyExplosion_master (const Point2i &pos,
       if (distance <= config.explosion_range || distance < config.blast_range)
       {
         // clients : Place characters
-        a_characters_info.StoreCharacter(team_no, char_no);
+	Character::StoreCharacter(&a_characters_info, team_no, char_no);
       }
     }
   }
   // send characters infos on network
-  Network::GetInstance()->SendAction(a_characters_info);
+  Network::GetInstance()->SendActionToAll(a_characters_info);
 
   Action* a = new Action(Action::ACTION_EXPLOSION);
   a->Push(pos);
@@ -267,7 +267,7 @@ void ApplyExplosion_master (const Point2i &pos,
 
   action_handler->NewAction(a);
   Action a_sync_end(Action::ACTION_NETWORK_SYNC_END);
-  Network::GetInstance()->SendAction(a_sync_end);
+  Network::GetInstance()->SendActionToAll(a_sync_end);
 }
 
 

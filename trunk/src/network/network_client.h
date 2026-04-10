@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,11 +25,13 @@
 #include "network.h"
 //-----------------------------------------------------------------------------
 
+class WSocket;
+
 class NetworkClient : public Network
 {
 protected:
-  connection_state_t HandShake(TCPsocket& server_socket);
-  virtual void HandleAction(Action* a, DistantComputer* sender) const;
+  connection_state_t HandShake(WSocket& server_socket);
+  virtual void HandleAction(Action* a, DistantComputer* sender);
   virtual void WaitActionSleep() {};
 
 public:
@@ -39,7 +41,7 @@ public:
   //virtual const bool IsConnected() const { return true; }
   virtual bool IsClient() const { return true; }
 
-  std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator);
+  void CloseConnection(std::list<DistantComputer*>::iterator);
 
   // Client specific methods
   connection_state_t ClientConnect(const std::string& host,

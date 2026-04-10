@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@
 #define PHYSICAL_OBJECT_H
 
 #include "physics.h"
-#include "tool/point.h"
-#include "tool/rectangle.h"
+#include <WORMUX_point.h>
+#include <WORMUX_rectangle.h>
 
 // Alive state
 typedef enum
@@ -54,7 +54,7 @@ class PhysicalObj : public Physics
 
 private:
   // collision management
-  bool m_goes_through_wall;
+  bool m_collides_with_ground;
   bool m_collides_with_characters;
   bool m_collides_with_objects;
   Point2i m_rebound_position;
@@ -138,7 +138,7 @@ public:
   int GetCenterY() const { return GetY() +m_test_top +GetTestHeight()/2; };
   const Point2i GetCenter() const { return Point2i(GetCenterX(), GetCenterY()); };
   const Rectanglei GetRect() const { return Rectanglei( GetX(), GetY(), m_width, m_height); };
-  bool GoesThroughWall() const { return m_goes_through_wall; }
+  bool CollidesWithGround() const { return m_collides_with_ground; }
   bool IsCharacter() const { return m_is_character; }
 
   //----------- Physics related function ----------
@@ -153,7 +153,7 @@ public:
                                          // and max_distance is max distance allowed when putting out
 
   // Collision management
-  void SetCollisionModel(bool goes_through_wall,
+  void SetCollisionModel(bool collides_with_ground,
                          bool collides_with_characters,
                          bool collides_with_objects);
   void SetOverlappingObject(PhysicalObj* obj, int timeout = 0);
@@ -210,9 +210,10 @@ public:
 
 protected:
   virtual void SignalRebound();
-  virtual void SignalObjectCollision(PhysicalObj *, const Point2d& /* my_speed_before */) { };
   virtual void SignalGroundCollision(const Point2d& /* my_speed_before */) { };
-  virtual void SignalCollision(const Point2d& /* my_speed_before */) { };
+  virtual void SignalObjectCollision(const Point2d& /* my_speed_before */,
+				     PhysicalObj * /* collided/ing object */,
+				     const Point2d& /* object speed_before */) { };
   virtual void SignalOutOfMap() { };
 
 private:

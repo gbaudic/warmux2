@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@
 #include "team/team.h"
 #include "tool/resource_manager.h"
 #include "tool/string_tools.h"
-#include "tool/i18n.h"
 #include "weapon/weapon.h"
 #include "weapon/weapon_strength_bar.h"
 
@@ -480,6 +479,9 @@ void Interface::Draw()
   AppWormux * app = AppWormux::GetInstance();
   bottom_bar_pos = (app->video->window.GetSize() - GetSize()) * Point2d(0.5, 1);
 
+  if (display_minimap)
+    DrawMapPreview();
+
   if ( Game::GetInstance()->ReadState() == Game::PLAYING && weapon_strength_bar.visible)
   {
     // Position on the screen
@@ -504,8 +506,6 @@ void Interface::Draw()
   DrawCharacterInfo();
   DrawTeamEnergy();
   DrawWeaponInfo();
-  if (display_minimap)
-    DrawMapPreview();
   DrawSmallInterface();
 }
 

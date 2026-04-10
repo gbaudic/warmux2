@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 #include "include/action_handler.h"
 #include "map/map.h"
 #include "map/maps_list.h"
-#include "tool/debug.h"
-#include "tool/random.h"
+#include <WORMUX_debug.h>
+#include <WORMUX_random.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 #include "interface/interface.h"
@@ -43,7 +43,7 @@ const uint bar_speed = 20;
 WindParticle::WindParticle(const std::string &xml_file, float scale) :
   PhysicalObj("wind", xml_file)
 {
-  SetCollisionModel(true, false, false);
+  SetCollisionModel(false, false, false);
 
   // Physic constants
   double mass, wind_factor ;

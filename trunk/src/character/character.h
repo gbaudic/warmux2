@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -94,9 +94,13 @@ private:
   void DrawEnergyBar(int dy) const;
   void DrawName(int dy) const;
 
-  void SignalDrowning();
-  void SignalGhostState(bool was_dead);
-  void SignalCollision(const Point2d& speed_vector);
+  virtual void SignalDrowning();
+  virtual void SignalGhostState(bool was_dead);
+  virtual void SignalGroundCollision(const Point2d& speed_before);
+  virtual void SignalObjectCollision(const Point2d& my_speed_before,
+				     PhysicalObj * obj,
+				     const Point2d& obj_speed);
+  void Collision(const Point2d& speed_vector);
   void SetBody(Body* char_body);
 
   void AddFiringAngle(double angle) { SetFiringAngle(firing_angle + angle); };
@@ -107,7 +111,7 @@ public:
   Character (const Character& acharacter);
   ~Character();
 
-  void SignalExplosion();
+  virtual void SignalExplosion();
 
   // Energy related
   void SetEnergyDelta(int delta, bool do_report = true);
@@ -141,9 +145,15 @@ public:
     else disease_damage_per_turn = 0;
   }
 
+  // ================================================
   // Used to sync value across network
   virtual void GetValueFromAction(Action *);
   virtual void StoreValue(Action *);
+
+  static void RetrieveCharacterFromAction(Action *);
+  static void StoreActiveCharacter(Action *);
+  static void StoreCharacter(Action *, uint team_no, uint char_no);
+  // ================================================
 
   void Draw();
   void Refresh();

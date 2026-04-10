@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "network/network.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include "tool/debug.h"
+#include <WORMUX_debug.h>
 
 // Max climbing height walking
 const int MAX_CLIMBING_HEIGHT=30;

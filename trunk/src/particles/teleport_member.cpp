@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 #include "particles/teleport_member.h"
 #include "particles/particle.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "map/camera.h"
@@ -29,7 +29,7 @@
 TeleportMemberParticle::TeleportMemberParticle(const Sprite& spr, const Point2i& position, const Point2i& dest, int direction) :
   Particle("teleport_member_particle")
 {
-  SetCollisionModel(true, false, false);
+  SetCollisionModel(false, false, false);
   image = new Sprite(spr.GetSurface());
 
   float scale_x, scale_y;

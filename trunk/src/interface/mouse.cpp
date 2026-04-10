@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 #include "map/map.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include "tool/point.h"
+#include <WORMUX_point.h>
 #include "tool/resource_manager.h"
 #include "weapon/weapon.h"
 #include "game/time.h"
@@ -118,13 +118,13 @@ void Mouse::ActionLeftClic(bool) const
     }
 
     if (character_found) {
-      Action * next_character = new Action(Action::ACTION_PLAYER_NEXT_CHARACTER);
-      next_character->StoreActiveCharacter();
+      Action * next_character = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
+      Character::StoreActiveCharacter(next_character);
 
       while ( &(*it) != &ActiveCharacter() )
         ActiveTeam().NextCharacter ();
 
-      next_character->StoreActiveCharacter();
+      Character::StoreActiveCharacter(next_character);
       ActionHandler::GetInstance()->NewAction(next_character);
 
       return;
@@ -334,7 +334,7 @@ void Mouse::Hide()
 {
   if(visible == MOUSE_VISIBLE)
   {
-  last_hide_time = Time::GetInstance()->Read();
+    last_hide_time = Time::GetInstance()->Read();
   }
   visible = MOUSE_HIDDEN;
   SDL_ShowCursor(false); // be sure cursor is invisible

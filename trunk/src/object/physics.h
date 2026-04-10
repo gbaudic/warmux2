@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@
 #define PHYSICS_H
 
 #include "include/base.h"
-#include "tool/euler_vector.h"
-#include "tool/point.h"
+#include <WORMUX_euler_vector.h>
+#include <WORMUX_point.h>
 #include "object_cfg.h"
 
 enum MotionType_t

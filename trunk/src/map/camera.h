@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 
 #include "include/base.h"
 #include "interface/mouse.h"
-#include "tool/point.h"
-#include "tool/rectangle.h"
+#include <WORMUX_point.h>
+#include <WORMUX_rectangle.h>
 
 class PhysicalObj;
 
@@ -42,6 +42,8 @@ private:
   Point2i m_shake_centerpoint;
   mutable Point2i m_shake;
   mutable uint m_last_time_shake_calculated;
+
+  Point2d m_speed;
 
   void SaveMouseCursor();
   void RestoreMouseCursor();

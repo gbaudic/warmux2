@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include "map/wind.h"
 #include "game/time.h"
 #include "object/objbox.h"
-#include "tool/i18n.h"
 #include "tool/math_tools.h"
 
 const double MINIMUM_DISTANCE_BETWEEN_CHARACTERS = 50.0;
@@ -420,4 +419,4 @@ bool Map::TraceRay(const Point2i &start, const Point2i & end, TraceResult & tr, 
   }
 
   return false;
-};
+}

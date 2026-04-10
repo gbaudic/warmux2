@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -48,7 +48,6 @@ void Keyboard::SetDefaultConfig()
   SetKeyAction(SDLK_TAB,       ManMachineInterface::KEY_NEXT_CHARACTER);
   SetKeyAction(SDLK_ESCAPE,    ManMachineInterface::KEY_QUIT);
   SetKeyAction(SDLK_PAUSE,     ManMachineInterface::KEY_PAUSE);
-  SetKeyAction(SDLK_p,         ManMachineInterface::KEY_PAUSE);
   SetKeyAction(SDLK_F10,       ManMachineInterface::KEY_FULLSCREEN);
   SetKeyAction(SDLK_F9,        ManMachineInterface::KEY_TOGGLE_INTERFACE);
   SetKeyAction(SDLK_F1,        ManMachineInterface::KEY_WEAPONS1);

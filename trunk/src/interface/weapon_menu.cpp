@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@
  * Interface showing various informations about the game.
  *****************************************************************************/
 
-#include "interface/weapon_menu.h"
 #include <sstream>
-#include "interface/interface.h"
+
+#include "game/config.h"
 #include "game/time.h"
 #include "graphic/font.h"
 #include "graphic/polygon_generator.h"
@@ -29,16 +29,16 @@
 #include "graphic/video.h"
 #include "include/action_handler.h"
 #include "include/app.h"
+#include "interface/interface.h"
 #include "interface/mouse.h"
+#include "interface/weapon_menu.h"
 #include "map/maps_list.h"
 #include "team/team.h"
 #include "team/teams_list.h"
-#include "tool/i18n.h"
 #include "tool/resource_manager.h"
 #include "sound/jukebox.h"
 #include "weapon/weapon.h"
 #include "weapon/weapons_list.h"
-#include "game/config.h"
 
 // Weapon menu
 const uint ICONS_DRAW_TIME = 400;       // Time to display all icons (in ms)
@@ -287,10 +287,15 @@ void WeaponsMenu::RefreshWeaponList()
 
 AffineTransform2D WeaponsMenu::ComputeToolTransformation()
 {
+  uint scroll_border = 0;
+  if (Config::GetInstance()->GetScrollOnBorder()) {
+    scroll_border = Config::GetInstance()->GetScrollBorderSize();
+  }
+
   // Init animation parameter
-  Point2d start(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5,
+  Point2d start(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5 - scroll_border,
 		GetMainWindow().GetHeight() + weapons_menu->GetHeight() + 50);
-  Point2i pos(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5,
+  Point2i pos(GetMainWindow().GetWidth() - tools_menu->GetWidth() - 5 - scroll_border,
 	      GetMainWindow().GetHeight()- tools_menu->GetHeight() - 5 );
 
   if (Interface::GetRef().GetMenuPosition().GetX() + Interface::GetRef().GetWidth() > start.GetX()) {
@@ -308,10 +313,15 @@ AffineTransform2D WeaponsMenu::ComputeToolTransformation()
 
 AffineTransform2D WeaponsMenu::ComputeWeaponTransformation()
 {
+  uint scroll_border = 0;
+  if (Config::GetInstance()->GetScrollOnBorder()) {
+    scroll_border = Config::GetInstance()->GetScrollBorderSize();
+  }
+
   // Init animation parameter
-  Point2d start(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5,
+  Point2d start(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5 - scroll_border,
 		GetMainWindow().GetHeight());
-  Point2i pos(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5,
+  Point2i pos(GetMainWindow().GetWidth() - weapons_menu->GetWidth() - 5 - scroll_border,
 	      GetMainWindow().GetHeight()- weapons_menu->GetHeight() - tools_menu->GetHeight() - 10 );
 
   if (Interface::GetRef().GetMenuPosition().GetX() + Interface::GetRef().GetWidth() > start.GetX()) {

@@ -1,7 +1,7 @@
 
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "game/time.h"
 #include "graphic/font.h"
 #include "graphic/sprite.h"
-#include "tool/random.h"
+#include <WORMUX_random.h>
 
 const uint INIT_DISPLAY_TIME = 200;
 const uint TEXT_FADE_TIME = 1000;

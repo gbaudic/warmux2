@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2008 Wormux Team.
+ *  Copyright (C) 2001-2009 Wormux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@
 #include "object/objects_list.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
-#include "tool/i18n.h"
 #include "tool/math_tools.h"
 //-----------------------------------------------------------------------------
 
@@ -54,8 +53,10 @@ class Anvil : public WeaponProjectile
     void PlayCollisionSound();
     void SetEnergyDelta(int /*delta*/, bool /*do_report = true*/) { };
   protected:
-    virtual void SignalObjectCollision(PhysicalObj * obj, const Point2d& /* speed_before */);
     virtual void SignalGroundCollision(const Point2d& /* speed_before */);
+    virtual void SignalObjectCollision(const Point2d& /* my_speed_before */,
+				       PhysicalObj * obj,
+				       const Point2d& /* obj_speed_before */);
     virtual void SignalOutOfMap();
 };
 
@@ -74,17 +75,23 @@ Anvil::~Anvil()
   falling_sound.Stop(); // paranoiac sound stop
 }
 
-void Anvil::SignalObjectCollision(PhysicalObj * obj, const Point2d& /* speed_before */)
+void Anvil::SignalObjectCollision(const Point2d& /* my_speed_before */,
+				  PhysicalObj * obj,
+				  const Point2d& /* obj_speed_before */)
 {
   merge_time = Time::GetInstance()->Read() + 5000;
   obj->SetEnergyDelta(-200);
   PlayCollisionSound();
+
+  WeaponProjectile::Collision();
 }
 
 void Anvil::SignalGroundCollision(const Point2d& /* speed_before */)
 {
   merge_time = Time::GetInstance()->Read() + 5000;
   PlayCollisionSound();
+
+  WeaponProjectile::Collision();
 }
 
 void Anvil::SignalOutOfMap()
