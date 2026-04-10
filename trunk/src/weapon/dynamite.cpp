@@ -23,23 +23,38 @@
 
 #include "dynamite.h"
 #include "explosion.h"
+#include "weapon_cfg.h"
+
+#include "character/character.h"
 #include "game/config.h"
-#include "include/app.h"
-#include "object/objects_list.h"
+#include "graphic/sprite.h"
 #include "team/teams_list.h"
 #include "tool/i18n.h"
 #include "tool/resource_manager.h"
 #include "tool/debug.h"
 
-#ifdef __MINGW32__
-#undef LoadImage
-#endif
+class DynamiteStick : public WeaponProjectile
+{
+  SoundSample timeout_sound;
+
+  public:
+    DynamiteStick(ExplosiveWeaponConfig& cfg,
+                  WeaponLauncher * p_launcher);
+
+    void Shoot(double strength);
+    void Refresh();
+
+  protected:
+    void ShootSound();
+    void SignalExplosion();
+    void SignalOutOfMap();
+    void SignalDrowning();
+};
 
 DynamiteStick::DynamiteStick(ExplosiveWeaponConfig& cfg,
                              WeaponLauncher * p_launcher) :
   WeaponProjectile("dynamite_bullet", cfg, p_launcher)
 {
-  channel = -1;
   explode_with_collision = false;
 
   image->animation.SetLoopMode(false);
@@ -66,22 +81,22 @@ void DynamiteStick::Refresh()
 
 void DynamiteStick::ShootSound()
 {
-  channel = jukebox.Play("share","weapon/dynamite_fuze", -1);
+  timeout_sound.Play("share","weapon/dynamite_fuze", -1);
 }
 
 void DynamiteStick::SignalExplosion()
 {
-  jukebox.Stop(channel);
+  timeout_sound.Stop();
 }
 
 void DynamiteStick::SignalOutOfMap()
 {
-  jukebox.Stop(channel);
+  timeout_sound.Stop();
 }
 
 void DynamiteStick::SignalDrowning()
 {
-  jukebox.Stop(channel);
+  timeout_sound.Stop();
 }
 //-----------------------------------------------------------------------------
 
@@ -103,17 +118,18 @@ WeaponProjectile * Dynamite::GetProjectileInstance()
 bool Dynamite::p_Shoot ()
 {
   projectile->Shoot(0);
-
   // add the character speed
   if(ActiveCharacter().GetDirection() == 1)
     projectile->SetSpeed(3.0, -M_PI_4);
   else
     projectile->SetSpeed(3.0, -3.0 * M_PI_4);
 
+  projectile = NULL;
+  ReloadLauncher();
   return true;
 }
 
-std::string Dynamite::GetWeaponWinString(const char *TeamName, uint items_count )
+std::string Dynamite::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
   return Format(ngettext(
             "%s team has won %u dynamite!",

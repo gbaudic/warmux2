@@ -23,23 +23,22 @@
 #define DISTANT_CPU_H
 //-----------------------------------------------------------------------------
 #include <SDL_net.h>
-#include <SDL_thread.h>
-#include <SDL_mutex.h>
 #include "include/base.h"
 #include <list>
 #include <string>
-#include "include/action.h"
 //-----------------------------------------------------------------------------
 
+struct SDL_mutex;
 class Action;
 
 class DistantComputer
 {
  public:
   typedef enum {
-    ERROR,
-    INITIALIZED,
-    READY
+    STATE_ERROR,
+    STATE_INITIALIZED,
+    STATE_READY,
+    STATE_CHECKED
   } state_t;
 
  private:
@@ -54,6 +53,9 @@ class DistantComputer
 
   DistantComputer::state_t state;
 
+  int packet_size;
+  int packet_received;
+  char* packet;
 public:
   bool version_checked;
   bool force_disconnect;
@@ -61,15 +63,15 @@ public:
   DistantComputer(TCPsocket new_sock);
   ~DistantComputer();
 
-  bool SocketReady();
+  bool SocketReady() const;
   int ReceiveDatas(char* & buf);
   void SendDatas(char* paket, int size);
 
-  std::string GetAdress();
+  std::string GetAddress();
   std::string nickname;
 
   void ManageTeam(Action* team);
-  void SendChatMessage(Action* a);
+  void SendChatMessage(Action* a) const;
 
   void SetState(DistantComputer::state_t _state);
   DistantComputer::state_t GetState() const;

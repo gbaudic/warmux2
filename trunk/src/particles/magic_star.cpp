@@ -24,6 +24,7 @@
 #include "particle.h"
 #include "tool/random.h"
 #include "game/time.h"
+#include "graphic/sprite.h"
 
 MagicStarParticle::MagicStarParticle() :
   Particle("magic_star_particle")
@@ -38,7 +39,7 @@ MagicStarParticle::MagicStarParticle() :
     case 0 : image = ParticleEngine::GetSprite(MAGIC_STAR_R_spr); break;
     case 1 : image = ParticleEngine::GetSprite(MAGIC_STAR_Y_spr); break;
     case 2 : image = ParticleEngine::GetSprite(MAGIC_STAR_B_spr); break;
-    default: assert(false);
+    default: ASSERT(false);
   }
   image->Scale(0.0, 0.0);
   SetSize( Point2i(1, 1) );

@@ -19,22 +19,38 @@
  * Shotgun. Shoot a bunch of buckshot at each fire
  *****************************************************************************/
 
+#include "explosion.h"
+#include "shotgun.h"
+#include "weapon_cfg.h"
+
 #include <sstream>
 #include "map/map.h"
 #include "game/time.h"
+#include "graphic/sprite.h"
 #include "object/objects_list.h"
-#include "team/teams_list.h"
-#include "tool/i18n.h"
 #include "interface/game_msg.h"
 #include "network/randomsync.h"
-#include "explosion.h"
-#include "shotgun.h"
+#include "sound/jukebox.h"
+#include "team/teams_list.h"
+#include "tool/i18n.h"
+#include "tool/resource_manager.h"
 
 const uint   SHOTGUN_BUCKSHOT_SPEED  = 30;
 const uint   SHOTGUN_EXPLOSION_RANGE = 1;
 const double SHOTGUN_RANDOM_ANGLE    = 0.02;
 const double SHOTGUN_RANDOM_STRENGTH = 2.0;
-const int nb_bullets = 4;
+const int    SHOTGUN_BULLETS         = 4;
+
+class ShotgunBuckshot : public WeaponBullet
+{
+  public:
+    ShotgunBuckshot(ExplosiveWeaponConfig& cfg,
+                    WeaponLauncher * p_launcher);
+    bool IsOverlapping(const PhysicalObj* obj) const;
+  protected:
+    void RandomizeShoot(double &angle,double &strength);
+};
+
 
 ShotgunBuckshot::ShotgunBuckshot(ExplosiveWeaponConfig& cfg,
                                  WeaponLauncher * p_launcher) :
@@ -76,14 +92,14 @@ WeaponProjectile * Shotgun::GetProjectileInstance()
       (new ShotgunBuckshot(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
 
-void Shotgun::ShootSound()
+void Shotgun::ShootSound() const
 {
   jukebox.Play("share", "weapon/shotgun");
 }
 
 void Shotgun::IncMissedShots()
 {
-  if(missed_shots + 1 == nb_bullets)
+  if(missed_shots + 1 == SHOTGUN_BULLETS)
     announce_missed_shots = true;
   WeaponLauncher::IncMissedShots();
 }
@@ -92,20 +108,19 @@ bool Shotgun::p_Shoot ()
 {
   missed_shots = 0;
   announce_missed_shots = false;
-  if (m_is_active)
+  if (IsInUse())
     return false;
-  for(int i = 0; i < nb_bullets; i++) {
+  for(int i = 0; i < SHOTGUN_BULLETS; i++) {
     projectile->Shoot(SHOTGUN_BUCKSHOT_SPEED);
     projectile = NULL;
     ReloadLauncher();
   }
   ShootSound();
   m_last_fire_time = Time::GetInstance()->Read();
-  m_is_active = true;
   return true;
 }
 
-std::string Shotgun::GetWeaponWinString(const char *TeamName, uint items_count )
+std::string Shotgun::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
   return Format(ngettext(
             "%s team has won %u shotgun!",

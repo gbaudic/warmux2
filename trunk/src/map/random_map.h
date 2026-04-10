@@ -23,21 +23,30 @@
 #define RANDOM_MAP_H
 
 #include <vector>
-#include "graphic/polygon_generator.h"
+#include "tool/point.h"
 #include "graphic/surface.h"
-#include "game/config.h"
-#include "tool/resource_manager.h"
+#include "map/maps_list.h"
 
+// Forward declarations
 class Profile;
+class Polygon;
+class Sprite;
+
+class RandomElementList : public std::vector<Surface *> {
+ public:
+   void AddElement(const Surface *element) { push_back(new Surface(*element)); };
+   Surface * GetRandomElement();
+   ~RandomElementList();
+};
 
 class MapElement {
  protected:
    Surface element;
    Point2i position;
  public:
-   MapElement(Surface & object, Point2i & position);
-   Surface & GetElement();
-   Point2i & GetPosition();
+   MapElement(const Surface & obj, const Point2i & pos) { element = obj; position = pos; };
+   Surface & GetElement() { return element; };
+   Point2i & GetPosition() { return position; };
 };
 
 class RandomMap {
@@ -46,11 +55,11 @@ class RandomMap {
   RandomMap operator=(const RandomMap&);
   /*********************************************/
 
-  enum {
+  typedef enum {
     DENTED_CIRCLE,
     DENTED_TRAPEZE,
-    ROUNDED_RECTANGLE,
-  } island_type;
+    ROUNDED_RECTANGLE
+  } Shape_type;
  protected:
    double border_size;
    bool is_open;
@@ -69,24 +78,28 @@ class RandomMap {
    Color border_color;
    Surface texture;
    Surface element;
+   uint number_of_element;
 
+   // Internal random element vector
+   RandomElementList random_element_list;
    std::vector<MapElement> element_list;
 
  public:
    RandomMap(Profile *profile, const int width, const int height);
    void SetSize(const int width, const int height);
-   const Point2i GetSize();
-   const int GetWidth();
-   const int GetHeight();
-   void AddElement(Surface & object, Point2i position);
+   const Point2i GetSize() const { return Point2i(width, height); };
+   const int GetWidth() const { return width; };
+   const int GetHeight() const { return height; };
+   void AddElement(const Surface * object, const Point2i& position);
    void DrawElement();
-   void SetBorderSize(const double border);
-   void SetBorderColor(const Color color);
-   const bool IsOpen();
-   void Generate();
-   bool GenerateIsland(double width, double height);
+   void SetBorderSize(const double border) { border_size = border; };
+   void SetBorderColor(const Color& color) { border_color = color; };
+   const bool IsOpen() const { return is_open; };
+   void Generate(InfoMap::Island_type generator);
+   void GenerateIsland();
+   void GeneratePlatforms();
    void SaveMap();
-   Surface GetRandomMap();
+   Surface GetRandomMap() const { return result; };
 };
 
 #endif /* RANDOM_MAP_H */

@@ -24,23 +24,17 @@
 
 #include "weapon.h"
 
-class ParachuteConfig : public WeaponConfig
-{
-  public:
-    double wind_factor ;
-    double air_resist_factor ;
-  public:
-    ParachuteConfig();
-    void LoadXml(xmlpp::Element *elem);
-};
+class Sprite;
+class ParachuteConfig;
 
 //-----------------------------------------------------------------------------
 
 class Parachute : public Weapon
 {
   private:
-    bool open ;
-    bool closing ;
+    bool open;
+    bool closing;
+    double m_x_extern;
     Sprite* image;
   protected:
     void p_Select();
@@ -49,11 +43,18 @@ class Parachute : public Weapon
     bool p_Shoot();
   public:
     Parachute();
-    void Draw() ;
-    void SignalTurnEnd();
+    void Draw();
+    void SignalTurnEnd() { p_Deselect(); };
+    bool IsInUse() const;
+
+    void HandleKeyPressed_Shoot(bool shift);
+    void HandleKeyPressed_MoveRight(bool shift);
+    void HandleKeyReleased_MoveRight(bool shift);
+    void HandleKeyPressed_MoveLeft(bool shift);
+    void HandleKeyReleased_MoveLeft(bool shift);
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
 
     ParachuteConfig& cfg();
-    DECLARE_GETWEAPONSTRING();
 };
 
 #endif /* PARACHUTE_H */

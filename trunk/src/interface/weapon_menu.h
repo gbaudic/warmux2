@@ -23,13 +23,12 @@
 #define WEAPON_MENU_H
 
 #include "include/base.h"
-#include "character/character.h"
-#include "team/team.h"
-#include "weapon/weapon.h"
-#include "graphic/sprite.h"
+#include "tool/affine_transform.h"
 #include "graphic/polygon.h"
 #include <vector>
-#include <sstream>
+
+// Forward declaration
+class Weapon;
 
 class WeaponMenuItem : public PolygonItem {
   WeaponMenuItem(const WeaponMenuItem&);
@@ -39,6 +38,7 @@ class WeaponMenuItem : public PolygonItem {
  public:
   Weapon* weapon;
   int zoom_start_time;
+  uint zoom_time;
 
  public:
   WeaponMenuItem(Weapon * weapon, const Point2d & position);
@@ -46,7 +46,9 @@ class WeaponMenuItem : public PolygonItem {
   bool IsMouseOver();
   void SetZoom(bool value);
   void Draw(Surface * dest);
-  Weapon * GetWeapon() const;
+  uint GetZoomTime() const { return zoom_time; };
+  void SetZoomTime(uint time) { zoom_time = time; };
+  Weapon * GetWeapon() const { return weapon; };
 };
 
 class WeaponsMenu
@@ -63,11 +65,13 @@ class WeaponsMenu
   AffineTransform2D shear;
   AffineTransform2D rotation;
   AffineTransform2D zoom;
-  Sprite * infinite;
   Sprite * cross;
   bool show;
   uint motion_start_time;
   uint select_start_time;
+  uint icons_draw_time;
+  uint jelly_time;
+  uint rotation_time;
 
   int nbr_weapon_type; // number of weapon type = number of rows
   int * nb_weapon_type;
@@ -78,18 +82,24 @@ class WeaponsMenu
   void RefreshWeaponList();
   void AddWeapon(Weapon* new_item);
   void Draw();
-  void SwitchDisplay();
+  void SwitchDisplay() { if(show) Hide(); else Show(); };
   AffineTransform2D ComputeWeaponTransformation();
   AffineTransform2D ComputeToolTransformation();
   void Show();
-  void Hide();
+  void Hide(bool play_sound=true);
   void Reset();
-  void SetHelp(std::ostringstream msg);
-  bool IsDisplayed() const;
+  void SetHelp(const std::ostringstream&) const { };
+  bool IsDisplayed() const { return show; };
   bool ActionClic(const Point2i &mouse_pos);
   Sprite * GetInfiniteSymbol() const;
-  Sprite * GetCrossSymbol() const;
-  Weapon * UpdateCurrentOverflyItem(Polygon * poly);
+  Sprite * GetCrossSymbol() const { return cross; };
+  Weapon * UpdateCurrentOverflyItem(const Polygon * poly);
+  uint GetJellyTime() const { return jelly_time; };
+  uint GetIconsDrawTime() const { return icons_draw_time; };
+  uint GetRotationTime() const { return rotation_time; };
+  void SetJellyTime(uint time) { jelly_time = time; };
+  void SetIconsDrawTime(uint time) { icons_draw_time = time; };
+  void SetRotationTime(uint time) { rotation_time = time; };
 };
 
 #endif

@@ -19,20 +19,38 @@
  * Weapon gnu : a gnu jump in (more or less) random directions and explodes
  *****************************************************************************/
 
-#include "gnu.h"
-#include <sstream>
 #include "explosion.h"
+#include "gnu.h"
+#include "weapon_cfg.h"
+
+#include <sstream>
+#include "character/character.h"
 #include "game/config.h"
-#include "game/time.h"
-#include "graphic/video.h"
+#include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
+#include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
 #include "tool/i18n.h"
-#include "network/randomsync.h"
+#include "tool/resource_manager.h"
+
+class Gnu : public WeaponProjectile
+{
+ private:
+  int m_sens;
+  int save_x, save_y;
+ protected:
+  void SignalOutOfMap();
+public:
+  Gnu(ExplosiveWeaponConfig& cfg,
+      WeaponLauncher * p_launcher);
+  void Shoot(double strength);
+  void Refresh();
+};
+
 
 Gnu::Gnu(ExplosiveWeaponConfig& cfg,
          WeaponLauncher * p_launcher) :
@@ -76,6 +94,7 @@ void Gnu::Refresh()
     norme = randomSync.GetDouble(2.0, 5.0);
     PutOutOfGround();
     SetSpeedXY(Point2d(m_sens * norme , - norme * 3.0));
+    jukebox.Play("share", "weapon/gnu_bounce");
   }
 
   //Due to a bug in the physic engine
@@ -115,14 +134,6 @@ void Gnu::SignalOutOfMap()
   WeaponProjectile::SignalOutOfMap();
 }
 
-std::string Gnu::GetWeaponWinString(const char *TeamName, uint items_count )
-{
-  return Format(ngettext(
-            "%s team has won %u Gnu!",
-            "%s team has won %u Gnus!",
-            items_count), TeamName, items_count);
-}
-
 //-----------------------------------------------------------------------------
 
 GnuLauncher::GnuLauncher() :
@@ -138,3 +149,13 @@ WeaponProjectile * GnuLauncher::GetProjectileInstance()
   return dynamic_cast<WeaponProjectile *>
       (new Gnu(cfg(),dynamic_cast<WeaponLauncher *>(this)));
 }
+
+std::string GnuLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
+{
+  return Format(ngettext(
+            "%s team has won %u Gnu! Blow them all, cowboy!",
+            "%s team has won %u Gnus! Blow them all, cowboy!",
+            items_count), TeamName, items_count);
+}
+
+

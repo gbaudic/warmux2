@@ -22,47 +22,38 @@
 #ifndef AIRHAMMER_H
 #define AIRHAMMER_H
 //-----------------------------------------------------------------------------
-#include <SDL.h>
 #include "include/base.h"
+#include "graphic/surface.h"
 #include "weapon.h"
 //-----------------------------------------------------------------------------
 
-class AirhammerConfig : public WeaponConfig
-{
-  public:
-    uint range;
-    uint damage;
-  public:
-    AirhammerConfig();
-    void LoadXml(xmlpp::Element *elem);
-};
+class AirhammerConfig;
 
 //-----------------------------------------------------------------------------
 
 class Airhammer : public Weapon
 {
   private:
-    uint m_last_jolt;
     Surface impact;
-    void RepeatShoot();
+    void RepeatShoot() const;
+    SoundSample drill_sound;
 
   protected:
+    void p_Select();
     void p_Deselect();
     bool p_Shoot();
-    void Refresh();
+    void Refresh() { };
 
   public:
     Airhammer();
     AirhammerConfig &cfg();
-    
-    virtual void SignalTurnEnd();
-    virtual void ActionStopUse();
-
-    virtual void HandleKeyPressed_Shoot();
-    virtual void HandleKeyRefreshed_Shoot();
-    virtual void HandleKeyReleased_Shoot();
-
-    DECLARE_GETWEAPONSTRING();
+    bool IsInUse() const;
+    void ActionStopUse();
+    void HandleKeyPressed_Shoot(bool shift) { HandleKeyRefreshed_Shoot(shift); };
+    void HandleKeyRefreshed_Shoot(bool shift);
+    void HandleKeyReleased_Shoot(bool) { NewActionWeaponStopUse(); };
+    void SignalTurnEnd() { p_Deselect(); };
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
 };
 
 //-----------------------------------------------------------------------------

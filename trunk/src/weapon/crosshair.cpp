@@ -19,15 +19,18 @@
  * Weapon's crosshair
  *****************************************************************************/
 
+#include "character/character.h"
 #include "crosshair.h"
 #include "weapon.h"
 #include "game/game_loop.h"
 #include "graphic/surface.h"
+#include "graphic/video.h"
 #include "include/app.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
+#include "tool/resource_manager.h"
 
 // Distance between crosshair and character
 #define RAY 40 // pixels
@@ -40,7 +43,7 @@ CrossHair::CrossHair()
   resource_manager.UnLoadXMLProfile(res);
 }
 
-void CrossHair::Reset()
+void CrossHair::Reset() const
 {
   ActiveCharacter().SetFiringAngle(0.0);
 }
@@ -51,7 +54,7 @@ void CrossHair::Refresh(double angle)
   crosshair_position = Point2i(RAY, RAY) * Point2d(cos(angle), sin(angle)) - image.GetSize() / 2;
 }
 
-void CrossHair::Draw()
+void CrossHair::Draw() const
 {
   if( !enable )
     return;
@@ -60,6 +63,6 @@ void CrossHair::Draw()
   if( GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING )
     return;
   Point2i tmp = ActiveCharacter().GetHandPosition() + crosshair_position;
-  AppWormux::GetInstance()->video.window.Blit(image, tmp - camera.GetPosition());
+  AppWormux::GetInstance()->video->window.Blit(image, tmp - Camera::GetInstance()->GetPosition());
   world.ToRedrawOnMap(Rectanglei(tmp, image.GetSize()));
 }

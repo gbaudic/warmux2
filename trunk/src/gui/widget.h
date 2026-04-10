@@ -22,12 +22,13 @@
 #ifndef GUI_WIDGET_H
 #define GUI_WIDGET_H
 
-#include <SDL_keyboard.h>
 #include "include/base.h"
 #include "tool/rectangle.h"
 #include "tool/point.h"
 
-#include "container.h"
+class Container;
+class Surface;
+struct SDL_keysym;
 
 class Widget : public Rectanglei
 {
@@ -41,27 +42,39 @@ class Widget : public Rectanglei
 
  public:
   bool have_focus;
+  bool is_selected;
 
   Widget();
   Widget(const Rectanglei &rect);
-  virtual ~Widget();
+  virtual ~Widget() { };
 
   virtual void Update(const Point2i &mousePosition,
-		      const Point2i &lastMousePosition,
-		      Surface& surf); // virtual only for Box and ListBox
+                      const Point2i &lastMousePosition,
+                      Surface& surf); // virtual only for Box and ListBox
   virtual void Draw(const Point2i &mousePosition,
-		    Surface& surf) const = 0;
-  virtual void ForceRedraw(); // set need_redrawing to true; -- virtual for widget_list
+                    Surface& surf) const = 0;
+  virtual void ForceRedraw() { need_redrawing = true; }; // set need_redrawing to true; -- virtual for widget_list
 
-  virtual void SendKey(SDL_keysym key);
-  virtual Widget* Click(const Point2i &mousePosition, uint button);
-  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
+  virtual void SendKey(const SDL_keysym&) { };
+  virtual Widget* Click(const Point2i &, uint)
+  {
+    need_redrawing = true;
+    return this;
+  };
+  virtual Widget* ClickUp(const Point2i &, uint)
+  {
+    need_redrawing = true;
+    return this;
+  };
+  bool IsSelected() const { return is_selected; };
+  virtual void Select() { is_selected = true; need_redrawing = true; };
+  virtual void Unselect() { is_selected = false; need_redrawing = true; };
 
-  void SetContainer(Container * _ct);
+  void SetContainer(Container * _ct) { ct = _ct; };
 
   virtual void SetSizePosition(const Rectanglei &rect) = 0;
   void SetXY(int _x, int _y){
-	  SetSizePosition( Rectanglei(Point2i(_x, _y), size) );
+    SetSizePosition( Rectanglei(Point2i(_x, _y), size) );
   };
 };
 

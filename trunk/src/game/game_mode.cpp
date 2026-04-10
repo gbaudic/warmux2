@@ -24,11 +24,12 @@
 #include <iostream>
 #include "config.h"
 #include "game_loop.h"
+#include "object/medkit.h"
+#include "object/bonus_box.h"
 #include "tool/file_tools.h"
 #include "tool/i18n.h"
-#include "weapon/all.h"
+#include "tool/xml_document.h"
 #include "weapon/weapons_list.h"
-#include "object/medkit.h"
 
 GameMode * GameMode::singleton = NULL;
 
@@ -56,7 +57,7 @@ GameMode::GameMode():
   character(),
   allow_character_selection(BEFORE_FIRST_ACTION_AND_END_TURN),
   m_current("classic"),
-  doc_objects()
+  doc_objects(new XmlReader)
 {
   character.init_energy = 100; /* overwritten when reading XML */
   character.max_energy = 100; /* overwritten when reading XML */
@@ -70,13 +71,18 @@ GameMode::GameMode():
   character.back_jump_angle = -100;
 }
 
+GameMode::~GameMode()
+{
+  delete doc_objects;
+}
+
 const std::string& GameMode::GetName() const
 {
   return m_current;
 }
 
 // Load data options from the selected game_mode
-bool GameMode::LoadXml(xmlpp::Element *xml)
+bool GameMode::LoadXml(const xmlpp::Element *xml)
 {
   std::string txt;
   if (XmlReader::ReadString(xml, "allow_character_selection", txt))
@@ -201,7 +207,7 @@ bool GameMode::Load(void)
       return false;
     }
 
-    if(!doc_objects.Load(fullname))
+    if(!doc_objects->Load(fullname))
       return false;
     MSG_DEBUG("game_mode", "successful loading of %s\n", fullname.c_str());
 
@@ -228,7 +234,7 @@ bool GameMode::Load(void)
   {
     std::cerr << Format(_("Error while loading game mode %s (file %s):"),
                         m_current.c_str(), fullname.c_str())
-			  << std::endl << e.what() << std::endl;
+              << std::endl << e.what() << std::endl;
     return false;
   }
 
@@ -237,15 +243,15 @@ bool GameMode::Load(void)
 
 // Load the game mode from strings (probably from network)
 bool GameMode::LoadFromString(const std::string& game_mode_name,
-			      const std::string& game_mode_contents,
-			      const std::string& game_mode_objects_contents)
+                              const std::string& game_mode_contents,
+                              const std::string& game_mode_objects_contents)
 {
   m_current = game_mode_name;
   MSG_DEBUG("game_mode", "Loading %s from network: ", m_current.c_str());
 
   try
   {
-    if(!doc_objects.LoadFromString(game_mode_objects_contents))
+    if(!doc_objects->LoadFromString(game_mode_objects_contents))
       return false;
 
     XmlReader doc;
@@ -257,7 +263,7 @@ bool GameMode::LoadFromString(const std::string& game_mode_name,
   catch (const xmlpp::exception &e)
   {
     Error(Format("Error while loading game mode %s from memory:\n\t%s",
-		 m_current.c_str(), e.what()));
+                 m_current.c_str(), e.what()));
     return false;
   }
 
@@ -285,14 +291,14 @@ bool GameMode::ExportFileToString(const std::string& filename, std::string& cont
   catch (const xmlpp::exception &e)
   {
     Error(Format("Error while exporting file %s:\n\t%s",
-		 fullname.c_str(), e.what()));
+                 fullname.c_str(), e.what()));
     return false;
   }
   return true;
 }
 
 bool GameMode::ExportToString(std::string& mode,
-			      std::string& mode_objects) const
+                              std::string& mode_objects) const
 {
   bool r;
 
@@ -304,7 +310,7 @@ bool GameMode::ExportToString(std::string& mode,
   return r;
 }
 
-XmlReader& GameMode::GetXmlObjects()
+const XmlReader* GameMode::GetXmlObjects() const
 {
   return doc_objects;
 }
@@ -318,11 +324,11 @@ bool GameMode::AllowCharacterSelection() const
 
   case GameMode::BEFORE_FIRST_ACTION:
   case GameMode::BEFORE_FIRST_ACTION_AND_END_TURN:
-	  return (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING) && !GameLoop::GetInstance()->character_already_chosen;
+          return (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING) && !GameLoop::GetInstance()->character_already_chosen;
 
   case GameMode::CHANGE_ON_END_TURN:
   case GameMode::NEVER:
-	  return false;
+          return false;
   }
 
   return true;

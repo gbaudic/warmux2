@@ -21,53 +21,55 @@
 #ifndef AI_MOVEMENT_MODULE
 #define AI_MOVEMENT_MODULE
 
+#include "include/base.h"
 #include "tool/point.h"
 #include <set>
+
+class Character;
 
 class AIMovementModule
 {
   uint m_current_time;
 
   // ====================== Points to avoid
- private:
   std::set<Point2i> points_to_avoid;
   void UpdateListOfPointsToAvoid();
  public:
-  void AddPointToAvoid(Point2i dangerous_point);
+  void AddPointToAvoid(const Point2i& dangerous_point);
   // ======================================
 
   // ==================== Destination point
  private:
-  uint min_reachable_x, max_reachable_x;
+  int min_reachable_x, max_reachable_x;
   Point2i destination_point;
  public:
-  void SetDestinationPoint(Point2i destination_point);
+  void SetDestinationPoint(const Point2i& destination_point);
   bool SeemsToBeReachable(const Character& shooter, // must be ActiveCharacter()
-			  const Character& enemy) const;
-  bool IsProgressing();
-  bool IsArrived();
+                          const Character& enemy) const;
+  bool IsProgressing() const;
+  bool IsArrived() const;
   // ======================================
-  
+
   // ====================== Manage movement
- private:  
+ private:
   typedef enum {
     NO_MOVEMENT,
     WALKING,
     BACK_TO_JUMP,
     JUMPING,
     FLYING,
-    ROPING,
+    ROPING
   } movement_type_t;
 
   movement_type_t current_movement;
 
   Point2i last_position;
-  uint time_at_last_position; 
+  uint time_at_last_position;
   Point2i last_blocked_position;
-  
+
   void InverseDirection(bool completely_blocked);
 
-  void MakeStep();
+  void MakeStep() const;
 
   void Walk();
   void StopWalking();
@@ -77,8 +79,8 @@ class AIMovementModule
   void Jump();
   void EndOfJump();
 
-  bool ObstacleHeight(int& height);
-  bool RiskGoingOutOfMap();
+  bool ObstacleHeight(int& height) const;
+  bool RiskGoingOutOfMap() const;
   // ======================================
 
  public:

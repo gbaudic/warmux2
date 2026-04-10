@@ -20,8 +20,11 @@
  *****************************************************************************/
 
 #include "suicide.h"
-#include <iostream>
 #include "explosion.h"
+#include "weapon_cfg.h"
+
+#include <iostream>
+#include "character/character.h"
 #include "character/body.h"
 #include "game/game_loop.h"
 #include "team/teams_list.h"
@@ -32,32 +35,17 @@ Suicide::Suicide() : Weapon(WEAPON_SUICIDE, "suicide", new ExplosiveWeaponConfig
 {
   m_name = _("Commit Suicide");
   m_category = DUEL;
-  sound_channel = -1;
-}
-
-void Suicide::p_Select()
-{
-  is_dying = false;
 }
 
 bool Suicide::p_Shoot()
 {
-  sound_channel = jukebox.Play ("share", "weapon/suicide");
-
-  // GameLoop::GetInstance()->interaction_enabled=false;
-  is_dying = true;
-
+  suicide_sound.Play ("share", "weapon/suicide");
   return true;
 }
 
 void Suicide::Refresh()
 {
-  if (!is_dying) return;
-
-  m_is_active = sound_channel != -1 && Mix_Playing(sound_channel);
-
-  if(!m_is_active && !ActiveCharacter().IsDead())
-  {
+  if(m_last_fire_time > 0 && !suicide_sound.IsPlaying() && !ActiveCharacter().IsDead()) {
     ActiveCharacter().DisableDeathExplosion();
     ActiveCharacter().body->MakeParticles(ActiveCharacter().GetPosition());
     ActiveCharacter().SetEnergy(0); // Die!
@@ -66,14 +54,21 @@ void Suicide::Refresh()
   }
 }
 
-ExplosiveWeaponConfig& Suicide::cfg()
-{ return static_cast<ExplosiveWeaponConfig&>(*extra_params); }
+bool Suicide::IsInUse() const
+{
+  return m_last_fire_time > 0 && !ActiveCharacter().IsDead();
+}
 
-std::string Suicide::GetWeaponWinString(const char *TeamName, uint items_count )
+ExplosiveWeaponConfig& Suicide::cfg()
+{
+  return static_cast<ExplosiveWeaponConfig&>(*extra_params);
+}
+
+std::string Suicide::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
   return Format(ngettext(
             "%s team has won %u suicide!",
-            "%s team has won %u suicides!",
+            "%s team has won %u suicides! Use them all for an extra bonus!",
             items_count), TeamName, items_count);
 }
 

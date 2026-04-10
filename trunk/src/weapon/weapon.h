@@ -23,17 +23,18 @@
 #ifndef WEAPON_H
 #define WEAPON_H
 #include <string>
-#include "weapon_cfg.h"
-#include "graphic/surface.h"
-#include "graphic/sprite.h"
-#include "gui/progress_bar.h"
 #include "include/base.h"
-#include "particles/particle.h"
-#include "object/physical_obj.h"
-#include "sound/jukebox.h"
+#include "sound/sound_sample.h"
 #include "tool/debug.h"
+#include "tool/point.h"
 
 class Character;
+class Sprite;
+class EmptyWeaponConfig;
+namespace xmlpp
+{
+  class Element;
+}
 
 // Infinite ammos constant
 extern const int INFINITE_AMMO;
@@ -43,12 +44,6 @@ extern const uint BUTTON_ICO_HEIGHT;
 
 extern const uint WEAPON_ICO_WIDTH;
 extern const uint WEAPON_ICO_HEIGHT;
-
-class WeaponStrengthBar : public ProgressBar
-{
- public:
-  bool visible ;
-} ;
 
 //-----------------------------------------------------------------------------
 
@@ -116,6 +111,9 @@ protected:
   // time of the last fire
   uint m_last_fire_time;
 
+  // time between 2 shot
+  uint m_time_between_each_shot;
+
   // change weapon after ? (for the grapple = true)
   bool m_can_change_weapon;
 
@@ -139,8 +137,7 @@ protected:
   bool use_unit_on_first_shoot;
   bool can_be_used_on_closed_map;
 
-  // For sound
-  int channel_load;
+  SoundSample loading_sound;
 
 public:
   // weapon's icon
@@ -153,16 +150,16 @@ public:
   const category_t& Category() const { return m_category; };
 
 protected:
-  virtual void p_Select();
-  virtual void p_Deselect();
+  virtual void p_Select() { m_last_fire_time = 0; };
+  virtual void p_Deselect() { };
   virtual void Refresh() = 0;
   virtual bool p_Shoot() = 0;
 
 public:
   Weapon(Weapon_type type,
-	 const std::string &id,
-	 EmptyWeaponConfig * params,
-	 weapon_visibility_t visibility = ALWAYS_VISIBLE);
+         const std::string &id,
+         EmptyWeaponConfig * params,
+         weapon_visibility_t visibility = ALWAYS_VISIBLE);
   virtual ~Weapon();
 
   // Select or deselect the weapon
@@ -179,16 +176,16 @@ public:
 
   void DrawAmmoUnits() const;
 
-  Sprite & GetIcon() const;
+  Sprite & GetIcon() const { return *icon; };
   // Manage the numbers of ammunitions
   bool EnoughAmmo() const;
-  void UseAmmo();
+  void UseAmmo() const;
   bool EnoughAmmoUnit() const;
-  void UseAmmoUnit();
-  int ReadInitialNbAmmo() const;
-  int ReadInitialNbUnit() const;
+  void UseAmmoUnit() const;
+  int ReadInitialNbAmmo() const { return m_initial_nb_ammo; };
+  int ReadInitialNbUnit() const { return m_initial_nb_unit_per_ammo; };
 
-  bool CanBeUsedOnClosedMap() const;
+  bool CanBeUsedOnClosedMap() const { return can_be_used_on_closed_map; };
   bool UseCrossHair() const { return min_angle != max_angle; };
 
   // Calculate weapon position
@@ -207,16 +204,20 @@ public:
   bool Shoot();
 
   // The weapon is still in use (animation for instance) ?
-  bool IsInUse() const;
+  virtual bool IsInUse() const {
+    // TODO : remove m_is_active by something like :
+    // return m_last_fire_time + 1000 > Time::GetInstance()->Read();
+   return m_is_active;
+  };
 
   // the weapon is ready to use ? (is there bullets left ?)
-  virtual bool IsReady() const ;
+  virtual bool IsReady() const { return EnoughAmmo(); };
 
   // Begin to load, to choose the strength
   virtual void InitLoading() ;
 
   // Are we loading to choose the strength
-  virtual bool IsLoading() const;
+  virtual bool IsLoading() const { return m_first_time_loading ? true : false; };
 
   // Stop loading
   virtual void StopLoading() ;
@@ -224,91 +225,91 @@ public:
   // update strength (so the strength bar can be updated)
   virtual void UpdateStrength();
 
-  const Point2i GetGunHolePosition();
+  const Point2i GetGunHolePosition() const;
 
   // Choose a target.
-  virtual void ChooseTarget (Point2i mouse_pos);
+  virtual void ChooseTarget (Point2i /*mouse_pos*/) { };
 
   // Notify a move. It is usefull only for weapon which have strong
   // interactions with the physical engine such as grapple
-  virtual void NotifyMove(bool collision){};
+  virtual void NotifyMove(bool /*collision*/){};
 
   // Handle a keyboard event.
 
   // Key Shoot management
-  virtual void HandleKeyPressed_Shoot();
-  virtual void HandleKeyRefreshed_Shoot();
-  virtual void HandleKeyReleased_Shoot();
+  virtual void HandleKeyPressed_Shoot(bool shift);
+  virtual void HandleKeyRefreshed_Shoot(bool shift);
+  virtual void HandleKeyReleased_Shoot(bool shift);
 
   // To override standard moves of character
-  virtual void HandleKeyPressed_MoveRight();
-  virtual void HandleKeyRefreshed_MoveRight();
-  virtual void HandleKeyReleased_MoveRight();
+  virtual void HandleKeyPressed_MoveRight(bool shift);
+  virtual void HandleKeyRefreshed_MoveRight(bool shift);
+  virtual void HandleKeyReleased_MoveRight(bool shift);
 
-  virtual void HandleKeyPressed_MoveLeft();
-  virtual void HandleKeyRefreshed_MoveLeft();
-  virtual void HandleKeyReleased_MoveLeft();
+  virtual void HandleKeyPressed_MoveLeft(bool shift);
+  virtual void HandleKeyRefreshed_MoveLeft(bool shift);
+  virtual void HandleKeyReleased_MoveLeft(bool shift);
 
-  virtual void HandleKeyPressed_Up();
-  virtual void HandleKeyRefreshed_Up();
-  virtual void HandleKeyReleased_Up();
+  virtual void HandleKeyPressed_Up(bool shift);
+  virtual void HandleKeyRefreshed_Up(bool shift);
+  virtual void HandleKeyReleased_Up(bool shift);
 
-  virtual void HandleKeyPressed_Down();
-  virtual void HandleKeyRefreshed_Down();
-  virtual void HandleKeyReleased_Down();
+  virtual void HandleKeyPressed_Down(bool shift);
+  virtual void HandleKeyRefreshed_Down(bool shift);
+  virtual void HandleKeyReleased_Down(bool shift);
 
-  virtual void HandleKeyPressed_Jump();
-  virtual void HandleKeyRefreshed_Jump();
-  virtual void HandleKeyReleased_Jump();
+  virtual void HandleKeyPressed_Jump(bool shift);
+  virtual void HandleKeyRefreshed_Jump(bool shift);
+  virtual void HandleKeyReleased_Jump(bool shift);
 
-  virtual void HandleKeyPressed_HighJump();
-  virtual void HandleKeyRefreshed_HighJump();
-  virtual void HandleKeyReleased_HighJump();
+  virtual void HandleKeyPressed_HighJump(bool shift);
+  virtual void HandleKeyRefreshed_HighJump(bool shift);
+  virtual void HandleKeyReleased_HighJump(bool shift);
 
-  virtual void HandleKeyPressed_BackJump();
-  virtual void HandleKeyRefreshed_BackJump();
-  virtual void HandleKeyReleased_BackJump();
+  virtual void HandleKeyPressed_BackJump(bool shift);
+  virtual void HandleKeyRefreshed_BackJump(bool shift);
+  virtual void HandleKeyReleased_BackJump(bool shift);
 
   // Other keys
-  virtual void HandleKeyReleased_Num1(){};
-  virtual void HandleKeyReleased_Num2(){};
-  virtual void HandleKeyReleased_Num3(){};
-  virtual void HandleKeyReleased_Num4(){};
-  virtual void HandleKeyReleased_Num5(){};
-  virtual void HandleKeyReleased_Num6(){};
-  virtual void HandleKeyReleased_Num7(){};
-  virtual void HandleKeyReleased_Num8(){};
-  virtual void HandleKeyReleased_Num9(){};
-  virtual void HandleKeyReleased_Less(){};
-  virtual void HandleKeyReleased_More(){};
+  virtual void HandleKeyReleased_Num1(bool){};
+  virtual void HandleKeyReleased_Num2(bool){};
+  virtual void HandleKeyReleased_Num3(bool){};
+  virtual void HandleKeyReleased_Num4(bool){};
+  virtual void HandleKeyReleased_Num5(bool){};
+  virtual void HandleKeyReleased_Num6(bool){};
+  virtual void HandleKeyReleased_Num7(bool){};
+  virtual void HandleKeyReleased_Num8(bool){};
+  virtual void HandleKeyReleased_Num9(bool){};
+  virtual void HandleKeyReleased_Less(bool){};
+  virtual void HandleKeyReleased_More(bool){};
 
   // Handle a mouse event
-  virtual void HandleMouseLeftClicReleased(){};
-  virtual void HandleMouseWheelUp(){};
-  virtual void HandleMouseWheelDown(){};
+  virtual void HandleMouseLeftClicReleased(bool){};
+  virtual void HandleMouseWheelUp(bool /*shift*/){};
+  virtual void HandleMouseWheelDown(bool /*shift*/){};
 
   // Get informed that the turn is over.
-  virtual void SignalTurnEnd();
+  virtual void SignalTurnEnd() { StopLoading(); };
 
-  // Stop using this weapon (only used with lowgrav and jetpack)
+  // Stop using this weapon (only used with lowgrav and jetpack and airhammer)
   virtual void ActionStopUse();
 
   // Load parameters from the xml config file
   // Return true if xml has been succesfully load
-  bool LoadXml(xmlpp::Element * weapon);
+  bool LoadXml(const xmlpp::Element * weapon);
 
   // return the strength of the weapon
-  const double ReadStrength() const;
+  const double ReadStrength() const { return m_strength; };
 
   // Data access
   const std::string& GetName() const;
   const std::string& GetID() const;
   const std::string& GetHelp() const;
-  Weapon_type GetType() const;
+  Weapon_type GetType() const { return m_type; };
 
   // For localization purposes, each weapon needs to have its own
   // "%s team has won %d <weapon>" function
-  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count);
+  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count) const = 0;
 
   // Allows or not the character selection with mouse click (tab is allowed)
   // This is used in weapons like the automated bazooka, where it's required
@@ -328,9 +329,6 @@ private:
   const Weapon& operator=(const Weapon&);
   /*********************************************/
 };
-
-#define DECLARE_GETWEAPONSTRING() \
-std::string GetWeaponWinString(const char *TeamName, uint items_count )
 
 //-----------------------------------------------------------------------------
 #endif

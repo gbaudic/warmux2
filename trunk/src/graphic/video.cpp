@@ -18,14 +18,16 @@
  *****************************************************************************/
 
 #include "video.h"
-#include <string>
+#ifdef _MSC_VER
+#  include <algorithm>
+#endif
 #include <iostream>
-#include <SDL_endian.h>
 #include <SDL_image.h>
 #include "game/config.h"
-#include "tool/error.h"
+#ifdef WIN32
+#  include "include/app.h"
+#endif
 #include "tool/i18n.h"
-#include "include/app.h"
 #include "include/constant.h"
 #include "map/camera.h"
 
@@ -71,11 +73,11 @@ void Video::SetMaxFps(uint max_fps){
     m_sleep_max_fps = 0;
 }
 
-uint Video::GetMaxFps(){
+uint Video::GetMaxFps() const {
   return m_max_fps;
 }
 
-uint Video::GetSleepMaxFps(){
+uint Video::GetSleepMaxFps() const {
   return m_sleep_max_fps;
 }
 
@@ -83,17 +85,22 @@ bool Video::IsFullScreen() const{
   return fullscreen;
 }
 
-bool CompareConfigs(const Point2i& a, const Point2i& b)
+static bool CompareConfigs(const Point2i& a, const Point2i& b)
 {
-  return  (a.x >= b.x) && (a.y >= b.y);
+  return  (a.x < b.x) || ((a.x == b.x) && (a.y < b.y));
+}
+
+void Video::AddConfigIfAbsent(int w, int h)
+{
+  Point2i p(w, h);
+
+  if ( !CompareConfigs((*available_configs.begin()), p) &&
+       find(available_configs.begin(), available_configs.end(), p) == available_configs.end() )
+    available_configs.push_back(p);
 }
 
 void Video::ComputeAvailableConfigs()
 {
-  // Add the current resolution
-  available_configs.push_back(Point2i(window.GetWidth(),
-                                      window.GetHeight()));
-
   //Generate video mode list
   SDL_Rect **modes;
 
@@ -110,31 +117,18 @@ void Video::ComputeAvailableConfigs()
     }
   }
 
+  // Add the current resolution
+  AddConfigIfAbsent(window.GetWidth(), window.GetHeight());
+
+  // If biggest resolution is big enough, we propose standard resolutions
+  // such as 1600x1200, 1280x1024, 1024x768, 800x600.
+  for(std::list<Point2i>::iterator res = Config::GetInstance()->GetResolutionAvailable().begin();
+      res != Config::GetInstance()->GetResolutionAvailable().end();
+      res++) {
+    AddConfigIfAbsent((*res).GetX(), (*res).GetY());
+  }
+
   // Sort the list
-  available_configs.sort(CompareConfigs);
-
-  // If biggest resolution is big enough, we propose standard resolution such as
-  // 800x600, 1024x768, 1280x1024, 1600x1200
-  Point2i a(800, 600);
-  if ( CompareConfigs((*available_configs.begin()), a))
-    available_configs.push_back(a);
-  Point2i b(1024, 768);
-  if ( CompareConfigs((*available_configs.begin()), b))
-    available_configs.push_back(b);
-  Point2i c(1280, 1024);
-  if ( CompareConfigs((*available_configs.begin()), c))
-    available_configs.push_back(c);
-  Point2i d(1600, 1200);
-  if ( CompareConfigs((*available_configs.begin()), d))
-    available_configs.push_back(d);
-  Point2i e(1400, 1050);
-  if ( CompareConfigs((*available_configs.begin()), e))
-    available_configs.push_back(e);
-  Point2i f(1280, 800);
-  if ( CompareConfigs((*available_configs.begin()), f))
-    available_configs.push_back(f);
-
-  // Sort the list again...
   available_configs.sort(CompareConfigs);
 
   // Remove double items
@@ -150,51 +144,55 @@ void Video::ComputeAvailableConfigs()
   }
 }
 
-std::list<Point2i>& Video::GetAvailableConfigs()
+const std::list<Point2i>& Video::GetAvailableConfigs() const
 {
   return available_configs;
 }
 
 bool Video::SetConfig(const int width, const int height, const bool _fullscreen){
-  // initialize the main window
+  int flag = (_fullscreen) ? SDL_FULLSCREEN : 0;
+
+  // update the main window if needed
   if( window.IsNull() ||
      (width != window.GetWidth() ||
-      height != window.GetHeight() ) ){
+      height != window.GetHeight() ) ||
+      fullscreen != _fullscreen){
 
     window.SetSurface( SDL_SetVideoMode(width, height, 32,
-                       SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF ), false );
+                       SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | flag), false );
 
     if( window.IsNull() ) {
-      window.SetSurface( SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE) );
+      window.SetSurface( SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE | flag) );
       std::cerr << "WARNING: Video not using hardware acceleration!" << std::endl;
     }
 
     if( window.IsNull() )
       return false;
-    fullscreen = false;
-  }
 
-  if(fullscreen != _fullscreen) {
-    SDL_WM_ToggleFullScreen( window.GetSurface() );
-    fullscreen = !fullscreen;
+    fullscreen = _fullscreen;
+    Camera::GetInstance()->GetInstance()->SetSize(width, height);
+    Camera::GetInstance()->GetInstance()->SetXY(Camera::GetInstance()->GetPosition());
   }
-
-  camera.SetSize(width, height);
 
   return true;
 }
 
 void Video::ToggleFullscreen()
 {
+#ifndef WIN32
   SDL_WM_ToggleFullScreen( window.GetSurface() );
   fullscreen = !fullscreen;
+#else
+  SetConfig(window.GetWidth(), window.GetHeight(), !fullscreen);
+  AppWormux::GetInstance()->RefreshDisplay();
+#endif
 }
 
-void Video::SetWindowCaption(std::string caption){
+void Video::SetWindowCaption(const std::string& caption) const {
   SDL_WM_SetCaption( caption.c_str(), NULL );
 }
 
-void Video::SetWindowIcon(std::string filename){
+void Video::SetWindowIcon(const std::string& filename) const {
   SDL_WM_SetIcon( IMG_Load(filename.c_str()), NULL );
 }
 

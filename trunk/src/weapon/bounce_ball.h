@@ -23,29 +23,14 @@
 #ifndef BOUNCE_BALL_H
 #define BOUNCE_BALL_H
 
-#include <SDL.h>
-#include "include/base.h"
-#include "graphic/surface.h"
-#include "gui/progress_bar.h"
-#include "object/physical_obj.h"
-#include "launcher.h"
-
-class BounceBall : public WeaponProjectile
-{
-  public:
-    BounceBall(ExplosiveWeaponConfig& cfg,
-               WeaponLauncher * p_launcher);
-    void Refresh();
-    DECLARE_GETWEAPONSTRING();
-  protected:
-    void SignalOutOfMap();
-};
+#include "weapon_launcher.h"
 
 class BounceBallLauncher : public WeaponLauncher
 {
   protected:
     bool p_Shoot ();
     WeaponProjectile * GetProjectileInstance();
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
   public:
     BounceBallLauncher();
 };

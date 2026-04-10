@@ -23,18 +23,21 @@
 #define _CHARACTER_H
 
 #include <string>
-#include <SDL.h>
-#include "gui/EnergyBar.h"
-#include "graphic/sprite.h"
-#include "graphic/text.h"
+#include "gui/energy_bar.h"
 #include "include/base.h"
 #include "object/physical_obj.h"
-#include "particles/particle.h"
 #include "body.h"
-#include "damage_stats.h"
 
+class Text;
 class Team;
 class ParticleEngine;
+class DamageStatistics;
+class Body;
+typedef enum BodyDirection BodyDirection_t;
+
+#ifdef DEBUG
+//#define DEBUG_SKIN
+#endif
 
 class Character : public PhysicalObj
 {
@@ -53,7 +56,7 @@ private:
 
   uint disease_damage_per_turn;
   uint disease_duration;
-  DamageStatistics damage_stats;
+  DamageStatistics *damage_stats;
   EnergyBar energy_bar;
 
   // survived games
@@ -61,6 +64,9 @@ private:
 
   // name
   Text* name_text;
+#ifdef DEBUG_SKIN
+  Text* skin_text;
+#endif
 
   // chrono
   uint pause_bouge_dg;  // pause pour mouvement droite/gauche
@@ -74,7 +80,7 @@ private:
   int channel_step;
 
   // Generates green bubbles when the character is ill
-  ParticleEngine bubble_engine;
+  ParticleEngine *bubble_engine;
 public:
 
   // Previous strength
@@ -83,7 +89,7 @@ public:
   Body* body;
 
 private:
-  void DrawEnergyBar(int dy);
+  void DrawEnergyBar(int dy) const;
   void DrawName(int dy) const;
 
   void SignalDrowning();
@@ -91,7 +97,7 @@ private:
   void SignalCollision();
   void SetBody(Body* char_body);
 
-  void AddFiringAngle(double angle);
+  void AddFiringAngle(double angle) { SetFiringAngle(firing_angle + angle); };
 
 public:
 
@@ -102,23 +108,37 @@ public:
   void SignalExplosion();
 
   // Energy related
-  void SetEnergyDelta (int delta, bool do_report=true);
+  void SetEnergyDelta(int delta, bool do_report = true);
   void SetEnergy(int new_energy);
   inline const int & GetEnergy() const { return life_points;}
 
-  bool GotInjured() const;
+  bool GotInjured() const { return lost_energy < 0; };
   void Die();
-  void DisableDeathExplosion();
+  void DisableDeathExplosion() { death_explosion = false; };
   bool IsActiveCharacter() const;
   // Disease handling
-  bool IsDiseased() const;
-  void SetDiseaseDamage(const uint damage_per_turn, const uint disease_duration);
-  uint GetDiseaseDamage() const;
-  uint GetDiseaseDuration() const;
-  void DecDiseaseDuration();
+  bool IsDiseased() const { return disease_duration > 0 && !IsDead(); };
+  void SetDiseaseDamage(const uint damage_per_turn, const uint duration)
+  {
+    disease_damage_per_turn = damage_per_turn;
+    disease_duration = duration;
+  }
+// Keep almost 1 in energy
+  uint GetDiseaseDamage() const
+  {
+    if (disease_damage_per_turn < static_cast<uint>(GetEnergy()))
+      return disease_damage_per_turn;
+    return GetEnergy() - 1;
+  }
+  uint GetDiseaseDuration() const { return disease_duration; };
+  void DecDiseaseDuration()
+  {
+    if (disease_duration > 0) disease_duration--;
+    else disease_damage_per_turn = 0;
+  }
 
   // to be used by action handler
-  alive_t GetLifeState() const;
+  alive_t GetLifeState() const { return m_alive; };
   void SetLifeState(alive_t state);
 
   void Draw();
@@ -129,20 +149,20 @@ public:
   void StopPlaying();
 
   void PrepareShoot();
-  bool IsPreparingShoot();
+  bool IsPreparingShoot() const { return prepare_shoot; };
   void DoShoot();
   double GetFiringAngle() const;
-  double GetAbsFiringAngle() const;
+  double GetAbsFiringAngle() const { return firing_angle; };
   void SetFiringAngle(double angle);
 
   // Show hide the Character
-  void Hide();
-  void Show();
+  void Hide() { hidden = true; };
+  void Show() { hidden = false; };
 
   // ---- Movement  -----
   // Can we move (check a timeout)
   bool CanMoveRL() const;
-  bool CanJump() const;
+  bool CanJump() const { return CanMoveRL(); };
 
   // Jumps
   void Jump(double strength, double angle);
@@ -155,13 +175,13 @@ public:
   bool CanStillMoveRL (uint pause);
 
   // Direction of the character ( -1 == looks to the left / +1 == looks to the right)
-  void SetDirection(Body::Direction_t direction);
-  Body::Direction_t GetDirection() const;
+  void SetDirection(BodyDirection_t direction);
+  BodyDirection_t GetDirection() const;
 
   // Team owner
-  const Team& GetTeam() const;
-  uint GetTeamIndex();
-  uint GetCharacterIndex();
+  const Team& GetTeam() const { return m_team; };
+  uint GetTeamIndex() const;
+  uint GetCharacterIndex() const;
 
   // Access to character info
   const std::string& GetName() const { return character_name; }
@@ -171,45 +191,45 @@ public:
   const Point2i & GetHandPosition() const;
 
   // Damage report
-  const DamageStatistics& GetDamageStats() const;
+  const DamageStatistics* GetDamageStats() const { return damage_stats; };
   void ResetDamageStats();
 
   // Body handling
-  Body * GetBody() const;
+  Body * GetBody() { return body; };
   void SetWeaponClothe();
-  void SetClothe(std::string name);
-  void SetMovement(std::string name);
-  void SetClotheOnce(std::string name);
-  void SetMovementOnce(std::string name);
+  void SetClothe(const std::string& name);
+  void SetMovement(const std::string& name);
+  void SetClotheOnce(const std::string& name);
+  void SetMovementOnce(const std::string& name);
 
   // Keyboard handling
-  void HandleKeyPressed_MoveRight();
-  void HandleKeyRefreshed_MoveRight();
-  void HandleKeyReleased_MoveRight();
+  void HandleKeyPressed_MoveRight(bool shift);
+  void HandleKeyRefreshed_MoveRight(bool shift) const;
+  void HandleKeyReleased_MoveRight(bool shift);
 
-  void HandleKeyPressed_MoveLeft();
-  void HandleKeyRefreshed_MoveLeft();
-  void HandleKeyReleased_MoveLeft();
+  void HandleKeyPressed_MoveLeft(bool shift);
+  void HandleKeyRefreshed_MoveLeft(bool shift) const;
+  void HandleKeyReleased_MoveLeft(bool shift);
 
-  void HandleKeyPressed_Up();
-  void HandleKeyRefreshed_Up();
-  void HandleKeyReleased_Up();
+  void HandleKeyPressed_Up(bool shift) { HandleKeyRefreshed_Up(shift); };
+  void HandleKeyRefreshed_Up(bool shift);
+  void HandleKeyReleased_Up(bool) const {};
 
-  void HandleKeyPressed_Down();
-  void HandleKeyRefreshed_Down();
-  void HandleKeyReleased_Down();
+  void HandleKeyPressed_Down(bool shift) { HandleKeyRefreshed_Down(shift); };
+  void HandleKeyRefreshed_Down(bool shift);
+  void HandleKeyReleased_Down(bool) const {};
 
-  void HandleKeyPressed_Jump();
-  void HandleKeyRefreshed_Jump();
-  void HandleKeyReleased_Jump();
+  void HandleKeyPressed_Jump(bool shift) const;
+  void HandleKeyRefreshed_Jump(bool) const {};
+  void HandleKeyReleased_Jump(bool) const {};
 
-  void HandleKeyPressed_HighJump();
-  void HandleKeyRefreshed_HighJump();
-  void HandleKeyReleased_HighJump();
+  void HandleKeyPressed_HighJump(bool shift) const;
+  void HandleKeyRefreshed_HighJump(bool) const { };
+  void HandleKeyReleased_HighJump(bool) const { };
 
-  void HandleKeyPressed_BackJump();
-  void HandleKeyRefreshed_BackJump();
-  void HandleKeyReleased_BackJump();
+  void HandleKeyPressed_BackJump(bool shift) const;
+  void HandleKeyRefreshed_BackJump(bool) const {};
+  void HandleKeyReleased_BackJump(bool) const {};
 
 };
 

@@ -24,26 +24,15 @@
 //-----------------------------------------------------------------------------
 #include "weapon.h"
 #include "include/base.h"
+#include <list>
 //-----------------------------------------------------------------------------
 
-class GrappleConfig : public EmptyWeaponConfig
-{
- public:
-  uint max_rope_length; // Max rope length in pixels
-  uint automatic_growing_speed; // Pixel per 1/100 second.
-  int push_force;
-
- public:
-  GrappleConfig();
-  void LoadXml(xmlpp::Element *elem);
-};
-
-//-----------------------------------------------------------------------------
+class GrappleConfig;
 
 class Grapple : public Weapon
 {
   private:
-    typedef struct 
+    typedef struct
     {
       Point2i pos;
       double angle;
@@ -64,7 +53,7 @@ class Grapple : public Weapon
 
   protected:
     void Refresh();
-    void p_Deselect();
+    void p_Deselect() { DetachRope(); };
     bool p_Shoot();
 
     void GoUp();
@@ -96,47 +85,48 @@ class Grapple : public Weapon
     Grapple();
     void Draw();
     virtual void NotifyMove(bool collision);
-    
-    virtual void ActionStopUse();
-    virtual void SignalTurnEnd();
-    
+
+    virtual void ActionStopUse() { DetachRope(); };
+    // force detaching rope if time is out
+    virtual void SignalTurnEnd() { p_Deselect(); };
+
     GrappleConfig& cfg();
 
     // Attaching and dettaching nodes rope
     // This is public because of network
-    void AttachRope(Point2i contact_point);
+    void AttachRope(const Point2i& contact_point);
     void DetachRope();
 
-    void AttachNode(Point2i contact_point, 
-		    double angle, 
+    void AttachNode(const Point2i& contact_point,
+		    double angle,
 		    int sense);
     void DetachNode();
-    void SetRopeSize(double length);
+    void SetRopeSize(double length) const;
+
+    std::string GetWeaponWinString(const char *TeamName, uint items_count) const;
 
     // Keys management
-    virtual void HandleKeyPressed_Up();
-    virtual void HandleKeyRefreshed_Up();
-    virtual void HandleKeyReleased_Up();
-    
-    virtual void HandleKeyPressed_Down();
-    virtual void HandleKeyRefreshed_Down();
-    virtual void HandleKeyReleased_Down();
+    void HandleKeyPressed_Up(bool shift);
+    void HandleKeyRefreshed_Up(bool shift);
+    void HandleKeyReleased_Up(bool shift);
 
-    virtual void HandleKeyPressed_MoveRight();
-    virtual void HandleKeyRefreshed_MoveRight();
-    virtual void HandleKeyReleased_MoveRight();
-    
-    virtual void HandleKeyPressed_MoveLeft();
-    virtual void HandleKeyRefreshed_MoveLeft();
-    virtual void HandleKeyReleased_MoveLeft();
+    void HandleKeyPressed_Down(bool shift);
+    void HandleKeyRefreshed_Down(bool shift);
+    void HandleKeyReleased_Down(bool shift);
 
-    virtual void HandleKeyPressed_Shoot();
-    virtual void HandleKeyRefreshed_Shoot();
-    virtual void HandleKeyReleased_Shoot();
+    void HandleKeyPressed_MoveRight(bool shift);
+    void HandleKeyRefreshed_MoveRight(bool shift);
+    void HandleKeyReleased_MoveRight(bool shift);
+
+    void HandleKeyPressed_MoveLeft(bool shift);
+    void HandleKeyRefreshed_MoveLeft(bool shift);
+    void HandleKeyReleased_MoveLeft(bool shift);
+
+    void HandleKeyPressed_Shoot(bool shift);
+    void HandleKeyRefreshed_Shoot(bool) { };
+    void HandleKeyReleased_Shoot(bool) { };
 
     void PrintDebugRope();
-
-    DECLARE_GETWEAPONSTRING();
 };
 
 //-----------------------------------------------------------------------------

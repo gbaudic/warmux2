@@ -20,10 +20,16 @@
  *****************************************************************************/
 
 #include "skip_turn.h"
+#include "weapon_cfg.h"
+
 //-----------------------------------------------------------------------------
+#include "character/character.h"
 #include "game/game_loop.h"
+#include "game/time.h"
 #include "interface/game_msg.h"
+#include "sound/jukebox.h"
 #include "team/teams_list.h"
+#include "team/team.h"
 #include "tool/i18n.h"
 //-----------------------------------------------------------------------------
 
@@ -31,39 +37,31 @@ SkipTurn::SkipTurn() : Weapon(WEAPON_SKIP_TURN, "skip_turn", new WeaponConfig())
 {
   m_name = _("Skip turn");
   m_category = TOOL;
+  m_time_between_each_shot = 40;
 }
 
 //-----------------------------------------------------------------------------
 
 bool SkipTurn::p_Shoot()
 {
-
   // Show message
   GameMessages::GetInstance()->Add (Format(_("%s team has skipped its turn."),
-			      ActiveTeam().GetName().c_str()));
-
+                                           ActiveTeam().GetName().c_str()));
   jukebox.Play(ActiveTeam().GetSoundProfile(), "skip_turn");
-
-  // End turn
-  m_is_active = false;
   return true;
 }
 
 //-----------------------------------------------------------------------------
 
-void SkipTurn::Refresh()
-{
-  if (m_is_active)
-    m_is_active = false;
-}
-
-//-----------------------------------------------------------------------------
-
-std::string SkipTurn::GetWeaponWinString(const char *TeamName, uint items_count )
+std::string SkipTurn::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
   return Format(ngettext(
-            "%s team has won %u turn skip!",
-            "%s team has won %u turn skips!",
+            "%s team has won %u turn skip! I know you'll love it.",
+            "%s team has won %u turn skips! I know you'll love them.",
             items_count), TeamName, items_count);
 }
 
+bool SkipTurn::IsInUse() const
+{
+  return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
+}

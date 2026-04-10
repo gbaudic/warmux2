@@ -19,34 +19,42 @@
  * Blowtorch - burns holes into walls
  *****************************************************************************/
 
-#include "weapon/blowtorch.h"
+#include "blowtorch.h"
+#include "explosion.h"
+#include "weapon_cfg.h"
+
+#include "character/character.h"
 #include "include/action_handler.h"
 #include "tool/i18n.h"
 #include "map/map.h"
-#include "team/teams_list.h"
 #include "game/game_loop.h"
 #include "game/time.h"
+#include "graphic/sprite.h"
 #include "character/move.h"
 #include "character/body.h"
-#include "explosion.h"
+#include "team/team.h"
+#include "team/teams_list.h"
+#include "tool/resource_manager.h"
+#include "tool/xml_document.h"
 
-static const uint pause_time = 200;	// milliseconds
+static const uint MIN_TIME_BETWEEN_DIG = 200;        // milliseconds
+
+class BlowtorchConfig : public WeaponConfig
+{
+  public:
+    BlowtorchConfig();
+    virtual void LoadXml(xmlpp::Element* elem);
+
+    uint range;
+};
 
 Blowtorch::Blowtorch() : Weapon(WEAPON_BLOWTORCH, "blowtorch", new BlowtorchConfig())
 {
   m_name = _("Blowtorch");
   m_help = _("Howto use it : keep space key pressed\nAngle : Up/Down\nan ammo per turn");
   m_category = TOOL;
-
-  new_timer = 0;
-  old_timer = 0;
-
+  m_time_between_each_shot = MIN_TIME_BETWEEN_DIG;
   m_weapon_fire = new Sprite(resource_manager.LoadImage(weapons_res_profile, "blowtorch_fire"));
-}
-
-void Blowtorch::Refresh()
-{
-
 }
 
 void Blowtorch::p_Deselect()
@@ -54,12 +62,11 @@ void Blowtorch::p_Deselect()
   ActiveCharacter().body->ResetWalk();
   ActiveCharacter().body->StopWalk();
   ActiveTeam().AccessNbUnits() = 0;
-  m_is_active = false;
 }
 
-void Blowtorch::SignalTurnEnd()
+bool Blowtorch::IsInUse() const
 {
-  p_Deselect();
+  return m_last_fire_time + m_time_between_each_shot > Time::GetInstance()->Read();
 }
 
 void Blowtorch::ActionStopUse()
@@ -85,37 +92,29 @@ bool Blowtorch::p_Shoot()
   return true;
 }
 
-void Blowtorch::RepeatShoot()
+void Blowtorch::RepeatShoot() const
 {
-  uint time = Time::GetInstance()->Read() - old_timer;
-  uint tmp = Time::GetInstance()->Read();
+  uint time = Time::GetInstance()->Read() - m_last_fire_time;
 
-  if (time >= pause_time)
-    {
-      NewActionWeaponShoot();
-      old_timer = tmp;
-    }
+  if (time >= m_time_between_each_shot) {
+    NewActionWeaponShoot();
+  }
 }
 
-void Blowtorch::HandleKeyPressed_Shoot()
+void Blowtorch::HandleKeyPressed_Shoot(bool shift)
 {
   ActiveCharacter().BeginMovementRL(PAUSE_MOVEMENT);
   ActiveCharacter().SetRebounding(false);
   ActiveCharacter().body->StartWalk();
 
-  HandleKeyRefreshed_Shoot();
+  HandleKeyRefreshed_Shoot(shift);
 }
 
-void Blowtorch::HandleKeyRefreshed_Shoot()
+void Blowtorch::HandleKeyRefreshed_Shoot(bool)
 {
   if (EnoughAmmoUnit()) {
     RepeatShoot();
   }
-}
-
-void Blowtorch::HandleKeyReleased_Shoot()
-{
-  NewActionWeaponStopUse();
 }
 
 //-------------------------------------------------------------------------------------
@@ -136,11 +135,10 @@ void BlowtorchConfig::LoadXml(xmlpp::Element* elem)
   XmlReader::ReadUint(elem, "range", range);
 }
 
-std::string Blowtorch::GetWeaponWinString(const char *TeamName, uint items_count )
+std::string Blowtorch::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
   return Format(ngettext(
-            "%s team has won %u blowtorch!",
-            "%s team has won %u blowtorchs!",
+            "%s team has won %u blowtorch! If you're under 18, ask your parents to use it.",
+            "%s team has won %u blowtorchs! If you're under 18, ask your parents to use it.",
             items_count), TeamName, items_count);
 }
-

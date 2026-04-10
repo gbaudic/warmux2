@@ -22,14 +22,19 @@
 #ifndef WIND_H
 #define WIND_H
 
-#include <SDL.h>
 #include <list>
-#include "game/config.h"
-#include "graphic/sprite.h"
-#include "gui/progress_bar.h"
 #include "include/base.h"
 #include "object/physical_obj.h"
-#include "tool/xml_document.h"
+
+// Forward declarations
+class Sprite;
+namespace xmlpp
+{
+  class Element;
+}
+
+// Max wind strength in m/(sec*sec)
+#define WIND_STRENGTH  5.0
 
 class WindParticle : public PhysicalObj
 {
@@ -42,8 +47,8 @@ public:
   Sprite *flipped;
 
 public:
-  WindParticle(std::string& xml_file, float scale);
-  ~WindParticle() { delete sprite; if(flipped) delete flipped;};
+  WindParticle(const std::string& xml_file, float scale);
+  ~WindParticle();
   void Draw();
   void Refresh();
 };
@@ -54,16 +59,17 @@ class Wind
   uint m_last_move;
   uint m_last_part_mvt;
 
-public:
+private:
   std::list<WindParticle *> particles;
   typedef std::list<WindParticle *>::iterator iterator;
+  void RemoveAllParticles();
 
 public:
-  Wind();
-  ~Wind();
-  double GetStrength() const;
-  void ChooseRandomVal();
-  void SetVal (long val);
+  Wind() { m_val = m_nv_val = 0; };
+  ~Wind() { RemoveAllParticles(); };
+  double GetStrength() const { return m_nv_val * WIND_STRENGTH / 100.0; };
+  void ChooseRandomVal() const;
+  void SetVal (long val) { m_nv_val = val; };
   void Refresh();
   void Reset();
   void DrawParticles();

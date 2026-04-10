@@ -19,8 +19,12 @@
  * Team handling
  *****************************************************************************/
 
+#include <libxml++/libxml++.h>
+#include "team.h"
+#include "team_config.h"
 #include "teams_list.h"
 //-----------------------------------------------------------------------------
+#include "character/character.h"
 #include "character/body_list.h"
 #include "include/action.h"
 #include "game/config.h"
@@ -31,10 +35,6 @@
 #include <algorithm>
 #include <iostream>
 
-#if !defined(WIN32) || defined(__MINGW32__)
-#include <dirent.h>
-#include <sys/stat.h>
-#endif
 //-----------------------------------------------------------------------------
 TeamsList teams_list;
 //-----------------------------------------------------------------------------
@@ -59,6 +59,16 @@ TeamsList::~TeamsList()
 
 void TeamsList::NextTeam ()
 {
+  Team* next = GetNextTeam();
+  teams_list.SetActive (next->GetId());
+  Action a(Action::ACTION_GAMELOOP_NEXT_TEAM, next->GetId());
+  Network::GetInstance()->SendAction(&a);
+}
+
+//-----------------------------------------------------------------------------
+
+Team* TeamsList::GetNextTeam()
+{
   // Next team
   std::vector<Team*>::iterator it=active_team;
   do
@@ -66,47 +76,39 @@ void TeamsList::NextTeam ()
     ++it;
     if (it == playing_list.end()) it = playing_list.begin();
   } while ((**it).NbAliveCharacter() == 0);
-
-  teams_list.SetActive ((**it).GetId());
-
-  Action a(Action::ACTION_GAMELOOP_NEXT_TEAM, (**it).GetId());
-  Network::GetInstance()->SendAction(&a);
+  return (*it);
 }
+
 
 //-----------------------------------------------------------------------------
 
 Team& TeamsList::ActiveTeam()
 {
-  assert (active_team != playing_list.end());
+  ASSERT (active_team != playing_list.end());
   return **active_team;
 }
 
 //-----------------------------------------------------------------------------
 
-void TeamsList::LoadOneTeam(const std::string &dir, const std::string &team)
+void TeamsList::LoadOneTeam(const std::string &dir, const std::string &team_name)
 {
   // Skip '.', '..' and hidden files
-  if (team[0] == '.') return;
+  if (team_name[0] == '.') return;
 
-#if !defined(WIN32) || defined(__MINGW32__)
   // Is it a directory ?
-  struct stat stat_file;
-  std::string filename = dir+team;
-  if (stat(filename.c_str(), &stat_file) != 0) return;
-  if (!S_ISDIR(stat_file.st_mode)) return;
-#endif
+  if (!IsFolderExist(dir+team_name)) return;
 
   // Add the team
   try {
-    full_list.push_back(new Team(dir, team));
-    std::cout << ((1<full_list.size())?", ":" ") << team;
+    full_list.push_back(new Team(dir, team_name));
+    std::cout << ((1<full_list.size())?", ":" ") << team_name;
     std::cout.flush();
   }
 
   catch (char const *error)
     {
       std::cerr << std::endl
-        << Format(_("Error loading team :")) << team <<":"<< error
+        << Format(_("Error loading team :")) << team_name <<":"<< error
         << std::endl;
       return;
     }
@@ -114,7 +116,7 @@ void TeamsList::LoadOneTeam(const std::string &dir, const std::string &team)
   catch (const xmlpp::exception &e)
     {
       std::cerr << std::endl
-        << Format(_("Error loading team :")) << team << std::endl
+        << Format(_("Error loading team :")) << team_name << std::endl
         << e.what() << std::endl;
       return;
     }
@@ -129,45 +131,31 @@ void TeamsList::LoadList()
 
   std::cout << "o " << _("Load teams:");
 
+  const Config * config = Config::GetInstance();
+
   // Load Wormux teams
-  std::string dirname = Config::GetInstance()->GetDataDir() + PATH_SEPARATOR + "team" + PATH_SEPARATOR;
-#if !defined(WIN32) || defined(__MINGW32__)
-  struct dirent *file;
-  DIR *dir = opendir(dirname.c_str());
-  if (dir != NULL) {
-    while ((file = readdir(dir)) != NULL)  LoadOneTeam (dirname, file->d_name);
-    closedir (dir);
+  std::string dirname = config->GetDataDir() + PATH_SEPARATOR + "team" + PATH_SEPARATOR;
+  FolderSearch *f = OpenFolder(dirname);
+  if (f) {
+    const char *name;
+    while ((name = FolderSearchNext(f)) != NULL) LoadOneTeam(dirname, name);
+    CloseFolder(f);
   } else {
     Error (Format(_("Cannot open teams directory (%s)!"), dirname.c_str()));
   }
-#else
-  std::string pattern = dirname + "*.*";
-  WIN32_FIND_DATA file;
-  HANDLE file_search;
-  file_search=FindFirstFile(pattern.c_str(),&file);
-  if(file_search != INVALID_HANDLE_VALUE)
-  {
-    while (FindNextFile(file_search,&file))
-    {
-      if(file.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
-        LoadOneTeam(dirname,file.cFileName);
-    }
-  } else {
-    Error (Format(_("Cannot open teams directory (%s)!"), dirname.c_str()));
-  }
-  FindClose(file_search);
-#endif
 
   // Load personal teams
-#if !defined(WIN32) || defined(__MINGW32__)
-  dirname = Config::GetInstance()->GetPersonalDir() + PATH_SEPARATOR
-    + "team" + PATH_SEPARATOR;
-  dir = opendir(dirname.c_str());
-  if (dir != NULL) {
-    while ((file = readdir(dir)) != NULL) LoadOneTeam (dirname, file->d_name);
-    closedir (dir);
+  dirname = config->GetPersonalDir() + "team" + PATH_SEPARATOR;
+  f = OpenFolder(dirname);
+  if (f) {
+    const char *name;
+    while ((name = FolderSearchNext(f)) != NULL) LoadOneTeam(dirname, name);
+    CloseFolder(f);
+  } else {
+    std::cerr << std::endl
+      << Format(_("Cannot open personal teams directory (%s)!"), dirname.c_str())
+      << std::endl;
   }
-#endif
 
   teams_list.full_list.sort(compareTeams);
 
@@ -189,6 +177,7 @@ void TeamsList::LoadList()
 
 void TeamsList::LoadGamingData()
 {
+  std::sort(playing_list.begin(), playing_list.end(), compareTeams); // needed to fix bug #9820
   active_team = playing_list.begin();
 
   iterator it=playing_list.begin(), end=playing_list.end();
@@ -237,7 +226,7 @@ Team *TeamsList::FindByIndex (uint index)
     if (i == index)
       return (*it);
   }
-  assert (false);
+  ASSERT (false);
   return NULL;
 }
 
@@ -245,7 +234,7 @@ Team *TeamsList::FindByIndex (uint index)
 
 Team *TeamsList::FindPlayingByIndex (uint index)
 {
-  assert(index < playing_list.size());
+  ASSERT(index < playing_list.size());
   return playing_list[index];
 }
 
@@ -260,7 +249,7 @@ Team* TeamsList::FindPlayingById(const std::string &id, uint &index)
     if ((*it) -> GetId() == id)
       return *it;
   }
-  assert(false);
+  ASSERT(false);
   return NULL;
 }
 
@@ -292,11 +281,9 @@ void TeamsList::InitEnergy()
 
   // Init each team's energy bar
   it=playing_list.begin();
-  uint i = 0;
   for (; it != fin; ++it)
   {
     (**it).InitEnergy (max);
-    ++i;
   }
 
   // Initial ranking
@@ -507,7 +494,7 @@ void TeamsList::DelTeam (const std::string &id)
 {
   int pos;
   Team *equipe = FindById (id, pos);
-  assert(equipe != NULL);
+  ASSERT(equipe != NULL);
 
   selection_iterator it = find(selection.begin(),selection.end(),(uint)pos);
 

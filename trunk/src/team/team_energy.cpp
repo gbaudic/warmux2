@@ -26,6 +26,7 @@
 #include "map/map.h"
 #include "game/time.h"
 #include "graphic/text.h"
+#include "graphic/sprite.h"
 #include "team.h"
 #include "teams_list.h"
 #include "include/app.h"
@@ -33,12 +34,34 @@
 const uint BAR_WIDTH = 13;
 const uint BAR_SPACING = 30;
 const uint BAR_HEIGHT = 50;
-const uint SPACING = 3;
+// XXX Not used
+//const uint SPACING = 3;
 
 const uchar ALPHA = 127;
 const uchar BACK_ALPHA = 0;
 
 const float MOVE_DURATION = 750.0;
+
+void EnergyList::Reset()
+{
+  for (EnergyList::iterator it = begin(); it != end(); ++it)
+    delete *(it);
+
+  clear();
+}
+
+// Let's assume it is sorted, in spite of uint wrap-around
+void EnergyList::AddValue(uint value)
+{
+  if (value == m_last_value)
+    return;
+
+  EnergyValue *eval = new EnergyValue(Time::GetInstance()->Read(), value);
+  if (value > m_max_value) m_max_value = value;
+  m_last_value = value;
+  EnergyList::push_back(eval);
+}
+
 
 TeamEnergy::TeamEnergy(Team * _team):
   energy_bar(),
@@ -56,7 +79,8 @@ TeamEnergy::TeamEnergy(Team * _team):
   team_name("not initialized"),
   move_start_time(0),
   rank_tmp(0),
-  status(EnergyStatusOK)
+  status(EnergyStatusOK),
+  energy_list()
 {
   energy_bar.InitPos(0, 0, BAR_WIDTH, BAR_HEIGHT);
   energy_bar.SetBorderColor(Color(255, 255, 255, ALPHA));
@@ -76,9 +100,18 @@ void TeamEnergy::Config(uint _current_energy,
 
   value = _current_energy;
   new_value = _current_energy;
-  assert(max_value != 0)
-      energy_bar.InitVal(value, 0, max_value, ProgressBar::PROG_BAR_VERTICAL);
-  icon = new Sprite(team->flag);
+  ASSERT(max_value != 0)
+  energy_bar.InitVal(value, 0, max_value, ProgressBar::PROG_BAR_VERTICAL);
+  icon = NULL;
+  SetIcon(team->GetFlag());
+  energy_list.Reset();
+}
+
+void TeamEnergy::SetIcon(const Surface & new_icon)
+{
+  if(icon)
+    delete icon;
+  icon = new Sprite(new_icon);
   icon->Scale(0.8,0.8);
 }
 
@@ -101,7 +134,7 @@ void TeamEnergy::Refresh()
       Move();
       break;
 
-    // Currently no move
+      // Currently no move
     case EnergyStatusOK:
       if( value != new_value && !IsMoving())
         status = EnergyStatusValueChange;
@@ -126,7 +159,10 @@ void TeamEnergy::Draw(const Point2i& pos)
 
 void TeamEnergy::SetValue(uint new_energy)
 {
+  if(new_energy == 0)
+    SetIcon(team->GetDeathFlag());
   new_value = new_energy;
+  energy_list.AddValue(new_energy);
 }
 
 void TeamEnergy::SetRanking(uint _rank)

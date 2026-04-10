@@ -21,24 +21,14 @@
 
 #ifndef BAZOOKA_H
 #define BAZOOKA_H
-#include "launcher.h"
 
-class BazookaRocket : public WeaponProjectile
-{
-  ParticleEngine smoke_engine;
-public:
-  BazookaRocket(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
-  void Refresh();
-protected:
-  void SignalOutOfMap();
-  void SignalDrowning();
-};
+#include "weapon_launcher.h"
 
 class Bazooka : public WeaponLauncher
 {
  public:
   Bazooka();
-  DECLARE_GETWEAPONSTRING();
+  std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
  protected:
   WeaponProjectile * GetProjectileInstance();
 };

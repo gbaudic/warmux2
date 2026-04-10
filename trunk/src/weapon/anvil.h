@@ -22,30 +22,8 @@
 #ifndef ANVIL_H
 #define ANVIL_H
 
-#include <SDL.h>
 #include "include/base.h"
-#include "graphic/surface.h"
-#include "object/physical_obj.h"
-#include "launcher.h"
-
-class Anvil : public WeaponProjectile
-{
-  private:
-    uint merge_time;
-    int channel;
-  public:
-    Anvil(ExplosiveWeaponConfig& cfg,
-          WeaponLauncher * p_launcher);
-    void Refresh();
-
-    void PlayFallSound();
-    void PlayCollisionSound();
-    DECLARE_GETWEAPONSTRING();
-
-  protected:
-    virtual void SignalObjectCollision(PhysicalObj * obj);
-    virtual void SignalGroundCollision();
-};
+#include "weapon_launcher.h"
 
 class AnvilLauncher : public WeaponLauncher
 {
@@ -54,10 +32,11 @@ class AnvilLauncher : public WeaponLauncher
     bool target_chosen;
   public:
     AnvilLauncher();
-    void ChooseTarget (Point2i mouse_pos);    
+    void ChooseTarget (Point2i mouse_pos);
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
   protected:
     WeaponProjectile * GetProjectileInstance();
-    virtual bool p_Shoot();    
+    virtual bool p_Shoot();
     virtual void p_Select();
     virtual void p_Deselect();
 };

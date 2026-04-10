@@ -54,12 +54,34 @@ ResourceManager::~ResourceManager()
 {
 }
 
-void ResourceManager::AddDataPath(std::string base_path)
+void ResourceManager::AddDataPath(const std::string& base_path)
 {
   this->base_path = base_path;
 }
 
-Color ResourceManager::LoadColor(const Profile *profile, const std::string resource_name)
+int ResourceManager::LoadInt(const Profile *profile, const std::string& resource_name) const
+{
+  int tmp = 0;
+  xmlpp::Element *elem = GetElement(profile, "int", resource_name);
+  if (elem == NULL)
+    Error("ResourceManager: can't find int resource \""+resource_name+"\" in profile "+profile->filename);
+  if (!profile->doc->ReadIntAttr(elem, "value", tmp))
+    Error("ResourceManager: int resource \""+resource_name+"\" has no value field in profile "+profile->filename);
+  return tmp;
+}
+
+double ResourceManager::LoadDouble(const Profile *profile, const std::string& resource_name) const
+{
+  double tmp = 0.0;
+  xmlpp::Element *elem = GetElement(profile, "double", resource_name);
+  if (elem == NULL)
+    Error("ResourceManager: can't find double resource \""+resource_name+"\" in profile "+profile->filename);
+  if (!profile->doc->ReadDoubleAttr(elem, "value", tmp))
+    Error("ResourceManager: double resource \""+resource_name+"\" has no value field in profile "+profile->filename);
+  return tmp;
+}
+
+Color ResourceManager::LoadColor(const Profile *profile, const std::string& resource_name) const
 {
   xmlpp::Element *elem = GetElement(profile, "color", resource_name);
   if ( elem == NULL)
@@ -74,7 +96,7 @@ Color ResourceManager::LoadColor(const Profile *profile, const std::string resou
   return Color(chanel_color[0], chanel_color[1], chanel_color[2], chanel_color[3]);
 }
 
-Point2i ResourceManager::LoadPoint2i(const Profile *profile, const std::string resource_name)
+Point2i ResourceManager::LoadPoint2i(const Profile *profile, const std::string& resource_name) const
 {
   xmlpp::Element *elem = GetElement(profile, "point", resource_name);
   if ( elem == NULL)
@@ -89,7 +111,7 @@ Point2i ResourceManager::LoadPoint2i(const Profile *profile, const std::string r
   return Point2i(point[0], point[1]);
 }
 
-Point2d ResourceManager::LoadPoint2d(const Profile *profile, const std::string resource_name)
+Point2d ResourceManager::LoadPoint2d(const Profile *profile, const std::string& resource_name) const
 {
   xmlpp::Element *elem = GetElement(profile, "point", resource_name);
   if ( elem == NULL)
@@ -104,8 +126,8 @@ Point2d ResourceManager::LoadPoint2d(const Profile *profile, const std::string r
   return Point2d(point[0], point[1]);
 }
 
-Surface ResourceManager::LoadImage(const std::string filename,
-        bool alpha, bool set_colorkey, Uint32 colorkey)
+Surface ResourceManager::LoadImage(const std::string& filename,
+        bool alpha, bool set_colorkey, Uint32 colorkey) const
 {
   Surface pre_surface = Surface(filename.c_str());
   Surface end_surface;
@@ -120,7 +142,7 @@ Surface ResourceManager::LoadImage(const std::string filename,
   return end_surface;
 }
 
-Profile *ResourceManager::LoadXMLProfile(const std::string xml_filename, bool relative_path)
+Profile *ResourceManager::LoadXMLProfile(const std::string& xml_filename, bool relative_path) const
 {
    XmlReader *doc = new XmlReader;
    std::string filename, path;
@@ -128,7 +150,7 @@ Profile *ResourceManager::LoadXMLProfile(const std::string xml_filename, bool re
      path = base_path;
      filename = path + xml_filename;
    } else {
-     assert(xml_filename.rfind(PATH_SEPARATOR) != xml_filename.npos);
+     ASSERT(xml_filename.rfind(PATH_SEPARATOR) != xml_filename.npos);
      path = xml_filename.substr(0, xml_filename.rfind(PATH_SEPARATOR)+1);
      filename = xml_filename;
    }
@@ -137,6 +159,7 @@ Profile *ResourceManager::LoadXMLProfile(const std::string xml_filename, bool re
    if(!doc->Load(filename))
    {
      // TODO raise an "can't load file" exception
+     delete doc;
      Error("ResourceManager: can't load profile "+filename);
      return NULL;
    }
@@ -148,12 +171,12 @@ Profile *ResourceManager::LoadXMLProfile(const std::string xml_filename, bool re
    return profile;
 }
 
-void ResourceManager::UnLoadXMLProfile( Profile *profile)
+void ResourceManager::UnLoadXMLProfile( Profile *profile) const
 {
    delete profile;
 }
 
-xmlpp::Element * ResourceManager::GetElement( const Profile *profile, const std::string resource_type, const std::string resource_name)
+xmlpp::Element * ResourceManager::GetElement( const Profile *profile, const std::string& resource_type, const std::string& resource_name) const
 {
   xmlpp::Element *elem = profile->doc->Access(profile->doc->GetRoot(), resource_type, resource_name);
 
@@ -171,7 +194,7 @@ xmlpp::Element * ResourceManager::GetElement( const Profile *profile, const std:
   return elem;
 }
 
-Surface ResourceManager::LoadImage( const Profile *profile, const std::string resource_name)
+Surface ResourceManager::LoadImage( const Profile *profile, const std::string& resource_name) const
 {
   xmlpp::Element *elem = GetElement ( profile, "surface", resource_name);
   if(elem == NULL)
@@ -189,7 +212,7 @@ Surface ResourceManager::LoadImage( const Profile *profile, const std::string re
   return LoadImage(profile->relative_path+filename, alpha);
 }
 
-Sprite *ResourceManager::LoadSprite(const Profile *profile, const std::string resource_name)
+Sprite *ResourceManager::LoadSprite(const Profile *profile, const std::string& resource_name) const
 {
   xmlpp::Element *elem_sprite = GetElement(profile, "sprite", resource_name);
   if(elem_sprite == NULL)
@@ -251,7 +274,7 @@ Sprite *ResourceManager::LoadSprite(const Profile *profile, const std::string re
     sprite->Init(surface, frameSize, nb_frames_x, nb_frames_y);
   }
 
-  assert(sprite != NULL);
+  ASSERT(sprite != NULL);
 
   xmlpp::Element *elem = profile->doc->GetMarker(elem_sprite, "animation");
   if ( elem != NULL ) {
@@ -274,10 +297,10 @@ Sprite *ResourceManager::LoadSprite(const Profile *profile, const std::string re
   return sprite;
 }
 
-Surface ResourceManager::GenerateMap(Profile *profile, const int width, const int height)
+Surface ResourceManager::GenerateMap(Profile *profile, InfoMap::Island_type generator, const int width, const int height) const
 {
   RandomMap random_map(profile, width, height);
-  random_map.Generate();
+  random_map.Generate(generator);
   random_map.SaveMap();
   return random_map.GetRandomMap();
 }

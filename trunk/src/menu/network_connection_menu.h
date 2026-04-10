@@ -25,21 +25,24 @@
 
 #include <list>
 #include "menu.h"
-#include "include/base.h"
-#include "graphic/font.h"
-#include "gui/button_text.h"
-#include "gui/msg_box.h"
-#include "gui/text_box.h"
 #include "network/network.h"
+
+// Forward declarations
+class TextBox;
+class VBox;
+class MsgBox;
+class CheckBox;
 
 class NetworkConnectionMenu : public Menu
 {
+ public:
   typedef enum {
     NET_HOST,
     NET_CONNECT_LOCAL,
     NET_BROWSE_INTERNET
   } network_menu_action_t;
 
+ private:
   /* If you need this, implement it (correctly)*/
    NetworkConnectionMenu(const NetworkConnectionMenu&);
    NetworkConnectionMenu operator=(const NetworkConnectionMenu&);
@@ -66,8 +69,6 @@ class NetworkConnectionMenu : public Menu
    void OnClickUp(const Point2i &mousePosition, int button);
    void Draw(const Point2i &mousePosition);
 
-   void SetAction(network_menu_action_t action);
-
    void DisplayError(Network::connection_state_t conn);
 
    bool signal_ok();
@@ -76,6 +77,8 @@ class NetworkConnectionMenu : public Menu
 public:
    NetworkConnectionMenu();
    ~NetworkConnectionMenu();
+
+   void SetAction(network_menu_action_t action);
 };
 
 #endif

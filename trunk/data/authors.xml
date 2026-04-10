@@ -30,6 +30,13 @@
 	<country>France</country>
       </author>
       <author>
+	<nickname>Kurosu</nickname>
+	<name>John DOE</name>
+	<description>Win32 port, programmer</description>
+	<email>kurosu_AT_free_DOT_fr</email>
+	<country>France</country>
+      </author>
+      <author>
 	<nickname>lodesi</nickname>
 	<name>Laurent DEFERT SIMONNEAU</name>
 	<description>Programmer and graphic artist</description>
@@ -97,6 +104,13 @@
   <contributors>
     <section title="Translations">
       <author>
+        <nickname>orvils</nickname>
+        <name>Raivis Dejus</name>
+	<description>Latvian translation</description>
+	<email>orvils_AT_gmail_DOT_com</email>
+	<country>Latvia</country>
+      </author>
+      <author>
         <nickname>GG</nickname>
         <name>Jérôme Gallard</name>
 	<description>Créole Réyoné translation</description>
@@ -129,11 +143,25 @@
 	<country>France</country>
       </author>
       <author>
+	<nickname>GArik</nickname>
+	<name>Igor MURZOV</name>
+	<description>Update Russian translation</description>
+	<email>igor_AT_gplsoft_DOT_org</email>
+	<country>Russia</country>
+      </author>
+      <author>
 	<nickname>Alexandre</nickname>
 	<name>Alexandre PROKOUDINE</name>
 	<description>Translate Wormux into Russian</description>
 	<email>alexandre.prokoudine_AT_gmail_DOT_com</email>
 	<country>Russia</country>
+      </author>
+      <author>
+	<nickname>Pierre-Marie</nickname>
+	<name>Pierre-Marie</name>
+	<description>Update translation of Wormux in Esperanto</description>
+	<email>pedrotpmx_AT_wanadoo_DOT_fr</email>
+	<country>France</country>
       </author>
       <author>
 	<nickname>Axel</nickname>
@@ -228,6 +256,13 @@
 	<country>Italia</country>
       </author>
       <author>
+        <nickname>Michele</nickname>
+        <name>Michele Mauri</name>
+        <description>Updated Italian translation</description>
+        <email>mikimauri_AT_gmail_DOT_com</email>
+        <country>Italia</country>
+      </author>
+      <author>
 	<nickname>Henrik</nickname>
 	<name>Henrik GEBAUER</name>
 	<description>Translated the whole website into German</description>
@@ -266,14 +301,12 @@
 	<nickname>Nicolas</nickname>
 	<name>Nicolas LETAVENIER</name>
 	<description>Help for English translation of the website</description>
-	<email>nicolas.letavenier_AT_utbm_DOT_fr</email>
 	<country>France</country>
       </author>
       <author>
 	<nickname>Packo</nickname>
 	<name>Packo ASSAMITA</name>
 	<description>Translate the whole website in Spanish</description>
-	<email>packo_assamita_AT_supercable_DOT_es</email>
 	<country>Spain</country>
       </author>
       <author>
@@ -291,6 +324,13 @@
 	<country>Brazil</country>
       </author>
       <author>
+	<nickname>Nightz</nickname>
+	<name>Nightz</name>
+	<description>Update Brazilian translation</description>
+	<email>abra185_AT_gmail_DOT_com</email>
+	<country>Brazil</country>
+      </author>
+      <author>
 	<nickname>Stefan</nickname>
 	<name>Stefan MARTENS</name>
 	<description>German translation</description>
@@ -301,7 +341,6 @@
 	<nickname>templer</nickname>
 	<name>Eduard BERMEJO</name>
 	<description>Add Spain AND Catalan translation in Wormux</description>
-	<email>templer_AT_iespana_DOT_es</email>
 	<country>Spain</country>
       </author>
       <author>
@@ -325,6 +364,13 @@
 	<email>icq_AT_cvs_DOT_gnome_DOT_org</email>
 	<country>Spain</country>
       </author>
+      <author>
+        <nickname>????</nickname>
+        <name>Varga Istvan</name>
+        <description>Hungarian translation updates(?)</description>
+        <email>????</email>
+        <country>Hungary</country>
+      </author>
     </section>
 
     <section title="Package maintainers">
@@ -333,7 +379,7 @@
 	<name>Adnan Hodzic</name>
 	<description>Prepares Wormux SlackBuilds for Slackware</description>
 	<email>AbsintheSyringe_AT_gmail_DOT_com</email>
-	<country>Bosnia</country>
+	<country>Bosnia-Herzegovina</country>
       </author>
       <author>
 	<nickname>artefact</nickname>
@@ -376,14 +422,8 @@
 	<nickname>Julien</nickname>
 	<name>Julien CATALANO</name>
 	<description>Prepare RPM packages for Mandrake</description>
+	<website>http://julien.catalano.free.fr/</website>
 	<email>julien.catalano_AT_gmail_DOT_com</email>
-	<country>France</country>
-      </author>
-      <author>
-	<nickname>Kurosu</nickname>
-	<name>John DOE</name>
-	<description>Make Win32 port</description>
-	<email>kurosu_AT_free_DOT_fr</email>
 	<country>France</country>
       </author>
       <author>
@@ -502,11 +542,19 @@
 	<email>phhusson_AT_free_DOT_fr</email>
       </author>
       <author>
+	<nickname>paxed</nickname>
+	<name>Pasi Kallinen</name>
+	<description>Improve the ground generator</description>
+	<website>http://bilious.homelinux.org/</website>
+	<email>paxed@alt.org</email>
+	<country>Finland</country>
+      </author>
+      <author>
 	<nickname>Progs</nickname>
 	<name>Romain BIGNON</name>
 	<description>Developer</description>
-	<email>progs_AT_headfucking.net</email>
 	<website>http://coderz.info</website>
+	<email>progs_AT_headfucking.net</email>
 	<country>France</country>
       </author>
       <author>
@@ -530,11 +578,25 @@
 	<email>sampie_AT_ariana-dsl.utu_DOT_fi</email>
       </author>
       <author>
+	<nickname>Snark</nickname>
+	<name>Julien Puydt</name>
+	<description>Patch to compile without -Wno-unused-parameter, reworked some menu widgets, little additions to class Surface</description>
+	<email>julien.puydt_AT_laposte_DOT_net</email>
+	<country>France</country>
+      </author>
+      <author>
 	<nickname>Timo</nickname>
 	<name>Timo HORSTSCHÄFER</name>
 	<description>Riot bomb weapon</description>
 	<email>mail_AT_timo-hortschaefer_DOT_de</email>
 	<country>Germany</country>
+      </author>
+      <author>
+	<nickname>the gritche</nickname>
+	<name>David Zysman</name>
+	<description>GUI patch</description>
+	<email>thegritche_AT_gmail_DOT_com</email>
+	<country>France</country>
       </author>
       <author>
 	<nickname>vegar</nickname>
@@ -573,6 +635,13 @@
 	<description>Sounds</description>
 	<website>http://www.lunerouge.com/</website>
 	<email>lallorge_AT_april_DOT_org</email>
+	<country>France</country>
+      </author>
+      <author>
+	<nickname>Mike</nickname>
+	<name>Mike Errecart</name>
+	<description>Monkey bubble music</description>
+	<email>mike.errecart_AT_gmail_DOT_com</email>
 	<country>France</country>
       </author>
     </section>
@@ -653,6 +722,12 @@
 	<description>Draw the map Dinos and the skin Dude</description>
 	<email>rashid_AT_vp_DOT_pl</email>
 	<country>Poland</country>
+      </author>
+      <author>
+	<nickname>tgm</nickname>
+	<name>C.A</name>
+	<description>Map 'FunkyIsland'</description>
+	<email>warcraftiii-projekt_AT_gmx_DOT_de</email>
       </author>
       <author>
 	<nickname>Toon</nickname>

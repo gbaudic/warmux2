@@ -23,10 +23,12 @@
 #define SPIN_BUTTON_H
 
 #include "include/base.h"
-#include "graphic/text.h"
+#include "graphic/colors.h"
 #include "widget.h"
-#include "button.h"
 #include <string>
+
+class Button;
+class Text;
 
 class SpinButton : public Widget
 {
@@ -46,16 +48,16 @@ class SpinButton : public Widget
 
  public:
   SpinButton(const std::string &label, const Rectanglei &rect,
-	     int value=0, int step=1, int min_value=-1, int max_value=-1,
-	     const Color& color = white_color, bool shadowed = true);
+             int value=0, int step=1, int min_value=-1, int max_value=-1,
+             const Color& color = white_color, bool shadowed = true);
   virtual ~SpinButton();
 
   void SetSizePosition(const Rectanglei &rect);
 
   void Draw(const Point2i &mousePosition, Surface& surf) const;
-  Widget* Click(const Point2i &mousePosition, uint button);
+  Widget* Click(const Point2i&, uint) const { return NULL; };
   Widget* ClickUp(const Point2i &mousePosition, uint button);
-  int GetValue() const;
+  int GetValue() const { return m_value; };
   void SetValue(int value);
 };
 

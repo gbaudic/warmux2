@@ -24,12 +24,14 @@
 
 #include "widget.h"
 
+class Surface;
+
 class NullWidget : public Widget
 {
  public:
-  NullWidget(const Rectanglei &rect);
-  ~NullWidget();
-  void Draw(const Point2i &mousePosition, Surface& surf) const;
+  NullWidget(const Rectanglei&) { };
+  ~NullWidget() { };
+  void Draw(const Point2i&, Surface&) const { };
   void SetSizePosition(const Rectanglei &rect);
 };
 

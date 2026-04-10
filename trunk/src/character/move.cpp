@@ -20,17 +20,15 @@
  *****************************************************************************/
 
 #include "move.h"
-#include <math.h>
-#include "body.h"
-#include "team/teams_list.h"
-#include "game/config.h"
+//#include <math.h>
+#include "character.h"
 #include "game/game_loop.h"
 #include "include/action_handler.h"
-#include "map/map.h"
-#include "map/camera.h"
 #include "network/network.h"
-#include "sound/jukebox.h"
+#include "team/team.h"
+#include "team/teams_list.h"
 #include "tool/debug.h"
+
 
 // Max climbing height walking
 const int MAX_CLIMBING_HEIGHT=30;
@@ -44,7 +42,7 @@ const uint PAUSE_CHG_DIRECTION=80; // ms
 // Compute the height to fall or to walk on when moving horizontally
 // Return a boolean which says if movement is possible
 bool ComputeHeightMovement(Character &character, int &height,
-			   bool falling)
+                           bool falling)
 {
   int y_floor=character.GetY();
 
@@ -119,15 +117,15 @@ void MoveCharacter(Character &character)
 }
 
 // Move the active character to the left
-void MoveActiveCharacterLeft(){
+void MoveActiveCharacterLeft(bool){
   // character is ready to move ?
   if (!ActiveCharacter().CanMoveRL()) return;
 
-  bool move = (ActiveCharacter().GetDirection() == Body::DIRECTION_LEFT);
+  bool move = (ActiveCharacter().GetDirection() == DIRECTION_LEFT);
   if (move) {
     MoveCharacter(ActiveCharacter());
   } else {
-    ActiveCharacter().SetDirection(Body::DIRECTION_LEFT);
+    ActiveCharacter().SetDirection(DIRECTION_LEFT);
     ActiveCharacter().BeginMovementRL(PAUSE_CHG_DIRECTION);
   }
 
@@ -137,16 +135,16 @@ void MoveActiveCharacterLeft(){
 }
 
 // Move the active character to the right
-void MoveActiveCharacterRight()
+void MoveActiveCharacterRight(bool)
 {
   // character is ready to move ?
   if (!ActiveCharacter().CanMoveRL()) return;
 
-  bool move = (ActiveCharacter().GetDirection() == Body::DIRECTION_RIGHT);
+  bool move = (ActiveCharacter().GetDirection() == DIRECTION_RIGHT);
   if (move) {
     MoveCharacter(ActiveCharacter());
   } else {
-    ActiveCharacter().SetDirection(Body::DIRECTION_RIGHT);
+    ActiveCharacter().SetDirection(DIRECTION_RIGHT);
     ActiveCharacter().BeginMovementRL(PAUSE_CHG_DIRECTION);
   }
 

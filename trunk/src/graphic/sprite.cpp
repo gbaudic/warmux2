@@ -28,11 +28,13 @@
 #include <iostream>
 #include "surface.h"
 #include "game/game.h"
+#include "graphic/video.h"
 #include "include/app.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "tool/rectangle.h"
 #include "tool/debug.h"
+#include "spriteframe.h"
 
 #define BUGGY_SDLGFX
 
@@ -43,7 +45,7 @@ Sprite::Sprite() :
   Constructor();
 }
 
-Sprite::Sprite( Surface surface ) :
+Sprite::Sprite(const Surface& surface ) :
   cache(*this),
   animation(*this)
 {
@@ -107,17 +109,18 @@ void Sprite::Init(Surface& surface, const Point2i &frameSize, int nb_frames_x, i
 }
 
 void Sprite::AddFrame(const Surface &surf, unsigned int delay){
-	  frames.push_back( SpriteFrame(surf, delay) );
+          frames.push_back( SpriteFrame(surf, delay) );
 }
 
 void Sprite::SetSize(unsigned int w, unsigned int h){
-  assert(frame_width_pix == 0 && frame_height_pix == 0)
-	frame_width_pix = w;
-	frame_height_pix = h;
+  ASSERT(frame_width_pix == 0 && frame_height_pix == 0)
+
+  frame_width_pix = w;
+  frame_height_pix = h;
 }
 
 void Sprite::SetSize(const Point2i &size){
-	SetSize(size.x, size.y);
+        SetSize(size.x, size.y);
 }
 
 unsigned int Sprite::GetWidth() const{
@@ -143,19 +146,19 @@ unsigned int Sprite::GetHeightMax() const{
 }
 
 Point2i Sprite::GetSize() const{
-	return Point2i(GetWidth(), GetHeight());
+        return Point2i(GetWidth(), GetHeight());
 }
 
 Point2i Sprite::GetSizeMax() const{
-	return Point2i(GetWidthMax(), GetHeightMax());
+        return Point2i(GetWidthMax(), GetHeightMax());
 }
 
-unsigned int Sprite::GetFrameCount(){
+unsigned int Sprite::GetFrameCount() const{
    return frames.size();
 }
 
 void Sprite::SetCurrentFrame( unsigned int frame_no){
-  assert (frame_no < frames.size());
+  ASSERT (frame_no < frames.size());
   if (current_frame != frame_no) {
     cache.InvalidLastFrame();
     MSG_DEBUG("sprite", "Set current frame : %d", frame_no);
@@ -164,7 +167,7 @@ void Sprite::SetCurrentFrame( unsigned int frame_no){
 }
 
 unsigned int Sprite::GetCurrentFrame() const{
-  assert(current_frame < frames.size());
+  ASSERT(current_frame < frames.size());
   return current_frame;
 }
 
@@ -180,11 +183,9 @@ const SpriteFrame& Sprite::GetCurrentFrameObject() const{
    return frames[current_frame];
 }
 
-void Sprite::Scale( float scale_x, float scale_y){
-   if(this->scale_x == scale_x && this->scale_y == scale_y)
-	   return;
-   this->scale_x = scale_x;
-   this->scale_y = scale_y;
+void Sprite::Scale( float _scale_x, float _scale_y){
+   this->scale_x = _scale_x;
+   this->scale_y = _scale_y;
    cache.InvalidLastFrame();
 }
 
@@ -193,13 +194,13 @@ void Sprite::ScaleSize(int width, int height){
         float(height)/float(frame_height_pix));
 }
 
-void Sprite::ScaleSize(Point2i size){
-	ScaleSize(size.x, size.y);
+void Sprite::ScaleSize(const Point2i& size){
+        ScaleSize(size.x, size.y);
 }
 
-void Sprite::GetScaleFactors( float &scale_x, float &scale_y){
-   scale_x = this->scale_x;
-   scale_y = this->scale_y;
+void Sprite::GetScaleFactors( float &_scale_x, float &_scale_y) const {
+   _scale_x = this->scale_x;
+   _scale_y = this->scale_y;
 }
 
 void Sprite::SetFrameSpeed(unsigned int nv_fs){
@@ -207,14 +208,12 @@ void Sprite::SetFrameSpeed(unsigned int nv_fs){
      frames[f].delay = nv_fs;
 }
 
-void Sprite::SetAlpha( float alpha){
-  assert(alpha >= 0.0 && alpha <= 1.0);
-  if(this->alpha == alpha)
-    return;
-  this->alpha = alpha;
+void Sprite::SetAlpha( float _alpha){
+  ASSERT(_alpha >= 0.0 && _alpha <= 1.0);
+  this->alpha = _alpha;
 }
 
-float Sprite::GetAlpha(){
+float Sprite::GetAlpha() const {
   return alpha;
 }
 
@@ -230,13 +229,13 @@ void Sprite::SetRotation_rad( double angle_rad){
    cache.InvalidLastFrame();
 }
 
-const double &Sprite::GetRotation_rad()
+const double &Sprite::GetRotation_rad() const
 {
-  assert(rotation_rad > -2*M_PI && rotation_rad <= 2*M_PI);
+  ASSERT(rotation_rad > -2*M_PI && rotation_rad <= 2*M_PI);
   return rotation_rad;
 }
 
-void Sprite::SetRotation_HotSpot( const Point2i new_hotspot)
+void Sprite::SetRotation_HotSpot( const Point2i& new_hotspot)
 {
   rot_hotspot = user_defined;
   rhs_pos = new_hotspot;
@@ -246,7 +245,7 @@ void Sprite::SetRotation_HotSpot( const Point2i new_hotspot)
     rot_hotspot = center; // avoid using Calculate_Rotation_Offset, thus avoiding a division by zero
 }
 
-void Sprite::Calculate_Rotation_Offset(Surface& tmp_surface){
+void Sprite::Calculate_Rotation_Offset(const Surface& tmp_surface){
   const SpriteFrame& frame = GetCurrentFrameObject();
   const Surface &surface = frame.surface;
   // Calculate offset of the depending on hotspot rotation position :
@@ -275,7 +274,7 @@ void Sprite::Calculate_Rotation_Offset(Surface& tmp_surface){
     case bottom_center: rhs_pos = Point2i( surfaceWidth/2, surfaceHeight);   break;
     case bottom_right:  rhs_pos = Point2i( surfaceWidth,   surfaceHeight);   break;
     default:
-      assert(false);
+      ASSERT(false);
     }
   }
 
@@ -322,16 +321,16 @@ void Sprite::Blit( Surface &dest, uint pos_x, uint pos_y){
 }
 
 void Sprite::Blit( Surface &dest, const Point2i &pos){
-	Blit(dest, pos.GetX(), pos.GetY());
+        Blit(dest, pos.GetX(), pos.GetY());
 }
 
 void Sprite::Blit( Surface &dest, const Rectanglei &srcRect, const Point2i &destPos){
-	Blit(dest, destPos.GetX(), destPos.GetY(), srcRect.GetPositionX(), srcRect.GetPositionY(), srcRect.GetSizeX(), srcRect.GetSizeY() );
+        Blit(dest, destPos.GetX(), destPos.GetY(), srcRect.GetPositionX(), srcRect.GetPositionY(), srcRect.GetSizeX(), srcRect.GetSizeY() );
 }
 
 void Sprite::Blit( Surface &dest, int pos_x, int pos_y, int src_x, int src_y, uint w, uint h){
   if (!show)
-	return;
+        return;
 
   RefreshSurface();
 
@@ -378,14 +377,14 @@ void Sprite::Update(){
 }
 
 void Sprite::Draw(const Point2i &pos){
-  DrawXY(pos - camera.GetPosition());
+  DrawXY(pos - Camera::GetInstance()->GetPosition());
 }
 
 void Sprite::DrawXY(const Point2i &pos){
   if( !show )
     return;
 
-  Blit(AppWormux::GetInstance()->video.window, pos);
+  Blit(AppWormux::GetInstance()->video->window, pos);
 }
 
 void Sprite::Show() { show = true; }
@@ -476,7 +475,7 @@ void Sprite::RefreshSurface()
       }
     }
   }
-  assert( !current_surface.IsNull() );
+  ASSERT( !current_surface.IsNull() );
 
   // Calculate offset of the sprite depending on hotspot rotation position :
   rotation_point.x=0;
@@ -485,8 +484,8 @@ void Sprite::RefreshSurface()
     Calculate_Rotation_Offset(current_surface);
 }
 
-Surface Sprite::GetSurface() {
-  assert ( !current_surface.IsNull() );
+Surface Sprite::GetSurface() const {
+  ASSERT ( !current_surface.IsNull() );
   return current_surface;
 }
 

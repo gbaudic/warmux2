@@ -24,15 +24,16 @@
 #ifndef TEXT_LIST_H
 #define TEXT_LIST_H
 
-#include "text.h"
 #include <list>
+#include "include/base.h"
+
+class Text;
 
 class TextList{
  public:
   std::list<Text*> list;
   typedef std::list<Text*>::iterator iterator;
   
- public:
   // Constructors
   TextList();
   ~TextList();
@@ -41,9 +42,9 @@ class TextList{
   void AddText(const std::string &txt, uint maxlines);
   void DeleteLine();
   void Clear();
-  int Size();
+  int Size() const;
   void Draw(int x, int y, int height);
-  void DrawLine(Text* newline, int x, int y, int height);
+  void DrawLine(const Text* newline, int x, int y, int height) const;
 
 };
 

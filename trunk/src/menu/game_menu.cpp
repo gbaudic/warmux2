@@ -27,12 +27,14 @@
 #include "game/config.h"
 #include "game/game_mode.h"
 #include "graphic/video.h"
-#include "graphic/font.h"
+#include "gui/null_widget.h"
+#include "gui/picture_text_cbox.h"
+#include "gui/picture_widget.h"
+#include "gui/spin_button_picture.h"
 #include "include/app.h"
 #include "tool/i18n.h"
-#include "tool/string_tools.h"
+#include "tool/resource_manager.h"
 
-#include <iostream>
 const uint MARGIN_TOP    = 5;
 const uint MARGIN_SIDE   = 5;
 const uint MARGIN_BOTTOM = 70;
@@ -43,8 +45,9 @@ const uint OPTIONS_BOX_H = 150;
 
 const uint TPS_TOUR_MIN = 10;
 const uint TPS_TOUR_MAX = 120;
-const uint TPS_FIN_TOUR_MIN = 1;
-const uint TPS_FIN_TOUR_MAX = 10;
+// XXX Not used !?
+// const uint TPS_FIN_TOUR_MIN = 1;
+// const uint TPS_FIN_TOUR_MAX = 10;
 
 
 
@@ -58,7 +61,7 @@ GameMenu::GameMenu() :
   Rectanglei rectZero(0, 0, 0, 0);
   Rectanglei stdRect (0, 0, 130, 30);
 
-  Surface window = AppWormux::GetInstance()->video.window;
+  Surface window = AppWormux::GetInstance()->video->window;
 
   // Calculate main box size
   uint mainBoxWidth = window.GetWidth() - 2*MARGIN_SIDE;
@@ -69,7 +72,7 @@ GameMenu::GameMenu() :
   // ##  TEAM SELECTION
   // ################################################
   team_box = new TeamsSelectionBox(Rectanglei(MARGIN_SIDE, MARGIN_TOP,
-					      mainBoxWidth, TEAMS_BOX_H));
+                                              mainBoxWidth, TEAMS_BOX_H));
 
   widgets.AddWidget(team_box);
 
@@ -77,7 +80,7 @@ GameMenu::GameMenu() :
   // ##  MAP SELECTION
   // ################################################
   map_box = new MapSelectionBox( Rectanglei(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE,
-					    mainBoxWidth, mapBoxHeight));
+                                            mainBoxWidth, mapBoxHeight));
 
   widgets.AddWidget(map_box);
 
@@ -85,21 +88,21 @@ GameMenu::GameMenu() :
   // ##  GAME OPTIONS
   // ################################################
   game_options = new HBox( Rectanglei(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE,
-					    mainBoxWidth/2, OPTIONS_BOX_H), true);
+                                      mainBoxWidth/2, OPTIONS_BOX_H), true);
   game_options->AddWidget(new PictureWidget(Rectanglei(0,0,39,128), "menu/mode_label"));
 
   game_options->SetMargin(50);
 
   opt_duration_turn = new SpinButtonWithPicture(_("Duration of a turn"), "menu/timing_turn",
-						stdRect,
-						TPS_TOUR_MIN, 5,
-						TPS_TOUR_MIN, TPS_TOUR_MAX);
+                                                stdRect,
+                                                TPS_TOUR_MIN, 5,
+                                                TPS_TOUR_MIN, TPS_TOUR_MAX);
   game_options->AddWidget(opt_duration_turn);
 
   opt_energy_ini = new SpinButtonWithPicture(_("Initial energy"), "menu/energy",
-					     stdRect,
-					     100, 5,
-					     5, 200);
+                                             stdRect,
+                                             100, 5,
+                                             5, 200);
   game_options->AddWidget(opt_energy_ini);
 
   opt_scroll_on_border = new PictureTextCBox(_("Scroll on border"), "menu/scroll_on_border", stdRect);
@@ -158,6 +161,7 @@ void GameMenu::SaveOptions()
 bool GameMenu::signal_ok()
 {
   SaveOptions();
+  play_ok_sound();
   Game::GetInstance()->Start();
   return true;
 }
@@ -167,7 +171,17 @@ bool GameMenu::signal_cancel()
   return true;
 }
 
-void GameMenu::Draw(const Point2i &mousePosition)
+void GameMenu::key_left()
+{
+  map_box->ChangeMapDelta(-1);
+}
+
+void GameMenu::key_right()
+{
+  map_box->ChangeMapDelta(1);
+}
+
+void GameMenu::Draw(const Point2i &/*mousePosition*/)
 {
 
 }

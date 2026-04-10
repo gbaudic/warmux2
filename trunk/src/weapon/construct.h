@@ -24,7 +24,9 @@
 #include "weapon.h"
 #include "include/base.h"
 #include "tool/point.h"
-#include "graphic/sprite.h"
+
+class Sprite;
+class WeaponConfig;
 
 class Construct : public Weapon
 {
@@ -34,12 +36,12 @@ private:
   double angle;
   Point2i dst;
 
-  void Up();
-  void Down();
+  void Up() const;
+  void Down() const;
 
 protected:
   bool p_Shoot();
-  void Refresh();
+  void Refresh() { };
 
 public:
   Construct();
@@ -47,14 +49,14 @@ public:
   void Draw();
   void ChooseTarget(Point2i mouse_pos);
 
-  virtual void HandleKeyPressed_Down();
-  virtual void HandleKeyPressed_Up();
-  virtual void HandleMouseWheelUp();
-  virtual void HandleMouseWheelDown();
+  virtual void HandleKeyPressed_Down(bool) { Down(); };
+  virtual void HandleKeyPressed_Up(bool) { Up(); };
+  virtual void HandleMouseWheelUp(bool) { Up(); };
+  virtual void HandleMouseWheelDown(bool) { Down(); };
 
-  void SetAngle(double angle); // to be used by network
-  DECLARE_GETWEAPONSTRING();
-
+  void SetAngle(double _angle) { angle = _angle; }; // to be used by network
+  std::string GetWeaponWinString(const char *TeamName, uint items_count) const;
+  bool IsInUse() const;
   WeaponConfig& cfg();
 };
 

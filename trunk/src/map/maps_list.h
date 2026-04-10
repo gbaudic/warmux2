@@ -21,21 +21,39 @@
 
 #ifndef LST_TERRAINS_H
 #define LST_TERRAINS_H
-#include <SDL.h>
-#include <string>
-#include <map>
-#include "graphic/surface.h"
+
+#include <vector>
 #include "include/base.h"
-#include "tool/resource_manager.h"
-#include "tool/xml_document.h"
+#include "graphic/surface.h"
+
+// Forward declarations
+class Profile;
+namespace xmlpp
+{
+  class Element;
+}
 
 class InfoMap{
+ public:
+  typedef enum {
+    RANDOM,
+    SINGLE_ISLAND,
+    PLATEFORMS,
+    DEFAULT
+  } Island_type;
 
 private:
 
   std::string name;
   std::string author_info;
   std::string music_playlist;
+  /* FIXME make m_directory private */
+public:
+  std::string m_directory;
+
+private:
+  std::string m_map_name;
+
   Surface img_ground, img_sky;
   Surface preview;
 
@@ -44,16 +62,17 @@ private:
 
   bool is_opened;
   bool use_water;
+  bool is_basic_info_loaded;
   bool is_data_loaded;
   bool random;
+  Island_type island_type;
 
   Profile *res_profile;
 
-  bool ProcessXmlData(xmlpp::Element *xml);
+  bool ProcessXmlData(const xmlpp::Element *xml);
   void LoadData();
 
 public:
-  std::string m_directory;
   struct s_wind
   {
     uint nb_sprite;
@@ -63,24 +82,26 @@ public:
   } wind;
 
 public:
-  InfoMap ();
-  bool Init(const std::string &nom, const std::string &repertoire);
+  InfoMap(const std::string&, const std::string&);
+  bool LoadBasicInfo();
   void FreeData();
 
-  const std::string& ReadName() const { return name; }
-  const std::string& ReadAuthorInfo() const { return author_info; }
-  const std::string& ReadMusicPlaylist() const { return music_playlist; }
+  const std::string& GetRawName() const { return m_map_name; };
+  const std::string& ReadFullMapName() { LoadBasicInfo(); return name; };
+  const std::string& ReadAuthorInfo() { LoadBasicInfo(); return author_info; };
+  const std::string& ReadMusicPlaylist() { LoadBasicInfo(); return music_playlist; };
 
   Surface ReadImgGround();
   Surface ReadImgSky();
-  const Surface& ReadPreview() const { return preview; }
+  const Surface& ReadPreview() { LoadBasicInfo(); return preview; };
 
-  uint GetNbBarrel() const { return nb_barrel; }
-  uint GetNbMine() const { return nb_mine; }
-  const Profile * const ResProfile() const { return res_profile; }
+  uint GetNbBarrel() { LoadBasicInfo(); return nb_barrel; };
+  uint GetNbMine() { LoadBasicInfo(); return nb_mine; };
+  const Profile * const ResProfile() const { return res_profile; };
 
-  bool IsOpened() const { return is_opened; }
-  bool UseWater() const { return use_water; }
+  bool IsOpened() { LoadBasicInfo(); return is_opened; };
+  bool UseWater() { LoadBasicInfo(); return use_water; };
+  bool IsRandom() { LoadBasicInfo(); return random; };
 
 };
 
@@ -106,12 +127,12 @@ public:
   int FindMapById (const std::string &id);
   void SelectMapByName (const std::string &nom);
   void SelectMapByIndex (uint index);
-  int GetActiveMapIndex ();
+  int GetActiveMapIndex () const;
   InfoMap& ActiveMap();
 };
 
 InfoMap& ActiveMap();
 
-bool compareMaps(const InfoMap& a, const InfoMap& b) ;
+bool compareMaps(const InfoMap& a, const InfoMap& b);
 
 #endif

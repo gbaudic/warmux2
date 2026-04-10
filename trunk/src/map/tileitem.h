@@ -20,6 +20,7 @@
 #ifndef TILEITEM_H
 #define TILEITEM_H
 
+#include "tool/point.h"
 #include "graphic/surface.h"
 
 const Point2i CELL_SIZE(64, 64);
@@ -38,12 +39,12 @@ public:
   virtual unsigned char GetAlpha(const Point2i &pos) = 0;
   virtual void Dig(const Point2i &position, const Surface& dig) = 0;
   virtual void Dig(const Point2i &center, const uint radius) = 0;
-  virtual void MergeSprite(const Point2i &position, Surface& spr) {};
+  virtual void MergeSprite(const Point2i &/*position*/, Surface& /*spr*/) {};
   virtual Surface GetSurface() = 0;
   virtual void Draw(const Point2i &pos) = 0;
   virtual bool IsTotallyEmpty() const = 0;
 #ifdef DBG_TILE
-  virtual void FillWithRGB(Uint8 r, Uint8 g, Uint8 b) {};
+  virtual void FillWithRGB(Uint8 /*r*/, Uint8 /*g*/, Uint8 /*b*/) {};
 #endif
 };
 
@@ -53,10 +54,10 @@ public:
   TileItem_Empty () {};
   ~TileItem_Empty () {};
 
-  unsigned char GetAlpha (const Point2i &pos){return 0;};
-  void Dig(const Point2i &position, const Surface& dig){};
+  unsigned char GetAlpha (const Point2i &/*pos*/){return 0;};
+  void Dig(const Point2i &/*position*/, const Surface& /*dig*/){};
   Surface GetSurface(){return *new Surface();};
-  void Dig(const Point2i &center, const uint radius) {};
+  void Dig(const Point2i &/*center*/, const uint /*radius*/) {};
   void Draw(const Point2i &pos);
   bool IsTotallyEmpty() const {return true;};
 };
@@ -70,7 +71,7 @@ public:
   bool need_check_empty;
   bool need_delete;
 
-TileItem_AlphaSoftware(const Point2i &size);
+  TileItem_AlphaSoftware(const Point2i &size);
   ~TileItem_AlphaSoftware();
 
   unsigned char GetAlpha(const Point2i &pos);
@@ -87,14 +88,14 @@ TileItem_AlphaSoftware(const Point2i &size);
 
 private:
   TileItem_AlphaSoftware(const TileItem_AlphaSoftware &copy);
-  unsigned char (TileItem_AlphaSoftware::*_GetAlpha)(const Point2i &pos);
-  unsigned char GetAlpha_Index0(const Point2i &pos);
-  inline unsigned char GetAlpha_Index3(const Point2i &pos);
-  inline unsigned char GetAlpha_Generic(const Point2i &pos);
-  Surface GetSurface();
+  unsigned char (TileItem_AlphaSoftware::*_GetAlpha)(const Point2i &pos) const;
+  unsigned char GetAlpha_Index0(const Point2i &pos) const;
+  inline unsigned char GetAlpha_Index3(const Point2i &pos) const;
+  inline unsigned char GetAlpha_Generic(const Point2i &pos) const;
+  Surface GetSurface() { return m_surface; };
 
-  void Empty(const int start_x, const int end_x, unsigned char* buf, const int bpp);
-  void Darken(const int start_x, const int end_x, unsigned char* buf, const int bpp);
+  void Empty(const int start_x, const int end_x, unsigned char* buf, const int bpp) const;
+  void Darken(const int start_x, const int end_x, unsigned char* buf, const int bpp) const;
 
   Point2i m_size;
   Surface m_surface;

@@ -21,19 +21,30 @@
  *****************************************************************************/
 
 #include "bounce_ball.h"
+#include "weapon_cfg.h"
 //-----------------------------------------------------------------------------
 #include <sstream>
-#include "tool/debug.h"
-#include "game/time.h"
-#include "team/teams_list.h"
-#include "graphic/video.h"
-#include "tool/math_tools.h"
-#include "map/camera.h"
-#include "weapon/explosion.h"
+#include "graphic/sprite.h"
 #include "interface/game_msg.h"
-#include "tool/i18n.h"
+#include "map/camera.h"
 #include "object/objects_list.h"
+#include "team/teams_list.h"
+#include "tool/debug.h"
+#include "tool/i18n.h"
+#include "tool/math_tools.h"
+#include "weapon/explosion.h"
 //-----------------------------------------------------------------------------
+
+class BounceBall : public WeaponProjectile
+{
+  public:
+    BounceBall(ExplosiveWeaponConfig& cfg,
+               WeaponLauncher * p_launcher);
+    void Refresh();
+  protected:
+    void SignalOutOfMap();
+};
+
 
 BounceBall::BounceBall(ExplosiveWeaponConfig& cfg,
                        WeaponLauncher * p_launcher) :
@@ -60,14 +71,6 @@ void BounceBall::SignalOutOfMap()
 {
   GameMessages::GetInstance()->Add (_("The ball left the battlefield before exploding"));
   WeaponProjectile::SignalOutOfMap();
-}
-
-std::string BounceBall::GetWeaponWinString(const char *TeamName, uint items_count )
-{
-  return Format(ngettext(
-            "%s team has won %u bounce ball!",
-            "%s team has won %u bounce balls!",
-            items_count), TeamName, items_count);
 }
 
 //-----------------------------------------------------------------------------
@@ -97,3 +100,13 @@ bool BounceBallLauncher::p_Shoot ()
   ReloadLauncher();
   return true;
 }
+
+std::string BounceBallLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
+{
+  return Format(ngettext(
+            "%s team has won %u bounce ball! Boing!",
+            "%s team has won %u bounce balls! Boing!",
+            items_count), TeamName, items_count);
+}
+
+

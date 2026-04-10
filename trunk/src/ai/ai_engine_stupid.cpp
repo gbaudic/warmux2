@@ -20,18 +20,10 @@
  *****************************************************************************/
 
 #include "ai_engine_stupid.h"
-#include "include/action_handler.h"
-#include "character/body.h"
-#include "character/move.h"
-#include "interface/game_msg.h"
+#include "character/character.h"
 #include "game/game_loop.h"
-#include "map/map.h"
-#include "network/randomsync.h"
-#include "team/macro.h"
+#include "game/time.h"
 #include "team/teams_list.h"
-#include "tool/error.h"
-#include "tool/math_tools.h"
-#include "tool/string_tools.h"
 
 #include <iostream>
 
@@ -102,10 +94,10 @@ void AIStupidEngine::Refresh()
 //     {
 //     case 0:
 //       if (m_nearest_enemy) {
-// 	// we already knows who to shoot
-// 	m_step = 1;
+//         // we already knows who to shoot
+//         m_step = 1;
 //       } else {
-// 	m_movement.Move(m_current_time);
+//         m_movement.Move(m_current_time);
 //       }
 //       break;
 //     case 1:
@@ -124,7 +116,7 @@ void AIStupidEngine::Refresh()
 //       // Wait for end of turn
 //       break;
 //     default:
-//       assert(false);
+//       ASSERT(false);
 //     }
 
 }

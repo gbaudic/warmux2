@@ -32,21 +32,25 @@
 //-----------------------------------------------------------------------------
 #include <list>
 #include <string>
+#include <map>
 #include "include/base.h"
-#include "team/team_config.h"
-#include "tool/xml_document.h"
-#include "object/object_cfg.h"
+#include "tool/point.h"
+
+// Forward declarations
+class ObjectConfig;
+class ConfigTeam;
+namespace xmlpp
+{
+  class Element;
+}
 
 //-----------------------------------------------------------------------------
-#if defined(WIN32) || defined(__MINGW32__)
-#define PATH_SEPARATOR "\\"
+#ifdef WIN32
+#  define PATH_SEPARATOR "\\"
 #else
-#define PATH_SEPARATOR "/"
+#  define PATH_SEPARATOR "/"
 #endif
 
-#ifdef __MINGW32__
-#undef LoadImage
-#endif
 //-----------------------------------------------------------------------------
 
 class Config
@@ -56,7 +60,11 @@ public:
   static const int COLORKEY = 1;
 
   const ObjectConfig &GetOjectConfig(const std::string &name,
-                                     const std::string &xml_config);
+                                     const std::string &xml_config) const;
+  void RemoveAllObjectConfigs();
+
+  void SetLanguage(const std::string language);
+  std::string GetLanguage() const { return default_language; };
 
   bool GetDisplayEnergyCharacter() const;
   void SetDisplayEnergyCharacter(const bool dec);
@@ -85,7 +93,11 @@ public:
   uint GetVideoHeight() const;
   void SetVideoHeight(const uint height);
 
+  std::list<Point2i> & GetResolutionAvailable() { return resolution_available; };
   inline uint GetMaxFps() const { return max_fps; };
+
+  bool IsBlingBlingInterface() const;
+  void SetBlingBlingInterface(bool bling_bling);
 
   bool GetSoundMusic() const;
   void SetSoundMusic(const bool music);
@@ -96,7 +108,7 @@ public:
   uint GetSoundFrequency() const;
   void SetSoundFrequency(const uint freq);
 
-  std::list<struct ConfigTeam> & AccessTeamList();
+  std::list<ConfigTeam> & AccessTeamList();
   const std::string & GetMapName() const;
   inline void SetMapName(const std::string& new_name)
   { map_name = new_name; }
@@ -112,32 +124,45 @@ public:
   static Config * GetInstance();
 
   bool Save();
-  inline const std::string &GetGameMode() const { return m_game_mode; };
+  inline const std::string &GetGameMode() const { return m_game_mode; }
+
+  inline const std::string &GetNetworkHost() const { return m_network_host; }
+  inline void SetNetworkHost(std::string s) { m_network_host = s; }
+  inline const std::string &GetNetworkPort() const { return m_network_port; }
+  inline void SetNetworkPort(std::string s) { m_network_port = s; }
 
 protected:
-  bool LoadXml(xmlpp::Element *xml);
   bool SaveXml();
-  std::string GetEnv(const std::string & name, const std::string &default_value);
+  std::string GetEnv(const std::string & name, const std::string &default_value) const;
 
+  std::string default_language;
   std::string m_game_mode;
-  bool m_xml_loaded;
+  std::string m_network_host;
+  std::string m_network_port;
   std::string m_filename;
 
   std::string data_dir, locale_dir, personal_dir;
 
-  std::list<struct ConfigTeam> teams;
+  std::list<ConfigTeam> teams;
   std::string map_name;
+
+  std::string m_default_config;
+
   // Game settings
   bool display_energy_character;
   bool display_name_character;
   bool display_wind_particles;
   bool default_mouse_cursor;
   bool scroll_on_border;
+
   // Video settings
   uint video_width;
   uint video_height;
   bool video_fullscreen;
   uint max_fps;
+  bool bling_bling_interface;
+  std::list<Point2i> resolution_available;
+
   // Sound settings
   bool sound_music;
   bool sound_effects;
@@ -148,11 +173,16 @@ protected:
   std::string ttf_filename;
 
   int transparency;
-  std::map<std::string, ObjectConfig *> config_set;
 
 private:
   Config();
   static Config * singleton;
   bool DoLoading(void);
+  void LoadDefaultValue();
+  void LoadXml(const xmlpp::Element *xml);
+
+  /* this is mutable in order to be able to load config on fly when calling
+   * GetOjectConfig() witch is not supposed to modify the object itself */
+  mutable std::map<std::string, ObjectConfig *> config_set;
 };
 #endif

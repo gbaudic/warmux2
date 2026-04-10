@@ -23,39 +23,22 @@
 #ifndef SUBMACHINE_GUN_H
 #define SUBMACHINE_GUN_H
 
-#include <SDL.h>
-#include <vector>
-#include "launcher.h"
-#include "include/base.h"
-#include "tool/point.h"
-
-class SubMachineGunBullet : public WeaponBullet
-{
-  public:
-    SubMachineGunBullet(ExplosiveWeaponConfig& cfg,
-                        WeaponLauncher * p_launcher);
-  protected:
-    void ShootSound();
-    void RandomizeShoot(double &angle,double &strength);
-};
+#include "particles/particle.h"
+#include "weapon_launcher.h"
 
 class SubMachineGun : public WeaponLauncher
 {
     ParticleEngine particle;
-  private:
     void RepeatShoot();
   protected:
     WeaponProjectile * GetProjectileInstance();
     void IncMissedShots();
     bool p_Shoot();
-    void p_Deselect();
   public:
     SubMachineGun();
-    virtual void SignalTurnEnd();
-    virtual void HandleKeyPressed_Shoot();
-    virtual void HandleKeyRefreshed_Shoot();
-    virtual void HandleKeyReleased_Shoot();
-    DECLARE_GETWEAPONSTRING();
+    virtual void HandleKeyPressed_Shoot(bool shift) { HandleKeyRefreshed_Shoot(shift); };
+    virtual void HandleKeyRefreshed_Shoot(bool shift);
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
 };
 
 #endif /* SUBMACHINE_GUN_H */

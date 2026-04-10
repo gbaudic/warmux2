@@ -22,11 +22,12 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
-#include <SDL.h>
 #include "graphic/surface.h"
-#include "include/app.h"
 #include "include/base.h"
 #include "tool/point.h"
+
+// Forward declarations
+struct SDL_event;
 
 class Mouse
 {
@@ -49,18 +50,23 @@ public:
     POINTER_FIRE_RIGHT
   } pointer_t;
 
+  typedef enum {
+    MOUSE_HIDDEN,
+    MOUSE_VISIBLE,
+    MOUSE_HIDDEN_UNTIL_NEXT_MOVE
+  } visibility_t;
 private:
   bool scroll_actif;
-  bool hide;
+
+  visibility_t visible;
   pointer_t current_pointer;
 
   Point2i savedPos;
   Point2i lastPos;
-
   static Mouse * singleton;
 
-  Surface pointer_select, 
-    pointer_move, 
+  Surface pointer_select,
+    pointer_move,
     pointer_arrow_up,
     pointer_arrow_up_right,
     pointer_arrow_up_left,
@@ -75,40 +81,41 @@ private:
 
   Mouse();
   pointer_t ScrollPointer() const;
-  bool DrawMovePointer();
+  bool DrawMovePointer() const;
   void ScrollCamera() const;
-  void DrawSelectPointer();
+  void DrawSelectPointer() const;
 
   const Surface& GetSurfaceFromPointer(pointer_t pointer) const;
 
-  void ActionLeftClic();
-  void ActionRightClic();
-  void ActionWheelDown();
-  void ActionWheelUp();
+  void ActionLeftClic(bool shift = false) const;
+  void ActionRightClic(bool shift = false) const;
+  void ActionWheelDown(bool shift = false) const;
+  void ActionWheelUp(bool shift = false) const;
 public:
 
   static Mouse * GetInstance();
 
-  bool HandleClic (const SDL_Event& event);
+  bool HandleClic (const SDL_Event& event) const;
 
   void Refresh();
   void TestCamera();
-  void ChoixVerPointe();
+  void ChoixVerPointe() const;
 
   Point2i GetPosition() const;
   Point2i GetWorldPosition() const;
 
   // Choose the pointer
   pointer_t SetPointer(pointer_t pointer);
-  void Draw();
+  void Draw() const;
 
   // Hide/show mouse pointer
   void Show();
   void Hide();
-  bool IsVisible() const;
+  void HideUntilNextMove();
 
   // Center the pointer on the screen
-  void CenterPointer();
+  void CenterPointer() const;
+  const visibility_t GetVisibility() const { return visible; };
 };
 
 #endif

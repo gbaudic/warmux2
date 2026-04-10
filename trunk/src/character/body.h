@@ -22,17 +22,29 @@
 #ifndef BODY_H
 #define BODY_H
 #include <map>
-#include "body_list.h"
-#include "clothe.h"
-#include "member.h"
-#include "movement.h"
-#include "tool/resource_manager.h"
+
+#include <vector>
+#include "include/base.h"
 #include "tool/point.h"
-#include "tool/xml_document.h"
+
+// Forward declarations
 class Character;
 class BodyList;
 class Member;
+class Movement;
 class Clothe;
+class Profile;
+namespace xmlpp
+{
+  class Element;
+}
+
+enum BodyDirection
+{
+  DIRECTION_LEFT = -1,
+  DIRECTION_RIGHT = 1
+};
+typedef enum BodyDirection BodyDirection_t;
 
 /*
  * FIXME: this class is either very useless either very badly used.
@@ -54,24 +66,17 @@ class Body
   const Body& operator=(const Body&);
   /**********************************************/
 
-public:
-  typedef enum
-  {
-    DIRECTION_LEFT = -1,
-    DIRECTION_RIGHT = 1
-  } Direction_t;
-private:
   friend class BodyList;
   std::map<std::string, Member*> members_lst;
   std::map<std::string, Clothe*> clothes_lst;
   std::map<std::string, Movement*> mvt_lst;
 
-  Clothe* current_clothe;
+  const Clothe* current_clothe;
   Movement* current_mvt;
 
   // When a movement/clothe is played once, those variable saves the previous state;
   Movement* play_once_mvt_sauv;
-  Clothe* play_once_clothe_sauv;
+  const Clothe* play_once_clothe_sauv;
   uint play_once_frame_sauv;
 
   // For weapon position handling
@@ -88,12 +93,12 @@ private:
                                         // Order to use to build the body
                                         // First element: member to build
                                         // Secnd element: parent member
-  Body::Direction_t direction;
+  BodyDirection_t direction;
 
   int animation_number;
   bool need_rebuild;
 
-  void ResetMovement();
+  void ResetMovement() const;
   void ApplyMovement(Movement* mvt, uint frame);
   void ApplySqueleton();
 
@@ -103,42 +108,42 @@ private:
 
 public:
 
-  Body(xmlpp::Element *xml, Profile* res);
+  Body(xmlpp::Element *xml, const Profile* res);
   Body(const Body&);
   ~Body();
 
   Point2i GetSize() {return Point2i(30,45);};
 
   void Draw(const Point2i& pos);
-  void SetClothe(std::string name);
-  void SetMovement(std::string name);
-  void SetClotheOnce(std::string name); //use this only during one movement
-  void SetMovementOnce(std::string name); //play the movement only once
+  void SetClothe(const std::string& name);
+  void SetMovement(const std::string& name);
+  void SetClotheOnce(const std::string& name); //use this only during one movement
+  void SetMovementOnce(const std::string& name); //play the movement only once
   void SetRotation(double angle);
   void SetFrame(uint no);
-  void SetDirection(Body::Direction_t dir);
+  void SetDirection(BodyDirection_t dir) { direction=dir; };
   inline void SetOwner(const Character* belonger) { owner = belonger; };
   void PlayAnimation();
   void Build();
   void UpdateWeaponPosition(const Point2i& pos);
 
-  const std::string& GetMovement();
-  const std::string& GetClothe();
-  void GetTestRect(uint &l, uint &r, uint &t, uint &b);
-  const Direction_t &GetDirection() const;
-  const Point2i &GetHandPosition() const;
-  uint GetMovementDuration();
-  uint GetFrame() { return current_frame; };
-  uint GetFrameCount();
+  const std::string& GetMovement() const;
+  const std::string& GetClothe() const;
+  void GetTestRect(uint &l, uint &r, uint &t, uint &b) const;
+  const BodyDirection_t &GetDirection() const { return direction; };
+  const Point2i &GetHandPosition() const { return weapon_pos; };
+  uint GetMovementDuration() const;
+  uint GetFrame() const { return current_frame; };
+  uint GetFrameCount() const;
 
   void StartWalk();
   void StopWalk();
-  void ResetWalk();
-  bool IsWalking() { return walk_events > 0 && current_mvt->type == "walk";};
+  void ResetWalk() { walk_events = 0; };
+  bool IsWalking() const ;
 
   void MakeParticles(const Point2i& pos);
   void MakeTeleportParticles(const Point2i& pos, const Point2i& dst);
-  void DebugState();
+  void DebugState() const;
 };
 
 #endif //BODY_H

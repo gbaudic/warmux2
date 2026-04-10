@@ -21,15 +21,16 @@
  *****************************************************************************/
 
 #include "grenade.h"
+#include "weapon_cfg.h"
+
 //-----------------------------------------------------------------------------
 #include <sstream>
-#include "game/time.h"
-#include "team/teams_list.h"
-#include "graphic/video.h"
-#include "tool/math_tools.h"
+#include "graphic/sprite.h"
+#include "interface/game_msg.h"
 #include "map/camera.h"
 #include "weapon/explosion.h"
-#include "interface/game_msg.h"
+#include "team/teams_list.h"
+#include "tool/math_tools.h"
 #include "tool/i18n.h"
 #include "object/objects_list.h"
 //-----------------------------------------------------------------------------
@@ -58,14 +59,6 @@ void Grenade::SignalOutOfMap()
   WeaponProjectile::SignalOutOfMap();
 }
 
-std::string Grenade::GetWeaponWinString(const char *TeamName, uint items_count )
-{
-  return Format(ngettext(
-            "%s team has won %u grenade!",
-            "%s team has won %u grenades!",
-            items_count), TeamName, items_count);
-}
-
 //-----------------------------------------------------------------------------
 
 GrenadeLauncher::GrenadeLauncher() :
@@ -82,6 +75,14 @@ WeaponProjectile * GrenadeLauncher::GetProjectileInstance()
 {
   return dynamic_cast<WeaponProjectile *>
       (new Grenade(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+}
+
+std::string GrenadeLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
+{
+  return Format(ngettext(
+            "%s team has won %u grenade!",
+            "%s team has won %u grenades!",
+            items_count), TeamName, items_count);
 }
 
 

@@ -21,15 +21,16 @@
 
 #ifndef TELEPORTATION_H
 #define TELEPORTATION_H
+
 #include "weapon.h"
-#include "include/base.h"
-#include "tool/point.h"
+
+class WeaponConfig;
 
 class Teleportation : public Weapon
 {
   private:
     bool target_chosen;
-    uint time;
+    uint animation_duration;
     Point2i src, dst;
   protected:
     bool p_Shoot();
@@ -38,10 +39,11 @@ class Teleportation : public Weapon
     void Refresh();
   public:
     Teleportation();
-    void Draw();
+    void Draw() { if (!IsInUse()) Weapon::Draw(); };
     void ChooseTarget(Point2i mouse_pos);
+    bool IsInUse() const;
     WeaponConfig& cfg();
-    DECLARE_GETWEAPONSTRING();
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
 };
 
 #endif /* TELEPORTATION_H */

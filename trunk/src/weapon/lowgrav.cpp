@@ -21,6 +21,9 @@
 
 #include "lowgrav.h"
 #include "explosion.h"
+#include "weapon_cfg.h"
+
+#include "character/character.h"
 #include "game/game.h"
 #include "game/game_loop.h"
 #include "object/physical_obj.h"
@@ -33,16 +36,12 @@
 const double LOW_GRAVITY_FACTOR = 0.4;
 
 LowGrav::LowGrav() : Weapon(WEAPON_LOWGRAV, "lowgrav",
-			    new WeaponConfig(), NEVER_VISIBLE)
+                            new WeaponConfig(), NEVER_VISIBLE)
 {
   m_name = _("LowGrav");
   m_category = MOVE;
 
   use_unit_on_first_shoot = false;
-}
-
-void LowGrav::Refresh()
-{
 }
 
 void LowGrav::p_Deselect()
@@ -59,33 +58,19 @@ bool LowGrav::p_Shoot()
   return true;
 }
 
-void LowGrav::Draw()
+void LowGrav::HandleKeyPressed_Shoot(bool)
 {
-}
-
-void LowGrav::HandleKeyPressed_Shoot()
-{
-  if (!m_is_active)
+  if (!IsInUse())
     NewActionWeaponShoot();
   else
     NewActionWeaponStopUse();
 }
 
-void LowGrav::SignalTurnEnd()
-{
-  p_Deselect();
-}
-
-void LowGrav::ActionStopUse()
-{
-  UseAmmoUnit();
-}
-
-std::string LowGrav::GetWeaponWinString(const char *TeamName, uint items_count )
+std::string LowGrav::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
   return Format(ngettext(
-            "%s team has won %u lowgrav!",
-            "%s team has won %u lowgravs!",
+            "%s team has won %u lowgrav! I'm Neil Armstrong!",
+            "%s team has won %u lowgravs! I'm Neil Armstrong!",
             items_count), TeamName, items_count);
 }
 

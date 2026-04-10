@@ -21,13 +21,14 @@
 #include <map>
 #include <iostream>
 #include "member.h"
-#include "game/game_loop.h"
-#include "team/teams_list.h"
-#include "tool/math_tools.h"
-#include "tool/xml_document.h"
+#include "body.h"
+#include "movement.h"
+#include "graphic/sprite.h"
+#include "tool/resource_manager.h"
 #include "tool/string_tools.h"
+#include "tool/xml_document.h"
 
-Member::Member(xmlpp::Element *xml, Profile* res):
+Member::Member(xmlpp::Element *xml, const Profile* res):
   parent(NULL),
   angle_rad(0),
   anchor(0,0),
@@ -43,7 +44,7 @@ Member::Member(xmlpp::Element *xml, Profile* res):
   if(xml == NULL)
     return;
   XmlReader::ReadStringAttr( xml, "name", name);
-  assert(name!="");
+  ASSERT(name!="");
 
   // Load the sprite
   spr = resource_manager.LoadSprite( res, name);
@@ -53,7 +54,7 @@ Member::Member(xmlpp::Element *xml, Profile* res):
 
   // Get the various option
   XmlReader::ReadStringAttr( xml, "type", type);
-  assert(type!="");
+  ASSERT(type!="");
 
   xmlpp::Element *el = XmlReader::GetMarker(xml, "anchor");
   if(el != 0)
@@ -76,7 +77,7 @@ Member::Member(xmlpp::Element *xml, Profile* res):
   for (; it != end; ++it)
   {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
-    assert (elem != NULL);
+    ASSERT (elem != NULL);
     std::string att_type;
     if (!XmlReader::ReadStringAttr(elem, "member_type", att_type))
     {
@@ -158,7 +159,7 @@ void Member::RotateSprite()
 
 void Member::Draw(const Point2i & _pos, int flip_center, int direction)
 {
-  assert(name != "weapon" && type!="weapon");
+  ASSERT(name != "weapon" && type!="weapon");
 
   Point2i posi((int)pos.x, (int)pos.y);
   posi += _pos;
@@ -186,16 +187,6 @@ void Member::Draw(const Point2i & _pos, int flip_center, int direction)
   spr->Draw(posi);
 }
 
-void Member::ResetMovement()
-{
-  pos.x = 0;
-  pos.y = 0;
-  angle_rad = 0;
-  alpha = 1.0;
-  scale.x = 1.0;
-  scale.y = 1.0;
-}
-
 void Member::ApplySqueleton(Member* parent_member)
 {
   // Place the member to shape the squeleton
@@ -206,7 +197,7 @@ void Member::ApplySqueleton(Member* parent_member)
   }
   parent = parent_member;
 
-  assert(parent->name != "weapon" && parent->type != "weapon");
+  ASSERT(parent->name != "weapon" && parent->type != "weapon");
 
   // Set the position
   pos = parent->pos;
@@ -216,7 +207,7 @@ void Member::ApplySqueleton(Member* parent_member)
     pos = pos + parent->attached_members.find(type)->second[parent->spr->GetCurrentFrame()];
 }
 
-void Member::ApplyMovement(member_mvt &mvt, std::vector<junction>& squel_lst)
+void Member::ApplyMovement(const member_mvt &mvt, std::vector<junction>& squel_lst)
 {
   // Apply the movment to the member,
   // And apply the movement accordingly to the child members
@@ -280,12 +271,6 @@ void Member::ApplyMovement(member_mvt &mvt, std::vector<junction>& squel_lst)
   scale = scale * mvt.scale;
 }
 
-const Point2i Member::GetPos()
-{
-  Point2i posi((int)pos.x, (int)pos.y);
-  return posi;
-}
-
 WeaponMember::WeaponMember() : Member(NULL, NULL)
 {
   name = "weapon";
@@ -298,7 +283,7 @@ WeaponMember::~WeaponMember()
 {
 }
 
-void WeaponMember::Draw(const Point2i & _pos, int flip_center, int direction)
+void WeaponMember::Draw(const Point2i & /*_pos*/, int /*flip_center*/, int /*direction*/)
 {
   // Would be cool to display the weapon from here...
 }

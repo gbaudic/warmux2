@@ -23,6 +23,7 @@
 #include "objects_list.h"
 #include "physical_obj.h"
 #include "game/game_mode.h"
+#include "graphic/sprite.h"
 #include "particles/particle.h"
 #include "tool/resource_manager.h"
 #include "weapon/explosion.h"
@@ -51,13 +52,9 @@ void PetrolBarrel::Draw()
   img->Draw(GetPosition());
 }
 
-void PetrolBarrel::Refresh()
-{
-}
-
-void PetrolBarrel::SignalGhostState(bool was_already_dead)
+void PetrolBarrel::SignalGhostState(bool /*was_already_dead*/)
 {
   ParticleEngine::AddNow(GetCenter(), 20, particle_FIRE, true);
-  ApplyExplosion(GetCenter(), GameMode::GetInstance()->barrel_explosion_cfg, 
-		 "weapon/explosion", false);
+  ApplyExplosion(GetCenter(), GameMode::GetInstance()->barrel_explosion_cfg,
+                 "weapon/explosion", false);
 }

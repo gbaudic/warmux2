@@ -23,8 +23,6 @@
 #define GUI_BOX_H
 
 #include "widget_list.h"
-#include <list>
-#include "tool/point.h"
 
 class Box : public WidgetList
 {
@@ -38,17 +36,17 @@ class Box : public WidgetList
   virtual ~Box();
 
   void Update(const Point2i &mousePosition,
-	      const Point2i &lastMousePosition,
-	      Surface& surf);
+              const Point2i &lastMousePosition,
+              Surface& surf);
   void Draw(const Point2i &mousePosition,
-	    Surface& surf) const;
+            Surface& surf) const;
   void Redraw(const Rectanglei& rect,
-	      Surface& surf);
-  Widget* Click(const Point2i &mousePosition, uint button);
-  Widget* ClickUp(const Point2i &mousePosition, uint button);
+              Surface& surf);
+  Widget* Click(const Point2i &mousePosition, uint button) { return WidgetList::Click(mousePosition, button); };
+  Widget* ClickUp(const Point2i &mousePosition, uint button) { return WidgetList::ClickUp(mousePosition, button); };
 
-  void SetMargin(uint _margin);
-  void SetBorder(const Point2i &newBorder);
+  void SetMargin(uint _margin) { margin = _margin; };
+  void SetBorder(const Point2i &newBorder) { border = newBorder; };
 
   virtual void AddWidget(Widget *a_widget) = 0;
 };

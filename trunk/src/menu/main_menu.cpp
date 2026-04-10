@@ -21,17 +21,14 @@
  *****************************************************************************/
 
 #include "main_menu.h"
-#include <string>
+#include "gui/button_text.h"
 #include "game/config.h"
-#include "game/time.h"
-#include "graphic/effects.h"
-#include "graphic/font.h"
-#include "graphic/fps.h"
+#include "graphic/text.h"
+#include "graphic/video.h"
 #include "include/app.h"
 #include "include/constant.h"
 #include "sound/jukebox.h"
 #include "tool/i18n.h"
-#include "tool/file_tools.h"
 #include "tool/resource_manager.h"
 
 #ifndef WIN32
@@ -43,7 +40,7 @@ const int VERSION_DY = -40;
 
 const int DEFAULT_SCREEN_HEIGHT = 768 ;
 
-Main_Menu::~Main_Menu()
+MainMenu::~MainMenu()
 {
  // delete skin_left;
  // delete skin_right;
@@ -51,7 +48,7 @@ Main_Menu::~Main_Menu()
   delete website_text;
 }
 
-Main_Menu::Main_Menu() :
+MainMenu::MainMenu() :
     Menu("main_menu/bg_main", vNo)
 {
   int x_button;
@@ -60,9 +57,9 @@ Main_Menu::Main_Menu() :
   int button_width = 402;
   int button_height = 64;
 
-  y_scale = (double)AppWormux::GetInstance()->video.window.GetHeight() / DEFAULT_SCREEN_HEIGHT ;
+  y_scale = (double)AppWormux::GetInstance()->video->window.GetHeight() / DEFAULT_SCREEN_HEIGHT ;
 
-  x_button = AppWormux::GetInstance()->video.window.GetWidth()/2 - button_width/2;
+  x_button = AppWormux::GetInstance()->video->window.GetWidth()/2 - button_width/2;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
 
@@ -70,11 +67,11 @@ Main_Menu::Main_Menu() :
    skin_right = new Sprite( resource_manager.LoadImage(res,"main_menu/skin_2"));
 
   s_title = resource_manager.LoadImage(res,"main_menu/title");
-  title = new PictureWidget(Rectanglei(AppWormux::GetInstance()->video.window.GetWidth()/2  - s_title.GetWidth()/2 + 10, 0, 648, 168));
+  title = new PictureWidget(Rectanglei(AppWormux::GetInstance()->video->window.GetWidth()/2  - s_title.GetWidth()/2 + 10, 0, 648, 168));
   title->SetSurface(s_title); */
 
   int y = int(290 * y_scale) ;
-  const int y2 = AppWormux::GetInstance()->video.window.GetHeight() + VERSION_DY -20 - button_height;
+  const int y2 = AppWormux::GetInstance()->video->window.GetHeight() + VERSION_DY -20 - button_height;
 
   int dy = std::max((y2-y)/3, button_height);
   if(Config::GetInstance()->IsNetworkActivated())
@@ -133,90 +130,87 @@ Main_Menu::Main_Menu() :
      jukebox.PlayMusic("menu");
 }
 
-void Main_Menu::button_click()
+void MainMenu::button_click() const
 {
   jukebox.Play("share", "menu/clic");
 }
 
-void Main_Menu::OnClickUp(const Point2i &mousePosition, int button)
+void MainMenu::SelectAction(const Widget *w)
 {
-  Widget* b = widgets.ClickUp(mousePosition,button);
-  if (b == play)
-  {
-    choice = menuPLAY;
+  if (w == play) {
+    choice = PLAY;
     close_menu = true;
-    button_click();
-  }
-  else if(b == network && Config::GetInstance()->IsNetworkActivated())
-  {
-    choice = menuNETWORK;
+  } else if(w == network) {
+    choice = NETWORK;
     close_menu = true;
-    button_click();
-  }
-  else if(b == options)
-  {
-    choice = menuOPTIONS;
+  } else if(w == options) {
+    choice = OPTIONS;
     close_menu = true;
-    button_click();
-  }
-  else if(b == infos)
-  {
-    choice = menuCREDITS;
+  } else if(w == infos) {
+    choice = CREDITS;
     close_menu = true;
-    button_click();
-  }
-  else if(b == quit)
-  {
-    choice = menuQUIT;
+  } else if(w == quit) {
+    choice = QUIT;
     close_menu = true;
-    button_click();
   }
 }
 
-void Main_Menu::OnClick(const Point2i &mousePosition, int button)
+void MainMenu::OnClickUp(const Point2i &mousePosition, int button)
+{
+  Widget* b = widgets.ClickUp(mousePosition,button);
+  SelectAction(b);
+  button_click();
+}
+
+void MainMenu::OnClick(const Point2i &/*mousePosition*/, int /*button*/)
 {
   // nothing to do while button is still not released
 }
 
-menu_item Main_Menu::Run ()
+MainMenu::menu_item MainMenu::Run ()
 {
-  choice = menuNULL;
+  choice = NONE;
 
   Menu::Run();
 
-  assert( choice != menuNULL );
+  ASSERT( choice != NONE );
   return choice;
 }
 
-bool Main_Menu::signal_cancel()
+bool MainMenu::signal_cancel()
 {
-  choice = menuQUIT;
+  choice = QUIT;
   return true;
 }
 
-bool Main_Menu::signal_ok()
+bool MainMenu::signal_ok()
 {
-  choice = menuPLAY;
+  Widget * w = widgets.GetCurrentSelectedWidget();
+  if(w != NULL) {
+    SelectAction(widgets.GetCurrentSelectedWidget());
+  } else {
+    choice = PLAY;
+  }
   return true;
 }
 
-void Main_Menu::DrawBackground()
+void MainMenu::DrawBackground()
 {
-  Surface& window = AppWormux::GetInstance()->video.window;
+  Surface& window = AppWormux::GetInstance()->video->window;
 
   Menu::DrawBackground();
   // skin_left->Blit(window, 0, window.GetHeight() - skin_left->GetHeight());
   // skin_right->Blit(window, window.GetWidth()  - skin_right->GetWidth(),
-  // 		   window.GetHeight() - skin_right->GetHeight());
+  //                  window.GetHeight() - skin_right->GetHeight());
 
-  version_text->DrawCenter( window.GetWidth()/2,
-                            window.GetHeight() + VERSION_DY);
-  website_text->DrawCenter( window.GetWidth()/2,
-                            window.GetHeight() + VERSION_DY/2);
+  version_text->DrawCenter( Point2i(window.GetWidth()/2,
+                            window.GetHeight() + VERSION_DY));
+  website_text->DrawCenter( Point2i(window.GetWidth()/2,
+                            window.GetHeight() + VERSION_DY/2));
 
 }
 
-void Main_Menu::Redraw(const Rectanglei& rect, Surface &window)
+void MainMenu::Redraw(const Rectanglei& rect, Surface &window)
 {
   Menu::Redraw(rect, window);
 
@@ -224,23 +218,23 @@ void Main_Menu::Redraw(const Rectanglei& rect, Surface &window)
   // but sometimes we need to redraw the skins...
 
   /*Rectanglei dest(0, window.GetHeight() - skin_left->GetHeight(),
-		  skin_left->GetWidth(), skin_left->GetHeight());
+                    skin_left->GetWidth(), skin_left->GetHeight());
   dest.Clip(rect);
 
   Rectanglei src(rect.GetPositionX() - 0,
-		 rect.GetPositionY() - (window.GetHeight() - skin_left->GetHeight()),
-		 dest.GetSizeX(), dest.GetSizeY());
+                 rect.GetPositionY() - (window.GetHeight() - skin_left->GetHeight()),
+                 dest.GetSizeX(), dest.GetSizeY());
 
   skin_left->Blit(window, src, dest.GetPosition());
 
   Rectanglei dest2(window.GetWidth()  - skin_right->GetWidth(),
-		   window.GetHeight() - skin_right->GetHeight(),
-		   skin_right->GetWidth(), skin_right->GetHeight());
+                   window.GetHeight() - skin_right->GetHeight(),
+                   skin_right->GetWidth(), skin_right->GetHeight());
   dest2.Clip(rect);
 
   Rectanglei src2(dest2.GetPositionX() - (window.GetWidth()  - skin_right->GetWidth()),
-		  dest2.GetPositionY() - (window.GetHeight() - skin_right->GetHeight()),
-		  dest2.GetSizeX(), dest2.GetSizeY());
+                  dest2.GetPositionY() - (window.GetHeight() - skin_right->GetHeight()),
+                  dest2.GetSizeX(), dest2.GetSizeY());
 
   skin_right->Blit(window, src2, dest2.GetPosition());*/
 

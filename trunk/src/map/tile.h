@@ -21,14 +21,16 @@
 #define _TILE_H
 
 #include <vector>
-#include "tileitem.h"
-#include "graphic/surface.h"
-#include "graphic/sprite.h"
+#include "tool/point.h"
 #include "tool/rectangle.h"
+
+// Forward declarations
+class Surface;
+class Sprite;
+class TileItem;
 
 const uint EXPLOSION_BORDER_SIZE = 10;
 
-class TileItem;
 
 class Tile : public Rectanglei{
 public:
@@ -41,7 +43,7 @@ public:
   void Dig(const Point2i &center, const uint radius);
 
   // Insert a sprite into the ground
-  void PutSprite(const Point2i pos, Sprite* spr);
+  void PutSprite(const Point2i& pos, const Sprite* spr);
   // Merge a sprite into map (using alpha information)
   void MergeSprite(const Point2i &position, Surface & provider);
 
@@ -51,16 +53,16 @@ public:
   // Get alpha value of a pixel
   unsigned char GetAlpha(const Point2i &pos) const;
 
-  // Draw it (on the entire visible part) 
+  // Draw it (on the entire visible part)
   void DrawTile();
 
   // Draw a part that is inside the given clipping rectangle
   // Clipping rectangle is in World corrdinate not screen coordinates
-  // usefull to redraw only a part that is under a sprite that has moved,... 
+  // usefull to redraw only a part that is under a sprite that has moved,...
   void DrawTile_Clipped(Rectanglei clip_rectangle) const;
 
   // Return a surface of the ground inside the rect
-  Surface GetPart(Rectanglei& rec);
+  Surface GetPart(const Rectanglei& rec);
 
   // Check if a title is empty, so we can delete it
   void CheckEmptyTiles();
@@ -68,13 +70,13 @@ protected:
   void InitTile(const Point2i &pSize);
 
   void FreeMem();
-  Point2i Clamp(const Point2i &v) const;
+  Point2i Clamp(const Point2i &v) const { return v.clamp(Point2i(0, 0), nbCells - 1); };
 
-  // Dimension du terrain
+  // Ground dimensions
   Point2i nbCells;
   unsigned int nbr_cell;
 
-  // Canvas donnant acc� aux cellules
+  // Canvas giving access to tiles
   std::vector<TileItem *> item;
 };
 

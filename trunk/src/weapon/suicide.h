@@ -23,21 +23,21 @@
 #define SUICIDE_H
 
 #include "weapon.h"
-#include "graphic/surface.h"
+
+class ExplosiveWeaponConfig;
 
 class Suicide : public Weapon
 {
   private:
-    int sound_channel;
-    bool is_dying;
+    SoundSample suicide_sound;
   protected:
     bool p_Shoot();
-    void p_Select();
     void Refresh();
   public:
     Suicide();
     ExplosiveWeaponConfig &cfg();
-    DECLARE_GETWEAPONSTRING();
+    bool IsInUse() const;
+    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
 };
 
 #endif /* SUICIDE_H */

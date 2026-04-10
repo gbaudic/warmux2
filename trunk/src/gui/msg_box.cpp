@@ -19,9 +19,9 @@
  * Message Box
  *****************************************************************************/
 
-#include "tool/rectangle.h"
-#include "widget.h"
-#include "msg_box.h"
+#include "gui/msg_box.h"
+#include "gui/widget.h"
+#include "graphic/text.h"
 
 const uint vmargin = 5;
 const uint hmargin = 5;
@@ -31,21 +31,37 @@ MsgBox::MsgBox(const Rectanglei& rect, Font::font_size_t fsize, Font::font_style
 {
 }
 
+MsgBox::~MsgBox()
+{
+  for (std::list<Text*>::iterator t=messages.begin(); t != messages.end(); t++)
+    delete *t;
+  messages.clear();
+}
+
 void MsgBox::Flush()
 {
-  std::list<Text *>::iterator it ;
+  std::list<Text *>::reverse_iterator it ;
+  Text *last_visible_msg = NULL;
 
-  uint y = vmargin;
-  for (it = messages.begin(); it != messages.end(); it++) 
+  int y = vmargin;
+
+  /* find the last item that can be displayed */
+  for (it = messages.rbegin(); it != messages.rend(); ++it)
     {
       y += (*it)->GetHeight() + vmargin;
+      if (y > GetSizeY())
+        break;
+      last_visible_msg = *it;
+    }
 
-      while (int(y) > GetSizeY() && !messages.empty()) {
-	Text* tmp = messages.front();
-	y -= tmp->GetHeight() - vmargin; 
-	delete tmp;
-	messages.pop_front();
-      }
+  /* list doesn't need fflush as it doesn't fullfill the textbox */
+  if (it == messages.rend())
+    return;
+
+  while (messages.front() != last_visible_msg && !messages.empty())
+    {
+      delete (messages.front());
+      messages.pop_front();
     }
 }
 
@@ -60,7 +76,7 @@ void MsgBox::NewMessage(const std::string &msg, const Color& color)
   ForceRedraw();
 }
 
-void MsgBox::Draw(const Point2i &mousePosition, Surface& surf) const
+void MsgBox::Draw(const Point2i &/*mousePosition*/, Surface& surf) const
 {
   // Draw the border
   surf.BoxColor(*this, defaultOptionColorBox);
@@ -85,7 +101,7 @@ void MsgBox::SetSizePosition(const Rectanglei &rect)
   for (it = messages.begin(); it != messages.end(); it++) {
     (*it)->SetMaxWidth(GetSizeX() - (2*hmargin));
   }
-  
+
   // Remove old messages if needed
   Flush();
 }

@@ -21,20 +21,28 @@
 
 #include "camera.h"
 #include "map.h"
-#include "maps_list.h"
 #include "wind.h"
+#include "graphic/video.h"
 #include "include/app.h"
 #include "interface/mouse.h"
+#include "object/physical_obj.h"
 #include "team/teams_list.h"
 #include "tool/debug.h"
-#include "tool/rectangle.h"
 #include "tool/math_tools.h"
 #include "game/game.h"
 
 const Point2i CAMERA_MARGIN(200, 200);
 const Point2i CAMERA_SPEED(20, 20);
 
-Camera camera;
+Camera* Camera::singleton = NULL;
+ 
+Camera * Camera::GetInstance()
+{
+  if (singleton == NULL) {
+    singleton = new Camera();
+  }
+  return singleton;
+}
 
 Camera::Camera():
   auto_crop(true),
@@ -59,33 +67,20 @@ bool Camera::HasFixedY() const{
   return (int)world.GetHeight() <= GetSizeY();
 }
 
-Point2i Camera::FreeDegrees() const{
-  return Point2i(HasFixedX()? 0 : 1,
-                 HasFixedY()? 0 : 1);
-}
-
-Point2i Camera::NonFreeDegrees() const{
-  return Point2i(1, 1) - FreeDegrees();
-}
-
 void Camera::SetXYabs(int x, int y){
   AppWormux * app = AppWormux::GetInstance();
 
   if( !HasFixedX() )
     position.x = BorneLong(x, 0, world.GetWidth() - GetSizeX());
   else
-    position.x = - (app->video.window.GetWidth() - world.GetWidth())/2;
+    position.x = - (app->video->window.GetWidth() - world.GetWidth())/2;
 
   if( !HasFixedY() )
     position.y = BorneLong(y, 0, world.GetHeight()-GetSizeY());
   else
-    position.y = - (app->video.window.GetHeight() - world.GetHeight())/2;
+    position.y = - (app->video->window.GetHeight() - world.GetHeight())/2;
 
   throw_camera = true;
-}
-
-void Camera::SetXYabs(const Point2i &pos){
-  SetXYabs(pos.x, pos.y);
 }
 
 void Camera::SetXY(Point2i pos){
@@ -94,10 +89,6 @@ void Camera::SetXY(Point2i pos){
     return;
 
   SetXYabs(position + pos);
-}
-
-void Camera::CenterOnFollowedObject(){
-  CenterOn(*followed_object);
 }
 
 // Center on a object
@@ -148,21 +139,6 @@ void Camera::AutoCrop(){
   SetXY( dst * CAMERA_SPEED / dstMax );
 }
 
-void Camera::SetAutoCrop(bool crop)
-{
-  auto_crop = crop;
-}
-
-bool Camera::IsAutoCrop() const
-{
-  return auto_crop;
-}
-
-void Camera::SetCloseFollowing(bool close)
-{
-  follow_closely = close;
-}
-
 void Camera::Refresh(){
   throw_camera = false;
 
@@ -174,7 +150,7 @@ void Camera::Refresh(){
     AutoCrop();
 }
 
-void Camera::FollowObject(PhysicalObj *obj, bool follow, bool center_on, bool force_center_on_object){
+void Camera::FollowObject(const PhysicalObj *obj, bool follow, bool center_on, bool force_center_on_object){
   MSG_DEBUG( "camera.tracking", "Following object %s, center_on=%d, follow=%d", obj->GetName().c_str(), center_on, follow);
   if ((center_on) && (followed_object != obj ||
                       !IsVisible(*obj) || force_center_on_object))
@@ -188,7 +164,7 @@ void Camera::FollowObject(PhysicalObj *obj, bool follow, bool center_on, bool fo
   followed_object = obj;
 }
 
-void Camera::StopFollowingObj(PhysicalObj* obj){
+void Camera::StopFollowingObj(const PhysicalObj* obj){
   if(Game::GetInstance()->IsGameFinished())
     return;
 
@@ -196,7 +172,7 @@ void Camera::StopFollowingObj(PhysicalObj* obj){
     FollowObject((PhysicalObj*)&ActiveCharacter(), true, true, true);
 }
 
-bool Camera::IsVisible(const PhysicalObj &obj){
+bool Camera::IsVisible(const PhysicalObj &obj) const {
    return Intersect( obj.GetRect() );
 }
 

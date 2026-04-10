@@ -22,7 +22,6 @@
 #include <iostream>
 #include "movement.h"
 #include "tool/xml_document.h"
-#include "tool/string_tools.h"
 
 Movement::Movement(xmlpp::Element *xml)
 {
@@ -30,7 +29,7 @@ Movement::Movement(xmlpp::Element *xml)
   play_mode = LOOP;
   always_moving = false;
   XmlReader::ReadStringAttr( xml, "name", type);
-  assert(type!="");
+  ASSERT(type!="");
 
   speed = 15;
   XmlReader::ReadIntAttr(xml, "speed", speed);
@@ -61,7 +60,7 @@ Movement::Movement(xmlpp::Element *xml)
   for (int frame_number=0; it != end; ++it, frame_number++)
   {
     xmlpp::Element *elem = dynamic_cast<xmlpp::Element*> (*it);
-    assert (elem != NULL);
+    ASSERT (elem != NULL);
 
     xmlpp::Node::NodeList nodes2 = elem -> get_children("member");
     xmlpp::Node::NodeList::iterator
@@ -90,6 +89,9 @@ Movement::Movement(xmlpp::Element *xml)
       XmlReader::ReadBoolAttr(elem2, "follow_half_crosshair", mvt.follow_half_crosshair);
       XmlReader::ReadBoolAttr(elem2, "follow_speed", mvt.follow_speed);
       XmlReader::ReadBoolAttr(elem2, "follow_direction", mvt.follow_direction);
+      if( XmlReader::ReadBoolAttr(elem2, "follow_cursor", mvt.follow_cursor)
+      && !XmlReader::ReadIntAttr(elem2, "follow_cursor_limit", mvt.follow_cursor_limit))
+        printf("Warning ! \"follow_cursor\" flag used while \"follow_cursor_limit\" isn't defined, this won't do anything!\n");
       if(tmp_alpha < 0.0 || tmp_alpha > 1.0) tmp_alpha = 1.0;
       mvt.SetAngle(angle_deg * M_PI / 180);
       mvt.pos.x = dx;
@@ -97,6 +99,7 @@ Movement::Movement(xmlpp::Element *xml)
       mvt.alpha = tmp_alpha;
       mvt.scale = Point2f(scale_x, scale_y);
 
+      always_moving |= mvt.follow_cursor;
       always_moving |= mvt.follow_crosshair;
       always_moving |= mvt.follow_half_crosshair;
       always_moving |= mvt.follow_speed;

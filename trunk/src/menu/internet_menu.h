@@ -23,9 +23,12 @@
 #ifndef INTERNET_MENU_H
 #define INTERNET_MENU_H
 
-#include <list>
 #include "menu.h"
-#include "gui/button_text.h"
+
+// Forward declarations
+class ButtonText;
+class VBox;
+class ListBox;
 
 class InternetMenu : public Menu
 {
@@ -37,7 +40,8 @@ class InternetMenu : public Menu
    void OnClick(const Point2i &mousePosition, int button);
    void OnClickUp(const Point2i &mousePosition, int button);
    void Draw(const Point2i &mousePosition);
-   void RefreshList();
+   void RefreshList(bool warning_if_empty);
+   void DisplayNoGameRunning();
 
    bool signal_ok();
    bool signal_cancel();

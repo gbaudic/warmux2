@@ -23,31 +23,17 @@
 #ifndef MAIN_MENU_H
 #define MAIN_MENU_H
 
-#include "include/base.h"
-#include "graphic/fps.h"
-#include "graphic/surface.h"
-#include "gui/widget_list.h"
-#include "gui/button_text.h"
-#include "gui/picture_widget.h"
-#include "menu/menu.h"
-#include <SDL.h>
-#include <vector>
+#include "menu.h"
 
-typedef enum
-{
-  menuNULL=0,
-  menuPLAY,
-  menuNETWORK,
-  menuOPTIONS,
-  menuCREDITS,
-  menuQUIT
-} menu_item;
+// Forward declarations
+class Text;
+class ButtonText;
 
-class Main_Menu : public Menu
+class MainMenu : public Menu
 {
   /* If you need this, implement it (correctly) */
-  Main_Menu(const Main_Menu&);
-  Main_Menu operator=(const Main_Menu&);
+  MainMenu(const MainMenu&);
+  MainMenu operator=(const MainMenu&);
   /**********************************************/
 
   ButtonText *play, *network, *options, *infos, *quit;
@@ -56,10 +42,21 @@ class Main_Menu : public Menu
 
 
 public:
+  typedef enum
+  {
+    NONE = 0,
+    PLAY,
+    NETWORK,
+    OPTIONS,
+    CREDITS,
+    QUIT,
+  } menu_item;
+
+
   menu_item choice;
 
-  Main_Menu();
-  ~Main_Menu();
+  MainMenu();
+  ~MainMenu();
   menu_item Run ();
 
   void Redraw(const Rectanglei& rect, Surface& surf);
@@ -67,15 +64,15 @@ public:
 protected:
    bool signal_ok();
    bool signal_cancel();
-
+   void SelectAction(const Widget *w);
 private:
    virtual void DrawBackground();
    void OnClick(const Point2i &mousePosition, int button);
    void OnClickUp(const Point2i &mousePosition, int button);
 
   // Main drawing function: refresh parts of screen
-  void Draw(const Point2i &mousePosition) {};
-  void button_click();
+   void Draw(const Point2i &/*mousePosition*/) {};
+   void button_click() const;
 };
 
 #endif

@@ -21,19 +21,20 @@
 
 #include "jetpack.h"
 #include "explosion.h"
+#include "character/character.h"
 #include "game/game.h"
 #include "game/game_loop.h"
 #include "game/game_mode.h"
 #include "game/time.h"
+#include "include/action_handler.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
 #include "network/network.h"
 #include "object/physical_obj.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
+#include "team/team.h"
 #include "tool/i18n.h"
-#include "character/move.h"
-#include "include/action_handler.h"
 
 const double JETPACK_FORCE = 2500.0;
 
@@ -51,12 +52,11 @@ JetPack::JetPack() : Weapon(WEAPON_JETPACK, "jetpack",
 
   m_x_force = 0.0;
   m_y_force = 0.0;
-  channel = -1;
 }
 
 void JetPack::Refresh()
 {
-  if (m_is_active)
+  if (IsInUse())
   {
     if (!ActiveTeam().IsLocal()) {
       return;
@@ -111,7 +111,7 @@ void JetPack::p_Deselect()
   m_y_force = 0;
   ActiveCharacter().SetExternForce(0,0);
   StopUse();
-  camera.SetCloseFollowing(false);
+  Camera::GetInstance()->GetInstance()->SetCloseFollowing(false);
   ActiveCharacter().SetClothe("normal");
   ActiveCharacter().SetMovement("walk");
 }
@@ -122,10 +122,10 @@ void JetPack::StartUse()
   if ( (m_x_force == 0) && (m_y_force == 0))
     {
       m_last_fuel_down = Time::GetInstance()->Read();
-      channel = jukebox.Play(ActiveTeam().GetSoundProfile(),"weapon/jetpack", -1);
+      flying_sound.Play(ActiveTeam().GetSoundProfile(),"weapon/jetpack", -1);
 
-      camera.FollowObject (&ActiveCharacter(),true, true, true);
-      camera.SetCloseFollowing(true);
+      Camera::GetInstance()->GetInstance()->FollowObject (&ActiveCharacter(),true, true, true);
+      Camera::GetInstance()->GetInstance()->SetCloseFollowing(true);
 //                           bool suit, bool recentre,
 //                           bool force_recentrage=false);
     }
@@ -136,9 +136,7 @@ void JetPack::StopUse()
   ActiveCharacter().SetMovement("jetpack-nofire");
   if (m_x_force == 0.0 && m_y_force == 0.0)
   {
-    if(channel != -1)
-      jukebox.Stop(channel);
-    channel = -1;
+    flying_sound.Stop();
   }
 }
 
@@ -152,87 +150,69 @@ void JetPack::GoLeft()
 {
   StartUse();
   m_x_force = - JETPACK_FORCE ;
-  if(ActiveCharacter().GetDirection() == Body::DIRECTION_RIGHT)
-    ActiveCharacter().SetDirection(Body::DIRECTION_LEFT);
+  if(ActiveCharacter().GetDirection() == DIRECTION_RIGHT)
+    ActiveCharacter().SetDirection(DIRECTION_LEFT);
 }
 
 void JetPack::GoRight()
 {
   StartUse();
   m_x_force = JETPACK_FORCE ;
-  if(ActiveCharacter().GetDirection() == Body::DIRECTION_LEFT)
-    ActiveCharacter().SetDirection(Body::DIRECTION_RIGHT);
+  if(ActiveCharacter().GetDirection() == DIRECTION_LEFT)
+    ActiveCharacter().SetDirection(DIRECTION_RIGHT);
 }
 
-void JetPack::StopUp()
+void JetPack::HandleKeyPressed_Up(bool shift)
 {
-  m_y_force = 0.0 ;
-  StopUse();
-}
-
-void JetPack::StopLeft()
-{
-  m_x_force = 0.0 ;
-  StopUse();
-}
-
-void JetPack::StopRight()
-{
-  m_x_force = 0.0 ;
-  StopUse();
-}
-
-void JetPack::HandleKeyPressed_Up()
-{
-  if (m_is_active)
+  if (IsInUse())
     GoUp();
   else
-    ActiveCharacter().HandleKeyPressed_Up();
+    ActiveCharacter().HandleKeyPressed_Up(shift);
 }
 
-void JetPack::HandleKeyReleased_Up()
+void JetPack::HandleKeyReleased_Up(bool shift)
 {
-  if (m_is_active)
+  if (IsInUse())
     StopUp();
   else
-    ActiveCharacter().HandleKeyReleased_Up();
+    ActiveCharacter().HandleKeyReleased_Up(shift);
 }
 
-void JetPack::HandleKeyPressed_MoveLeft()
+void JetPack::HandleKeyPressed_MoveLeft(bool shift)
 {
-  if (m_is_active)
+  if (IsInUse())
     GoLeft();
   else
-    ActiveCharacter().HandleKeyPressed_MoveLeft();
+    ActiveCharacter().HandleKeyPressed_MoveLeft(shift);
 }
 
-void JetPack::HandleKeyReleased_MoveLeft()
+void JetPack::HandleKeyReleased_MoveLeft(bool shift)
 {
-  if (m_is_active)
+  if (IsInUse())
     StopLeft();
   else
-    ActiveCharacter().HandleKeyReleased_MoveLeft();
+    ActiveCharacter().HandleKeyReleased_MoveLeft(shift);
 }
 
-void JetPack::HandleKeyPressed_MoveRight()
+void JetPack::HandleKeyPressed_MoveRight(bool shift)
 {
-  if (m_is_active)
+  if (IsInUse())
     GoRight();
   else
-    ActiveCharacter().HandleKeyPressed_MoveRight();
+    ActiveCharacter().HandleKeyPressed_MoveRight(shift);
 }
 
-void JetPack::HandleKeyReleased_MoveRight()
+void JetPack::HandleKeyReleased_MoveRight(bool shift)
 {
-  if (m_is_active)
+  if (IsInUse())
     StopRight();
   else
-    ActiveCharacter().HandleKeyReleased_MoveRight();
+    ActiveCharacter().HandleKeyReleased_MoveRight(shift);
 }
 
-void JetPack::HandleKeyPressed_Shoot()
+void JetPack::HandleKeyPressed_Shoot(bool)
 {
-  if (!m_is_active)
+  if (!IsInUse())
     NewActionWeaponShoot();
   else
     NewActionWeaponStopUse();
@@ -246,21 +226,11 @@ bool JetPack::p_Shoot()
   return true;
 }
 
-void JetPack::SignalTurnEnd()
-{
-  p_Deselect();
-}
-
-void JetPack::ActionStopUse()
-{
-  p_Deselect();
-}
-
-std::string JetPack::GetWeaponWinString(const char *TeamName, uint items_count )
+std::string JetPack::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
   return Format(ngettext(
-            "%s team has won %u jetpack!",
-            "%s team has won %u jetpacks!",
+            "%s team has won %u jetpack! Groovy!",
+            "%s team has won %u jetpacks! Groovy!",
             items_count), TeamName, items_count);
 }
 

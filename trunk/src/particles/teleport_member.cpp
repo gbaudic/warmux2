@@ -23,9 +23,10 @@
 #include "particle.h"
 #include "tool/random.h"
 #include "game/time.h"
+#include "graphic/sprite.h"
 #include "map/camera.h"
 
-TeleportMemberParticle::TeleportMemberParticle(Sprite* spr, const Point2i& position, const Point2i& dest, int direction) :
+TeleportMemberParticle::TeleportMemberParticle(const Sprite* spr, const Point2i& position, const Point2i& dest, int direction) :
   Particle("teleport_member_particle")
 {
   SetCollisionModel(true, false, false);
@@ -35,7 +36,7 @@ TeleportMemberParticle::TeleportMemberParticle(Sprite* spr, const Point2i& posit
   image->GetScaleFactors(scale_x, scale_y);
   image->Scale(scale_x * (float)direction, scale_y);
 
-  assert(image->GetWidth() != 0 && image->GetHeight()!=0);
+  ASSERT(image->GetWidth() != 0 && image->GetHeight()!=0);
   SetXY(position);
   m_left_time_to_live = 1;
 
@@ -47,12 +48,12 @@ TeleportMemberParticle::TeleportMemberParticle(Sprite* spr, const Point2i& posit
 
   sin_x_max = randomObj.GetDouble(M_PI_4, 3.0 * M_PI_4);
   sin_y_max = randomObj.GetDouble(M_PI_4, 3.0 * M_PI_4);
-  camera.FollowObject(this, true, true);
+  Camera::GetInstance()->GetInstance()->FollowObject(this, true, true);
 }
 
 TeleportMemberParticle::~TeleportMemberParticle()
 {
-  camera.StopFollowingObj(this);
+  Camera::GetInstance()->GetInstance()->StopFollowingObj(this);
 }
 
 void TeleportMemberParticle::Refresh()

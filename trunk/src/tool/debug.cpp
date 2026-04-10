@@ -23,13 +23,44 @@
 #include <string.h>
 #include <stdarg.h>
 #include <sys/types.h>
-#include <unistd.h>
+#ifdef _MSC_VER
+#  include <process.h>
+#  define getpid _getpid
+#else
+#  include <unistd.h>
+#endif
 #include "include/base.h"
+#include "tool/debug.h"
 
 /**
  * The debug modes in use.
  */
 std::vector<std::string> debugModes;
+
+/**
+ * Check if a debug mode is in use
+ */
+#ifdef DEBUG
+bool IsDEBUGGING(const char* mode)
+{
+  int mSize = strlen(mode);
+  unsigned int i = 0;
+
+  for (i = 0; i < debugModes.size(); i++) {
+    int modeSize = debugModes[i].size();
+    const char *strMode = debugModes[i].c_str();
+    
+    if (strncmp(strMode, mode, modeSize) == 0) {
+      if ( (mSize != modeSize) && ( mode[modeSize] != '.' ) && modeSize != 0)
+	continue;
+      
+      return true;
+    }
+  }
+
+  return false;
+}
+#endif
 
 /**
  * Print a debug message if needed.
@@ -40,54 +71,25 @@ std::vector<std::string> debugModes;
  * @param message
  */
 void PrintDebug (const char *filename, const char *function, unsigned long line,
-		const char *level, const char *message, ...)
+                 const char *level, const char *message, ...)
 {
-	int levelSize = strlen(level);
-	unsigned int i = 0;
+  if (IsDEBUGGING(level)) {
+      va_list argp;
+      int pid = (int)getpid();
 
-	for( i = 0; i < debugModes.size(); i++ ){
-		int modeSize = debugModes[i].size();
-		const char *strMode = debugModes[i].c_str();
-
-		if( strncmp(strMode, level, modeSize) == 0){
-			if( (levelSize != modeSize) && ( level[modeSize] != '.' ) && modeSize != 0)
-				continue;
-	        
-			va_list argp;
-			int pid = (int)getpid();
-
-			fprintf(stderr, "%i|%s:%s:%ld| %s : ", pid, filename, function, line, level);
-	        va_start(argp, message);
-	        vfprintf(stderr, message, argp);
-	        va_end(argp);
-			fprintf(stderr, "\n");
-			return;
-		}
-	}
+      fprintf(stderr, "%i|%s:%s:%ld| %s : ", pid, filename, function, line, level);
+      va_start(argp, message);
+      vfprintf(stderr, message, argp);
+      va_end(argp);
+      fprintf(stderr, "\n");
+  }
 }
 
-/** 
- * Add a new debug mode to check.
- */
-void AddDebugMode( std::string mode ){
-	debugModes.push_back( mode );
-}
+
 
 /**
- * Parse the command line arguments to find new debug mode to use.
- * 
- * @param argc Number of arguments.
- * @param argv The arguments.
+ * Add a new debug mode to check.
  */
-void InitDebugModes( int argc, char **argv ){
-	int i;
-
-	for( i=0; i<argc; i++ ){
-		if( strcmp(argv[i], "-d") == 0 ){
-			i = i + 1;
-			if( i == argc )
-				Error( "Usage : -d mode.truc" );
-			AddDebugMode( argv[i] );
-		}
-	}
+void AddDebugMode(const std::string& mode ){
+  debugModes.push_back( mode );
 }

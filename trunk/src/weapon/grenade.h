@@ -16,19 +16,14 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon grenade : lance une grenade avec un angle et une force donn�. Explose 
+ * Weapon grenade : lance une grenade avec un angle et une force donn�. Explose
  * au bout de quelques secondes
  *****************************************************************************/
 
 #ifndef GRENADE_H
 #define GRENADE_H
 
-#include <SDL.h>
-#include "include/base.h"
-#include "graphic/surface.h"
-#include "gui/progress_bar.h"
-#include "object/physical_obj.h"
-#include "launcher.h"
+#include "weapon_launcher.h"
 
 // La Grenade
 class Grenade : public WeaponProjectile
@@ -37,7 +32,6 @@ public:
   Grenade(ExplosiveWeaponConfig& cfg,
           WeaponLauncher * p_launcher);
   void Refresh();
-  DECLARE_GETWEAPONSTRING();
 protected:
   void SignalOutOfMap();
 };
@@ -46,6 +40,7 @@ class GrenadeLauncher : public WeaponLauncher
 {
  public:
   GrenadeLauncher();
+  std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
  protected:
   WeaponProjectile * GetProjectileInstance();
 };

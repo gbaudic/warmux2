@@ -23,6 +23,7 @@
 #include "medkit.h"
 #include <sstream>
 #include <iostream>
+#include "character/character.h"
 #include "game/game_mode.h"
 #include "game/game_loop.h"
 #include "game/time.h"
@@ -34,14 +35,17 @@
 #include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "team/macro.h"
+#include "team/team.h"
 #include "tool/debug.h"
 #include "tool/i18n.h"
 #include "tool/resource_manager.h"
+#include "tool/xml_document.h"
 #include "weapon/explosion.h"
 
-const uint SPEED = 5; // meter / seconde
-const uint SPEED_PARACHUTE = 170; // ms par image
-const uint NB_MAX_TRY = 20;
+// XXX Unused !?
+//const uint SPEED = 5; // meter / seconde
+//const uint NB_MAX_TRY = 20;
+//const uint SPEED_PARACHUTE = 170; // ms par image
 
 Medkit::Medkit()
   : ObjBox("medkit") {
@@ -80,7 +84,7 @@ void Medkit::Refresh()
   if (!anim->IsFinished() && !parachute) anim->Update();
 }
 
-void Medkit::ApplyMedkit(Team &equipe, Character &ver) {
+void Medkit::ApplyMedkit(Team &/*equipe*/, Character &ver) const {
   std::ostringstream txt;
  txt << Format(ngettext(
                 "%s has won %u point of energy!",
@@ -96,7 +100,7 @@ void Medkit::ApplyMedkit(Team &equipe, Character &ver) {
 // Static methods
 int Medkit::nbr_health = 24;
 
-void Medkit::LoadXml(xmlpp::Element * object)
+void Medkit::LoadXml(const xmlpp::Element * object)
 {
   XmlReader::ReadInt(object,"life_points",start_life_points);
   XmlReader::ReadInt(object,"energy_boost",nbr_health);

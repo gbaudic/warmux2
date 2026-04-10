@@ -22,15 +22,12 @@
 #ifndef NETWORK_TEAMS_SELECTION_BOX_H
 #define NETWORK_TEAMS_SELECTION_BOX_H
 
-#include "gui/box.h"
-#include "gui/label.h"
-#include "gui/picture_widget.h"
-#include "gui/spin_button.h"
-#include "gui/spin_button_big.h"
-#include "gui/text_box.h"
-#include "team_box.h"
-
 #include <vector>
+#include "gui/box.h"
+
+class TeamBox;
+class SpinButtonBig;
+class Team;
 
 const uint NMAX_NB_TEAMS=4;
 
@@ -58,8 +55,8 @@ class NetworkTeamsSelectionBox : public HBox
   Widget* Click(const Point2i &mousePosition, uint button);
   Widget* ClickUp(const Point2i &mousePosition, uint button);
 
-  void AddTeamCallback(std::string team_id);
-  void UpdateTeamCallback(std::string team_id);
-  void DelTeamCallback(std::string team_id);
+  void AddTeamCallback(const std::string& team_id);
+  void UpdateTeamCallback(const std::string& team_id);
+  void DelTeamCallback(const std::string& team_id);
 };
 #endif
