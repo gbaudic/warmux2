@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include <map>
 #include <list>
 #include <vector>
-#include "include/base.h"
+#include <WARMUX_base.h>
 //-----------------------------------------------------------------------------
 
 // Forward declarations
@@ -55,15 +55,15 @@ public:
     KEY_CHAT,
     KEY_MOVE_LEFT,
     KEY_MOVE_LEFT_SLOWLY,
+    KEY_MOVE_CAMERA_LEFT,
     KEY_MOVE_RIGHT,
     KEY_MOVE_RIGHT_SLOWLY,
+    KEY_MOVE_CAMERA_RIGHT,
     KEY_UP,
     KEY_UP_SLOWLY,
+    KEY_MOVE_CAMERA_UP,
     KEY_DOWN,
     KEY_DOWN_SLOWLY,
-    KEY_MOVE_CAMERA_LEFT,
-    KEY_MOVE_CAMERA_RIGHT,
-    KEY_MOVE_CAMERA_UP,
     KEY_MOVE_CAMERA_DOWN,
     KEY_JUMP,
     KEY_HIGH_JUMP,
@@ -84,10 +84,19 @@ public:
     KEY_NEXT_CHARACTER,
     KEY_MENU_OPTIONS_FROM_GAME,
     KEY_MINIMAP_FROM_GAME,
+    KEY_HELP,
+    KEY_DECREASE_MINIMAP,
+    KEY_INCREASE_MINIMAP,
+    KEY_DECREASE_VOLUME,
+    KEY_INCREASE_VOLUME,
+    KEY_SCREENSHOT,
     KEY_NONE
   } Key_t;
 
 protected:
+  // This is a widget in charge of displaying and setting the config
+  friend class ControlItem;
+  friend class ControlConfig;
 
   typedef enum
   {
@@ -100,28 +109,30 @@ protected:
 
   virtual void SetDefaultConfig() { };
   std::map<int, std::vector<Key_t> > layout;
-  std::list<uint8> registred_event;
+  std::list<uint32_t> registred_event;
   bool PressedKeys[256]; // stupid default value
 
-  void RegisterEvent(uint8 event_type) { registred_event.push_back(event_type); };
-  bool IsRegistredEvent(uint8 event_type);
+  void RegisterEvent(uint32_t event_type) { registred_event.push_back(event_type); };
+  bool IsRegistredEvent(uint32_t event_type);
   void HandleKeyPressed(const Key_t &action_key);
   void HandleKeyReleased(const Key_t &action_key);
 
   void SetKeyAction(int key, Key_t at) { layout[key].push_back(at); };
-  void ClearKeyAction();
+  void ClearKeyAction(Key_t at);
+  void ClearKeyBindings() { layout.clear(); }
 
   int GetKeyFromKeyName(const std::string &name) const;
   std::string GetKeyNameFromKey(int key) const;
 
   Key_t GetActionFromActionName(const std::string &name) const;
   std::string GetActionNameFromAction(Key_t) const;
+  std::string GetHumanReadableActionName(Key_t) const;
 
   ManMachineInterface() { SetDefaultConfig(); };
   virtual ~ManMachineInterface() { };
 
 public:
-  virtual void HandleKeyEvent(const SDL_Event& event) = 0;
+  virtual void HandleKeyEvent(const SDL_Event& evnt) = 0;
   virtual void Reset();
 
   // Get the key associated to an action.

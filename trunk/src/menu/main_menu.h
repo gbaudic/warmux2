@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,12 +31,8 @@ class ButtonPic;
 
 class MainMenu : public Menu
 {
-  /* If you need this, implement it (correctly) */
-  MainMenu(const MainMenu&);
-  MainMenu operator=(const MainMenu&);
-  /**********************************************/
-
-  ButtonPic *play, *network, *options, *help, *credits, *quit;
+  ButtonPic *play, *network, *options, *bench;
+  ButtonPic *help, *credits, *quit;
   Text * version_text, *website_text;
 
 public:
@@ -46,6 +42,7 @@ public:
     PLAY,
     NETWORK,
     OPTIONS,
+    BENCHMARK,
     HELP,
     CREDITS,
     QUIT
@@ -66,12 +63,9 @@ protected:
 
 private:
    virtual void DrawBackground();
+   virtual void RedrawBackground(const Rectanglei& rect) const;
    void OnClick(const Point2i &mousePosition, int button);
    void OnClickUp(const Point2i &mousePosition, int button);
-
-  // Main drawing function: refresh parts of screen
-   void Draw(const Point2i &/*mousePosition*/) {};
-   void button_click() const;
 };
 
 #endif

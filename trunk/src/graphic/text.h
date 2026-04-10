@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,6 +28,18 @@
 
 class Text
 {
+public:
+  typedef enum
+  {
+    ALIGN_CENTER,
+    ALIGN_LEFT_TOP,
+    ALIGN_RIGHT_TOP,
+    ALIGN_LEFT_CENTER,
+    ALIGN_RIGHT_CENTER,
+    ALIGN_CENTER_TOP,
+    ALIGN_CENTER_BOTTOM
+  } Alignment;
+
 protected:
   Surface surf;
   Surface background; //shadow or outline or nothing;
@@ -42,19 +54,20 @@ protected:
   Font::font_style_t font_style;
 
   virtual void Render();
+  static int GetLineHeight(const Font *f) { return (7*f->GetHeight())>>3; }
   void RenderMultiLines();
 
 public:
   Text(const std::string & text,
        const Color & fontColor = white_color,
-       uint fontSize = 12,
+       uint fontSize = (uint)Font::FONT_SMALL,
        Font::font_style_t fontStyle = Font::FONT_BOLD,
        bool shadowed = true,
        const Color & shadowColor = black_color,
        bool dummy = false);
   Text(void);
 
-  virtual ~Text();
+  virtual ~Text() { }
 
   void Init();
   void LoadXMLConfiguration(XmlReader * xmlFile,
@@ -62,23 +75,50 @@ public:
   Font::font_style_t DetectFontStyle(const std::string & fontStyle);
 
   //Draw method using windows coordinates
-  void DrawCenter(const Point2i & position) const;
-  void DrawTopLeft(const Point2i & position) const;
-  void DrawTopRight(const Point2i & position) const;
-  void DrawCenterTop(const Point2i & position) const;
+  void DrawCenter(const Point2i & position) const { DrawLeftTop(position - surf.GetSize() / 2); }
+  void DrawLeftTop(const Point2i & position) const;
+  void DrawRightTop(const Point2i & position) const { DrawLeftTop(position - Point2i(surf.GetWidth(), 0)); }
+  void DrawCenterTop(const Point2i & position) const { DrawLeftTop(position - Point2i(surf.GetWidth()/2, 0)); }
+  void DrawLeftCenter(const Point2i & position) const { DrawLeftTop(position - Point2i(0, surf.GetHeight()/2)); }
+  void DrawRightCenter(const Point2i & position) const { DrawLeftTop(position - Point2i(surf.GetWidth(), surf.GetHeight()/2)); }
+  void DrawCenterBottom(const Point2i & position) const { DrawLeftTop(position - surf.GetSize()); }
 
   //Draw text cursor only (text_pos = position for DrawTopLeft)
-  void DrawCursor(const Point2i & text_pos, 
+  void DrawCursor(const Point2i & text_pos,
                   std::string::size_type cursor_pos) const;
 
   //Draw method using map coordinates
   void DrawCenterTopOnMap(const Point2i & position) const;
 
-  void SetText(const std::string & new_txt);
-  const std::string & GetText() const;
-  void SetColor(const Color & new_color);
-  void SetMaxWidth(uint max_w);
-  int GetWidth() const;
+  void SetText(const std::string & new_txt)
+  {
+    if(txt == new_txt)
+      return;
+
+    txt = new_txt;
+
+    Render();
+  }
+  const std::string & GetText() const { return txt; }
+  void SetColor(const Color & new_color)
+  {
+    if(color == new_color)
+      return;
+
+    color = new_color;
+
+    Render();
+  }
+  void SetMaxWidth(uint max_w)
+  {
+    if (max_width == max_w)
+      return;
+
+    max_width = max_w;
+
+    Render();
+  }
+  int GetWidth() const { return (txt=="" && !dummy) ? 0 : surf.GetWidth(); }
   int GetHeight() const;
 
   const Color & GetFontColor() const { return color; };

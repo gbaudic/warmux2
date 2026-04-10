@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,35 +22,34 @@
 #include <iostream>
 
 #include "menu/menu.h"
-#include "include/app.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
+#include "gui/big/button_pic.h"
 #include "gui/button.h"
-#include "gui/box.h"
+#include "gui/check_box.h"
+#include "gui/grid_box.h"
+#include "gui/horizontal_box.h"
+#include "gui/label.h"
+#include "gui/picture_text_cbox.h"
 #include "gui/question.h"
+#include "gui/spin_button.h"
+#include "gui/text_box.h"
+#include "gui/vertical_box.h"
+#include "include/app.h"
+#include "interface/keyboard.h"
 #include "interface/mouse.h"
 #include "sound/jukebox.h"
 #include "tool/resource_manager.h"
-#include "gui/big/button_pic.h"
-#include "gui/label.h"
-#include "gui/check_box.h"
-#include "gui/picture_text_cbox.h"
-#include "gui/text_box.h"
-#include "gui/list_box.h"
 
-Menu::Menu(const std::string& bg, t_action _actions) :
-  actions(_actions),
-  selected_widget(NULL)
+Menu::Menu(const std::string& bg, t_action _actions)
+  : actions(_actions)
+  , selected_widget(NULL)
 {
   close_menu = false ;
-  AppWormux * app = AppWormux::GetInstance();
+  Surface& window = GetMainWindow();
 
-  uint x = app->video->window.GetWidth() / 2;
-  uint y = app->video->window.GetHeight() - 50;
-
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  background = new Sprite( GetResourceManager().LoadImage( res, bg), true);
-  background->cache.EnableLastFrameCache();
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  background = new Sprite(GetResourceManager().LoadImage(res, bg, false));
 
   b_ok = NULL;
   b_cancel = NULL;
@@ -58,46 +57,77 @@ Menu::Menu(const std::string& bg, t_action _actions) :
   if (actions == vNo) {
     actions_buttons = NULL;
   } else {
-    actions_buttons = new HBox(50, false);
+    actions_buttons = new HBox(50, false, false);
 
     if (actions == vOk || actions == vOkCancel) {
       b_ok = new Button(res, "menu/valider");
+      b_ok->SetSizeX(80);
       actions_buttons->AddWidget(b_ok);
     }
 
     if (actions == vCancel  || actions == vOkCancel) {
       b_cancel = new Button(res, "menu/annuler");
+      b_cancel->SetSizeX(80);
       actions_buttons->AddWidget(b_cancel);
     }
 
-    actions_buttons->SetPosition(x, y);
     widgets.AddWidget(actions_buttons);
     widgets.Pack();
+    uint x = (window.GetWidth() - actions_buttons->GetSizeX())/2;
+    uint y = window.GetHeight() - actions_buttons->GetSizeY();
+
+    actions_buttons->SetPosition(x, y);
   }
 
   widgets.SetContainer(this);
   GetResourceManager().UnLoadXMLProfile(res);
 }
 
+Menu::Menu(void)
+  : widgets()
+  , actions(vNo)
+  , background(NULL)
+  , selected_widget(NULL)
+  , b_cancel(NULL)
+  , b_ok(NULL)
+  , close_menu(false)
+  , actions_buttons(NULL)
+{
+}
+
 Menu::~Menu()
 {
-  AppWormux::GetInstance()->SetCurrentMenu(NULL);
-  delete background;
+  AppWarmux::GetInstance()->SetCurrentMenu(NULL);
+  if (background) {
+    delete background;
+  }
 }
 
 void Menu::LoadMenu(Profile * profile,
-                    const xmlNode * rootMenuNode) 
+                    const xmlNode * rootMenuNode)
 {
+  LoadBackground(profile, rootMenuNode);
   LoadWidget(profile, rootMenuNode, &widgets);
   widgets.Pack();
 }
 
-void Menu::LoadWidget(Profile * profile,
-                      const xmlNode * rootMenuNode,
-                      WidgetList * container) 
+void Menu::LoadBackground(Profile * profile,
+                          const xmlNode * rootMenuNode)
 {
   XmlReader * xmlFile = profile->GetXMLDocument();
-  unsigned int widgetCount = xmlFile->GetNbChildren(rootMenuNode);
+  std::string file("menu/pic_not_found.png");
+  xmlFile->ReadStringAttr(rootMenuNode, "backgroundPicture", file);
+  file = profile->relative_path + file;
+  Surface surface(file.c_str());
+  background = new Sprite(surface);
+}
+
+void Menu::LoadWidget(Profile * profile,
+                      const xmlNode * rootMenuNode,
+                      WidgetList * container)
+{
+  XmlReader * xmlFile = profile->GetXMLDocument();
+  uint widgetCount = xmlFile->GetNbChildren(rootMenuNode);
   const xmlNode * currentNode = xmlFile->GetFirstChild(rootMenuNode);
   std::string currentNodeName;
 
@@ -107,9 +137,10 @@ void Menu::LoadWidget(Profile * profile,
     currentNodeName = xmlFile->GetNodeName(currentNode);
     Widget * newWidget = CreateWidget(profile, currentNode, currentNodeName);
 
-    if (NULL != newWidget) {
-
-      if ("GridBox" == currentNodeName) {
+    if (newWidget) {
+      if ("GridBox" == currentNodeName ||
+          "HorizontalBox" == currentNodeName ||
+          "VerticalBox" == currentNodeName) {
         LoadWidget(profile, currentNode, (WidgetList*)newWidget);
       }
       container->AddWidget(newWidget);
@@ -117,7 +148,7 @@ void Menu::LoadWidget(Profile * profile,
     currentNode = xmlFile->GetNextSibling(currentNode);
   }
 
-  if (NULL != container) {
+  if (container) {
     container->Pack();
   }
 }
@@ -141,22 +172,20 @@ Widget * Menu::CreateWidget(Profile * profile,
   } else if ("PicTxtCheckBox" == widgetName ) {
     widget = new PictureTextCBox(profile, widgetNode);
   } else if ("VerticalBox" == widgetName) {
-    return NULL;
+    widget = new VBox(profile, widgetNode);
   } else if ("HorizontalBox" == widgetName) {
-    return NULL;
+    widget = new HBox(profile, widgetNode);
   } else if ("SpinButton" == widgetName) {
-    return NULL;
+    widget = new SpinButton(profile, widgetNode);
   } else if ("PasswordBox" == widgetName) {
     widget = new PasswordBox(profile, widgetNode);
   } else if ("TextBox" == widgetName) {
     widget = new TextBox(profile, widgetNode);
   } else if ("Button" == widgetName) {
     widget = new Button(profile, widgetNode);
-  } else if ("ListBox" == widgetName) {
-    widget = new ListBox(profile, widgetNode);
   }
 
-  if (NULL != widget) { 
+  if (widget) {
     return widget->LoadXMLConfiguration() ? widget : NULL;
   }
   return NULL;
@@ -195,9 +224,9 @@ void Menu::mouse_cancel()
 
 bool Menu::BasicOnClickUp(const Point2i &mousePosition)
 {
-  if (b_ok != NULL &&  b_ok->Contains(mousePosition)) {
+  if (b_ok &&  b_ok->Contains(mousePosition)) {
     mouse_ok();
-  } else if (b_cancel != NULL && b_cancel->Contains(mousePosition)) {
+  } else if (b_cancel && b_cancel->Contains(mousePosition)) {
     mouse_cancel();
   } else {
     return false;
@@ -259,12 +288,18 @@ void Menu::DisplayError(const std::string & msg)
 
 void Menu::DrawBackground()
 {
-  background->ScaleSize(GetMainWindow().GetSize());
+  if (!background) {
+    return;
+  }
+  background->ScaleSize(GetMainWindow().GetSize()+1);
   background->Blit(GetMainWindow(), 0, 0);
 }
 
-void Menu::RedrawBackground(const Rectanglei & rect)
+void Menu::RedrawBackground(const Rectanglei & rect) const
 {
+  if (!background) {
+    return;
+  }
   background->Blit(GetMainWindow(), rect, rect.GetPosition());
 }
 
@@ -278,104 +313,113 @@ void Menu::RedrawMenu()
 // Push a stupid user event to make the menu exits for SDL_WaitEvent
 void Menu::WakeUpOnCallback()
 {
-  SDL_Event event;
-  event.type = SDL_USEREVENT;
-  event.user.code = 0;
-  event.user.data1 = NULL;
-  event.user.data2 = NULL;
-  SDL_PushEvent(&event);
+  SDL_Event evnt;
+  evnt.type = SDL_USEREVENT;
+  evnt.user.code = 0;
+  evnt.user.data1 = NULL;
+  evnt.user.data2 = NULL;
+  SDL_PushEvent(&evnt);
 }
 
-bool Menu::HandleGlobalEvent(const SDL_Event & event)
+bool Menu::HandleGlobalEvent(const SDL_Event & evnt)
 {
-  if (event.type != SDL_KEYDOWN) {
+  if (evnt.type != SDL_KEYDOWN) {
     return false;
   }
 
   // Emergency exit
-  if (event.key.keysym.sym == SDLK_ESCAPE
+  if (evnt.key.keysym.sym == SDLK_ESCAPE
       && (SDL_GetModState() & KMOD_CTRL)) {
-    AppWormux::EmergencyExit();
+    AppWarmux::EmergencyExit();
     return true; // never reached
   }
 
   // Toggle fullscreen
-  if (event.key.keysym.sym == SDLK_F10) {
-    AppWormux::GetInstance()->video->ToggleFullscreen();
+  if (evnt.key.keysym.sym == SDLK_F10) {
+    AppWarmux::GetInstance()->video->ToggleFullscreen();
     return true;
   }
 
   return false;
 }
 
-void Menu::HandleEvent(const SDL_Event& event)
+void Menu::HandleEvent(const SDL_Event& evnt)
 {
-  if (event.type == SDL_QUIT) {
+  if (evnt.type == SDL_QUIT) {
+#if defined MAEMO || defined __SYMBIAN32__
+    AppWarmux::EmergencyExit();
+#else
     key_cancel();
-  } else if (event.type == SDL_KEYDOWN) {
-    bool used_by_widget = false;
+#endif
+  } else if (evnt.type == SDL_KEYDOWN) {
 
-    if (event.key.keysym.sym != SDLK_ESCAPE &&
-	event.key.keysym.sym != SDLK_RETURN &&
-	event.key.keysym.sym != SDLK_KP_ENTER)
-      used_by_widget = widgets.SendKey(event.key.keysym);
+    // Drop key events that are purely modifiers
+    if (Keyboard::IsModifier(evnt.key.keysym.sym))
+      return;
+
+    // Allow widgets to interpret any key they want,
+    // and do not reserve esc/return/delete/backspace
+    bool used_by_widget = widgets.SendKey(evnt.key.keysym);
 
     if (!used_by_widget) {
-      switch (event.key.keysym.sym)
-	{
-	case SDLK_ESCAPE:
-	  key_cancel();
-	  break;
-	case SDLK_RETURN:
-	case SDLK_KP_ENTER:
-	  key_ok();
-	  break;
-	case SDLK_UP:
-	  key_up();
-	  break;
-	case SDLK_DOWN:
-	  key_down();
-	  break;
-	case SDLK_LEFT:
-	  key_left();
-	  break;
-	case SDLK_RIGHT:
-	  key_right();
-	  break;
-	case SDLK_TAB:
-	  key_tab();
-	  break;
-	default:
-	  // should have been handle upper!
-	  break;
-	}
+      switch (evnt.key.keysym.sym) {
+      case SDLK_ESCAPE:
+        key_cancel();
+        break;
+      case SDLK_RETURN:
+      case SDLK_KP_ENTER:
+        key_ok();
+        break;
+      case SDLK_UP:
+        key_up();
+        break;
+      case SDLK_DOWN:
+        key_down();
+        break;
+      case SDLK_LEFT:
+        key_left();
+        break;
+      case SDLK_RIGHT:
+        key_right();
+        break;
+      case SDLK_TAB:
+        key_tab();
+        break;
+      default:
+        // should have been handle upper!
+        break;
+      }
     }
-  } else if (event.type == SDL_MOUSEBUTTONUP) {
-    Point2i mousePosition(event.button.x, event.button.y);
-    
+  } else if (evnt.type == SDL_MOUSEBUTTONUP) {
+    Point2i mousePosition(evnt.button.x, evnt.button.y);
+
     if (!BasicOnClickUp(mousePosition)) {
-      OnClickUp(mousePosition, event.button.button);
+      OnClickUp(mousePosition, evnt.button.button);
     }
-  } else if (event.type == SDL_MOUSEBUTTONDOWN) {
-    Point2i mousePosition(event.button.x, event.button.y);
-    OnClick(mousePosition, event.button.button);
+  } else if (evnt.type == SDL_MOUSEBUTTONDOWN) {
+    Point2i mousePosition(evnt.button.x, evnt.button.y);
+    OnClick(mousePosition, evnt.button.button);
   }
 }
 
 void Menu::HandleEvents()
 {
   // Poll and treat events
-  SDL_Event event;
+  SDL_Event evnt;
 
-  if (!SDL_WaitEvent(&event)) {
+  if (!SDL_WaitEvent(&evnt)) {
     return;
   }
 
   do {
-    if (!HandleGlobalEvent(event)) {
-      HandleEvent(event);
+    // We might be set inactive while in here
+    if (AppWarmux::CheckInactive(evnt))
+      continue;
+
+    if (!HandleGlobalEvent(evnt)) {
+      HandleEvent(evnt);
     }
-  } while (SDL_PollEvent(&event) && !close_menu);
+  } while (SDL_PollEvent(&evnt) && !close_menu);
 }
 
 void Menu::Run(bool skip_menu)
@@ -401,10 +445,9 @@ void Menu::Run(bool skip_menu)
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
-  do
-  {
+  do {
     // this is the current menu (here in case we had run a submenu)
-    AppWormux::GetInstance()->SetCurrentMenu(this);
+    AppWarmux::GetInstance()->SetCurrentMenu(this);
 
     // Poll and treat events
     HandleEvents();
@@ -424,9 +467,10 @@ void Menu::Run(bool skip_menu)
 
 void Menu::Display(const Point2i& mousePosition)
 {
-  widgets.Update(mousePosition);
+  widgets.Update(mousePosition, last_mouse_position);
   Draw(mousePosition);
-  AppWormux::GetInstance()->video->Flip();
+  AppWarmux::GetInstance()->video->Flip();
+  last_mouse_position = mousePosition;
 }
 
 void Menu::SetActionButtonsXY(int x, int y)

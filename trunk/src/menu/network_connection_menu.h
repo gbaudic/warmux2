@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <list>
 #include "menu.h"
 #include "network/network.h"
-#include <WORMUX_index_server.h> // for GameServerInfo
+#include <WARMUX_index_server.h> // for GameServerInfo
 
 // Forward declarations
 class Button;
@@ -47,11 +47,6 @@ public:
   } network_menu_action_t;
 
 private:
-  /* If you need this, implement it (correctly)*/
-  NetworkConnectionMenu(const NetworkConnectionMenu&);
-  NetworkConnectionMenu operator=(const NetworkConnectionMenu&);
-  /********************************************/
-
   MultiTabs * tabs;
 
   TextBox* srv_port_number;
@@ -69,14 +64,12 @@ private:
   PasswordBox* cl_server_pwd;
 
   MsgBox *msg_box;
-  
+
   uint m_last_click_on_games_lst;
   uint m_Double_click_interval;
 
-  virtual void OnClick(const Point2i &mousePosition, int button);
   virtual void OnClickUp(const Point2i &mousePosition, int button);
-  virtual void Draw(const Point2i &mousePosition);
-  virtual void HandleEvent(const SDL_Event& event);
+  virtual void HandleEvent(const SDL_Event& evnt);
 
   void DisplayNetError(connection_state_t conn);
 
@@ -86,12 +79,12 @@ private:
   void __RefreshList();
 
   bool HostingServer(const std::string& port,
-		     const std::string& game_name,
+                     const std::string& game_name,
                      const std::string& passwd,
-		     bool internet);
+                     bool internet);
   bool ConnectToClient(const std::string& srv_address,
-		       const std::string& port,
-		       const std::string& passwd);
+                       const std::string& port,
+                       const std::string& passwd);
 
   static SDL_Thread* thread_refresh;
   void ThreadRefreshList();

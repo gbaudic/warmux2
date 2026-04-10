@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,33 +17,35 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#include "gui/spin_button_picture.h"
-#include "graphic/text.h"
-#include "graphic/video.h"
-#include "gui/button.h"
 #include <sstream>
 #include "include/app.h"
-#include "tool/math_tools.h"
-#include "tool/resource_manager.h"
+#include "gui/spin_button_picture.h"
+#include "gui/torus_cache.h"
 #include "graphic/polygon_generator.h"
+#include "graphic/text.h"
+#include "graphic/sprite.h"
+#include "graphic/video.h"
+#include "tool/math_tools.h"
 #include "tool/affine_transform.h"
+#include "tool/resource_manager.h"
 
-SpinButtonWithPicture::SpinButtonWithPicture (const std::string& label,
-                                              const std::string& resource_id,
-                                              const Point2i& _size,
-                                              int value, int step,
-                                              int min_value, int max_value) :
-  AbstractSpinButton(value, step, min_value, max_value)
+#define SMALL_R 25
+#define BIG_R   35
+#define OPEN_ANGLE 0.96f // 55
+
+SpinButtonWithPicture::SpinButtonWithPicture(const std::string& label,
+                                             const std::string& resource_id,
+                                             const Point2i& _size,
+                                             int value, int step,
+                                             int min_value, int max_value)
+  : AbstractSpinButton(value, step, min_value, max_value)
 {
   position = Point2i(-1, -1);
   size = _size;
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  m_image = GetResourceManager().LoadImage(res, resource_id);
-  m_annulus_background = GetResourceManager().LoadImage(res, "menu/annulus_background");
-  m_annulus_foreground = GetResourceManager().LoadImage(res, "menu/annulus_foreground");
-  m_progress_color = GetResourceManager().LoadColor(res, "menu/annulus_progress_color");
-  GetResourceManager().UnLoadXMLProfile( res);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  torus = new TorusCache(res, resource_id, BIG_R, SMALL_R);
+  GetResourceManager().UnLoadXMLProfile(res);
 
   txt_label = new Text(label, dark_gray_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
   txt_label->SetMaxWidth(GetSizeX());
@@ -59,6 +61,7 @@ SpinButtonWithPicture::~SpinButtonWithPicture ()
   delete txt_label;
   delete txt_value_black;
   delete txt_value_white;
+  delete torus;
 }
 
 void SpinButtonWithPicture::Pack()
@@ -66,53 +69,58 @@ void SpinButtonWithPicture::Pack()
   txt_label->SetMaxWidth(size.x);
 }
 
-void SpinButtonWithPicture::Draw(const Point2i &/*mousePosition*/) const
+void SpinButtonWithPicture::Draw(const Point2i &mousePosition)
 {
   Surface& surf = GetMainWindow();
 
   //  the computed positions are to center on the image part of the widget
 
-  // 1. first draw the annulus background
-  uint tmp_back_x = GetPositionX() + (GetSizeX() - m_annulus_background.GetWidth())/4 ;
-  uint tmp_back_y = GetPositionY();
-  surf.Blit(m_annulus_background, Point2i(tmp_back_x, tmp_back_y));
+  // 1. draw torus
+  torus->Draw(*this);
 
-  // 2. then draw the progress annulus
-  static uint small_r = 25;
-  static uint big_r = 35;
-  static Double open_angle_value = 0.96; // 55
-  uint center_x = tmp_back_x + m_annulus_background.GetWidth() / 2;
-  uint center_y = tmp_back_y + m_annulus_background.GetHeight() / 2;
+  // 2. then draw buttons
+  #define IMG_BUTTONS_W 5
+  #define IMG_BUTTONS_H 12
 
-  Double angle = (TWO * PI - open_angle_value) * (GetValue() - GetMinValue()) / (GetMaxValue() - GetMinValue());
-  Polygon *tmp = PolygonGenerator::GeneratePartialTorus(big_r * 2, small_r * 2, 100, angle, open_angle_value / TWO);
+  Point2i center = GetPosition() + torus->GetCenter();
+  if (GetValue() > GetMinValue()) {
 
-  tmp->SetPlaneColor(m_progress_color);
-  tmp->ApplyTransformation(AffineTransform2D::Translate(center_x, center_y));
-  tmp->Draw(&surf);
-  delete(tmp);
+    if (Contains(mousePosition) && mousePosition.x < center.x)
+      torus->m_minus->SetCurrentFrame(1);
+    else
+      torus->m_minus->SetCurrentFrame(0);
 
-  // 3. then draw the annulus foreground
-  uint tmp_fore_x = tmp_back_x;
-  uint tmp_fore_y = tmp_back_y;
-  surf.Blit(m_annulus_foreground, Point2i(tmp_fore_x, tmp_fore_y));
+    torus->m_minus->Blit(surf, GetPosition().x + IMG_BUTTONS_W, GetPosition().y + IMG_BUTTONS_H);
+  }
 
-  // 4. then draw the image
-  uint tmp_x = center_x - m_image.GetWidth() / 2;
-  uint tmp_y = center_y - m_image.GetHeight() / 2;
-  surf.Blit(m_image, Point2i(tmp_x, tmp_y));
+  if (GetValue() < GetMaxValue()) {
+    if (Contains(mousePosition) && mousePosition.x > center.x)
+      torus->m_plus->SetCurrentFrame(1);
+    else
+      torus->m_plus->SetCurrentFrame(0);
 
-  // 5. add in the value image
-  tmp_x = center_x;
-  tmp_y = center_y + small_r - 3;
+    torus->m_plus->Blit(surf, GetPosition().x + GetSize().x - torus->m_plus->GetWidth() - IMG_BUTTONS_W,
+                        GetPosition().y + IMG_BUTTONS_H);
+  }
+
+  // 6. add in the value image
+  int tmp_x = center.x;
+  int tmp_y = center.y + SMALL_R - 3;
   uint value_h = Font::GetInstance(Font::FONT_MEDIUM)->GetHeight();
 
   txt_value_black->DrawCenterTop(Point2i(tmp_x + 1, tmp_y + 1 - value_h/2));
   txt_value_white->DrawCenterTop(Point2i(tmp_x, tmp_y - value_h/2));
 
-  // 6. and finally the label image
+  // 7. and finally the label image
   txt_label->DrawCenterTop(Point2i(GetPositionX() + GetSizeX()/2,
-				   GetPositionY() + GetSizeY() - txt_label->GetHeight()));
+                                   GetPositionY() + GetSizeY() - txt_label->GetHeight()));
+}
+
+void SpinButtonWithPicture::RecreateTorus()
+{
+  float angle = (M_PI*2 - OPEN_ANGLE) * (GetValue() - GetMinValue())
+              / (GetMaxValue() - GetMinValue());
+  torus->Refresh(angle, OPEN_ANGLE);
 }
 
 Widget* SpinButtonWithPicture::ClickUp(const Point2i &mousePosition, uint button)
@@ -123,11 +131,15 @@ Widget* SpinButtonWithPicture::ClickUp(const Point2i &mousePosition, uint button
     return NULL;
   }
 
-  if (button == Mouse::BUTTON_RIGHT() || button == SDL_BUTTON_WHEELDOWN) {
+  bool is_click = Mouse::IS_CLICK_BUTTON(button);
+  //if (button == Mouse::BUTTON_RIGHT() || button == SDL_BUTTON_WHEELDOWN) {
+  if ( (is_click && mousePosition.x <= (GetPositionX() + GetSizeX()/2))
+       || button == SDL_BUTTON_WHEELDOWN ) {
     DecValue();
     return this;
-
-  } else if (button == Mouse::BUTTON_LEFT() || button == SDL_BUTTON_WHEELUP) {
+  } else if ( (is_click && mousePosition.x > (GetPositionX() + GetSizeX()/2))
+              || button == SDL_BUTTON_WHEELUP ) {
+  //} else if (button == Mouse::BUTTON_LEFT() || button == SDL_BUTTON_WHEELUP) {
     IncValue();
     return this;
   }
@@ -143,4 +155,5 @@ void SpinButtonWithPicture::ValueHasChanged()
   std::string s(value_s.str());
   txt_value_black->SetText(s);
   txt_value_white->SetText(s);
+  RecreateTorus();
 }

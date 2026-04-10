@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,95 +20,165 @@
 #ifndef TILEITEM_H
 #define TILEITEM_H
 
-#include <WORMUX_point.h>
+#include <WARMUX_point.h>
 #include "graphic/surface.h"
 
-const Point2i CELL_SIZE(64, 64);
-
-#ifdef DEBUG
-//#define DBG_TILE
-#endif
+// Must be at least 3
+#define  CELL_BITS         6
+#define  CELL_DIM          (1<<CELL_BITS)
+#define  CELL_MASK         (CELL_DIM-1)
+static const Point2i CELL_SIZE(CELL_DIM, CELL_DIM);
 
 class TileItem
 {
 public:
-  TileItem () {};
-  virtual ~TileItem () {};
+  TileItem() {};
+  virtual ~TileItem() {};
 
   bool IsEmpty ();
-  virtual unsigned char GetAlpha(const Point2i &pos) = 0;
-  virtual void Dig(const Point2i &position, const Surface& dig) = 0;
-  virtual void Dig(const Point2i &center, const uint radius) = 0;
-  virtual void ScalePreview(uint8_t *odata, uint opitch, uint shift);
-  virtual void MergeSprite(const Point2i &/*position*/, Surface& /*spr*/) {};
-  virtual Surface GetSurface() = 0;
-  virtual void Draw(const Point2i &pos) = 0;
   virtual bool IsTotallyEmpty() const = 0;
-#ifdef DBG_TILE
-  virtual void FillWithRGB(Uint8 /*r*/, Uint8 /*g*/, Uint8 /*b*/) {};
-#endif
+  virtual bool IsEmpty(const Point2i &pos) const = 0;
+  virtual void ScalePreview(uint8_t* /*odata*/, int /*x*/,
+                            uint /*opitch*/, uint /*shift*/) { };
+  virtual void Draw(const Point2i &pos) = 0;
+  virtual bool NeedSynch() const = 0;
 };
 
 class TileItem_Empty : public TileItem
 {
 public:
-  TileItem_Empty () { empty = NULL; };
-  ~TileItem_Empty () { if (empty) delete empty; };
+  TileItem_Empty() { };
+  ~TileItem_Empty() { };
 
-  Surface *empty;
-  unsigned char GetAlpha (const Point2i &/*pos*/){return 0;};
+  bool IsEmpty(const Point2i &/*pos*/) const { return true; };
   void Dig(const Point2i &/*position*/, const Surface& /*dig*/){};
-  Surface GetSurface() {
-    if (!empty) empty = new Surface();
-    return *empty;
-  };
   void Dig(const Point2i &/*center*/, const uint /*radius*/) {};
-  void Draw(const Point2i &pos);
-  bool IsTotallyEmpty() const {return true;};
+  void Draw(const Point2i&) { };
+  bool IsTotallyEmpty() const { return true; };
+  bool NeedSynch() const { return false; }
 };
 
-class TileItem_AlphaSoftware : public TileItem
+class TileItem_NonEmpty : public TileItem
 {
-  unsigned char* last_filled_pixel;
-  const TileItem_AlphaSoftware& operator=(const TileItem_AlphaSoftware&);
+protected:
+  Surface        m_surface;
+  uint8_t       *m_empty_bitfield;
+  bool           m_is_empty;
+  bool           m_need_check_empty;
+  uint8_t        m_alpha_threshold;
+
+  Point2i        m_start_check, m_end_check;
+  bool           m_need_resynch;
+
+  TileItem_NonEmpty(uint8_t alpha_threshold);
+
+  void CheckEmptyField();
+  virtual void ForceEmpty();
 
 public:
-  bool need_check_empty;
-  bool need_delete;
+  ~TileItem_NonEmpty() { delete[] m_empty_bitfield; }
 
-  TileItem_AlphaSoftware(const Point2i &size);
-  ~TileItem_AlphaSoftware();
+  virtual bool CheckEmpty() = 0;
+  virtual void MergeSprite(const Point2i &position, Surface& spr) = 0;
+  virtual void Empty(int start_x, int end_x, uint8_t* buf) = 0;
+  virtual void Darken(int start_x, int end_x, uint8_t* buf) = 0;
+  virtual void Dig(const Point2i &position, const Surface& dig) = 0;
 
-  unsigned char GetAlpha(const Point2i &pos);
-  void Dig(const Point2i &position, const Surface& dig);
+  void ForceRecheck();
+
+  static TileItem_NonEmpty* NewEmpty(uint8_t bpp, uint8_t alpha_threshold);
+
+  bool NeedDelete()
+  {
+    if (m_need_check_empty)
+      return CheckEmpty();
+
+    return m_is_empty;
+  }
+
+  bool IsEmpty(const Point2i &pos) const
+  {
+    ASSERT(!m_need_check_empty);
+    return m_empty_bitfield[(pos.y*CELL_SIZE.x + pos.x)>>3] & (1 << (pos.x&7));
+  }
+
+  uint16_t GetChecksum() const;
+  uint16_t GetSynchsum() { m_need_resynch = false; return GetChecksum(); }
   void Dig(const Point2i &center, const uint radius);
-  void MergeSprite(const Point2i &position, Surface& spr);
-  void ScalePreview(uint8_t *odata, uint opitch, uint shift);
+  bool IsTotallyEmpty() const { return false; };
+  Surface& GetSurface() { return m_surface; };
   void Draw(const Point2i &pos);
-
-  bool NeedDelete() const {return need_delete; };
-  void CheckEmpty();
-  void ResetEmptyCheck();
-
-  bool IsTotallyEmpty() const {return false;};
-
-private:
-  TileItem_AlphaSoftware(const TileItem_AlphaSoftware &copy);
-  unsigned char (TileItem_AlphaSoftware::*_GetAlpha)(const Point2i &pos) const;
-  unsigned char GetAlpha_Index0(const Point2i &pos) const;
-  inline unsigned char GetAlpha_Index3(const Point2i &pos) const;
-  inline unsigned char GetAlpha_Generic(const Point2i &pos) const;
-  Surface GetSurface() { return m_surface; };
-
-  void Empty(const int start_x, const int end_x, unsigned char* buf, const int bpp) const;
-  void Darken(const int start_x, const int end_x, unsigned char* buf, const int bpp) const;
-
-  Point2i m_size;
-  Surface m_surface;
-
-#ifdef DBG_TILE
-  void FillWithRGB(Uint8 r, Uint8 g, Uint8 b);
-#endif
+  bool NeedSynch() const { return m_need_resynch; }
 };
+
+class TileItem_BaseColorKey : public TileItem_NonEmpty
+{
+protected:
+  Uint32  color_key;
+  TileItem_BaseColorKey(uint8_t bpp, uint8_t alpha_threshold);
+  TileItem_BaseColorKey(uint8_t alpha_threshold);
+
+  void MapColorKey();
+  void ForceEmpty();
+
+public:
+  static const Uint32 COLOR_KEY = 0xFF00FF;
+
+  void MergeSprite(const Point2i &position, Surface& spr);
+
+  void Dig(const Point2i &position, const Surface& dig);
+  bool CheckEmpty();
+};
+
+class TileItem_ColorKey16: public TileItem_BaseColorKey
+{
+public:
+  TileItem_ColorKey16(uint8_t threshold)
+    : TileItem_BaseColorKey(16, threshold) { };
+  TileItem_ColorKey16(void *pixels, int stride, uint8_t threshold);
+
+  void Empty(int start_x, int end_x, uint8_t* buf);
+  void Darken(int start_x, int end_x, uint8_t* buf);
+  void ScalePreview(uint8_t *odata, int x, uint opitch, uint shift);
+};
+
+class TileItem_ColorKey24: public TileItem_BaseColorKey
+{
+public:
+  TileItem_ColorKey24(void *pixels, int stride, uint8_t threshold);
+
+  void Empty(int start_x, int end_x, uint8_t* buf);
+  void Darken(int start_x, int end_x, uint8_t* buf);
+  void ScalePreview(uint8_t *odata, int x, uint opitch, uint shift);
+};
+
+class TileItem_AlphaSoftware : public TileItem_NonEmpty
+{
+  // A tile can have all alpha to 0, be empty but still have image data
+  bool transparent;
+
+protected:
+  void ForceEmpty();
+
+public:
+  TileItem_AlphaSoftware(uint8_t threshold);
+  TileItem_AlphaSoftware(void *pixels, int stride, uint8_t threshold);
+  // Fill as empty
+
+  void MergeSprite(const Point2i &position, Surface& spr)
+  {
+    // Can't force SDL_SRCALPHA to 0 and blit, as it may affect non-empty pixels
+    m_surface.MergeSurface(spr, position);
+    ForceRecheck();
+  }
+
+  bool CheckEmpty();
+  void Empty(int start_x, int end_x, uint8_t* buf);
+  void Darken(int start_x, int end_x, uint8_t* buf);
+  void Dig(const Point2i &position, const Surface& dig);
+  void ScalePreview(uint8_t *odata, int x, uint opitch, uint shift);
+};
+
+TileItem_NonEmpty* NewEmpty(uint8_t bpp, uint8_t alpha_threshold);
 
 #endif

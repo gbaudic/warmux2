@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,16 +24,15 @@
 
 #include <string>
 #include <vector>
-#include "gui/box.h"
+#include "gui/horizontal_box.h"
 
 class Button;
 class CustomTeam;
 class Team;
-class SpinButton;
+class SpinButtonWithPicture;
 class Label;
 class PictureWidget;
 class TextBox;
-
 
 class TeamBox : public HBox
 {
@@ -57,13 +56,15 @@ class TeamBox : public HBox
   TextBox * player_name;
   Button * next_custom_team;
   Button * previous_custom_team;
-  SpinButton * nb_characters;
+  SpinButtonWithPicture * nb_characters;
 
   std::vector<CustomTeam *> custom_team_list;
   unsigned custom_team_current_id;
 
-
+  CustomTeam *GetCustomTeam() const;
   void UpdateTeam(const std::string& old_team_id) const;
+
+  void UpdatePlayerNameColor();
 
  public:
   TeamBox(const std::string& player_name, const Point2i &size);
@@ -73,17 +74,16 @@ class TeamBox : public HBox
   void UpdatePlayerType();
   void ClearTeam();
   Team* GetTeam() const;
-  CustomTeam *GetCustomTeam();
 
   void ValidOptions() const;
 
   bool IsLocal() const;
 
-  void Update(const Point2i &mousePosition,
-              const Point2i &lastMousePosition);
+  virtual void Update(const Point2i &mousePosition,
+                      const Point2i &lastMousePosition);
 
-  Widget* Click(const Point2i &mousePosition, uint button);
-  Widget* ClickUp(const Point2i &mousePosition, uint button);
+  virtual Widget* Click(const Point2i &mousePosition, uint button);
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
   void SwitchPlayerType();
 };

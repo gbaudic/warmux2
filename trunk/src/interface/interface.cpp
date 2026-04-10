@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,18 +19,22 @@
  * Graphical interface showing various information about the game.
  *****************************************************************************/
 
+#include "include/action_handler.h"
 #include "interface/interface.h"
+#include "interface/weapon_help.h"
 #include "interface/mouse.h"
 #include "character/character.h"
 #include "game/game.h"
 #include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/text.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "map/camera.h"
 #include "map/map.h"
+#include "object/objects_list.h"
+#include "object/objbox.h"
 #include "team/macro.h"
 #include "team/team.h"
 #include "tool/resource_manager.h"
@@ -38,101 +42,149 @@
 #include "weapon/weapon.h"
 #include "weapon/weapon_strength_bar.h"
 
-const Point2i BORDER_POSITION(5, 5);
+#define BORDER_POSITION 5
+#define MARGIN          4
+#define WIND_ICON_WIDTH 79
 
-const uint MARGIN = 4;
-
-Interface::Interface() :
-  energy_bar(NULL),
-  m_last_minimap_redraw(0)
+void Interface::LoadDataInternal(Profile *res)
 {
-  display = true;
-  start_hide_display = 0;
-  start_show_display = 0;
-  display_minimap = true;
-  minimap = NULL;
+  Surface tmp     = LOAD_RES_IMAGE("interface/background_interface");
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  game_menu = GetResourceManager().LoadImage( res, "interface/background_interface");
-  small_background_interface = GetResourceManager().LoadImage( res, "interface/small_background_interface");
-  clock_background = GetResourceManager().LoadImage( res, "interface/clock_background");
-  clock = NULL;
-  clock_normal = GetResourceManager().LoadSprite(res, "interface/clock_normal");
-  clock_emergency = GetResourceManager().LoadSprite(res, "interface/clock_emergency");
-  wind_icon = GetResourceManager().LoadImage( res, "interface/wind");
-  wind_indicator = GetResourceManager().LoadImage( res, "interface/wind_indicator");
+  FreeDrawElements();
 
-  // styled box
-  rounding_style[1][2] = GetResourceManager().LoadImage( res, "interface/rounding_bottom");
-  rounding_style[0][2] = GetResourceManager().LoadImage( res, "interface/rounding_bottom_left");
-  rounding_style[2][2] = GetResourceManager().LoadImage( res, "interface/rounding_bottom_right");
-  rounding_style[1][0] = GetResourceManager().LoadImage( res, "interface/rounding_top");
-  rounding_style[0][0] = GetResourceManager().LoadImage( res, "interface/rounding_top_left");
-  rounding_style[2][0] = GetResourceManager().LoadImage( res, "interface/rounding_top_right");
-  rounding_style[0][1] = GetResourceManager().LoadImage( res, "interface/rounding_left");
-  rounding_style[2][1] = GetResourceManager().LoadImage( res, "interface/rounding_right");
-  rounding_style[1][1] = GetResourceManager().LoadImage( res, "interface/rounding_center");
+  clock_normal    = LOAD_RES_SPRITE("interface/clock_normal");
+  clock_emergency = LOAD_RES_SPRITE("interface/clock_emergency");
 
-  rounding_style_mask[1][2] = GetResourceManager().LoadImage( res, "interface/rounding_mask_bottom");
-  rounding_style_mask[0][2] = GetResourceManager().LoadImage( res, "interface/rounding_mask_bottom_left");
-  rounding_style_mask[2][2] = GetResourceManager().LoadImage( res, "interface/rounding_mask_bottom_right");
-  rounding_style_mask[1][0] = GetResourceManager().LoadImage( res, "interface/rounding_mask_top");
-  rounding_style_mask[0][0] = GetResourceManager().LoadImage( res, "interface/rounding_mask_top_left");
-  rounding_style_mask[2][0] = GetResourceManager().LoadImage( res, "interface/rounding_mask_top_right");
-  rounding_style_mask[0][1] = GetResourceManager().LoadImage( res, "interface/rounding_mask_left");
-  rounding_style_mask[2][1] = GetResourceManager().LoadImage( res, "interface/rounding_mask_right");
+  last_width = AppWarmux::GetInstance()->video->window.GetWidth();
+  if (last_width < tmp.GetWidth()+20) {
+    zoom            = last_width / (float)(tmp.GetWidth()+20);
+    default_toolbar = tmp.RotoZoom(0.0, zoom, zoom);
+    control_toolbar = LOAD_RES_IMAGE("interface/background_control_interface").RotoZoom(0.0, zoom, zoom);
+    small_interface = LOAD_RES_IMAGE("interface/small_background_interface").RotoZoom(0.0, zoom, zoom);
+    clock_normal->Scale(zoom, zoom);
+    clock_emergency->Scale(zoom, zoom);
+  }
+  else {
+    zoom            = 1.0f;
+    default_toolbar = tmp;
+    control_toolbar = LOAD_RES_IMAGE("interface/background_control_interface");
+    small_interface = LOAD_RES_IMAGE("interface/small_background_interface");
+  }
+  clock_width = 70*zoom+0.5f;
+#ifdef ANDROID
+  // The optimization below depends on fastpath being implemented
+  // for RGB565 with surface alpha *and* colorkey
+  default_toolbar = default_toolbar.DisplayFormatColorKey(64);
+  control_toolbar = control_toolbar.DisplayFormatColorKey(64);
+  small_interface = small_interface.DisplayFormatColorKey(64);
+  default_toolbar.SetAlpha(SDL_SRCALPHA, 128);
+  control_toolbar.SetAlpha(SDL_SRCALPHA, 128);
+  small_interface.SetAlpha(SDL_SRCALPHA, 128);
+#endif
 
   // energy bar
-  energy_bar = new EnergyBar(0, 0, 120, 15,
-                             0, 0,
+  energy_bar = new EnergyBar(0, 0, 150*zoom, 15*zoom, 0, 0,
                              GameMode::GetInstance()->character.init_energy);
 
+  // Labels
+  uint fsize = Font::FONT_SMALL*powf(zoom, 0.85)+0.5f;
+  if (fsize < 10) fsize = 10;
+  t_character_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
+  t_team_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
+  t_player_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
+  t_weapon_name = new Text("None", m_text_color, fsize, Font::FONT_BOLD, false);
+  t_weapon_stock = new Text("0", m_text_color, fsize, Font::FONT_BOLD, false);
+  t_character_energy = new Text("Dead", m_energy_text_color, fsize, Font::FONT_BOLD);
+
+  // Timer
+  global_timer = new Text("0", gray_color, Font::FONT_BIG*zoom+0.5f, Font::FONT_BOLD, false);
+  timer = new Text("0", black_color, Font::FONT_MEDIUM*zoom+0.5f, Font::FONT_BOLD, false);
+
+  wind_bar.InitPos(0, 0, 82*zoom-1.5f, 15*zoom-1.5f);
+}
+
+void Interface::LoadData()
+{
+  Profile *res   = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  LoadDataInternal(res);
+  GetResourceManager().UnLoadXMLProfile(res);
+}
+
+Interface::Interface()
+  : global_timer(NULL)
+  , timer(NULL)
+  , energy_bar(NULL)
+  , t_character_name(NULL)
+  , t_team_name(NULL)
+  , t_player_name(NULL)
+  , t_character_energy(NULL)
+  , t_weapon_name(NULL)
+  , t_weapon_stock(NULL)
+  , is_control(false)
+  , display(true)
+  , start_hide_display(0)
+  , start_show_display(0)
+  , display_minimap(true)
+  , clock(NULL)
+  , clock_normal(NULL)
+  , clock_emergency(NULL)
+  , zoom(1.0f)
+  , minimap(NULL)
+  , m_last_minimap_redraw(0)
+  , m_last_preview_size(0, 0)
+  , mask(NULL)
+  , scratch(NULL)
+{
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+
+  m_text_color = LOAD_RES_COLOR("interface/text_color");
+  m_energy_text_color = LOAD_RES_COLOR("interface/energy_text_color");
+
+  LoadDataInternal(res);
+
   // wind bar
-  wind_bar.InitPos(0, 0, wind_indicator.GetWidth() - 4, wind_indicator.GetHeight() - 4);
-  wind_bar.SetMinMaxValueColor(GetResourceManager().LoadColor(res, "interface/wind_color_min"),
-                               GetResourceManager().LoadColor(res, "interface/wind_color_max"));
+  wind_bar.SetMinMaxValueColor(LOAD_RES_COLOR("interface/wind_color_min"),
+                               LOAD_RES_COLOR("interface/wind_color_max"));
   wind_bar.InitVal(0, -100, 100);
 
   wind_bar.border_color.SetColor(0, 0, 0, 0);
   wind_bar.background_color.SetColor(0, 0, 0, 0);
   //wind_bar.value_color = c_red;
 
-  wind_bar.SetReferenceValue (true, 0);
+  wind_bar.SetReferenceValue(true, 0);
 
   // strength bar initialisation
-  weapon_strength_bar.InitPos (0, 0, 300, 15);
-  weapon_strength_bar.InitVal (0, 0, 100);
+  weapon_strength_bar.InitPos(0, 0, 300, 15);
+  weapon_strength_bar.InitVal(0, 0, 100);
 
-  weapon_strength_bar.SetValueColor(GetResourceManager().LoadColor(res, "interface/weapon_strength_bar_value"));
-  weapon_strength_bar.SetBorderColor(GetResourceManager().LoadColor(res, "interface/weapon_strength_bar_border"));
-  weapon_strength_bar.SetBackgroundColor(GetResourceManager().LoadColor(res, "interface/weapon_strength_bar_background"));
+  weapon_strength_bar.SetValueColor(LOAD_RES_COLOR("interface/weapon_strength_bar_value"));
+  weapon_strength_bar.SetBorderColor(LOAD_RES_COLOR("interface/weapon_strength_bar_border"));
+  weapon_strength_bar.SetBackgroundColor(LOAD_RES_COLOR("interface/weapon_strength_bar_background"));
 
-  Color text_color = GetResourceManager().LoadColor(res, "interface/text_color");
-  Color energy_text_color = GetResourceManager().LoadColor(res, "interface/energy_text_color");
+  m_camera_preview_color = LOAD_RES_COLOR("interface/camera_preview_color");
 
-  m_camera_preview_color = GetResourceManager().LoadColor(res, "interface/camera_preview_color");
+  m_playing_character_preview_color = LOAD_RES_COLOR("interface/playing_character_preview_color");
 
-  m_playing_character_preview_color = GetResourceManager().LoadColor(res, "interface/playing_character_preview_color");
+  // Weapon help
+  help = new WeaponHelp();
 
-
-  // XXX Unused !?
-  // Color turn_timer_text_color = GetResourceManager().LoadColor(res, "interface/turn_timer_text_color");
-  // Color global_clock_text_color = GetResourceManager().LoadColor(res, "interface/global_clock_text_color");
-
-  global_timer = new Text(ulong2str(0), gray_color, Font::FONT_BIG, Font::FONT_BOLD, false);
-  timer = new Text(ulong2str(0), black_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
-
-  t_character_name = new Text("None", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
-  t_team_name = new Text("None", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
-  t_player_name = new Text("None", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
-  t_weapon_name = new Text("None", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
-  t_weapon_stock = new Text("0", text_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
-  t_character_energy = new Text("Dead", energy_text_color, Font::FONT_SMALL, Font::FONT_BOLD);
-
-  GetResourceManager().UnLoadXMLProfile( res);
+  GetResourceManager().UnLoadXMLProfile(res);
 }
 
 Interface::~Interface()
+{
+  FreeDrawElements();
+
+  if (minimap) delete minimap;
+  if (mask) delete mask;
+  if (scratch) delete scratch;
+
+  if (energy_bar) delete energy_bar;
+
+  delete help;
+}
+
+void Interface::FreeDrawElements()
 {
   if (clock_normal) delete clock_normal;
   if (clock_emergency) delete clock_emergency;
@@ -144,10 +196,6 @@ Interface::~Interface()
   if (t_character_energy) delete t_character_energy;
   if (t_weapon_name) delete t_weapon_name;
   if (t_weapon_stock) delete t_weapon_stock;
-  if (minimap) delete minimap;
-  if (NULL != energy_bar) {
-    delete energy_bar;
-  }
 }
 
 void Interface::Reset()
@@ -160,32 +208,37 @@ void Interface::Reset()
   character_under_cursor = NULL;
   weapon_under_cursor = NULL;
   weapons_menu.Reset();
+  help->Reset();
   energy_bar->InitVal(0, 0, GameMode::GetInstance()->character.init_energy);
+  TeamEnergy::SetSpacing((174-MARGIN)*zoom / TeamsList::GetInstance()->GetPlayingList().size());
+  FOR_EACH_TEAM(tmp_team)
+    (*tmp_team)->GetEnergyBar().SetHeight(default_toolbar.GetHeight());
 }
 
 void Interface::DrawCharacterInfo()
 {
-  AppWormux * app = AppWormux::GetInstance();
-  // XXX Not used !?
-  // Point2i pos = (app->video->window.GetSize() - GetSize()) * Point2d(0.5, 1);
+  Surface& window = GetMainWindow();
 
   // Get the character
-  if (character_under_cursor == NULL) character_under_cursor = &ActiveCharacter();
+  if (!character_under_cursor)
+    character_under_cursor = &ActiveCharacter();
+  const Team &team = character_under_cursor->GetTeam();
 
   // Display energy bar
-  Point2i energy_bar_offset = BORDER_POSITION + Point2i(MARGIN + character_under_cursor->GetTeam().GetFlag().GetWidth(),
-                                                        character_under_cursor->GetTeam().GetFlag().GetHeight() / 2);
+  Point2i energy_bar_offset = Point2i(MARGIN + team.GetFlag().GetWidth(),
+                                      team.GetFlag().GetHeight()>>1) + BORDER_POSITION;
   energy_bar->DrawXY(bottom_bar_pos + energy_bar_offset);
 
   // Display team logo
-  if(energy_bar->GetCurrentValue() == energy_bar->GetMinValue())
-    app->video->window.Blit(character_under_cursor->GetTeam().GetDeathFlag(), bottom_bar_pos + BORDER_POSITION);
+  if (energy_bar->GetCurrentValue() == energy_bar->GetMinValue())
+    window.Blit(team.GetDeathFlag(), bottom_bar_pos + BORDER_POSITION);
   else
-    app->video->window.Blit(character_under_cursor->GetTeam().GetFlag(), bottom_bar_pos + BORDER_POSITION);
+    window.Blit(team.GetFlag(), bottom_bar_pos + BORDER_POSITION);
 
   // Display team name
-  t_team_name->SetText(character_under_cursor->GetTeam().GetName());
-  Point2i team_name_offset = energy_bar_offset + Point2i(energy_bar->GetWidth() / 2, energy_bar->GetHeight() + t_team_name->GetHeight() / 2);
+  t_team_name->SetText(team.GetName());
+  Point2i team_name_offset = energy_bar_offset + Point2i(energy_bar->GetWidth()>>1,
+                                                         energy_bar->GetHeight() + (t_team_name->GetHeight()>>1));
   t_team_name->DrawCenter(bottom_bar_pos + team_name_offset);
 
   // Display character's name
@@ -194,67 +247,61 @@ void Interface::DrawCharacterInfo()
   t_character_name->DrawCenter(bottom_bar_pos + character_name_offset);
 
   // Display player's name
-  t_player_name->SetText(_("Head commander: ") + character_under_cursor->GetTeam().GetPlayerName());
-  Point2i player_name_offset = energy_bar_offset + Point2i(energy_bar->GetWidth() / 2, t_team_name->GetHeight() + t_player_name->GetHeight() + MARGIN);
-  t_player_name->DrawCenter(bottom_bar_pos + player_name_offset);
+  if (window.GetHeight() > 480) {
+    t_player_name->SetText(_("Head commander") + std::string(": ") + team.GetPlayerName());
+    Point2i player_name_offset = energy_bar_offset
+      + Point2i((energy_bar->GetWidth()>>1), t_team_name->GetHeight() + t_player_name->GetHeight() + MARGIN);
+    t_player_name->DrawCenter(bottom_bar_pos + player_name_offset);
+  }
 
   // Display energy
   if (!character_under_cursor->IsDead()) {
-    t_character_energy->SetText(ulong2str(character_under_cursor->GetEnergy())+"%");
+    t_character_energy->SetText(uint2str(character_under_cursor->GetEnergy())+"%");
     energy_bar->Actu(character_under_cursor->GetEnergy());
   } else {
     t_character_energy->SetText(_("(dead)"));
     energy_bar->Actu(0);
   }
 
-  t_character_energy->DrawCenter(bottom_bar_pos + energy_bar_offset + energy_bar->GetSize()/2);
+  t_character_energy->DrawCenter(bottom_bar_pos + energy_bar_offset + (energy_bar->GetSize()>>1));
 }
 
 void Interface::DrawWeaponInfo() const
 {
-  Weapon* weapon;
-  int nbr_munition;
-  Double icon_scale_factor = 0.75;
+  Weapon* weapon = &ActiveTeam().AccessWeapon();
+  int nbr_munition = ActiveTeam().ReadNbAmmos();
+  Sprite& icon = weapon->GetIcon();
 
-  // Get the weapon
-  if(weapon_under_cursor==NULL) {
-    weapon = &ActiveTeam().AccessWeapon();
-    nbr_munition = ActiveTeam().ReadNbAmmos();
-  } else {
-    weapon = weapon_under_cursor;
-    nbr_munition = ActiveTeam().ReadNbAmmos(weapon_under_cursor->GetType());
-    icon_scale_factor = cos((Double)Time::GetInstance()->Read() / 1000 * PI) * (Double)0.9;
+  icon.Scale(zoom, zoom);
+
+  int offset = ((default_toolbar.GetWidth() - clock_width)>>1) - icon.GetWidth();
+  // The control interface doesn't look good with texts overlayed on it
+  if (!is_control) {
+    // Draw weapon name
+    t_weapon_name->SetText(weapon->GetName());
+    t_weapon_name->DrawRightCenter(bottom_bar_pos + Point2i(offset, 70*zoom));
+
+    // Display number of ammo
+    t_weapon_stock->SetText(nbr_munition ==  INFINITE_AMMO ? _("(unlimited)")
+                                                           : _("Stock:") + Format("%i", nbr_munition));
+    t_weapon_stock->DrawCenterTop(bottom_bar_pos + Point2i(offset+(icon.GetWidth()>>1), MARGIN));
   }
 
-  std::string tmp;
-
-  // Draw weapon name
-  t_weapon_name->SetText(weapon->GetName());
-  Point2i weapon_name_offset = Point2i(game_menu.GetWidth() / 2 - clock_background.GetWidth() / 2 - t_weapon_name->GetWidth() - MARGIN, 0);
-  t_weapon_name->DrawTopLeft(bottom_bar_pos + weapon_name_offset);
-
-  // Display number of ammo
-  t_weapon_stock->SetText((nbr_munition ==  INFINITE_AMMO ? _("(unlimited)") : _("Stock:") + Format("%i", nbr_munition)));
-  Point2i weapon_stock_offset = Point2i(game_menu.GetWidth() / 2 - clock_background.GetWidth() / 2 - t_weapon_stock->GetWidth() - MARGIN, t_weapon_name->GetHeight());
-  t_weapon_stock->DrawTopLeft(bottom_bar_pos + weapon_stock_offset);
-
   // Draw weapon icon
-  weapon->GetIcon().Scale(icon_scale_factor, 0.75);
-  Point2i weapon_icon_offset = game_menu.GetSize() / 2 - weapon->GetIcon().GetSize() / 2 + Point2i(- clock_background.GetWidth(), MARGIN);
-  weapon->GetIcon().DrawXY(bottom_bar_pos + weapon_icon_offset);
+  Point2i weapon_icon_offset(offset, default_toolbar.GetHeight() - icon.GetHeight() - MARGIN);
+  icon.DrawXY(bottom_bar_pos + weapon_icon_offset);
 }
 
 void Interface::DrawTimeInfo() const
 {
-  AppWormux * app = AppWormux::GetInstance();
-  Point2i turn_time_pos = (app->video->window.GetSize() - clock_background.GetSize()) * Point2d(0.5, 1) +
-      Point2i(0, - GetHeight() + clock_background.GetHeight());
-  Rectanglei dr(turn_time_pos, clock_background.GetSize());
+  Surface& window = GetMainWindow();
+  Point2i turn_time_pos((window.GetWidth() - clock_width)>>1,
+                        window.GetHeight()  - GetHeight());
+  Rectanglei dr(turn_time_pos, Point2i(clock_width, default_toolbar.GetHeight()));
 
   // Draw background interface
-  app->video->window.Blit(clock_background, turn_time_pos);
   GetWorld().ToRedrawOnScreen(dr);
-  DrawClock(turn_time_pos + clock_background.GetSize() / 2);
+  DrawClock(turn_time_pos + clock->GetHeight());
 }
 
 // display time left in a turn
@@ -262,126 +309,175 @@ void Interface::DrawClock(const Point2i &time_pos) const
 {
   // Draw turn time
   if (display_timer)
-    timer->DrawCenter(time_pos - Point2i(0, clock_background.GetHeight()/3));
+    timer->DrawCenter(time_pos - Point2i(0, default_toolbar.GetHeight()/3));
 
   // Draw clock
-  Point2i tmp_point = time_pos - clock->GetSize() / 2;
+  Point2i tmp_point = time_pos - (clock->GetSize()>>1);
   clock->Update();
   clock->DrawXY(tmp_point);
 
   // Draw global timer
   std::string tmp(Time::GetInstance()->GetString());
   global_timer->SetText(tmp);
-  global_timer->DrawCenter(time_pos + Point2i(0, clock_background.GetHeight()/3));
+  global_timer->DrawCenter(time_pos + Point2i(0, default_toolbar.GetHeight()/3));
 }
 
 // draw wind indicator
-void Interface::DrawWindIndicator(const Point2i &wind_bar_pos, const bool draw_icon) const
+void Interface::DrawWindIndicator(const Point2i &wind_bar_pos) const
 {
-  AppWormux * app = AppWormux::GetInstance();
-  int height;
-
-  // draw wind icon
-  if(draw_icon) {
-    app->video->window.Blit(wind_icon, wind_bar_pos);
-    GetWorld().ToRedrawOnScreen(Rectanglei(wind_bar_pos, wind_icon.GetSize()));
-    height = wind_icon.GetHeight() - wind_indicator.GetHeight();
-  } else {
-    height = MARGIN;
-  }
-
-  // draw wind indicator
-  Point2i wind_bar_offset = Point2i(0, height);
-  Point2i tmp = wind_bar_pos + wind_bar_offset + Point2i(2, 2);
-  app->video->window.Blit(wind_indicator, wind_bar_pos + wind_bar_offset);
-  wind_bar.DrawXY(tmp);
-  GetWorld().ToRedrawOnScreen(Rectanglei(wind_bar_pos + wind_bar_offset, wind_indicator.GetSize()));
+  wind_bar.DrawXY(wind_bar_pos);
+  GetWorld().ToRedrawOnScreen(Rectanglei(wind_bar_pos, wind_bar.GetSize()));
 }
 
 // display wind info
 void Interface::DrawWindInfo() const
 {
-  Point2i wind_pos_offset = Point2i(game_menu.GetWidth() / 2 + clock_background.GetWidth() / 2 + MARGIN, game_menu.GetHeight() / 2 - wind_icon.GetHeight() / 2);
-  DrawWindIndicator(bottom_bar_pos + wind_pos_offset, true);
+  // The hardcoded values are from the wind indicator position in the image
+  Point2i wind_pos_offset(348*zoom, 49*zoom+0.5f);
+  DrawWindIndicator(bottom_bar_pos + wind_pos_offset);
 }
 
 // draw mini info when hidding interface
 void Interface::DrawSmallInterface() const
 {
-  if(display) return;
-  AppWormux * app = AppWormux::GetInstance();
-  int height;
-  height = ((int)Time::GetInstance()->Read() - start_hide_display - 1000) / 3 - 30;
-  height = (height > 0 ? height : 0);
-  height = (height < small_background_interface.GetHeight() ? height : small_background_interface.GetHeight());
-  Point2i small_interface_position = Point2i(app->video->window.GetWidth() / 2 - small_background_interface.GetWidth() / 2, app->video->window.GetHeight() - height);
-  app->video->window.Blit(small_background_interface,small_interface_position);
-  GetWorld().ToRedrawOnScreen(Rectanglei(small_interface_position,small_background_interface.GetSize()));
-  DrawWindIndicator(small_interface_position + Point2i(MARGIN, 0), false);
-  if (display_timer)
-    timer->DrawTopLeft(small_interface_position + Point2i(MARGIN * 2 + wind_bar.GetWidth(), MARGIN));
+  if (display)
+    return;
+  Surface& window = GetMainWindow();
+  int height = ((int)Time::GetInstance()->Read() - start_hide_display - 1000) / 3 - 30;
+  height = height > 0 ? height : 0;
+  height = (height < small_interface.GetHeight()) ? height : small_interface.GetHeight();
+  Point2i position((window.GetWidth() - small_interface.GetWidth())>>1,
+                   window.GetHeight() - height);
+  window.Blit(small_interface, position);
+  // The wind indicator can be zoomed and no longer centered, so
+  DrawWindIndicator(position + Point2i(9, 11)*zoom);
+  if (display_timer) {
+    timer->DrawLeftTop(position + Point2i(MARGIN * 4 + wind_bar.GetWidth(), 2*MARGIN+2));
+  }
+  GetWorld().ToRedrawOnScreen(Rectanglei(position, small_interface.GetSize()));
 }
 
 // draw team energy
 void Interface::DrawTeamEnergy() const
 {
-  Point2i team_bar_offset = Point2i(game_menu.GetWidth() / 2 + clock_background.GetWidth() / 2 + wind_icon.GetWidth() + MARGIN, MARGIN);
+  Point2i team_bar_offset(430*zoom, 0);
   FOR_EACH_TEAM(tmp_team) {
-    if(!display) // Fix bug #7753 (Team energy bar visible when the interface is hidden)
-      (**tmp_team).GetEnergyBar().FinalizeMove();
-    (**tmp_team).DrawEnergy(bottom_bar_pos + team_bar_offset);
+    Team* team = *tmp_team;
+    if (!display) // Fix bug #7753 (Team energy bar visible when the interface is hidden)
+      team->GetEnergyBar().FinalizeMove();
+    team->DrawEnergy(bottom_bar_pos + team_bar_offset);
   }
 }
 
 // Draw map preview
 void Interface::DrawMapPreview()
 {
-  Surface &  window  = GetMainWindow();
-  Point2i    offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
+  Surface   &window  = GetMainWindow();
+  Point2i    offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN,
+                    2*MARGIN);
   Rectanglei rect_preview(offset, GetWorld().ground.GetPreviewSize());
 
-  if (minimap == NULL ||
-      GetWorld().ground.GetLastPreviewRedrawTime() > m_last_minimap_redraw ||
-      GetWorld().water.GetLastPreviewRedrawTime() > m_last_minimap_redraw) {
+  Rectanglei clip = rect_preview;
+  SwapWindowClip(clip);
 
-    m_last_minimap_redraw = Time::GetInstance()->Read();
-
-    if (minimap) delete minimap;
-
-    Surface preview(*GetWorld().ground.GetPreview());
-    minimap = new Surface(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
-
-    Point2i mergePos = GetWorld().ground.GetPreviewRect().GetPosition();
-    mergePos = -mergePos;
-    minimap->MergeSurface(preview, mergePos);
+  if (window.GetBytesPerPixel() == 2) {
+    window.Blit(*GetWorld().ground.GetPreview(),
+                offset-GetWorld().ground.GetPreviewRect().GetPosition());
 
     // Draw water
     if (GetWorld().water.IsActive()) {
-      const Color * color = GetWorld().water.GetColor();
-      ASSERT(color);
-      Color water_color = *color;
-      water_color.SetColor(water_color.GetRed(),water_color.GetGreen(),water_color.GetBlue(),200) ;
+      Color color = *GetWorld().water.GetColor();
 
       // Scale water height according to preview size
-      uint h = (GetWorld().water.GetSelfHeight() * rect_preview.GetSizeY() + (GetWorld().GetSize().GetY()/2))
-                  / GetWorld().GetSize().GetY();
+      int y = GetWorld().GetSize().GetY() - GetWorld().water.GetSelfHeight();
+      int h = GetWorld().ground.PreviewCoordinates(Point2i(0, y)).GetY();
 
-      Rectanglei water(0, rect_preview.GetSizeY()-h, rect_preview.GetSizeX(), h);
-
-      Surface water_surf(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
-
-      // Draw box with color according to water type
-      water_surf.BoxColor(water, water_color);
-      minimap->MergeSurface(water_surf,Point2i(0,0));
-
+      color.SetAlpha(200);
+      window.BoxColor(Rectanglei(Point2i(0, h)+offset, rect_preview.GetSize() - Point2i(0, h)),
+                      color);
     }
-    GenerateStyledBox(*minimap);
-  }
+  } else {
+    if (minimap == NULL ||
+        GetWorld().ground.GetLastPreviewRedrawTime() > m_last_minimap_redraw ||
+        GetWorld().water.GetLastPreviewRedrawTime() > m_last_minimap_redraw) {
 
-  window.Blit(*minimap, offset);
+      m_last_minimap_redraw = Time::GetInstance()->Read();
+      const Point2i& preview_size = GetWorld().ground.GetPreviewSize();
+
+      // Check whether the whole minimap must be updated
+      if (m_last_preview_size != preview_size) {
+        if (mask) {
+          delete mask;
+          mask = NULL;
+        }
+        if (minimap) {
+          delete minimap;
+          minimap = NULL;
+        }
+        if (scratch) {
+          delete scratch;
+          scratch = NULL;
+        }
+      }
+
+      if (!minimap)
+        minimap = new Surface(preview_size, SDL_SWSURFACE, true);
+
+      // Recreate the scratch buffer
+      if (!scratch)
+        scratch = new Surface(preview_size, SDL_SWSURFACE, true);
+
+      Point2i mergePos = -GetWorld().ground.GetPreviewRect().GetPosition();
+      scratch->Blit(*GetWorld().ground.GetPreview(), mergePos);
+
+      // Draw water
+      if (GetWorld().water.IsActive()) {
+        Color color = *GetWorld().water.GetColor();
+
+        // Scale water height according to preview size
+        int y = GetWorld().GetSize().GetY() - GetWorld().water.GetSelfHeight();
+        int h = GetWorld().ground.PreviewCoordinates(Point2i(0, y)).GetY();
+
+        color.SetAlpha(200);
+        scratch->BoxColor(Rectanglei(Point2i(0, h), rect_preview.GetSize() - Point2i(0, h)),
+                          color);
+      }
+
+      //scratch->SetAlpha(SDL_SRCALPHA, 0);
+      if (!mask) {
+        m_last_preview_size = GetWorld().ground.GetPreviewSize();
+        mask = new Surface(m_last_preview_size, SDL_SWSURFACE, true);
+
+        GenerateStyledBorder(*mask, DecoratedBox::STYLE_ROUNDED);
+
+        mask->SetAlpha(0, 0);
+      }
+
+      // Compose
+      minimap->Blit(*mask);
+      minimap->Blit(*scratch);
+    }
+
+    window.Blit(*minimap, offset);
+  }
 
   Point2i coord;
 
+  // Add objects like medkits or bonus boxes
+  FOR_EACH_OBJECT(object) {
+    if ((*object)->GetName()=="medkit" || (*object)->GetName()=="bonus_box") {
+      ObjBox* box = static_cast<ObjBox*>(*object);
+      const Surface* icon = box->GetIcon();
+
+      // The real icon
+      coord = GetWorld().ground.PreviewCoordinates(box->GetPosition())
+            + offset - Point2i(icon->GetWidth()>>1, (3*icon->GetHeight())>>2);
+      window.Blit(*icon, coord);
+      GetWorld().ToRedrawOnScreen(Rectanglei(coord, icon->GetSize()));
+    }
+  }
+
+  // Add team characters
   FOR_EACH_TEAM(team) {
     const Surface & icon = (*team)->GetMiniFlag();
 
@@ -394,7 +490,8 @@ void Interface::DrawMapPreview()
       }
 
       coord = GetWorld().ground.PreviewCoordinates(character->GetPosition()) + offset;
-      window.Blit(icon, coord - icon.GetSize()/2);
+      Point2i icoord = coord - (icon.GetSize()>>1);
+      window.Blit(icon, icoord);
 
       if (character->IsActiveCharacter()) {
         uint radius = (icon.GetSize().x < icon.GetSize().y) ? icon.GetSize().y : icon.GetSize().x;
@@ -402,188 +499,78 @@ void Interface::DrawMapPreview()
         window.CircleColor(coord.x, coord.y, radius, m_playing_character_preview_color);
         GetWorld().ToRedrawOnScreen(Rectanglei(coord.x-radius-1, coord.y-radius-1, 2*radius+2, 2*radius+2));
       } else {
-        GetWorld().ToRedrawOnScreen(Rectanglei(coord - icon.GetSize()/2, icon.GetSize()));
+        GetWorld().ToRedrawOnScreen(Rectanglei(icoord, icon.GetSize()));
       }
 
     }
   }
 
-  Point2i cameraTopLeftCorner = GetWorld().ground.PreviewCoordinates(Camera::GetInstance()->GetPosition()) + offset;
-  Point2i cameraBottomRightCorner = GetWorld().ground.PreviewCoordinates(Camera::GetInstance()->GetPosition()+Camera::GetInstance()->GetSize()) + offset;
+  const Camera* cam = Camera::GetConstInstance();
+  Point2i TopLeft = GetWorld().ground.PreviewCoordinates(cam->GetPosition());
+  Point2i BottomR = GetWorld().ground.PreviewCoordinates(cam->GetPosition()+cam->GetSize());
 
-  bool line_on_top = true;
-  bool line_on_bottom = true;
-  bool line_on_right = true;
-  bool line_on_left = true;
-
-  if (cameraTopLeftCorner.y < offset.y) {
-    cameraTopLeftCorner.y = offset.y;
-    line_on_top = false;
-  }
-
-  if (cameraTopLeftCorner.x < offset.x) {
-    cameraTopLeftCorner.x = offset.x;
-    line_on_left = false;
-  }
-
-  if (cameraBottomRightCorner.y >  offset.y + GetWorld().ground.GetPreviewSize().y) {
-    cameraBottomRightCorner.y = offset.y + GetWorld().ground.GetPreviewSize().y;
-    line_on_bottom = false;
-  }
-
-  if (cameraBottomRightCorner.x > offset.x + GetWorld().ground.GetPreviewSize().x ) {
-    cameraBottomRightCorner.x = offset.x + GetWorld().ground.GetPreviewSize().x;
-    line_on_right = false;
-  }
-
-  if (line_on_top) {
-    GetMainWindow().LineColor(cameraTopLeftCorner.x, cameraBottomRightCorner.x,
-                              cameraTopLeftCorner.y, cameraTopLeftCorner.y,
-                              m_camera_preview_color);
-  }
-
-  if (line_on_right) {
-    GetMainWindow().LineColor(cameraBottomRightCorner.x, cameraBottomRightCorner.x,
-                              cameraTopLeftCorner.y, cameraBottomRightCorner.y,
-                              m_camera_preview_color);
-  }
-
-  if (line_on_bottom) {
-    GetMainWindow().LineColor(cameraTopLeftCorner.x, cameraBottomRightCorner.x,
-                              cameraBottomRightCorner.y,cameraBottomRightCorner.y,
-                              m_camera_preview_color);
-  }
-
-  if (line_on_left) {
-    GetMainWindow().LineColor(cameraTopLeftCorner.x, cameraTopLeftCorner.x,
-                              cameraTopLeftCorner.y, cameraBottomRightCorner.y,
-                              m_camera_preview_color);
-  }
-
+  GetMainWindow().RectangleColor(Rectanglei(TopLeft + offset, BottomR-TopLeft),
+                                 m_camera_preview_color);
+  SwapWindowClip(clip);
 
   GetWorld().ToRedrawOnScreen(rect_preview);
 }
 
-void Interface::GenerateStyledBox(Surface & source)
-{
-  Surface save_surf(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
-  save_surf.MergeSurface(source, Point2i(0,0));
-
-  source = Surface(GetWorld().ground.GetPreviewSize(), SDL_SWSURFACE, true);
-
-  Rectanglei temp_rect;
-  temp_rect.SetPosition(Point2i(0,0));
-  temp_rect.SetSize(source.GetSize());
-
-  Point2i temp_position;
-
-  temp_position = temp_rect.GetPosition();
-  source.MergeSurface(rounding_style[0][0], temp_position);
-
-  temp_position = temp_rect.GetPosition();
-  temp_position.x += temp_rect.GetSize().x - rounding_style[2][0].GetSize().x;
-  source.MergeSurface(rounding_style[2][0],temp_position);
-
-  temp_position = temp_rect.GetPosition();
-  temp_position.y += temp_rect.GetSize().y - rounding_style[0][2].GetSize().y;
-  source.MergeSurface(rounding_style[0][2],temp_position);
-
-  temp_position = temp_rect.GetPosition();
-  temp_position.x += temp_rect.GetSize().x - rounding_style[2][2].GetSize().x;
-  temp_position.y += temp_rect.GetSize().y - rounding_style[2][2].GetSize().y;
-  source.MergeSurface(rounding_style[2][2],temp_position);
-
-  for(int i = rounding_style[0][0].GetSize().x;
-      i < (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);
-      ++i) {
-    temp_position = temp_rect.GetPosition();
-    temp_position.x += i;
-    source.MergeSurface(rounding_style[1][0],temp_position);
-
-    temp_position.y += temp_rect.GetSize().y - rounding_style[1][2].GetSize().y;
-    source.MergeSurface(rounding_style[1][2],temp_position);
-  }
-
-  for(int i = rounding_style[0][0].GetSize().y;
-      i< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);
-      ++i) {
-    temp_position = temp_rect.GetPosition();
-    temp_position.y += i;
-    source.MergeSurface(rounding_style[0][1],temp_position);
-
-    temp_position.x += temp_rect.GetSize().x - rounding_style[2][1].GetSize().x;
-    source.MergeSurface(rounding_style[2][1],temp_position);
-  }
-
-  for(int i = rounding_style[0][0].GetSize().x;
-      i < (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);
-      ++i) {
-
-    for(int j = rounding_style[0][0].GetSize().y; j< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);j++){
-      temp_position = temp_rect.GetPosition() + Point2i(i,j);
-      source.MergeSurface(rounding_style[1][1],temp_position);
-    }
-  }
-
-  //Corner
-  save_surf.MergeAlphaSurface(rounding_style_mask[0][0],Point2i(0,0));
-  save_surf.MergeAlphaSurface(rounding_style_mask[2][0],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,0));
-  save_surf.MergeAlphaSurface(rounding_style_mask[0][2],Point2i(0,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
-  save_surf.MergeAlphaSurface(rounding_style_mask[2][2],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
-
-  //Top
-  save_surf.MergeAlphaSurface(rounding_style_mask[1][0],Point2i(rounding_style_mask[0][0].GetSize().x,0));
-  //Bottom
-  save_surf.MergeAlphaSurface(rounding_style_mask[1][2],Point2i(rounding_style_mask[0][0].GetSize().x,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
-  //Left
-  save_surf.MergeAlphaSurface(rounding_style_mask[0][1],Point2i(0,rounding_style_mask[0][0].GetSize().y));
-  //Right
-  save_surf.MergeAlphaSurface(rounding_style_mask[2][1],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,rounding_style_mask[0][0].GetSize().y));
-
-
-   source.MergeSurface(save_surf, Point2i(0,0));
-}
-
 void Interface::Draw()
 {
-  AppWormux * app = AppWormux::GetInstance();
-  bottom_bar_pos = (app->video->window.GetSize() - GetSize()) * Point2d(0.5, 1);
+  Surface &window  = GetMainWindow();
+
+  bottom_bar_pos.SetValues((window.GetWidth() - GetWidth())>>1,
+                           window.GetHeight() - GetHeight());
+  // Has the display size changed? Then reload data
+  if (last_width != window.GetWidth()) {
+    LoadData();
+  }
 
   if (display_minimap)
     DrawMapPreview();
 
-
   // Position on the screen
-  Point2i barPos = (app->video->window.GetSize() - weapon_strength_bar.GetSize()) * Point2d(0.5, 1)
-      - Point2i(0, game_menu.GetHeight() + MARGIN);
+  Point2i barPos((window.GetWidth() - weapon_strength_bar.GetWidth())>>1,
+                 window.GetHeight() - weapon_strength_bar.GetHeight() - default_toolbar.GetHeight() - MARGIN);
 
   // Drawing on the screen
   weapon_strength_bar.DrawXY(barPos);
 
   weapons_menu.Draw();
 
-  // Display the background of both Character info and weapon info
-  Rectanglei dr(bottom_bar_pos, game_menu.GetSize());
-  app->video->window.Blit(game_menu, bottom_bar_pos);
+  // Display the background
+  if (display) {
+    Rectanglei dr(bottom_bar_pos, default_toolbar.GetSize());
+    if (is_control) {
+      window.Blit(control_toolbar, bottom_bar_pos);
+    } else {
+      window.Blit(default_toolbar, bottom_bar_pos);
+      // And both Character info and weapon info
+      DrawCharacterInfo();
+      DrawTeamEnergy();
+    }
 
-  GetWorld().ToRedrawOnScreen(dr);
+    // Now display wind and time info
+    DrawWeaponInfo();
+    DrawWindInfo();
+    DrawTimeInfo();
+    GetWorld().ToRedrawOnScreen(dr);
+  } else {
+    DrawSmallInterface();
+    // The rectangle to redraw is already set there
+  }
 
-  // display wind, character and weapon info
-  DrawWindInfo();
-  DrawTimeInfo();
-  DrawCharacterInfo();
-  DrawTeamEnergy();
-  DrawWeaponInfo();
-  DrawSmallInterface();
+  help->Draw();
 }
 
 int Interface::GetHeight() const
 {
-  if(!display) {
+  if (!display) {
     int height = GetMenuHeight() - ((int)Time::GetInstance()->Read() - start_hide_display)/3;
     height = (height > 0 ? height : 0);
     return (height < GetMenuHeight() ? height : GetMenuHeight());
-  } else if(start_show_display != 0) {
+  } else if (start_show_display != 0) {
     int height = ((int)Time::GetInstance()->Read() - start_show_display)/3;
     height = (height < GetMenuHeight() ? height : GetMenuHeight());
     return (height < GetMenuHeight() ? height : GetMenuHeight());
@@ -593,42 +580,29 @@ int Interface::GetHeight() const
 
 int Interface::GetMenuHeight() const
 {
-  return game_menu.GetHeight() + MARGIN;
-}
-
-Point2i Interface::GetSize() const
-{
-  return Point2i(GetWidth(), GetHeight());
-}
-
-Point2i Interface::GetMenuPosition() const
-{
-  return bottom_bar_pos;
-}
-
-void Interface::EnableDisplay(bool _display)
-{
-  display = _display;
+  return default_toolbar.GetHeight() + MARGIN;
 }
 
 void Interface::Show()
 {
-  if(display) return;
+  if (display) return;
   display = true;
-  if(start_show_display + 1000 < (int)Time::GetInstance()->Read())
-    start_show_display = Time::GetInstance()->Read();
+  uint now = Time::GetInstance()->Read();
+  if (start_show_display + 1000 < (int)now)
+    start_show_display = now;
   else
-    start_show_display = Time::GetInstance()->Read() - (1000 - ((int)Time::GetInstance()->Read() - start_show_display));
+    start_show_display = now - (1000 - ((int)now - start_show_display));
 }
 
 void Interface::Hide()
 {
-  if(!display) return;
+  if (!display) return;
   display = false;
-  if(start_hide_display + 1000 < (int)Time::GetInstance()->Read())
-    start_hide_display = Time::GetInstance()->Read();
+  uint now = Time::GetInstance()->Read();
+  if (start_hide_display + 1000 < (int)now)
+    start_hide_display = now;
   else
-    start_hide_display = Time::GetInstance()->Read() - (1000 - ((int)Time::GetInstance()->Read() - start_hide_display));
+    start_hide_display = now - (1000 - ((int)now - start_hide_display));
 }
 
 void Interface::UpdateTimer(uint utimer, bool emergency, bool reset_anim)
@@ -643,7 +617,7 @@ void Interface::UpdateTimer(uint utimer, bool emergency, bool reset_anim)
     timer->SetColor(black_color);
   }
 
-  timer->SetText(ulong2str(utimer));
+  timer->SetText(uint2str(utimer));
   remaining_turn_time = utimer;
 
   if (prev_clock != clock || reset_anim) {
@@ -668,7 +642,7 @@ void AbsoluteDraw(const Surface &s, const Point2i& pos)
 {
   Rectanglei rectSurface(pos, s.GetSize());
 
-  if( !rectSurface.Intersect(*Camera::GetInstance()))
+  if (!rectSurface.Intersect(*Camera::GetInstance()))
     return;
 
   GetWorld().ToRedrawOnMap(rectSurface);
@@ -681,14 +655,341 @@ void AbsoluteDraw(const Surface &s, const Point2i& pos)
   GetMainWindow().Blit(s, rectSource, ptDest);
 }
 
-void HideGameInterface()
+bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
 {
-  if(Interface::GetInstance()->GetWeaponsMenu().IsDisplayed()) return;
-  Mouse::GetInstance()->Hide();
-  Interface::GetInstance()->Hide();
+  // Make sure we don't go in there while we shouldn't
+  if (!ActiveTeam().IsLocalHuman() || ActiveCharacter().IsDead() ||
+      Game::GetInstance()->ReadState() != Game::PLAYING)
+    return false;
+
+  Character *active_char = &ActiveCharacter();
+  Point2i button_size(56*zoom, control_toolbar.GetHeight());
+  Point2i mouse_rel_pos = mouse_pos-bottom_bar_pos;
+
+  old_mouse_pos -= bottom_bar_pos;
+
+  Rectanglei left_button(Point2i(3*zoom, 0), button_size);
+  if (left_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_MoveLeft(false); break;
+      case CLICK_TYPE_UP: active_char->HandleKeyReleased_MoveLeft(false); break;
+    }
+    return true;
+  }
+
+  Rectanglei right_button(Point2i(60*zoom, 0), button_size);
+   if (right_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_MoveRight(false); break;
+      case CLICK_TYPE_UP: active_char->HandleKeyReleased_MoveRight(false); break;
+    }
+    return true;
+  }
+
+  Rectanglei jump_button(Point2i(120*zoom, 0), button_size);
+   if (jump_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG:
+        if (!jump_button.Contains(old_mouse_pos))
+          return false;
+        active_char->HandleKeyPressed_HighJump();
+        break;
+      case CLICK_TYPE_DOWN: return false; // Needed to allow long clicks
+      case CLICK_TYPE_UP: active_char->HandleKeyPressed_Jump(); break;
+    }
+    return true;
+  }
+
+  Rectanglei timerup_button(Point2i(180*zoom, 0), Point2i(40*zoom, control_toolbar.GetHeight()>>1));
+   if (timerup_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: break;
+      case CLICK_TYPE_UP: ActiveTeam().AccessWeapon().HandleKeyReleased_More(); break;
+    }
+    return true;
+  }
+  Rectanglei timerdown_button(Point2i(180*zoom, control_toolbar.GetHeight()>>1),
+                              Point2i(40*zoom, control_toolbar.GetHeight()>>1));
+   if (timerdown_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: break;
+      case CLICK_TYPE_UP: ActiveTeam().AccessWeapon().HandleKeyReleased_Less(); break;
+    }
+    return true;
+  }
+
+  Rectanglei up_button(Point2i(433*zoom, 0), button_size);
+   if (up_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_Up(false); break;
+      case CLICK_TYPE_UP: active_char->HandleKeyReleased_Up(false); break;
+    }
+    return true;
+  }
+
+  Rectanglei down_button(Point2i(490*zoom, 0), button_size);
+   if (down_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_Down(false); break;
+      case CLICK_TYPE_UP: active_char->HandleKeyReleased_Down(false); break;
+    }
+    return true;
+  }
+
+  // Check if we clicked the shoot icon: start firing!
+  Rectanglei shoot_button(Point2i(546*zoom, 0), button_size);
+  if (shoot_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN:
+      case CLICK_TYPE_UP: {
+        // Send the shoot action
+        Action *a;
+        if (type == CLICK_TYPE_UP) {
+          a = new Action(Action::ACTION_WEAPON_STOP_SHOOTING);
+          // If we don't have ammo left for the weapon,
+          if (ActiveTeam().ReadNbUnits() < 2) {
+            is_control = false;
+            Hide();
+          }
+        } else {
+          a = new Action(Action::ACTION_WEAPON_START_SHOOTING);
+        }
+        ActionHandler::GetInstance()->NewAction(a);
+      }
+    }
+    return true;
+  }
+
+  // No actual button clicked, just allow long clicks
+  return (type == CLICK_TYPE_DOWN) ? false : true;
 }
 
-void ShowGameInterface()
+bool Interface::DefaultClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
 {
-  Interface::GetInstance()->Show();
+  Point2i mouse_rel_pos = mouse_pos-bottom_bar_pos;
+  const Team& team = ActiveTeam();
+
+  Rectanglei character_button(0, 0, 36*zoom, default_toolbar.GetHeight());
+
+  old_mouse_pos -= bottom_bar_pos;
+
+  // Check if we clicked the character icon:
+  if (character_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG:
+        if (!character_button.Contains(old_mouse_pos))
+          return false;
+        Camera::GetInstance()->CenterOnActiveCharacter();
+        return true;
+      case CLICK_TYPE_DOWN: return false; // Needed to allow long clicks
+      case CLICK_TYPE_UP:
+        if (!team.IsLocalHuman() || !GameMode::GetInstance()->AllowCharacterSelection())
+          return false;
+        ActiveTeam().NextCharacter();
+        ActionHandler::GetInstance()->NewActionActiveCharacter();
+        return true;
+    }
+  }
+
+  // No actual button clicked, just allow long clicks
+  return (type == CLICK_TYPE_DOWN) ? false : true;
+}
+
+int Interface::AnyClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
+{
+  Point2i mouse_rel_pos = mouse_pos-bottom_bar_pos;
+  const Team& ateam = ActiveTeam();
+
+  old_mouse_pos -= bottom_bar_pos;
+
+  // Check if we clicked the clock icon: toggle control toolbar
+  Rectanglei clock_button((default_toolbar.GetWidth() - clock_width)>>1, 0,
+                          clock_width, default_toolbar.GetHeight());
+  if (clock_button.Contains(mouse_pos-bottom_bar_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG: break;
+      case CLICK_TYPE_DOWN: return 0;
+      case CLICK_TYPE_UP:
+        if (clock_button.Contains(old_mouse_pos))
+          Game::GetInstance()->UserAsksForMenu();
+        break;
+    }
+    return 1;
+  }
+
+  // Positions are somewhat from Interface::DrawWeaponInfo()
+  Point2i BR((default_toolbar.GetWidth() - clock_width)>>1,
+             default_toolbar.GetHeight());
+  Point2i TL(BR.GetX()- int(36*zoom)-3*MARGIN, 0);
+  Rectanglei weapon_button(TL, BR-TL);
+  // Check if we clicked the weapon icon: toggle weapon menu
+  if (weapon_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG:
+        if (weapon_button.Contains(old_mouse_pos)) {
+          help->SetWeapon(ateam.AccessWeapon());
+          help->SwitchDisplay();
+        }
+        break;
+      case CLICK_TYPE_DOWN: return 0; // Needed to allow long clicks
+      case CLICK_TYPE_UP:
+        if (!ateam.IsLocalHuman() || ActiveCharacter().IsDead() ||
+            Game::GetInstance()->ReadState() != Game::PLAYING)
+          return 1;
+        if (weapon_button.Contains(old_mouse_pos))
+          weapons_menu.SwitchDisplay();
+    }
+    return 1;
+  }
+
+  Rectanglei wind_button(343*zoom, 0, 86*zoom, default_toolbar.GetHeight());
+  if (wind_button.Contains(mouse_rel_pos)) {
+    switch (type) {
+      case CLICK_TYPE_LONG:
+      case CLICK_TYPE_DOWN: return 1;
+      case CLICK_TYPE_UP:
+        if (ateam.IsLocalHuman() && !ActiveCharacter().IsDead() &&
+            Game::GetInstance()->ReadState() == Game::PLAYING &&
+            wind_button.Contains(old_mouse_pos))
+          is_control = !is_control;
+        return 1;
+    }
+  }
+
+  return -1;
+}
+
+bool Interface::ActionClickDown(const Point2i &mouse_pos)
+{
+  Surface& window = GetMainWindow();
+
+  if (display) {
+    Rectanglei menu_button(Point2i(), default_toolbar.GetSize());
+    if (menu_button.Contains(mouse_pos-bottom_bar_pos)) {
+      switch (AnyClick(mouse_pos, CLICK_TYPE_DOWN)) {
+        case -1: break;
+        case 0: return false;
+        default: return true;
+      }
+
+      return is_control ? ControlClick(mouse_pos, CLICK_TYPE_DOWN)
+                        : DefaultClick(mouse_pos, CLICK_TYPE_DOWN);
+    }
+  } else {
+    // Mini-interface drawn, check if we clicked on it
+    if (ActiveTeam().IsLocalHuman()) {
+      Rectanglei small_button((window.GetWidth() - small_interface.GetWidth())>>1,
+                              window.GetHeight() - small_interface.GetHeight(),
+                              small_interface.GetWidth(),
+                              small_interface.GetHeight());
+      if (small_button.Contains(mouse_pos)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+bool Interface::ActionLongClick(const Point2i &mouse_pos, const Point2i& old_mouse_pos)
+{
+  if (display) {
+    switch (AnyClick(mouse_pos, CLICK_TYPE_LONG, old_mouse_pos)) {
+      case -1: break;
+      case 0: return false;
+      default: return true;
+    }
+
+    return is_control ? ControlClick(mouse_pos, CLICK_TYPE_LONG, old_mouse_pos)
+                      : DefaultClick(mouse_pos, CLICK_TYPE_LONG, old_mouse_pos);
+  }
+
+  return false;
+}
+
+bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click_pos)
+{
+  Surface &  window  = GetMainWindow();
+
+  if (display) {
+    if (is_control) {
+      ActiveCharacter().HandleKeyReleased_MoveLeft(false);
+      ActiveCharacter().HandleKeyReleased_MoveRight(false);
+      ActiveCharacter().HandleKeyReleased_Up(false);
+      ActiveCharacter().HandleKeyReleased_Down(false);
+    }
+
+    Rectanglei menu_button(Point2i(), default_toolbar.GetSize());
+    if (menu_button.Contains(mouse_pos-bottom_bar_pos)) {
+      switch (AnyClick(mouse_pos, CLICK_TYPE_UP, old_click_pos)) {
+        case -1: break;
+        case 0: return false;
+        default: return true;
+      }
+
+      return is_control ? ControlClick(mouse_pos, CLICK_TYPE_UP)
+                        : DefaultClick(mouse_pos, CLICK_TYPE_UP);
+    } else if (ActiveTeam().IsLocalHuman() && weapons_menu.ActionClic(mouse_pos)) {
+      // Process click on weapon menu before minimap as it should be
+      // overlayed on top of it.
+      return true;
+    }
+    // No button clicked, continue
+  } else {
+    // Mini-interface drawn, check if we clicked on it
+    if (ActiveTeam().IsLocalHuman()) {
+      Rectanglei small_button((window.GetWidth() - small_interface.GetWidth())>>1,
+                              window.GetHeight() - small_interface.GetHeight(),
+                              small_interface.GetWidth(),
+                              small_interface.GetHeight());
+      if (small_button.Contains(mouse_pos)) {
+        return true;
+      }
+    }
+  }
+
+  if (display_minimap && // We are not targetting
+      Mouse::GetInstance()->GetPointer() == Mouse::POINTER_SELECT) {
+    Point2i    offset(window.GetWidth() - GetWorld().ground.GetPreviewSize().x - 2*MARGIN, 2*MARGIN);
+    Rectanglei rect_preview(offset, GetWorld().ground.GetPreviewSize());
+    if (rect_preview.Contains(mouse_pos)) {
+      offset = GetWorld().ground.FromPreviewCoordinates(mouse_pos - offset);
+      Camera *cam = Camera::GetInstance();
+      cam->SetAutoCrop(false);
+      cam->SetXYabs(offset - (cam->GetSize()>>1));
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool Interface::Intersect(const Point2i &mouse_pos)
+{
+  if (!IsDisplayed())
+    return false;
+
+  return Rectanglei(GetMenuPosition(), GetSize()).Contains(mouse_pos);
+}
+
+void Interface::MinimapSizeDelta(int delta)
+{
+  GetWorld().ground.SetPreviewSizeDelta(delta);
+}
+
+
+void HideGameInterface()
+{
+  Interface *interf = Interface::GetInstance();
+  if (interf->GetWeaponsMenu().IsDisplayed() || interf->IsControl())
+    return;
+  Mouse::GetInstance()->Hide();
+  interf->Hide();
 }

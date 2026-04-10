@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
  *****************************************************************************/
 
 #include "character/character.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "map/map.h"
@@ -85,7 +85,6 @@ SubMachineGun::SubMachineGun() : WeaponLauncher(WEAPON_SUBMACHINE_GUN, "m16", ne
   m_time_between_each_shot = SUBMACHINE_TIME_BETWEEN_SHOOT;
 
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_fire"));
-  m_weapon_fire->EnableRotationCache(32);
 
   shoot_started = false;
 
@@ -95,15 +94,13 @@ SubMachineGun::SubMachineGun() : WeaponLauncher(WEAPON_SUBMACHINE_GUN, "m16", ne
 void SubMachineGun::UpdateTranslationStrings()
 {
   m_name = _("Submachine Gun");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to shoot\nUse Up/Down to change initial angle\nChange angle while shooting");
 }
 
 // Return a projectile instance for the submachine gun
 WeaponProjectile * SubMachineGun::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new SubMachineGunBullet(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new SubMachineGunBullet(cfg(), this);
 }
 
 void SubMachineGun::IncMissedShots()

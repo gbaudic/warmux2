@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "map/camera.h"
 #include "map/maps_list.h"
 #include "map/wind.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "object/objbox.h"
 #include "tool/math_tools.h"
 
@@ -37,11 +37,6 @@ const Double MINIMUM_DISTANCE_BETWEEN_CHARACTERS = 50.0;
 const uint AUTHOR_INFO_TIME = 5000; // ms
 const uint AUTHOR_INFO_X = 100;
 const uint AUTHOR_INFO_Y = 50;
-
-Map& GetWorld()
-{
-  return Map::GetRef();
-}
 
 Map::Map() : author_info1(NULL), author_info2(NULL)
 {
@@ -105,8 +100,9 @@ void Map::FreeMem()
 
 void Map::ToRedrawOnScreen(Rectanglei r)
 {
-  r.SetPosition( r.GetPosition() + Camera::GetInstance()->GetPosition() );
-  to_redraw->push_back(r);
+  assert(!r.IsSizeZero());
+  to_redraw->push_back(Rectanglei(r.GetPosition() + Camera::GetInstance()->GetPosition(),
+                                  r.GetSize()));
 }
 
 void Map::SwitchDrawingCache()
@@ -127,26 +123,27 @@ void Map::SwitchDrawingCacheParticles()
 
 void Map::Dig(const Point2i& position, const Surface& surface)
 {
-   ground.Dig(position, surface);
-   to_redraw->push_back(Rectanglei(position, surface.GetSize()));
+  ground.Dig(position, surface);
+  to_redraw->push_back(Rectanglei(position, surface.GetSize()));
 }
 
-void Map::Dig(const Point2i& center, const uint radius)
+void Map::Dig(const Point2i& center, uint radius)
 {
-   ground.Dig(center, radius);
-   to_redraw->push_back(Rectanglei(center - Point2i(radius+EXPLOSION_BORDER_SIZE,radius+EXPLOSION_BORDER_SIZE),
-                                   Point2i(2*(radius+EXPLOSION_BORDER_SIZE),2*(radius+EXPLOSION_BORDER_SIZE))));
+  ground.Dig(center, radius);
+  radius += EXPLOSION_BORDER_SIZE;
+  Point2i ra(radius, radius);
+  to_redraw->push_back(Rectanglei(center - ra, 2*ra));
 }
 
-void Map::PutSprite(const Point2i& pos, const Sprite* spr)
+void Map::PutSprite(const Point2i& pos, Sprite* spr)
 {
-   ground.PutSprite(pos, spr);
-   to_redraw->push_back(Rectanglei(pos, spr->GetSizeMax()));
+  ground.PutSprite(pos, spr);
+  to_redraw->push_back(Rectanglei(pos, spr->GetSizeMax()));
 }
 
-void Map::MergeSprite(const Point2i& pos, const Sprite * spr)
+void Map::MergeSprite(const Point2i& pos, Sprite * spr)
 {
-  Surface tmp = spr->GetSurface();
+  Surface& tmp = spr->GetSurface();
   ground.MergeSprite(pos, tmp);
   to_redraw->push_back(Rectanglei(pos, spr->GetSizeMax()));
 }
@@ -161,13 +158,10 @@ void Map::DrawSky(bool redraw_all)
   sky.Draw(redraw_all);
 }
 
-void Map::DrawWater()
-{
-  water.Draw();
-}
-
 void Map::Draw(bool redraw_all)
 {
+  // This is necessary because the WindParticles Sprites will set
+  // the Rectanglei's to redraw in the to_redraw list using ToRedrawOnScreen
   std::list<Rectanglei> *tmp = to_redraw;
   to_redraw_particles->clear();
   to_redraw = to_redraw_particles;
@@ -183,10 +177,9 @@ void Map::Draw(bool redraw_all)
 
 bool Map::HorizontalLine_IsInVacuum(int ox, int y, int width) const
 {
-  // Traite une ligne
-
+  // Process a line
   for (int i=0; i<width; ++i)
-    if (!IsInVacuum(ox+i, (uint)y))
+    if (!IsInVacuum(ox+i, y))
       return false;
   return true;
 }
@@ -201,91 +194,94 @@ bool Map::VerticalLine_IsInVacuum(int x, int top, int bottom) const
     return IsOpen();
 
   if (top < 0) top = 0;
-  if ((int)GetHeight() <= bottom) bottom = GetHeight()-1;
+  if (GetHeight() <= bottom) bottom = GetHeight()-1;
 
   // Traite une ligne
-  for (uint iy=(uint)top; iy<=(uint)bottom; iy++)
-  {
-    if (!IsInVacuum((uint)x, iy)) return false;
+  for (int iy=top; iy<=bottom; iy++) {
+    if (!IsInVacuum(x, iy)) return false;
   }
   return true;
 }
 
 bool Map::RectIsInVacuum(const Rectanglei &prect) const
 {
-   // only check whether the border touch the ground
+  // only check whether the border touch the ground
+  Rectanglei rect(prect);
 
-   Rectanglei rect(prect);
+  // Clip rectangle in the the world area
+  rect.Clip(Rectanglei(Point2i(), GetSize()));
 
-   // Clip rectangle in the the world area
-   rect.Clip( Rectanglei(0, 0, GetWidth(), GetHeight()) );
+  // Only check the borders of the rectangle
+  if (rect.GetSizeX()==0 || rect.GetSizeY()==0)
+    return true;
 
-   // Only check the borders of the rectangle
-   if(rect.GetSizeX()==0 || rect.GetSizeY()==0)
-     return true;
+  if (!HorizontalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY(), rect.GetSizeX()))
+    return false;
 
-   if(!HorizontalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY(), rect.GetSizeX()))
-     return false;
+  if (rect.GetSizeY() > 1) {
+    if (!HorizontalLine_IsInVacuum(rect.GetPositionX(), rect.GetPositionY() + rect.GetSizeY() - 1, rect.GetSizeX()))
+      return false;
+    if (!VerticalLine_IsInVacuum(rect.GetPositionX(), rect.GetPositionY(),
+                                 rect.GetPositionY() + rect.GetSizeY() -1))
+      return false;
 
-   if(rect.GetSizeY() > 1)
-   {
-     if(!HorizontalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY() + rect.GetSizeY() - 1, rect.GetSizeX()))
-       return false;
-     if(!VerticalLine_IsInVacuum (rect.GetPositionX(), rect.GetPositionY(), rect.GetPositionY() + rect.GetSizeY() -1))
-       return false;
+    if (rect.GetSizeX() > 1)
+      if(!VerticalLine_IsInVacuum(rect.GetPositionX()+rect.GetSizeX()-1, rect.GetPositionY(),
+                                  rect.GetPositionY() + rect.GetSizeY() -1))
+        return false;
+  }
 
-     if(rect.GetSizeX() > 1)
-     if(!VerticalLine_IsInVacuum (rect.GetPositionX()+rect.GetSizeX()-1, rect.GetPositionY(), rect.GetPositionY() + rect.GetSizeY() -1))
-       return false;
-   }
-
-   return true;
+  return true;
 }
 
 bool Map::ParanoiacRectIsInVacuum(const Rectanglei &prect) const
 {
-   // only check whether the rectangle touch the ground pixel by pixel
-   // Prefere using the method above, as performing a pixel by pixel test is quite slow!
+  // only check whether the rectangle touch the ground pixel by pixel
+  // Prefere using the method above, as performing a pixel by pixel test is quite slow!
 
-   Rectanglei rect(prect);
+  Rectanglei rect(prect);
 
-   // Clip rectangle in the the world area
-   rect.Clip( Rectanglei(0, 0, GetWidth(), GetHeight()) );
+  // Clip rectangle in the the world area
+  rect.Clip(Rectanglei(Point2i(), GetSize()));
 
-   // Check line by line
-   for( int i = rect.GetPositionY(); i < rect.GetPositionY() + rect.GetSizeY(); i++ )
-     if( !HorizontalLine_IsInVacuum (rect.GetPositionX(), i, rect.GetSizeX()) )
-       return false;
+  // Check line by line
+  for (int i = rect.GetPositionY(); i < rect.GetPositionY() + rect.GetSizeY(); i++)
+    if (!HorizontalLine_IsInVacuum (rect.GetPositionX(), i, rect.GetSizeX()))
+      return false;
 
-   return true;
+  return true;
 }
 
 bool Map::IsInVacuum_top(const PhysicalObj &obj, int dx, int dy) const
 {
-  return HorizontalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + dx,
-                                    obj.GetTestRect().GetPositionY() + obj.GetTestRect().GetSizeY() + dy,
-                                    obj.GetTestRect().GetSizeX());
+  const Rectanglei& rect = obj.GetTestRect();
+  return HorizontalLine_IsInVacuum(rect.GetPositionX() + dx,
+                                   rect.GetPositionY() + rect.GetSizeY()-1 + dy,
+                                   rect.GetSizeX());
 }
 
 bool Map::IsInVacuum_bottom(const PhysicalObj &obj, int dx, int dy) const
 {
-  return HorizontalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + dx,
-                                    obj.GetTestRect().GetPositionY() + dy,
-                                    obj.GetTestRect().GetSizeX());
+  const Rectanglei& rect = obj.GetTestRect();
+  return HorizontalLine_IsInVacuum(rect.GetPositionX() + dx,
+                                   rect.GetPositionY() + dy,
+                                   rect.GetSizeX());
 }
 
 bool Map::IsInVacuum_left(const PhysicalObj &obj, int dx, int dy) const
 {
-  return VerticalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + dx,
-                                  obj.GetTestRect().GetPositionY() + dy,
-                                  obj.GetTestRect().GetPositionY() + obj.GetTestRect().GetSizeY() + dy);
+  const Rectanglei& rect = obj.GetTestRect();
+  return VerticalLine_IsInVacuum(rect.GetPositionX() + dx,
+                                 rect.GetPositionY() + dy,
+                                 rect.GetPositionY() + rect.GetSizeY()-1 + dy);
 }
 
 bool Map::IsInVacuum_right(const PhysicalObj &obj, int dx, int dy) const
 {
-  return VerticalLine_IsInVacuum (obj.GetTestRect().GetPositionX() + obj.GetTestRect().GetSizeX() + dx,
-                                  obj.GetTestRect().GetPositionY() + dy,
-                                  obj.GetTestRect().GetPositionY() + obj.GetTestRect().GetSizeY() + dy);
+  const Rectanglei& rect = obj.GetTestRect();
+  return VerticalLine_IsInVacuum(rect.GetPositionX() + rect.GetSizeX()-1 + dx,
+                                 rect.GetPositionY() + dy,
+                                 rect.GetPositionY() + rect.GetSizeY()-1 + dy);
 }
 
 void Map::DrawAuthorName()
@@ -300,22 +296,21 @@ void Map::DrawAuthorName()
   }
 
   if (author_info1 == NULL) {
-    std::string txt;
-    txt  = Format(_("Map %s, a creation of: "),
-                  ActiveMap()->ReadFullMapName().c_str());
+    InfoMapBasicAccessor *basic = ActiveMap()->LoadBasicInfo();
+    std::string txt = Format(_("Map %s, a creation of: "), basic->ReadFullMapName().c_str());
     author_info1 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_BOLD);
-    txt = ActiveMap()->ReadAuthorInfo();
+    txt = basic->ReadAuthorInfo();
     author_info2 = new Text(txt, white_color, Font::FONT_SMALL, Font::FONT_BOLD);
   }
 
   /* FIXME use a real layout here... not calculated positions */
-  author_info1->DrawTopLeft(Point2i(AUTHOR_INFO_X,AUTHOR_INFO_Y));
-  author_info2->DrawTopLeft(Point2i(AUTHOR_INFO_X,AUTHOR_INFO_Y+(*Font::GetInstance(Font::FONT_SMALL)).GetHeight()));
+  author_info1->DrawLeftTop(Point2i(AUTHOR_INFO_X,AUTHOR_INFO_Y));
+  author_info2->DrawLeftTop(Point2i(AUTHOR_INFO_X,AUTHOR_INFO_Y+(*Font::GetInstance(Font::FONT_SMALL)).GetHeight()));
 }
 
-bool CompareRectangle(const Rectanglei& a, const Rectanglei& b)
+static inline bool CompareRectangle(const Rectanglei& a, const Rectanglei& b)
 {
-  return ( a.GetTopLeftPoint() < b.GetTopLeftPoint() );
+  return a.GetTopLeftPoint() < b.GetTopLeftPoint();
 }
 
 void Map::OptimizeCache(std::list<Rectanglei>& rectangleCache) const
@@ -337,25 +332,18 @@ void Map::OptimizeCache(std::list<Rectanglei>& rectangleCache) const
     //   std::cout << "X: " << (*jt).GetPositionX() << " ; " << (*jt).GetBottomRightPoint().GetX() << " - " ;
 //       std::cout << "Y: " << (*jt).GetPositionY() << " ; " << (*jt).GetBottomRightPoint().GetY();
 //       std::cout << std::endl;
-      tmp = jt;
-      ++tmp;
-      rectangleCache.erase(jt);
-      jt = tmp;
-
+      jt = rectangleCache.erase(jt);
     } else if ( (*jt).Contains(*it) ) {
 //       std::cout << "X: " << (*it).GetPositionX() << " ; " << (*it).GetBottomRightPoint().GetX() << " - " ;
 //       std::cout << "Y: " << (*it).GetPositionY() << " ; " << (*it).GetBottomRightPoint().GetY();
 //       std::cout << std::endl;
       tmp = it;
-      if (tmp == rectangleCache.begin())
-      {
+      if (tmp == rectangleCache.begin()) {
         rectangleCache.erase(it);
         it = rectangleCache.begin();
         if (jt == it)
           jt++;
-      }
-      else
-      {
+      } else {
         --tmp;
         rectangleCache.erase(it);
         it = tmp;
@@ -374,28 +362,23 @@ void Map::OptimizeCache(std::list<Rectanglei>& rectangleCache) const
 // if no collision detected, TraceResult is left uninitialized
 bool Map::TraceRay(const Point2i &start, const Point2i & end, TraceResult & tr, uint trace_flags)
 {
-  Point2d diff = ( Point2d )( end - start );
+  Point2d diff = end - start;
   Point2d delta = diff.GetNormal();
   Double length = diff.Norm();
 
   // FIXME: use some Bresenham-like algorithm
   Point2i prev_point = start;
   Point2i new_point = prev_point;
-  Point2d iterated_point = ( Point2d )( start );
-  while( !IsOutsideWorld( new_point ) && ( length >= 0 ) )
-  {
-    if (!IsInVacuum( new_point ))
-    {
-      if ( trace_flags & COMPUTE_HIT )
-      {
-        tr.m_fraction = ONE - ( length / diff.Norm() );
+  Point2d iterated_point = start;
+  while (!IsOutsideWorld(new_point) && length >= 0) {
+    if (!IsInVacuum(new_point)) {
+      if (trace_flags & COMPUTE_HIT) {
+        tr.m_fraction = ONE - (length / diff.Norm());
 
-        if ( trace_flags & RETURN_LAST_IN_VACUUM_AS_HIT )
-        {
+        if (trace_flags & RETURN_LAST_IN_VACUUM_AS_HIT) {
           tr.m_hit = prev_point; // unless start is in vacuum, it's always in vacuum
         }
-        else
-        {
+        else {
           tr.m_hit = new_point;
         }
 
@@ -413,8 +396,8 @@ bool Map::TraceRay(const Point2i &start, const Point2i & end, TraceResult & tr, 
 
     // not using automatic conversions to preserve call to round()
     // which was in the original find_first_contact function in Grapple
-    new_point.x = ( int )round( iterated_point.x );
-    new_point.y = ( int )round( iterated_point.y );
+    new_point.x = (int)round(iterated_point.x);
+    new_point.y = (int)round(iterated_point.y );
     length -= 1;
   }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "gui/button.h"
 #include "gui/msg_box.h"
 #include "gui/text_box.h"
+#include "gui/horizontal_box.h"
 #include "include/app.h"
 #include "network/admin_commands.h"
 #include "network/chat.h"
@@ -33,14 +34,14 @@
 
 
 TalkBox::TalkBox(const Point2i& size, Font::font_size_t fsize, Font::font_style_t fstyle) :
-  VBox(size.x, false, false)
+  VBox(size.x, false, false, false)
 {
   SetNoBorder();
 
   msg_box = new MsgBox(Point2i(size.x, size.y - 20), fsize, fstyle);
   AddWidget(msg_box);
 
-  HBox* tmp2_box = new HBox(16, false);
+  HBox* tmp2_box = new HBox(16, false, false);
   tmp2_box->SetMargin(4);
   tmp2_box->SetBorder(Point2i(0,0));
   line_to_send_tbox = new TextBox("", size.x-20, fsize, fstyle);
@@ -65,7 +66,7 @@ void TalkBox::SendChatMsg()
   std::string txt = line_to_send_tbox->GetText();
   if (txt[0] == '/')
     ProcessCommand(txt);
-  else if (txt != "" )
+  else if (txt != "")
     Chat::SendMessage(txt);
 
   line_to_send_tbox->SetText(empty);

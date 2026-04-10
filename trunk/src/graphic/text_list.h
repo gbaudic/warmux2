@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
+ *  Warmux is a convivial mass murder game.
  *  Copyright (C) 2007 Jon de Andres
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * List of Text Clases. 
+ * List of Text Clases.
  * TextBox is not valid while playing game.
  * Text does not allow \n and similar chars
  *****************************************************************************/
@@ -25,27 +25,28 @@
 #define TEXT_LIST_H
 
 #include <list>
-#include "include/base.h"
+#include <WARMUX_base.h>
 
 class Text;
+class Color;
 
-class TextList{
- public:
+class TextList
+{
+public:
   std::list<Text*> list;
   typedef std::list<Text*>::iterator iterator;
-  
+
   // Constructors
-  TextList();
+  TextList() { };
   ~TextList();
 
   // Manage items in list
-  void AddText(const std::string &txt, uint maxlines);
-  void DeleteLine();
-  void Clear();
-  int Size() const;
+  void AddText(const std::string &txt, const Color& color, uint maxlines);
+  void DeleteLine() { if (!list.empty()) list.pop_front(); }
+  void Clear() { list.clear(); }
+  int Size() const { return list.size(); }
   void Draw(int x, int y, int height);
   void DrawLine(const Text* newline, int x, int y, int height) const;
-
 };
 
 #endif

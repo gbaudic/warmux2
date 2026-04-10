@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,22 +22,12 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <map>
-#include "include/base.h"
-#include "colors.h"
-#include "surface.h"
-
-// Forward declarations
-class Game;
+#include <WARMUX_base.h>
+#include "graphic/colors.h"
+#include "graphic/surface.h"
 
 class Font
 {
-private:
-
-  /* If you need this, implement it */
-  Font(const Font&);
-  Font operator=(const Font&);
-  /**********************************/
-
   typedef std::map<std::string, Surface>::value_type txt_sample;
   typedef std::map<std::string, Surface>::iterator txt_iterator;
 
@@ -81,16 +71,36 @@ public:
   static Surface GenerateSurface(const std::string &txt, const Color &color,
                                  font_size_t size = FONT_MEDIUM, font_style_t style = FONT_BOLD);
 
-  void WriteLeft(const Point2i &pos, const std::string &txt, const Color &color);
-  void WriteLeftBottom(const Point2i &pos, const std::string &txt, const Color &color);
-  void WriteRight(const Point2i &pos, const std::string &txt, const Color &color);
-  void WriteCenterTop(const Point2i &pos, const std::string &txt, const Color &color);
-  void WriteCenter(const Point2i &pos, const std::string &txt, const Color &color);
+  void WriteLeft(const Point2i &pos, const std::string &txt, const Color &color)
+  {
+    Surface surface(Render(txt, color, true));
+    Write(pos, surface);
+  }
+  void WriteLeftBottom(const Point2i &pos, const std::string &txt, const Color &color)
+  {
+    Surface surface(Render(txt, color, true));
+    Write(pos - Point2i(0, surface.GetHeight()), surface);
+  }
+  void WriteRight(const Point2i &pos, const std::string &txt, const Color &color)
+  {
+    Surface surface(Render(txt, color, true));
+    Write(pos - Point2i(surface.GetWidth(), 0), surface);
+  }
+  void WriteCenterTop(const Point2i &pos, const std::string &txt, const Color &color)
+  {
+    Surface surface(Render(txt, color, true));
+    Write(pos - Point2i(surface.GetWidth()>>1, 0), surface);
+  }
+  void WriteCenter(const Point2i &pos, const std::string &txt, const Color &color)
+  {
+    Surface surface(Render(txt, color, true));
+    Write(pos - Point2i(surface.GetWidth()>>1, surface.GetHeight()), surface);
+  }
 
   int GetWidth(const std::string &txt) const;
   int GetHeight() const;
   int GetHeight(const std::string &txt) const;
-  Point2i GetSize(const std::string &txt) const;
+  Point2i GetSize(const std::string &txt) const { return Point2i(GetWidth(txt), GetHeight(txt)); }
 
   Surface Render(const std::string &txt, const Color &color, bool cache=false);
   Surface CreateSurface(const std::string &txt, const Color &color);

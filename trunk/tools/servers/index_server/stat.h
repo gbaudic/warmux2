@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string>
 #include <map>
+#include <WSERVER_logfile.h>
 
 class VersionInfo
 {
@@ -34,20 +35,19 @@ public:
   VersionInfo();
 };
 
-class ConnectionStats
+class ConnectionStats : public LogFile
 {
-  FILE* fd;
-  std::string filename;
   std::map<const std::string, VersionInfo> version_stats;
 
-  void CloseFile();
+ protected:
+  void AtOpen();
+  void AtClose();
+
  public:
   ConnectionStats(const std::string & fn);
   ~ConnectionStats();
-  void OpenFile();
-  void Reset();
+
   void Write();
-  void Rotate();
 
   void NewServer(const std::string& version);
   void NewFakeServer(const std::string& version);

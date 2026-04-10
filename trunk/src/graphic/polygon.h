@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,9 +23,9 @@
 #define POLYGON_H
 
 #include <vector>
-#include <WORMUX_point.h>
-#include <WORMUX_rectangle.h>
-#include <WORMUX_types.h>
+#include <WARMUX_point.h>
+#include <WARMUX_rectangle.h>
+#include <WARMUX_types.h>
 
 // Forward declarations
 class Color;
@@ -36,57 +36,53 @@ class Sprite;
 /** Use to draw the polygon */
 class PolygonBuffer
 {
-  /* if you need that, implement it (correctly)*/
-  PolygonBuffer(const PolygonBuffer&);
-  PolygonBuffer operator=(const PolygonBuffer&);
-  /*********************************************/
-
- public:
+public:
   int16_t * vx;
   int16_t * vy;
   int buffer_size;
   int array_size;
   PolygonBuffer();
-  ~PolygonBuffer();
-  int GetSize() const;
+  ~PolygonBuffer() { delete[] vx; delete[] vy; }
+  int GetSize() const { return buffer_size; }
   void SetSize(const int size);
 };
 
 /** Store information about a item (sprite) of the polygon */
 class PolygonItem
 {
-
-  /* if you need that, implement it (correctly)*/
-  PolygonItem( PolygonItem&);
-  PolygonItem operator=( PolygonItem&);
-  /*********************************************/
-
- public:
+public:
   typedef enum { LEFT, H_CENTERED, RIGHT } H_align;
   typedef enum { TOP,  V_CENTERED, BOTTOM } V_align;
- protected:
+
+protected:
   Point2d position;
   Point2d transformed_position;
   Sprite * item;
   H_align h_align;
   V_align v_align;
- protected:
+
   virtual Point2i GetOffsetAlignment() const;
- public:
+
+public:
   PolygonItem();
   PolygonItem(PolygonItem * item);
   PolygonItem(const Sprite * sprite, const Point2d & pos, H_align h_a = H_CENTERED, V_align v_a = V_CENTERED);
   virtual ~PolygonItem();
-  void SetPosition(const Point2d & pos);
-  void SetAlignment(H_align h_a = H_CENTERED, V_align v_a = V_CENTERED);
+  void SetPosition(const Point2d & pos) { transformed_position = position = pos; }
+  void SetAlignment(H_align h_a = H_CENTERED, V_align v_a = V_CENTERED)
+  {
+    h_align = h_a;
+    v_align = v_a;
+  }
+
   H_align GetHAlign() const { return h_align; }
   V_align GetVAlign() const { return v_align; }
-  Point2d & GetPosition();
-  Point2d & GetTransformedPosition();
-  Point2i GetIntTransformedPosition() const;
+  Point2d & GetPosition() { return position; }
+  Point2d & GetTransformedPosition() { return transformed_position; }
+  Point2i GetIntTransformedPosition() const { return Point2i(transformed_position.x, transformed_position.y); }
   virtual bool Contains(const Point2d & p) const;
-  void SetSprite(Sprite * sprite);
-  Sprite * GetSprite();
+  void SetSprite(Sprite * sprite) { item = sprite; }
+  Sprite * GetSprite() { return item; }
   virtual void ApplyTransformation(const AffineTransform2D & trans);
   virtual void Draw(Surface * dest);
 };
@@ -94,10 +90,10 @@ class PolygonItem
 /** Store information about a simple shape */
 class Polygon
 {
- private:
+private:
   void Init();
 
- protected:
+protected:
   bool is_closed;
   Surface * texture;
   Color * plane_color;
@@ -111,10 +107,12 @@ class Polygon
   std::vector<PolygonItem *> items;
   // Shape position after an affine transformation
   PolygonBuffer * shape_buffer;
- private:
+
+private:
   Polygon operator=(const Polygon&);
- public:
-  Polygon();
+
+public:
+  Polygon() { Init(); }
   Polygon(const std::vector<Point2d>& shape);
   Polygon(Polygon & poly);
   virtual ~Polygon();
@@ -124,7 +122,8 @@ class Polygon
   void DeletePoint(int index);
   virtual void ApplyTransformation(const AffineTransform2D & trans, bool save_transformation = false);
   virtual void ResetTransformation();
-  void SaveTransformation(const AffineTransform2D & trans);
+  // Applying definitively the transformation
+  void SaveTransformation(const AffineTransform2D & trans) { ApplyTransformation(trans, true); }
 
   // Test
   bool IsInsidePolygon(const Point2d & point) const;
@@ -148,37 +147,39 @@ class Polygon
   void Expand(Double expand_value);
 
   // Size information
-  Double GetWidth() const;
-  Double GetHeight() const;
-  Point2d GetSize() const;
-  Point2i GetIntSize() const;
-  int GetNbOfPoint() const;
-  Point2d GetMin() const;
-  Point2i GetIntMin() const;
-  Point2d GetMax() const;
-  Point2i GetIntMax() const;
-  virtual Rectanglei GetRectangleToRefresh() const;
+  Double GetWidth() const { return max.x - min.x; }
+  Double GetHeight() const { return max.y - min.y; }
+  Point2d GetSize() const { return max - min; }
+  Point2i GetIntSize() const { return GetIntMax() - GetIntMin() + Point2i(1, 1); }
+  int GetNbOfPoint() const { return (int)original_shape.size(); }
+  Point2d GetMin() const { return min; }
+  Point2i GetIntMin() const { return Point2i(min.x, min.y); }
+  Point2d GetMax() const { return max; }
+  Point2i GetIntMax() const { return Point2i(max.x, max.y); }
+  virtual Rectanglei GetRectangleToRefresh() const { return Rectanglei(GetIntMin(), GetIntSize()); }
 
   // Buffer of transformed point
-  PolygonBuffer * GetPolygonBuffer();
+  PolygonBuffer * GetPolygonBuffer() { return shape_buffer; }
 
   // Type of the polygon
-  bool IsTextured() const;
-  bool IsPlaneColor() const;
-  bool IsBordered() const;
+  bool IsTextured() const { return texture != NULL; }
+  bool IsPlaneColor() const { return plane_color != NULL; }
+  bool IsBordered() const { return border_color != NULL; }
   bool IsClosed() const;
+
   // Set type to Open
   void SetOpen();
   void SetClosed();
 
   // Texture handling
-  Surface * GetTexture();
-  void SetTexture(Surface * texture_surface);
+  Surface * GetTexture() { return texture; }
+  void SetTexture(Surface * texture_surface) { texture = texture_surface; }
+
   // Color handling
   void SetBorderColor(const Color & color);
   void SetPlaneColor(const Color & color);
-  const Color & GetBorderColor() const;
-  const Color & GetPlaneColor() const;
+  const Color & GetBorderColor() const { return *border_color; }
+  const Color & GetPlaneColor() const { return *plane_color; }
 
   // Drawing
   virtual void Draw(Surface * dest);
@@ -187,13 +188,13 @@ class Polygon
   // Item management
   void AddItem(const Sprite * sprite, const Point2d & pos,
                PolygonItem::H_align h_a = PolygonItem::H_CENTERED,
-               PolygonItem::V_align v_a = PolygonItem::V_CENTERED);
-  virtual void AddItem(PolygonItem * item);
+               PolygonItem::V_align v_a = PolygonItem::V_CENTERED)
+  { items.push_back(new PolygonItem(sprite, pos, h_a, v_a)); }
+  virtual void AddItem(PolygonItem * item) { items.push_back(item); }
   void DelItem(int index);
-  std::vector<PolygonItem *> GetItem() const;
+  const std::vector<PolygonItem *>& GetItem() const { return items; }
   void ClearItem(bool free_mem = true);
 };
-
 
 class DecoratedBox : public Polygon
 {
@@ -207,7 +208,7 @@ class DecoratedBox : public Polygon
   virtual void AddItem(PolygonItem * item);
   virtual void ResetTransformation();
   void SetPosition(Double x, Double y);
-  void SetStyle(Style style);
+  void SetStyle(Style style) { m_style = style; }
 
  private :
   Point2d max_refresh;
@@ -216,11 +217,8 @@ class DecoratedBox : public Polygon
   Point2d original_min;
   Surface *m_border;
   Style m_style;
-
-  void GenerateBorder(Surface & source);
-
-
-
 };
+
+void GenerateStyledBorder(Surface & source, DecoratedBox::Style style);
 
 #endif /* POLYGON_H */

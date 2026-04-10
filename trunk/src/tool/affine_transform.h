@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,9 +22,9 @@
 #ifndef AFFINE_TRANSFORM_2D
 #define AFFINE_TRANSFORM_2D
 
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include <stdio.h>
-#include <WORMUX_point.h>
+#include <WARMUX_point.h>
 
 class AffineTransform2D {
  protected:

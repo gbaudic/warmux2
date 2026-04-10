@@ -1,5 +1,5 @@
 dnl ========================================================================
-dnl =                   W O R M U X  -  configure.ac                       =
+dnl =                   W A R M U X  -  configure.ac                       =
 dnl =                                                                      =
 dnl = Process this file with autoconf to produce a configure script.       =
 dnl ========================================================================
@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.9.2], [wormux-dev@gna.org], [wormux])
+AC_INIT([Warmux], [10.12], [warmux-dev@gna.org], [warmux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -23,10 +23,7 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([foreign 1.5])
 
 AM_GNU_GETTEXT([external], [need-ngettext])
-
-if test "x$USE_NLS" != "xyes"; then
-  AC_MSG_WARN([gettext is disabled. If you want internationalisation, please install gettext package.])
-fi
+AM_CONDITIONAL([NLS], test "$USE_NLS" = "yes")
 
 dnl ========================================================================
 dnl === Check for tools                                                    =
@@ -40,19 +37,44 @@ AC_PROG_INSTALL
 AC_PROG_RANLIB
 AC_CHECK_TOOL(STRIP, strip)
 AC_CHECK_TOOL(WINDRES, windres)
-AC_CHECK_TOOL(PACKAGE_CONFIG, pkg-config)
 
 AC_CHECK_PROG(cxx_present, $CXX, "yes", "no")
 if test "x$cxx_present" != "xyes"; then
   AC_MSG_ERROR([*** No C++ compiler can be found!])
 fi
 
+AX_CFLAGS_WARN_ALL([CXXFLAGS])
+
+# ========================================================================
+# == Set flags for various environments                                  =
+# ========================================================================
+WIN32="no"
+GEKKO="no"
+OSX="no"
+case "${host}" in
+  i[[3456789]]86-*-mingw32*) WIN32="yes" ;;
+  *freebsd*)
+    LIBS="$LIBS -lintl" # a temporary hackish workaround
+    ;;
+  *cygwin*) WIN32="yes" ;;
+  *-apple-darwin*)
+    OSX="yes"
+    LIBS="$LIBS -Wl,-framework,Carbon"
+    ;;
+  powerpc-unknown-eabi)
+    # Supposedly Gekko system (wii/gamecube), so set proper abi flags
+    # so as to not get strange link errors
+    CFLAGS="$CFLAGS -DGEKKO -mrvl -mcpu=750 -meabi -mhard-float"
+    GEKKO="yes"
+    ;;
+esac
+AM_CONDITIONAL([WIN32], test "${WIN32}" = "yes")
+
 dnl =========================================================================
 dnl === Options for users                                                   =
 dnl =========================================================================
 
-AX_CFLAGS_WARN_ALL([CXXFLAGS])
-
+dnl === Non-windows options
 AC_ARG_ENABLE([servers],
               [AS_HELP_STRING([--enable-servers],
                               [Enable building the index and game servers @<:@default=no@:>@])],
@@ -64,12 +86,18 @@ if ! test "$enable_servers" = "yes"; then
   AC_MSG_WARN([Building of servers is disabled. If you want build the index and servers, please use configure with this option : --enable-servers])
 fi
 
+AC_ARG_ENABLE([static],
+              [  --enable-static         Enable static building of warmux],
+              [static=$enableval],
+              [static=no])
+
+dnl === Regular options
 AC_ARG_ENABLE([debug],
-              [  --enable-debug          Enable debug in Wormux],
+              [  --enable-debug          Enable debug in Warmux],
               debug=$enableval,
               debug="")
 AC_ARG_ENABLE([logging],
-              [  --enable-logging        Enable logging in Wormux],
+              [  --enable-logging        Enable logging in Warmux],
               logging=$enableval,
               logging="")
 
@@ -79,11 +107,6 @@ AC_ARG_ENABLE([profile],
               [if test "x${enableval}" = "xyes" ; then
                    CXXFLAGS="$CXXFLAGS -pg"
                fi])
-
-AC_ARG_ENABLE([static],
-              [  --enable-static         Enable static building of wormux],
-              [static=$enableval],
-              [static=no])
 
 # Check whether user supplied the option to statically link binaries.
 if test "$static" = yes; then
@@ -100,31 +123,13 @@ if test "x${prefix}" = "xNONE"; then
   prefix="${ac_default_prefix}"
 fi
 
-# ========================================================================
-# == Set flags for various environments                                  =
-# ========================================================================
-case "${host}" in
-  i[[3456789]]86-*-mingw32*)
-     WIN32="yes"
-     ;;
-  *freebsd*)
-     LIBS="$LIBS -lintl" # a temporary hackish workaround
-     ;;
-  *cygwin*) WIN32="yes" ;;
-  *-apple-darwin*)
-     OSX="yes"
-     LIBS="$LIBS -Wl,-framework,Carbon"
-     ;;
-  *) WIN32="no" ;;
-esac
-AM_CONDITIONAL([WIN32], test "$WIN32" = "yes")
-
-
 if test "${WIN32}" = "yes"; then DATADIR="data"
-else DATADIR="${prefix}/share/wormux"; fi
+elif test "${GEKKO}" = "yes"; then DATADIR="sd:/apps/warmux/data"
+else DATADIR="${prefix}/share/warmux"; fi
+
 AC_ARG_WITH([datadir-name],
             [AS_HELP_STRING([--with-datadir-name=DIR],
-                            [specify where datas are installed (default: ${prefix}/share/wormux)])],
+                            [specify where datas are installed (default: ${prefix}/share/warmux)])],
             [DATADIR="$withval"])
 AC_SUBST([DATADIR])
 # ensure a trailing slash (r4255)
@@ -132,6 +137,7 @@ DATADIR="${DATADIR}/"
 
 
 if test "${WIN32}" = "yes"; then LOCALEDIR="locale"
+elif test "${GEKKO}" = "yes"; then LOCALEDIR="sd:/apps/warmux/locale"
 else LOCALEDIR="${prefix}/share/locale"; fi
 AC_ARG_WITH([localedir-name],
             [AS_HELP_STRING([--with-localedir-name=DIR],
@@ -139,19 +145,12 @@ AC_ARG_WITH([localedir-name],
             [LOCALEDIR="$withval"])
 AC_SUBST([LOCALEDIR])
 
-FONTFILE="\${DATADIR}/font/DejaVuSans.ttf"
+FONTFILE="\${DATADIR}/font/Ubuntu-R.ttf"
 AC_ARG_WITH([font-path],
             [AS_HELP_STRING([--with-font-path=FILE],
-                            [specify the font file (default: ${datadir}/font/DejaVuSans.ttf)])],
+                            [specify the font file (default: ${datadir}/font/Ubuntu-R.ttf)])],
             [FONTFILE="$withval"])
 AC_SUBST([FONTFILE])
-
-AC_ARG_ENABLE([autopackage],
-              [AS_HELP_STRING([--enable-autopackage],
-                              [Enable autopackage @<:@default=disable@:>@])],
-              [],
-              [enable_autopackage=no])
-AM_CONDITIONAL([AUTOPACKAGE], [test "$enable_autopackage" = "yes"])
 
 AM_CONDITIONAL([STATIC], [test x$static = xyes])
 AM_CONDITIONAL([GCC], [test x$GXX = xyes])
@@ -241,41 +240,34 @@ if test "x$OSX" != "xyes" ; then
   fi
 fi
 
+dnl === Check for libxml2 and libpng using pkg-confg =============
+PKG_PROG_PKG_CONFIG()
+PKG_CHECK_MODULES(LIBXML2, libxml-2.0, [], [AC_MSG_FAILURE([libxml2 not found])])
+PKG_CHECK_MODULES(LIBPNG, libpng, [], [AC_MSG_FAILURE([libpng not found])])
+CFLAGS="$CFLAGS $LIBPNG_CFLAGS $LIBXML2_CFLAGS"
+CXXFLAGS="$CXXFLAGS $LIBPNG_CFLAGS $LIBXML2_CFLAGS"
+LIBS="$LIBS $LIBPNG_LIBS $LIBXML2_LIBS"
+
 dnl === Check for FriBidi =================================================
 AC_ARG_ENABLE(fribidi, AC_HELP_STRING([--enable-fribidi], [enable bi-directional unicode support]) )
 if test "${enable_fribidi}" = "yes"; then
-   use_fribidi="true"
-   AC_CHECK_LIB(fribidi, fribidi_log2vis,
-                [ LIBS="$LIBS `$PACKAGE_CONFIG --libs fribidi`"
-                  CFLAGS="$CFLAGS `$PACKAGE_CONFIG --cflags fribidi`"
-                  CXXFLAGS="$CXXFLAGS `$PACKAGE_CONFIG --cflags fribidi`"
-                  AC_DEFINE(USE_FRIBIDI, 1, [Define to use FriBidi]) ],
-                [ AC_MSG_WARN([unable to use FriBidi])
-                  use_fribidi="false" ],
-                [ `$PACKAGE_CONFIG --libs fribidi` ])
-   if ! ${use_fribidi}; then
-     AC_MSG_WARN([fribidi is disabled. If you want bi-directional text rendering, please install fribidi dev package.])
+   if test "x$USE_NLS" != "xyes"; then
+     AC_MSG_WARN([NLS disabled, not enabling fribidi support])
+   else
+     PKG_CHECK_MODULES(FRIBIDI, [fribidi],
+                       [ use_fribidi="true"
+                         AC_DEFINE(USE_FRIBIDI, 1, [Define to use FriBidi]) ],
+                       [ use_fribidi="false"
+                         AC_MSG_WARN([fribidi is disabled. If you want bi-directional text rendering, please install fribidi dev package.]) ])
    fi
+   # Will be empty if not found
+   LIBS="$LIBS $FRIBIDI_LIBS"
+   CFLAGS="$CFLAGS $FRIBIDI_CFLAGS"
+   CXXFLAGS="$CXXFLAGS $FRIBIDI_CFLAGS"
 else
-  AC_MSG_WARN([fribidi is disabled. If you want bi-directional text rendering, please use configure with this option : --enable-fribidi])
-fi
-
-dnl === Check for PNG =====================================================
-
-AC_MSG_CHECKING(for libpng)
-for PNG in png png12 png13 dummypng; do
-  if $PACKAGE_CONFIG --exists lib$PNG > /dev/null 2>&1 ; then
-    LIBPNG_CFLAGS=`$PACKAGE_CONFIG --cflags lib$PNG`
-    LIBPNG_LIB=`$PACKAGE_CONFIG --libs lib$PNG`
-    CXXFLAGS="$CXXFLAGS $LIBPNG_CFLAGS"
-    LIBS="$LIBS $LIBPNG_LIB"
-    break
+  if test "x$USE_NLS" = "xyes"; then
+    AC_MSG_WARN([fribidi is disabled. If you want bi-directional text rendering, please use configure with this option : --enable-fribidi])
   fi
-done
-if test "$PNG" = "dummypng"; then
-  AC_MSG_ERROR([*** libpng not found])
-else
-  AC_MSG_RESULT(lib$PNG)
 fi
 
 dnl === Check for SDL_gfx ===========================================================
@@ -293,15 +285,28 @@ if test "$static" = yes; then
   LIBS="$LIBS -lm -ldl -lfreetype -lz"
 fi
 AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,,check_sdl_gfx="no")
-AC_CHECK_HEADERS(SDL_rotozoom.h,,check_sdl_gfx="no")
+AC_CHECK_HEADER(SDL_rotozoom.h,,check_sdl_gfx="no")
 
 dnl === Check for curl ==============================================================
 
 LIBCURL_CHECK_CONFIG([yes],[7.0],[check_curl=yes],[check_curl=no])
 
-dnl === Check for SDL image, mixer, etc., libxml2, and libpng ==============
+dnl === Check for libosso ==============================================================
 
-AC_CHECK_LIB($PNG, png_error,,,)
+AC_ARG_ENABLE(maemo, AC_HELP_STRING([--enable-maemo], [enable Maemo support]) )
+if test "${enable_maemo}" = "yes"; then
+  PKG_CHECK_MODULES(osso, libosso,[MAEMO=yes], [AC_MSG_FAILURE([libosso not found])])
+  PKG_CHECK_MODULES(LIBGLIB, glib-2.0, [], [AC_MSG_FAILURE([glib-2.0 not found])])
+  PKG_CHECK_MODULES(LIBDBUS, dbus-1, [], [AC_MSG_FAILURE([dbus-1 not found])])
+  LIBS="$LIBS $LIBGLIB_LIBS $LIBDBUS_LIBS $osso_LIBS"
+  CFLAGS="$CFLAGS $LIBGLIB_CFLAGS $LIBDBUS_CFLAGS $osso_CFLAGS -DMAEMO"
+  CXXFLAGS="$CXXFLAGS $LIBGLIB_CFLAGS $LIBDBUS_CFLAGS $osso_CFLAGS -DMAEMO"
+fi
+
+AM_CONDITIONAL(MAEMO, test "x${enable_maemo}" = "xyes")
+
+dnl === Check for SDL image, mixer, etc. ==============
+
 AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
 AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
 AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
@@ -310,8 +315,6 @@ if test "${WIN32}" = "yes"; then
   LIBS="$LIBS -lwsock32 -lws2_32 -luser32"
   CXXFLAGS="$CXXFLAGS -D_WIN32_WINNT=0x501"
 fi
-
-PKG_CHECK_MODULES(LIBXML2, libxml-2.0 >= 2.7.3, [], [AC_MSG_FAILURE([libxml2 >= 2.7.3 not found])])
 
 dnl === Display error if SDL image, mixer, etc. is missing ==================
 
@@ -322,7 +325,6 @@ if test \
   -o x${check_sdl_gfx} = xno \
   -o x${check_sdl_net} = xno \
   -o x${check_libxml} = xno \
-  -o x${check_curl} = xno \
   ; then
   AC_MSG_RESULT([])
   if test x${check_sdl_image} = xno; then
@@ -340,28 +342,20 @@ if test \
   if test x${check_sdl_net} = xno; then
     AC_MSG_RESULT([ERROR: SDL_net library required])
   fi
-  if test x${check_curl} = xno; then
-    AC_MSG_RESULT([ERROR: libcurl not found!])
-  fi
   exit 1
 fi
 
-dnl === Add libxml2 and libpng flags ======================================
-LIBXML_CFLAGS=`$PACKAGE_CONFIG libxml-2.0 --cflags`
-LIBXML_LIBS=`$PACKAGE_CONFIG libxml-2.0 --libs`
-
-LIBPNG_CFLAGS=`$PACKAGE_CONFIG lib$PNG --cflags`
-LIBPNG_LIBS=`$PACKAGE_CONFIG lib$PNG --libs`
-
-CFLAGS="$CFLAGS $LIBXML_CFLAGS $LIBPNG_CFLAGS"
-CXXFLAGS="$CXXFLAGS $LIBXML_CFLAGS $LIBPNG_CFLAGS"
-LIBS="$LIBS $LIBXML_LIBS $LIBPNG_LIBS"
-
-dnl === Add Werror flag for gcc/g++ if debug mode is enabled ==============
+dnl === Add Werror flag for gcc/g++ if debug mode is enabled, ==============
+dnl === but allow RTTI (ie dynamic_cast, typeid/typeinfo unavailable) ======
 if test "x${debug}" = "xyes"; then
-   CFLAGS="$CFLAGS -Werror"
-   CXXFLAGS="$CXXFLAGS -Werror"
+  CFLAGS="$CFLAGS -Werror"
+  CXXFLAGS="$CXXFLAGS -Werror"
+else
+  CXXFLAGS="$CXXFLAGS -fno-rtti"
 fi
+
+dnl === Forbid exceptions (Android platform requirement) ===================
+CXXFLAGS="$CXXFLAGS -fno-exceptions"
 
 dnl ========================================================================
 dnl == Check for header files                                              =
@@ -377,7 +371,7 @@ dnl ========================================================================
 dnl === Data file substitution.                                          ===
 dnl ========================================================================
 
-DATA_FILES=`cd data ; find . \( -name CVS -o -name ".svn*" -o -name "Makefile*" -o -name wormux.desktop \) -prune -o -name ".#*" -o -type d -o -print`
+DATA_FILES=`cd data ; find . \( -name CVS -o -name ".svn*" -o -name "Makefile*" -o -name warmux.desktop \) -prune -o -name ".#*" -o -type d -o -print`
 DATA_FILES=`echo $DATA_FILES`
 
 AC_SUBST([DATA_FILES])
@@ -387,33 +381,33 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  lib/Makefile
                  lib/fixedpoint/Makefile
-                 lib/wormux/Makefile
-                 lib/wormux-server/Makefile
-                 build/win32_setup/create_setup.sh
-                 doc/Makefile
+                 lib/warmux/Makefile
                  po/Makefile
+                 ], [AM_POSTPROCESS_PO_MAKEFILE])
+if test "${WIN32}" = "yes"; then
+AC_CONFIG_FILES([build/win32_setup/create_setup.sh],
+                [chmod +x build/win32_setup/create_setup.sh])
+else
+AC_CONFIG_FILES([lib/warmux-server/Makefile
+                 doc/Makefile
                  tools/Makefile
                  tools/list_games/Makefile
                  tools/servers/Makefile
                  tools/servers/game_server/Makefile
                  tools/servers/index_server/Makefile
-                 ], [AM_POSTPROCESS_PO_MAKEFILE])
+                 ])
+fi
 
-AM_CONFIG_HEADER(src/config.h)
+AM_CONFIG_HEADER(lib/warmux/include/config_autotools.h)
 
 AC_OUTPUT
-chmod +x build/win32_setup/create_setup.sh
 
 echo "***********************************************************"
 echo "Configuration complete"
 echo ""
-if test "$enable_autopackage" = "yes"; then
-   echo "Use autopackage for file locations"
-else
-   echo "* Game data will be installed into $DATADIR"
-   echo "* Game locale will be installed into $LOCALEDIR"
-   echo "* Font file will be $FONTFILE"
-fi
+echo "* Game data will be installed into $DATADIR"
+echo "* Game locale will be installed into $LOCALEDIR"
+echo "* Font file will be $FONTFILE"
 echo ""
 echo "* [[Optional]] DEBUG                              : ${debug:-no}"
 if test "$debug" != "yes"; then

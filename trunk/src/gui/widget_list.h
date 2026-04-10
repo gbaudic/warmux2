@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,13 +28,13 @@
 
 class WidgetList : public Widget
 {
-private:
-  /* If you need this, implement it (correctly)*/
-  WidgetList(const WidgetList&);
-  WidgetList operator=(const WidgetList&);
-  /*********************************************/
+public:
+  typedef std::list<Widget*>::iterator wit;
+  typedef std::list<Widget*>::const_iterator cwit;
+  typedef std::list<Widget*>::reverse_iterator rwit;
+  typedef std::list<Widget*>::const_reverse_iterator crwit;
 
-  Point2i lastMousePosition;
+private:
   Widget* selected_widget;
 
 protected:
@@ -44,10 +44,20 @@ protected:
 public:
   WidgetList();
   WidgetList(const Point2i &size);
+  WidgetList(Profile * profile,
+             const xmlNode * widgetListNode);
   virtual ~WidgetList();
 
-  virtual void Update(const Point2i &mousePosition);
-  virtual void Draw(const Point2i &mousePosition) const;
+  // Highlight and background
+  virtual void SetHighlighted(bool focus);
+  virtual void SetBackgroundColor(const Color &background_color);
+  virtual void SetHighlightBgColor(const Color &highlight_bg_color);
+  virtual void SetSelfBackgroundColor(const Color &background_color);
+  virtual void SetSelfHighlightBgColor(const Color &highlight_bg_color);
+
+  virtual void Update(const Point2i &mousePosition,
+                      const Point2i &lastMousePosition);
+  virtual void Draw(const Point2i &mousePosition);
   // set need_redrawing to true for all sub widgets;
   virtual void NeedRedrawing();
 
@@ -57,8 +67,11 @@ public:
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
   // to add a widget
-  void AddWidget(Widget* widget);
-  void RemoveWidget(Widget* w);
+  virtual void AddWidget(Widget* widget);
+  virtual void RemoveWidget(Widget* w);
+  virtual size_t WidgetCount() const { return widget_list.size(); }
+  virtual void Empty() { widget_list.clear(); }
+  virtual void Clear();
 
   // Navigate between widget with keyboard
   virtual void SetFocusOnNextWidget();
@@ -72,7 +85,7 @@ public:
   virtual Widget* GetPreviousWidget(const Widget *w, bool loop) const;
   virtual bool IsWidgetBrowser() const { return true; };
 
-  void SetFocusOn(Widget* widget, bool force_mouse_position = false);
+  virtual void SetFocusOn(Widget* widget, bool force_mouse_position = false);
   virtual void Pack();
 };
 

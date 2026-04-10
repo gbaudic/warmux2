@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,8 +29,9 @@
 #define _RESOURCE_MANAGER_H
 
 #include <string>
-#include "include/base.h"
-#include <WORMUX_singleton.h>
+#include <map>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 #include "graphic/surface.h"
 #include "interface/mouse.h"
 #include "map/maps_list.h"
@@ -46,32 +47,34 @@ class MouseCursor;
 
 class Profile
 {
-  /* If you need this, implement it (correctly)*/
-  Profile(const Profile&);
-  const Profile& operator=(const Profile&);
-  /*********************************************/
+protected:
+  friend class ResourceManager;
+  int ref_count;
+  std::string name;
+  Profile(const std::string& name) : ref_count(1), name(name) { doc = NULL; }
+  ~Profile() { if (doc) delete doc; }
 
 public:
   XmlReader *doc; //TODO move to private
   std::string filename;
   std::string relative_path;
 
-  Profile();
-  ~Profile();
-
   XmlReader * GetXMLDocument(void) const { return this->doc; }
 };
 
 class ResourceManager : public Singleton<ResourceManager>
 {
-private:
   ResourceManager();
   ~ResourceManager();
   friend class Singleton<ResourceManager>;
-public:
+  typedef std::map<std::string, Profile*> ProfileMap;
+  static ProfileMap profiles;
+  std::string base_path;
 
-  void SetDataPath(const std::string& base_path);
-  Surface LoadImage(const std::string& ressource_str, bool alpha = false, bool set_colorkey = false, Uint32 colorkey = 0) const;
+public:
+  void SetDataPath(const std::string& path) { base_path = path; }
+  Surface LoadImage(const std::string& ressource_str, bool alpha = false,
+                    bool set_colorkey = false, Uint32 colorkey = 0) const;
 
   Profile *LoadXMLProfile(const std::string& xml_filename, bool is_absolute_path) const;
   void UnLoadXMLProfile(Profile *profile) const;
@@ -82,21 +85,25 @@ public:
   Double LoadDouble(const Profile *profile, const std::string& resource_name) const;
   Point2i LoadPoint2i(const Profile *profile, const std::string& resource_name) const;
   Point2d LoadPoint2d(const Profile *profile, const std::string& resource_name) const;
-  Surface LoadImage(const Profile *profile, const std::string& resource_name) const;
+  std::string LoadImageFilename(const Profile *profile, const std::string& resource_name) const;
+  Surface LoadImage(const Profile *profile, const std::string& resource_name, bool alpha = true) const;
 
   Sprite *LoadSprite(const Profile *profile, const std::string& resource_name) const;
 
   // the following method is usefull if you have direct access to the xml file
   Sprite *LoadSprite(const xmlNode* sprite_elem, const std::string& resource_name, const std::string& main_folder) const;
 
-  Surface GenerateMap(Profile *profile, InfoMap::Island_type generator, const int width, const int height) const;
+  std::string GenerateMap(Profile *profile, InfoMap::Island_type generator,
+                          const int width, const int height) const;
   const xmlNode*  GetElement(const Profile *profile, const std::string& ressource_type,
-			     const std::string& ressource_name) const;
-
- private:
-  std::string base_path;
+                             const std::string& ressource_name) const;
 };
 
-ResourceManager& GetResourceManager();
+inline ResourceManager& GetResourceManager() { return ResourceManager::GetRef(); }
+
+#define LOAD_RES_IMAGE(name) GetResourceManager().LoadImage(res, name)
+#define LOAD_RES_SPRITE(name) GetResourceManager().LoadSprite(res, name)
+#define LOAD_RES_COLOR(name) GetResourceManager().LoadColor(res, name)
+#define LOAD_RES_POINT(name) GetResourceManager().LoadPoint2i(res, name)
 
 #endif /* _RESOURCE_MANAGER_H */

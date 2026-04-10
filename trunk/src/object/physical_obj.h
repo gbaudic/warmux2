@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,8 +28,8 @@
 #define PHYSICAL_OBJECT_H
 
 #include "physics.h"
-#include <WORMUX_point.h>
-#include <WORMUX_rectangle.h>
+#include <WARMUX_point.h>
+#include <WARMUX_rectangle.h>
 
 // Alive state
 typedef enum
@@ -40,23 +40,24 @@ typedef enum
   DROWNED
 } alive_t;
 
+// Forward declaration
 class Action;
+class Character;
 
-extern const Double PIXEL_PER_METER;
-
-Double MeterDistance (const Point2i &p1, const Point2i &p2);
+#define PIXEL_PER_METER 40
+static const Double METER_PER_PIXEL(1.0/PIXEL_PER_METER);
 
 class PhysicalObj : public Physics
 {
-  /* If you need this, implement it (correctly)*/
-  const PhysicalObj& operator=(const PhysicalObj&);
-  /*********************************************/
-
-private:
   // collision management
   bool m_collides_with_ground;
   bool m_collides_with_characters;
   bool m_collides_with_objects;
+  // Special meaning, SignalObjectCollision is called but trajectory continues
+  // until out of map
+  bool m_go_through_objects;
+  PhysicalObj *m_last_collided_object;
+
   Point2i m_rebound_position;
 
   // Rectangle used for collision tests
@@ -86,27 +87,35 @@ protected:
 
   bool m_allow_negative_y;
 
+  void StartMoving()
+  {
+    m_last_collided_object = NULL;
+    Physics::StartMoving();
+  }
+
 public:
-  PhysicalObj (const std::string &name, const std::string &xml_config="");
+  PhysicalObj(const std::string &name, const std::string &xml_config="");
   /* Note : The copy constructor is not implemented (and this is not a bug)
    * because we can copy directly the pointer m_overlapping_object whereas this
    * object does not own it.
    * FIXME what happen if the object is deleted meanwhile ???*/
-  virtual ~PhysicalObj ();
+  virtual ~PhysicalObj();
 
   //-------- Set position and size -------
 
-  void CanBeGhost(bool state);
+  void CanBeGhost(bool state) { can_be_ghost = state; }
 
-  // Set/Get position
-  void SetX(Double x) { SetXY( Point2d(x, GetYDouble()) ); };
-  void SetY(Double y) { SetXY( Point2d(GetXDouble(), y) ); };
-  void SetXY(const Point2i &position);
+  // Set/Get position - notice how we don't introduce rounding of the other coordinate
+  void SetX(Double x) { SetXY( Point2d(x, GetPhysY() * PIXEL_PER_METER) ); };
+  void SetY(Double y) { SetXY( Point2d(GetPhysX() * PIXEL_PER_METER, y) ); };
+  void SetXY(const Point2i &position) { SetXY(Point2d(position.x, position.y)); };
   void SetXY(const Point2d &position);
-  int GetX() const;
-  int GetY() const;
-  Double GetXDouble() const;
-  Double GetYDouble() const;
+  // GetX/GetY use a hack assuming the coordinates are always positive!
+  int GetX() const { return uround(GetPhysX() * PIXEL_PER_METER); };
+  int GetY() const { return uround(GetPhysY() * PIXEL_PER_METER); };
+  // Get{X,Y} used to depend on Get{X,Y}Double, but this seems unnecessary Double roundtrips
+  Double GetXDouble() const { return GetX(); };
+  Double GetYDouble() const { return GetY(); };
   const Point2d GetPosition() const { return Point2d(GetXDouble(), GetYDouble()) ;};
 
   // Set/Get size
@@ -117,12 +126,14 @@ public:
 
   // Set/Get test rectangles
   void SetTestRect (uint left, uint right, uint top, uint bottom);
+  // Optimized intersection test
+  inline bool Intersect(const Rectanglei & position) const;
   const Rectanglei GetTestRect() const
   {
     int width = m_width - m_test_right - m_test_left;
     int height = m_height - m_test_bottom - m_test_top;
-    width = (width == 0 ? 1 : width);
-    height = (height == 0 ? 1 : height);
+    width  =  width ?  width : 1;
+    height = height ? height : 1;
     return Rectanglei(GetX() + m_test_left, GetY() + m_test_top, width, height);
   }
   int GetTestWidth() const { return m_width -m_test_left -m_test_right; };
@@ -139,6 +150,8 @@ public:
   const Point2i GetCenter() const { return Point2i(GetCenterX(), GetCenterY()); };
   const Rectanglei GetRect() const { return Rectanglei( GetX(), GetY(), m_width, m_height); };
   bool CollidesWithGround() const { return m_collides_with_ground; }
+  // This is a hack
+  bool CanBeBlasted() const { return m_collides_with_ground && !m_go_through_objects; }
   bool IsCharacter() const { return m_is_character; }
 
   //----------- Physics related function ----------
@@ -148,14 +161,16 @@ public:
 
   // Move the character until he gets out of the ground
   bool PutOutOfGround();
-  bool PutOutOfGround(Double direction, Double max_distance=30); //Where direction is the angle of the direction
-                                         // where the object is moved
-                                         // and max_distance is max distance allowed when putting out
+
+  // Where direction is the angle of the direction where the object is moved
+  // and max_distance is max distance allowed when putting out
+  bool PutOutOfGround(Double direction, Double max_distance=30);
 
   // Collision management
   void SetCollisionModel(bool collides_with_ground,
                          bool collides_with_characters,
-                         bool collides_with_objects);
+                         bool collides_with_objects,
+                         bool go_through_objects = false);
   void SetOverlappingObject(PhysicalObj* obj, int timeout = 0);
   const PhysicalObj* GetOverlappingObject() const { return m_overlapping_object; };
   virtual bool IsOverlapping(const PhysicalObj* obj) const { return m_overlapping_object == obj; };
@@ -183,7 +198,7 @@ public:
   virtual void Draw() = 0;
 
   // Damage handling
-  virtual void SetEnergyDelta(int delta, bool do_report = true);
+  virtual void SetEnergyDelta(int delta, Character* dealer);
 
   //-------- state ----
   void Init();
@@ -193,9 +208,9 @@ public:
 
   virtual bool IsImmobile() const { return IsSleeping() || m_ignore_movements ||(!IsMoving() && !FootsInVacuum())||(m_alive == GHOST); };
 
-  bool IsGhost() const { return (m_alive == GHOST); };
-  bool IsDrowned() const { return (m_alive == DROWNED); };
-  bool IsDead() const { return (IsGhost() || IsDrowned() || (m_alive == DEAD)); };
+  bool IsGhost() const { return m_alive == GHOST; };
+  bool IsDrowned() const { return m_alive == DROWNED; };
+  bool IsDead() const { return IsGhost() || IsDrowned() || m_alive==DEAD; };
   bool IsFire() const { return m_is_fire; }
 
   // Are the two object in contact ? (uses test rectangles)
@@ -212,13 +227,13 @@ protected:
   virtual void SignalRebound();
   virtual void SignalGroundCollision(const Point2d& /* my_speed_before */) { };
   virtual void SignalObjectCollision(const Point2d& /* my_speed_before */,
-				     PhysicalObj * /* collided/ing object */,
-				     const Point2d& /* object speed_before */) { };
+                                     PhysicalObj * /* collided/ing object */,
+                                     const Point2d& /* object speed_before */) { };
   virtual void SignalOutOfMap() { };
 
 private:
   //Retrun the position of the point of contact of the obj on the ground
-  bool ContactPoint (int &x, int &y) const;
+  bool ContactPoint(int &x, int &y) const;
 
 
   // The object fall directly to the ground (or become a ghost)
@@ -230,8 +245,8 @@ private:
   void Collide(collision_t collision, PhysicalObj* collided_obj, const Point2d& position);
 
   void ContactPointAngleOnGround(const Point2d& oldPos,
-				 Point2d& contactPos,
-				 Double& contactAngle) const;
+                                 Point2d& contactPos,
+                                 Double& contactAngle) const;
 };
 
 #endif

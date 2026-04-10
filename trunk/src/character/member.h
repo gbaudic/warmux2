@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,84 +20,146 @@
 
 #ifndef MEMBER_H
 #define MEMBER_H
+
+#include <assert.h>
 #include <map>
 #include <vector>
-#include <WORMUX_point.h>
-#include "character/body.h"
+#include <WARMUX_point.h>
 
-typedef std::vector<Point2f> v_attached;
+#include "character/member_type.h"
+
+typedef struct attachment
+{
+  Point2d point;
+  Double  radius;
+  Double  angle;
+
+  attachment(const Point2d& val)
+    : point(val), radius(ZERO), angle(ZERO) { }
+
+  void SetAnchor(const Point2d& anchor)
+  {
+    Point2d child_delta = point - anchor;
+    radius = child_delta.x*child_delta.x + child_delta.y*child_delta.y;
+    if (radius.IsNotZero()) {
+      radius = sqrt_approx(radius);
+      angle = child_delta.ComputeAngle();
+    }
+  }
+
+  void Propagate(Point2d& pos, const Double& mvt_angle, const Double& angle_rad) const
+  {
+    if (radius.IsNotZero()) {
+      Double angle_init = angle + angle_rad;
+      Double angle_new  = angle_init + mvt_angle;
+      pos.x  += radius * (cos(angle_new) - cos(angle_init));
+      pos.y  += radius * (sin(angle_new) - sin(angle_init));
+    }
+  }
+} attachment;
+
+class v_attached : public std::vector<attachment>
+{
+public:
+  void SetAnchor(const Point2d& anchor)
+  {
+    std::vector<attachment>::iterator it = begin();
+    for (; it != end(); ++it)
+      it->SetAnchor(anchor);
+  }
+};
 
 // Forward declaration
+class Member;
 class Sprite;
-class c_junction; //defined in body.h
-class Movement;
 class member_mvt; //defined in movement.h
 class Profile;
 typedef struct _xmlNode xmlNode;
 
+/*
+ * FIXME: this class is either very useless either very badly used.
+ * It would be nice to keep members in private section. There is no
+ * copy constructor, this is really suspect.... */
+class junction
+{
+public:
+  Member * member;
+  Member * parent;
+
+  junction():
+    member(NULL),
+    parent(NULL) {};
+};
+
 class Member
 {
-private:
-  /* If you need this, implement it (correctly) */
-  Member operator = (const Member &);
-  /**********************************************/
+public:
+  typedef std::map<MemberType, v_attached> AttachTypeMap;
 
+private:
   Member* parent;
   Double  angle_rad;
-  Double   alpha;
+  Double  alpha;
   bool    go_through_ground;
-  std::map<std::string, v_attached> attached_members;
-  Point2f pos;
-  Point2f scale;
+  AttachTypeMap   attached_types;
+  Point2d pos;
+  Point2d scale;
+
+  typedef std::vector< std::pair<Member*, const v_attached*> > AttachMemberMap;
+  AttachMemberMap attached_members;
 
 protected:
   Sprite*     spr;
   std::string name;
-  std::string type;
-  Point2f     anchor;
+  MemberType  type;
+  Point2d     anchor;
 
 public:
 
   virtual ~Member();
-  Member(const xmlNode *     xml, 
-         const std::string & main_folder);
-  Member(const Member & m);
+  Member(const std::string& name_);
+  Member(const xmlNode*     xml,
+         const std::string& main_folder);
+  Member(const Member& m);
 
-  virtual void Draw(const Point2i & _pos, 
-                    int             flip_x, 
+  virtual void Draw(const Point2i & _pos,
+                    int             flip_x,
                     LRDirection   direction);
 
   void RotateSprite();
   void ResetMovement();
   void ApplySqueleton(Member* parent_member);
-  void ApplyMovement(const member_mvt &                mvt, 
-                     std::vector<class c_junction *> & skel_lst);
-  void SetAngle(const Double & angle);
+  void ApplyMovement(const member_mvt &mvt);
+  void SetAngle(const Double & angle) { angle_rad = angle; }
   void RefreshSprite(LRDirection direction);
 
-  void SetPos(const Point2f & pos);
+  void SetPos(const Point2d & _pos) { pos = _pos; }
 
-  const Sprite & GetSprite() const;
+  const Sprite & GetSprite() const { return *spr; }
+  Sprite & GetSprite() { return *spr; }
+  bool MustRefresh() const;
 
-  const Point2i GetPos() const;
-  const Point2f & GetPosFloat() const;
+  Point2i GetPos() const { return Point2i(pos.x, pos.y); }
+  const Point2d & GetPosFloat() const { return pos; }
 
-  const Point2i GetAnchorPos() const;
+  const Point2i GetAnchorPos() const { return Point2i(anchor.x, anchor.y); }
 
-  const std::string & GetName() const;
-  const std::string & GetType() const;
+  const std::string & GetName() const { return name; }
+  const MemberType& GetType() const { return type; }
 
-  bool IsGoingThroughGround() const;
+  bool IsGoingThroughGround() const { return go_through_ground; };
 
-  const std::map<std::string, v_attached> & GetAttachedMembers() const;
+  const AttachTypeMap&   GetAttachedTypes() const { return attached_types; }
+
+  void BuildAttachMemberMap(const std::vector<junction*>& skel_lst);
 };
 
 class WeaponMember : public Member
 {
 public:
-  WeaponMember(void);
-  void Draw(const Point2i & _pos, 
-            int             flip_x, 
+  WeaponMember(void) : Member("weapon") { }
+  void Draw(const Point2i & _pos,
+            int             flip_x,
             LRDirection   direction);
 };
 

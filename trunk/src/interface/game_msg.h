@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #ifndef GAME_MESSAGES_H
 #define GAME_MESSAGES_H
 //-----------------------------------------------------------------------------
-#include "include/base.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 #include "graphic/text.h"
 #include <string>
 #include <list>
@@ -36,7 +36,6 @@
  */
 class Message : public Text
 {
-private:
   uint time;
 
 public:
@@ -48,8 +47,9 @@ public:
     Text(new_txt, new_color, font_size, font_style),
     time(_time) {};
 
-  inline uint get_time() { return time; }
+  uint get_time() { return time; }
 };
+
 /*
  * class GameMessages
  * stores and displays messages on the screen
@@ -60,7 +60,7 @@ public:
  */
 class GameMessages : public Singleton<GameMessages>
 {
- public:
+public:
   // remove all messages
   void Reset();
 
@@ -71,10 +71,10 @@ class GameMessages : public Singleton<GameMessages>
   void Refresh();
 
   // Add a message
-  void Add(const std::string &message);
+  void Add(const std::string &message, const Color& color);
 
- private:
-  std::list<Message *> liste;
+private:
+  std::list<Message *> list;
   typedef std::list<Message *>::iterator iterator;
 
 protected:

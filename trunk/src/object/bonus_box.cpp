@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,16 +31,19 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
+
+Sprite* BonusBox::icon = NULL;
+int BonusBox::icon_ref = 0;
 
 BonusBox::BonusBox(Weapon * weapon):
   ObjBox("bonus_box"),
   weapon(weapon)
 {
-  SetTestRect (29, 29, 63, 6);
+  SetTestRect(29, 29, 63, 6);
 
   Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
   anim = GetResourceManager().LoadSprite( res, "object/bonus_box");
@@ -49,13 +52,28 @@ BonusBox::BonusBox(Weapon * weapon):
   SetSize(anim->GetSize());
   anim->animation.SetLoopMode(false);
   anim->SetCurrentFrame(0);
+
+  if (!icon) {
+    icon = CreateIcon();
+  }
+  icon_ref++;
+}
+
+BonusBox::~BonusBox()
+{
+  icon_ref--;
+  if (!icon_ref) {
+    delete icon;
+    icon = NULL;
+  }
 }
 
 void BonusBox::ApplyBonus(Character * c)
 {
   std::ostringstream txt;
-  if ( ExplodesInsteadOfBonus(c) ) {
-    GameMessages::GetInstance()->Add( _("Someone put a booby trap into the crate!") );
+  if (ExplodesInsteadOfBonus(c)) {
+    GameMessages::GetInstance()->Add(_("Someone put a booby trap into the crate!"),
+                                     c->GetTeam().GetColor());
     Explode();
     return;
   };
@@ -67,34 +85,42 @@ void BonusBox::ApplyBonus(Character * c)
     txt << weapon->GetWeaponWinString(c->AccessTeam().GetName().c_str(), won_ammo);
   } else {
     // Can happen if the configuration is wrong...
-    txt << Format(gettext("%s team already has infinite ammo for the %s!"),
+    txt << Format(_("%s team already has infinite ammo for the %s!"),
            c->AccessTeam().GetName().c_str(), weapon->GetName().c_str());
   }
-  GameMessages::GetInstance()->Add(txt.str());
+  GameMessages::GetInstance()->Add(txt.str(), c->GetTeam().GetColor());
   JukeBox::GetInstance()->Play("default","box/picking_up");
 }
 
 bool BonusBox::ExplodesInsteadOfBonus(Character * c)
 {
-  ASSERT(NULL != c);
+  ASSERT(c);
 
   // Empyric formula:
   // 1% chance of explosion for each 5 points of energy
   // (with max 20% for 100 energy)
-  Double explosion_probability = (Double)c->GetEnergy() / FIVE;
+  uint explosion_probability = c->GetEnergy() / 5;
 
-  Double MIN_EXPLOSION_PROBABILITY = 5;
-  Double MAX_EXPLOSION_PROPABILITY = 40;
+  #define MIN_EXPLOSION_PROBABILITY   5
+  #define MAX_EXPLOSION_PROPABILITY  40
   // clamp to some reasonable values
-  if ( explosion_probability < MIN_EXPLOSION_PROBABILITY )
+  if (explosion_probability < MIN_EXPLOSION_PROBABILITY)
     explosion_probability = MIN_EXPLOSION_PROBABILITY;
-  else if ( explosion_probability > MAX_EXPLOSION_PROPABILITY )
+  else if (explosion_probability > MAX_EXPLOSION_PROPABILITY)
     explosion_probability = MAX_EXPLOSION_PROPABILITY;
 
-  Double randval = RandomSync().GetDouble( 1, 100 );
+  uint randval = RandomSync().GetUint(1, 100);
   bool exploding = randval < explosion_probability;
-  MSG_DEBUG("bonus","explosion chance: %s%%, actual value: %s, %s",
-    Double2str(explosion_probability,2).c_str(), Double2str(randval,2).c_str(), exploding ? "exploding!" : "not exploding");
+  MSG_DEBUG("bonus","explosion chance: %u%%, actual value: %u, %sexploding",
+            explosion_probability, randval, exploding ? "" : "not ");
 
   return exploding;
+}
+
+const Surface* BonusBox::GetIcon() const
+{
+  ASSERT(icon);
+  icon->SetCurrentFrame(anim->GetCurrentFrame());
+  icon->RefreshSurface();
+  return &icon->GetSurface();
 }

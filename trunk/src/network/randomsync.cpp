@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,19 +23,30 @@
 #include "network/randomsync.h"
 #include "network/network.h"
 #include "include/action_handler.h"
-#include <WORMUX_debug.h>
-#include <WORMUX_random.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_random.h>
 
 void RandomSyncGen::InitRandom()
 {
   MSG_DEBUG("random", "Initialization...");
 
   if (Network::GetInstance()->IsLocal()) {
+    if (unrandom) {
+      MSG_DEBUG("random.set", "no, unrandom set");
+      return;
+    }
     int seed = time(NULL);
     SetRand(seed);
   } else if (Network::GetInstance()->IsGameMaster()) {
-    int seed = time(NULL);
-    SetRand(seed);
+    int seed;
+
+    if (unrandom) {
+      MSG_DEBUG("random.set", "no, unrandom set");
+      seed = 0;
+    } else {
+      seed = time(NULL);
+      SetRand(seed);
+    }
 
     MSG_DEBUG("random", "Server sending seed %d", seed);
 
@@ -53,13 +64,17 @@ uint RandomSyncGen::GetRand()
 
   if (Network::IsConnected())
     ASSERT(Network::GetInstance()->GetState() == WNet::NETWORK_LOADING_DATA
-	   || Network::GetInstance()->GetState() == WNet::NETWORK_PLAYING);
+     || Network::GetInstance()->GetState() == WNet::NETWORK_PLAYING);
 #endif
   return nbr;
 }
 
 void RandomSyncGen::SetRand(uint seed)
 {
+  if (unrandom) {
+    MSG_DEBUG("random.set", "no, unrandom set");
+    return;
+  }
 #ifdef DEBUG
   nb_get = 0;
 #endif
@@ -77,9 +92,4 @@ void RandomSyncGen::Verify()
   Action* action = new Action(Action::ACTION_NETWORK_VERIFY_RANDOM_SYNC);
   action->Push((int)seed);
   ActionHandler::GetInstance()->NewAction(action);
-}
-
-RandomSyncGen& RandomSync()
-{
-  return (*RandomSyncGen::GetInstance());
 }

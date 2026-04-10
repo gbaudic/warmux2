@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,28 +22,22 @@
 #ifndef LABEL_H
 #define LABEL_H
 
-#include "include/base.h"
+#include <string>
+#include <WARMUX_base.h>
 #include "gui/widget.h"
 #include "graphic/text.h"
-#include <string>
 
 class Label : public Text, public Widget
 {
-  /* If you need this, implement it (correctly)*/
-  Label(const Label&);
-  Label operator=(const Label&);
-  /*********************************************/
+  Text::Alignment align;
 
- private:
-  bool center;
-
- public:
+public:
   Label(const std::string & label,
         uint max_width,
         Font::font_size_t font_size = Font::FONT_SMALL,
         Font::font_style_t font_style = Font::FONT_BOLD,
         const Color & color = dark_gray_color,
-        bool center = false,
+        Text::Alignment align = Text::ALIGN_LEFT_TOP,
         bool shadowed = false,
         const Color & shadowColor = black_color);
   Label(const Point2i & size);
@@ -53,7 +47,7 @@ class Label : public Text, public Widget
   virtual ~Label();
 
   virtual bool LoadXMLConfiguration(void);
-  virtual void Draw(const Point2i & mousePosition) const;
+  virtual void Draw(const Point2i & mousePosition);
   virtual void Pack();
 
   void SetText(const std::string & new_txt);

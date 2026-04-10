@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include <sstream>
 
 #include "character/character.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
 #include "interface/game_msg.h"
@@ -57,8 +57,8 @@ class Anvil : public WeaponProjectile
   protected:
     virtual void SignalGroundCollision(const Point2d& /* speed_before */);
     virtual void SignalObjectCollision(const Point2d& /* my_speed_before */,
-				       PhysicalObj * obj,
-				       const Point2d& /* obj_speed_before */);
+               PhysicalObj * obj,
+               const Point2d& /* obj_speed_before */);
     virtual void SignalOutOfMap();
 };
 
@@ -78,11 +78,11 @@ Anvil::~Anvil()
 }
 
 void Anvil::SignalObjectCollision(const Point2d& /* my_speed_before */,
-				  PhysicalObj * obj,
-				  const Point2d& /* obj_speed_before */)
+                                  PhysicalObj * obj,
+                                  const Point2d& /* obj_speed_before */)
 {
   merge_time = Time::GetInstance()->Read() + 5000;
-  obj->SetEnergyDelta(-200);
+  obj->SetEnergyDelta(-200, &ActiveCharacter());
   PlayCollisionSound();
 
   WeaponProjectile::Collision();
@@ -139,7 +139,7 @@ AnvilLauncher::AnvilLauncher() :
 void AnvilLauncher::UpdateTranslationStrings()
 {
   m_name = _("Anvil");
-  m_help = _("How to use it : left click on the target\nan ammo per turn");
+  m_help = _("Usage: left click on the target\nAnvil kill all characters beneath.\nOne ammo per turn");
 }
 
 void AnvilLauncher::ChooseTarget(Point2i mouse_pos)
@@ -186,8 +186,7 @@ void AnvilLauncher::p_Select()
 
 WeaponProjectile * AnvilLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new Anvil(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new Anvil(cfg(), this);
 }
 
 std::string AnvilLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const

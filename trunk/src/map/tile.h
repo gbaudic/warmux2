@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,18 +21,30 @@
 #define _TILE_H
 
 #include <vector>
-#include <WORMUX_point.h>
-#include <WORMUX_rectangle.h>
+#include <WARMUX_point.h>
+#include <WARMUX_rectangle.h>
+#include <assert.h>
 
 // Forward declarations
 class Surface;
 class Sprite;
 class TileItem;
-class TileItem_Empty;
+class TileItem_NonEmpty;
 
 const uint EXPLOSION_BORDER_SIZE = 10;
 
-class Tile : public Rectanglei{
+class Tile : public Rectanglei
+{
+public:
+  typedef struct
+  {
+    uint16_t index, new_crc;
+  } SynchTileInfo;
+  typedef std::vector<SynchTileInfo> SynchTileList;
+
+private:
+  uint8_t m_alpha_threshold;
+
 public:
   Tile ();
   ~Tile ();
@@ -43,15 +55,19 @@ public:
   void Dig(const Point2i &center, const uint radius);
 
   // Insert a sprite into the ground
-  void PutSprite(const Point2i& pos, const Sprite* spr);
+  void PutSprite(const Point2i& pos, Sprite* spr);
   // Merge a sprite into map (using alpha information)
   void MergeSprite(const Point2i &position, Surface & provider);
 
   // Load an image
-  void LoadImage(Surface& ground_surface, const Point2i & upper_left_offset, const Point2i & lower_right_offset);
+  bool LoadImage(const std::string& filename,
+                 uint8_t alpha_threshold,
+                 const Point2i & upper_left_offset,
+                 const Point2i & lower_right_offset);
 
-  // Get alpha value of a pixel
-  unsigned char GetAlpha(const Point2i &pos) const;
+
+  // Is point (x,y) in vacuum ?
+  bool IsEmpty(const Point2i &pos) const;
 
   // Draw it (on the entire visible part)
   void DrawTile();
@@ -59,32 +75,41 @@ public:
   // Draw a part that is inside the given clipping rectangle
   // Clipping rectangle is in World coordinate not screen coordinates
   // usefull to redraw only a part that is under a sprite that has moved,...
-  void DrawTile_Clipped(Rectanglei & clip_rectangle) const;
+  void DrawTile_Clipped(const Rectanglei & clip_rectangle) const;
 
   // Return a surface of the ground inside the rect
   Surface GetPart(const Rectanglei& rec);
 
   // Return the preview
-  const Surface* GetPreview() const { return m_preview; };
-  void  CheckPreview();
+  Surface* GetPreview() const { return m_preview; };
+  void  CheckPreview(bool force = false);
   const Point2i& GetPreviewSize() const { return m_preview_size; };
   const Rectanglei& GetPreviewRect() const { return m_preview_rect; };
   uint GetLastPreviewRedrawTime() const { return m_last_preview_redraw; };
+  void SetPreviewSizeDelta(int delta);
 
-  // Translate world coordinates into a preview ones
-  // @warning assumes CELL_SIZE is 64x64
+  // Translate world coordinates into a preview ones and vice versa
   Point2i PreviewCoordinates(const Point2i& pos) { return (pos-m_upper_left_offset)>>m_shift; };
+  Point2i FromPreviewCoordinates(const Point2i& pos) { return (pos<<m_shift) + m_upper_left_offset; };
 
   // Check if a title is empty, so we can delete it
   void CheckEmptyTiles();
+
+  // Refresh the list of tiles to resynch
+  SynchTileList GetTilesToSynch();
+
+  uint32_t GetCRC() const { assert(crc); return crc; }
+
 protected:
   void InitTile(const Point2i &pSize, const Point2i & upper_left_offset, const Point2i & lower_right_offset);
+  TileItem_NonEmpty* GetNonEmpty(uint x, uint y, uint8_t bpp);
+  TileItem_NonEmpty* CreateNonEmpty(uint8_t *ptr, int stride);
 
   void FreeMem();
   Point2i Clamp(const Point2i &v) const { return v.clamp(Point2i(0, 0), nbCells - 1); };
 
   // Ground dimensions
-  Point2i nbCells;
+  Point2i nbCells, startCell, endCell;
 
   void InitPreview();
   Surface*   m_preview;
@@ -96,6 +121,9 @@ protected:
 
   Point2i m_upper_left_offset;
   Point2i m_lower_right_offset;
+
+  // Pseudo-CRC to validate map data
+  uint32_t crc;
 
   // Canvas giving access to tiles
   std::vector<TileItem *> item;

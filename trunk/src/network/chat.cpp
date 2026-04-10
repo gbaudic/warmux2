@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
+ *  Warmux is a convivial mass murder game.
  *  Copyright (C) 2007 Jon de Andres
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,10 +20,11 @@
  * nefertum - Jon de Andres
  *****************************************************************************/
 
+#include "game/game_time.h"
 #include <SDL_events.h>
-#include "game/time.h"
 #include "graphic/text.h"
 #include "graphic/text_list.h"
+#include "graphic/video.h"
 #include "include/action.h"
 #include "include/action_handler.h"
 #include "include/app.h"
@@ -32,11 +33,11 @@
 #include "network/network.h"
 #include "tool/text_handling.h"
 
-const uint HEIGHT=15;
-const uint XPOS=25;
-const uint YPOS=130;
-const uint MAXLINES=10; //Fidel's advise
-const uint MAXSECONDS=40;
+#define HEIGHT       15
+#define XPOS         25
+#define YPOS        130
+#define MAXLINES     10 //Fidel's advise
+#define MAXSECONDS   40
 
 Chat::~Chat()
 {
@@ -53,16 +54,11 @@ Chat::Chat():
 {
 }
 
-void Chat::Clear()
-{
-  chat.Clear();
-}
-
 void Chat::Show()
 {
   uint now = Time::GetInstance()->ReadSec();
 
-  if((now - last_time) >= MAXSECONDS){
+  if (now - last_time >= MAXSECONDS){
     chat.DeleteLine();
     last_time = now;
   }
@@ -82,32 +78,28 @@ void Chat::ShowInput()
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
   }
 
-  if (input == NULL){
+  if (!input) {
     input = new Text("", c_white);
     msg = new Text(_("Say: "), c_red);
   }
 
   /* FIXME where do those constants come from ?*/
-  msg->DrawTopLeft(Point2i(25, 400));
+  int ypos = GetMainWindow().GetHeight() - 100;
+  msg->DrawLeftTop(Point2i(25, ypos));
   if (input->GetText() != "") {
-    input->DrawTopLeft(Point2i(25 + msg->GetWidth() + 5, 400));
-    input->DrawCursor(Point2i(25 + msg->GetWidth() + 5, 400), cursor_pos);
+    input->DrawLeftTop(Point2i(25 + msg->GetWidth() + 5, ypos));
+    input->DrawCursor(Point2i(25 + msg->GetWidth() + 5, ypos), cursor_pos);
   }
 }
 
-bool Chat::CheckInput() const
-{
-  return check_input;
-}
-
-void Chat::NewMessage(const std::string &msg)
+void Chat::NewMessage(const std::string &msg, const Color& color)
 {
   if (!chat.Size()){
     uint now = Time::GetInstance()->ReadSec();
     last_time = now;
   }
 
-  chat.AddText(msg, MAXLINES);
+  chat.AddText(msg, color, MAXLINES);
 }
 
 void Chat::SendMessage(const std::string &msg)
@@ -116,7 +108,7 @@ void Chat::SendMessage(const std::string &msg)
     return;
 
   Action* a = new Action(Action::ACTION_CHAT_MESSAGE);
-  a->Push(Network::GetInstance()->GetPlayer().GetNickname());
+  a->Push(Network::GetInstance()->GetPlayer().GetId());
   a->Push(msg);
   ActionHandler::GetInstance()->NewAction(a);
 }
@@ -132,9 +124,9 @@ void Chat::CloseInput()
   SDL_EnableKeyRepeat(0, 0);
 }
 
-void Chat::HandleKeyPressed(const SDL_Event& event)
+void Chat::HandleKeyPressed(const SDL_Event& evnt)
 {
-  SDL_KeyboardEvent kbd_event = event.key;
+  SDL_KeyboardEvent kbd_event = evnt.key;
   SDL_keysym key = kbd_event.keysym;
   std::string txt = input->GetText();
 
@@ -142,9 +134,9 @@ void Chat::HandleKeyPressed(const SDL_Event& event)
     input->SetText(txt);
 }
 
-void Chat::HandleKeyReleased(const SDL_Event& event)
+void Chat::HandleKeyReleased(const SDL_Event& evnt)
 {
-  SDL_KeyboardEvent kbd_event = event.key;
+  SDL_KeyboardEvent kbd_event = evnt.key;
   SDL_keysym key = kbd_event.keysym;
   std::string txt = input->GetText();
 

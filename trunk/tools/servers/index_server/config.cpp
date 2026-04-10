@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,11 +24,14 @@
 
 Config config;
 
+Config::Config() : ServerConfig(true)
+{}
+
 void Config::Load(const std::string & config_file)
 {
-  BasicConfig::Load(config_file);
+  ServerConfig::Load(config_file);
   SetDefault("port", 9997);
-  SetDefault("working_dir", "wormux_log/");
+  SetDefault("working_dir", "warmux_log/");
   SetDefault("chroot", true);
   SetDefault("chroot_gid", 500);
   SetDefault("chroot_uid", 500);

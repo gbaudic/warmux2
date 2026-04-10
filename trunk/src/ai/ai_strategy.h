@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,56 +28,60 @@
 class AIStrategy
 {
   private:
-    const Double rating;
+    const float rating;
   public:
     typedef enum {LOWER_RATING, SIMILAR_RATING, HIGHER_RATING} CompareResult;
-    AIStrategy(Double rating);
+    AIStrategy(float rating);
     virtual ~AIStrategy() {}
     /** Creates a command which implements the strategy */
-    virtual AICommand * CreateCommand() = 0;
-    Double GetRating() { return rating; }
-    CompareResult CompareRatingWith(AIStrategy * other);
+    virtual AICommand * CreateCommand() const = 0;
+    float GetRating() const { return rating; }
+    CompareResult CompareRatingWith(AIStrategy * other) const;
 };
 
 class DoNothingStrategy : public AIStrategy
 {
   public:
     DoNothingStrategy();
-    virtual AICommand * CreateCommand();
+    virtual AICommand * CreateCommand() const;
 };
 
 class SkipTurnStrategy : public AIStrategy
 {
   public:
     SkipTurnStrategy();
-    virtual AICommand * CreateCommand();
+    virtual AICommand * CreateCommand() const;
 };
 
 class ShootWithGunStrategy : public AIStrategy
 {
   private:
-    Character & shooter;
+    const Character & shooter;
     Weapon::Weapon_type weapon;
     LRDirection  direction;
-    Double angle;
+    float angle;
     int bullets;
   public:
-    virtual AICommand * CreateCommand();
-    ShootWithGunStrategy(Double rating, Character & shooter, Weapon::Weapon_type weapon, LRDirection  direction, Double angle, int bullets);
+    virtual AICommand * CreateCommand() const;
+    ShootWithGunStrategy(float rating, const Character & shooter,
+                         Weapon::Weapon_type weapon, LRDirection  direction,
+                         float angle, int bullets);
 };
 
 class LoadAndFireStrategy : public AIStrategy
 {
   private:
-    Character & shooter;
+    const Character & shooter;
     Weapon::Weapon_type weapon;
     LRDirection  direction;
-    Double angle;
-    Double strength;
+    float angle;
+    float strength;
     int timeout;
   public:
-    virtual AICommand * CreateCommand();
-    LoadAndFireStrategy(Double rating, Character & shooter, Weapon::Weapon_type weapon, LRDirection  direction, Double angle, Double strength, int timeout);
+    virtual AICommand * CreateCommand() const;
+    LoadAndFireStrategy(float rating, const Character & shooter,
+                        Weapon::Weapon_type weapon, LRDirection direction,
+                        float angle, float strength, int timeout);
 };
 
 

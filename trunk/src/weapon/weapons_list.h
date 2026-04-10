@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,9 +25,11 @@
 #include <list>
 #include <map>
 #include "weapon.h"
-#include "include/base.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 //-----------------------------------------------------------------------------
+
+class WeaponLauncher;
 
 // Classe de gestion des armes
 class WeaponsList
@@ -35,9 +37,12 @@ class WeaponsList
 public:
   typedef std::list<Weapon*> weapons_list_type;
   typedef std::list<Weapon*>::const_iterator weapons_list_it;
+  typedef std::list<WeaponLauncher*> launcher_weapons_list_type;
+  typedef std::list<WeaponLauncher*>::const_iterator launcher_weapons_list_it;
 
 private:
   weapons_list_type m_weapons_list;
+  launcher_weapons_list_type m_launcher_weapons_list;
   Weapon* GetNextWeapon(uint sort, uint index);
 
 protected:
@@ -54,7 +59,8 @@ public:
 
   // Return a list of  weapons
   const weapons_list_type& GetList() const { return m_weapons_list; };
-  Weapon* GetWeapon(Weapon::Weapon_type type);
+  Weapon* GetWeapon(Weapon::Weapon_type type) const;
+  WeaponLauncher* GetWeaponLauncher(Weapon::Weapon_type type) const;
   bool GetWeaponBySort(Weapon::category_t num_sort, Weapon::Weapon_type &type);
   Weapon * GetRandomWeaponToDrop();
 };

@@ -1,7 +1,7 @@
 
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,10 +22,10 @@
 
 #include "particles/fading_text.h"
 #include "particles/explosion_smoke.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/font.h"
 #include "graphic/sprite.h"
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
 
 const uint INIT_DISPLAY_TIME = 200;
 const uint TEXT_FADE_TIME = 1000;
@@ -33,7 +33,7 @@ const uint TEXT_FADE_TIME = 1000;
 FadingText::FadingText(const std::string & text) : ExplosionSmoke(20)
 {
   delete image;
-  image = new Sprite(Font::GetInstance(Font::FONT_MEDIUM)->CreateSurface(text, Color(0, 0, 0, 255)));
+  image = new Sprite(Font::GetInstance(Font::FONT_MEDIUM)->CreateSurface(text, Color(0, 255)));
   start_to_fade = Time::GetInstance()->Read() + INIT_DISPLAY_TIME;
 }
 

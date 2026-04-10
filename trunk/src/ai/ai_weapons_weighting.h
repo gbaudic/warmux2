@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,16 +30,16 @@
 class WeaponsWeighting
 {
   private:
-    Double factor[Weapon::LAST+1];
-    Double min_factor[Weapon::LAST+1];
-    Double max_factor[Weapon::LAST+1];
+    float factor[Weapon::LAST+1];
+    float min_factor[Weapon::LAST+1];
+    float max_factor[Weapon::LAST+1];
 
   public:
     WeaponsWeighting();
     void RandomizeFactors();
-    Double GetFactor(Weapon::Weapon_type type);
-    void SetMinFactor(Weapon::Weapon_type type, Double min_factor);
-    void SetMaxFactor(Weapon::Weapon_type type, Double max_factor);
+    float GetFactor(Weapon::Weapon_type type) const { return factor[type]; }
+    void SetMinFactor(Weapon::Weapon_type type, float value) { min_factor[type] = value; }
+    void SetMaxFactor(Weapon::Weapon_type type, float value) { max_factor[type] = value; }
 };
 
 #endif

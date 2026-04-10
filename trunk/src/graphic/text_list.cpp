@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
+ *  Warmux is a convivial mass murder game.
  *  Copyright (C) 2007 Jon de Andres
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,6 @@
 #include "graphic/text_list.h"
 #include "graphic/text.h"
 
-TextList::TextList()
-{}
-
 TextList::~TextList()
 {
   for (std::list<Text*>::iterator t=list.begin(); t!=list.end(); t++)
@@ -35,25 +32,12 @@ TextList::~TextList()
   list.clear();
 }
 
-void TextList::AddText(const std::string &txt, uint maxlines){
-  Text* new_txt = new Text(txt);
+void TextList::AddText(const std::string &txt, const Color& color, uint maxlines){
+  Text* new_txt = new Text(txt, color);
   list.push_back(new_txt);
 
   if(list.size() >= maxlines)
     list.pop_front();
-}
-
-int TextList::Size() const {
-  return list.size();
-}
-
-void TextList::DeleteLine(){
-  if(list.size())
-    list.pop_front();
-}
-
-void TextList::Clear(){
-  list.clear();
 }
 
 void TextList::Draw(int x, int y, int height){
@@ -61,7 +45,7 @@ void TextList::Draw(int x, int y, int height){
 
   for(; it!=end; it++){
     //Draw each item in the list
-    (*it)->DrawTopLeft(Point2i(x, y));
+    (*it)->DrawLeftTop(Point2i(x, y));
     y+=height;
   }
 }
@@ -70,5 +54,5 @@ void TextList::DrawLine(const Text* newline, int x, int y, int height) const {
   int size = list.size();
 
   y += (size * height);
-  newline->DrawTopLeft(Point2i(x, y));
+  newline->DrawLeftTop(Point2i(x, y));
 }

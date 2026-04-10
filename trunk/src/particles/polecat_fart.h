@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,12 +25,11 @@
 
 class PolecatFart : public Particle
 {
-  private:
-    bool is_active;
-  public:
-    PolecatFart();
-  protected:
-    void Refresh();
+  bool is_active;
+public:
+  PolecatFart();
+protected:
+  void Refresh();
 };
 
 #endif /* POLECAT_FART_H */

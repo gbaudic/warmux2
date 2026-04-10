@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@
  *****************************************************************************/
 
 #include <sstream>
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 #include <limits.h>
 
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
 #include "interface/game_msg.h"
@@ -77,11 +77,12 @@ void WeaponBullet::SignalOutOfMap()
 }
 
 void WeaponBullet::SignalObjectCollision(const Point2d& my_speed_before,
-					 PhysicalObj * obj,
-					 const Point2d& /*obj_speed*/)
+                                         PhysicalObj * obj,
+                                         const Point2d& /*obj_speed*/)
 {
 #if 1
-  obj->AddSpeed(cfg.speed_on_hit, my_speed_before.ComputeAngle());
+  if (cfg.speed_on_hit.IsNotZero())
+    obj->AddSpeed(cfg.speed_on_hit, my_speed_before.ComputeAngle());
 #else
   // multiply by ten to get something more funny
   Double bullet_mass = GetMass()/* * 10*/;
@@ -94,7 +95,7 @@ void WeaponBullet::SignalObjectCollision(const Point2d& my_speed_before,
   obj->SetSpeedXY(v2);
 #endif
 
-  obj->SetEnergyDelta(-(int)cfg.damage);
+  obj->SetEnergyDelta(-(int)cfg.damage, &ActiveCharacter());
   if (!obj->IsCharacter())
     Explosion();
   Ghost();
@@ -117,8 +118,8 @@ void WeaponBullet::DoExplosion()
 
 
 WeaponProjectile::WeaponProjectile(const std::string &name,
-                                    ExplosiveWeaponConfig& p_cfg,
-                                    WeaponLauncher * p_launcher):
+                                   ExplosiveWeaponConfig& p_cfg,
+                                   WeaponLauncher * p_launcher):
   PhysicalObj(name),
   timeout_start(INVALID_TIMEOUT_START),
   cfg(p_cfg)
@@ -135,8 +136,7 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
   can_drown = true;
   camera_follow_closely = false;
 
-  image = GetResourceManager().LoadSprite( weapons_res_profile, name);
-  image->EnableRotationCache(32);
+  image = GetResourceManager().LoadSprite(weapons_res_profile, name);
   SetSize(image->GetSize());
 
   // Set rectangle test
@@ -176,28 +176,25 @@ void WeaponProjectile::Shoot(Double strength)
 
   Point2i hand_position;
   ActiveCharacter().GetHandPosition(hand_position);
-  ActiveCharacter().GetHandPosition(hand_position);
   MSG_DEBUG("weapon.projectile", "shoot from position %d,%d (size %d, %d) - hand position:%d,%d",
-            ActiveCharacter().GetX(),
-            ActiveCharacter().GetY(),
-            ActiveCharacter().GetWidth(),
-            ActiveCharacter().GetHeight(),
-            hand_position.GetX(),
-            hand_position.GetY());
+            ActiveCharacter().GetX(), ActiveCharacter().GetY(),
+            ActiveCharacter().GetWidth(), ActiveCharacter().GetHeight(),
+            hand_position.GetX(), hand_position.GetY());
 
-  MSG_DEBUG("weapon.projectile", "shoot with strength:%s, angle:%s, position:%d,%d",
-            Double2str(strength).c_str(), Double2str(angle).c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "shoot with strength:%.1f, angle:%.1f, position:%d,%d",
+            strength.tofloat(), angle.tofloat(), GetX(), GetY());
 
   StartTimeout();
 
   ShootSound();
 
+#if 0
   // bug #10236 : problem with flamethrower collision detection
   // Check if the object is colliding something between hand position and gun hole
   hand_position -= GetSize() / 2;
   Point2i hole_position = launcher->GetGunHolePosition() - GetSize() / 2;
-  Point2d f_hand_position(hand_position.GetX() / PIXEL_PER_METER, hand_position.GetY() / PIXEL_PER_METER);
-  Point2d f_hole_position(hole_position.GetX() / PIXEL_PER_METER, hole_position.GetY() / PIXEL_PER_METER);
+  Point2d f_hand_position = hand_position * METER_PER_PIXEL;
+  Point2d f_hole_position = hole_position * METER_PER_PIXEL;
   SetXY(hand_position);
   SetSpeed(strength, angle);
 
@@ -212,6 +209,18 @@ void WeaponProjectile::Shoot(Double strength)
     SetSpeed(strength, angle);
     PutOutOfGround(angle);
   }
+#else
+  Point2i hole_position = launcher->GetGunHolePosition() - GetSize() / 2;
+  Point2d f_hole_position = hole_position * METER_PER_PIXEL;
+  SetXY(hole_position);
+  PutOutOfGround(angle);
+  SetSpeed(strength, angle);
+
+  // Camera::FollowObject must be called after setting initial speed else
+  // camera_follow_closely will have no effect
+  Camera::GetInstance()->FollowObject(this, camera_follow_closely);
+  //PutOutOfGround(angle);
+#endif
 }
 
 void WeaponProjectile::ShootSound()
@@ -258,7 +267,7 @@ void WeaponProjectile::Draw()
       ss << tmp ;
       int txt_x = GetX() + GetWidth() / 2;
       int txt_y = GetY() - GetHeight();
-	  Text text(ss.str());
+          Text text(ss.str());
       text.DrawCenterTop(Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition());
     }
   }
@@ -285,12 +294,12 @@ bool WeaponProjectile::IsImmobile() const
 
 // projectile explode and signal to the launcher the collision
 void WeaponProjectile::SignalObjectCollision(const Point2d& /* my_speed_before */,
-					     PhysicalObj * obj,
-					     const Point2d& /* obj_speed_before */)
+                                             PhysicalObj * obj,
+                                             const Point2d& /* obj_speed_before */)
 {
   ASSERT(obj != NULL);
   MSG_DEBUG("weapon.projectile", "SignalObjectCollision \"%s\" with \"%s\": %d, %d",
-	    m_name.c_str(), obj->GetName().c_str(), GetX(), GetY());
+            m_name.c_str(), obj->GetName().c_str(), GetX(), GetY());
   if (explode_colliding_character)
     Explosion();
 
@@ -451,17 +460,17 @@ WeaponLauncher::~WeaponLauncher()
     delete projectile;
 }
 
-int WeaponLauncher::GetDamage()
+int WeaponLauncher::GetDamage() const
 {
   return cfg().damage;
 }
 
-Double WeaponLauncher::GetWindFactor()
+Double WeaponLauncher::GetWindFactor() const
 {
   return projectile->GetWindFactor();
 }
 
-Double WeaponLauncher::GetMass()
+Double WeaponLauncher::GetMass() const
 {
   return projectile->GetMass();
 }
@@ -482,8 +491,9 @@ bool WeaponLauncher::p_Shoot()
 
 bool WeaponLauncher::ReloadLauncher()
 {
-  if (projectile)
+  if (projectile) {
     return false;
+  }
   projectile = GetProjectileInstance();
   return true;
 }
@@ -498,8 +508,7 @@ void WeaponLauncher::DirectExplosion()
 void WeaponLauncher::Draw()
 {
   //Display timeout for projectil if can be changed.
-  if (projectile->change_timeout_allowed())
-  {
+  if (projectile->change_timeout_allowed()) {
     if (IsOnCooldownFromShot()) //Do not display after launching.
       return;
 
@@ -509,31 +518,30 @@ void WeaponLauncher::Draw()
     ss << "s";
     int txt_x = ActiveCharacter().GetX() + ActiveCharacter().GetWidth() / 2;
     int txt_y = ActiveCharacter().GetY() - 4*ActiveCharacter().GetHeight()/5;
-	Text text(ss.str());
-      text.DrawCenterTop(Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition());
+    Text text(ss.str());
+    text.DrawCenterTop(Point2i(txt_x, txt_y) - Camera::GetInstance()->GetPosition());
   }
 
   Weapon::Draw();
 
 #ifdef DEBUG_EXPLOSION_CONFIG
   ExplosiveWeaponConfig* cfg = dynamic_cast<ExplosiveWeaponConfig*>(extra_params);
-  if( cfg != NULL )
-  {
+  if (cfg) {
     Point2i p = ActiveCharacter().GetHandPosition() - Camera::GetInstance()->GetPosition();
     // Red color for the blast range (should be superior to the explosion_range)
     GetMainWindow().CircleColor(p.x, p.y, (int)cfg->blast_range, c_red);
     // Yellow color for the blast range (should be superior to the explosion_range)
     GetMainWindow().CircleColor(p.x, p.y, (int)cfg->explosion_range, c_black);
   }
-  GetMainWindow().CircleColor(GetGunHolePosition().x-Camera::GetInstance()->GetPositionX(), GetGunHolePosition().y-Camera::GetInstance()->GetPositionY(), 5, c_black);
+  GetMainWindow().CircleColor(GetGunHolePosition().x-Camera::GetInstance()->GetPositionX(),
+                              GetGunHolePosition().y-Camera::GetInstance()->GetPositionY(), 5, c_black);
 #endif
 }
 
 void WeaponLauncher::p_Select()
 {
   missed_shots = 0;
-  if (projectile->change_timeout_allowed())
-  {
+  if (projectile->change_timeout_allowed()) {
     projectile->ResetTimeOut();
   }
   Weapon::p_Select();
@@ -542,8 +550,8 @@ void WeaponLauncher::p_Select()
 void WeaponLauncher::IncMissedShots()
 {
   missed_shots++;
-  if(announce_missed_shots)
-    GameMessages::GetInstance()->Add (_("Your shot has missed!"));
+  if (announce_missed_shots)
+    GameMessages::GetInstance()->Add(_("Your shot has missed!"), ActiveTeam().GetColor());
 }
 
 void WeaponLauncher::HandleKeyReleased_Num1()
@@ -627,7 +635,7 @@ void WeaponLauncher::HandleMouseWheelDown(bool /*shift*/)
   SetTimeoutForAllPlayers(GetTimeout() - 1);
 }
 
-ExplosiveWeaponConfig& WeaponLauncher::cfg()
+ExplosiveWeaponConfig& WeaponLauncher::cfg() const
 {
   return static_cast<ExplosiveWeaponConfig&>(*extra_params);
 }

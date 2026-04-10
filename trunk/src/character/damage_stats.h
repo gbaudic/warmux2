@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef _DAMAGE_STATS_H
 #define _DAMAGE_STATS_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 
 class Character;
 
@@ -53,7 +53,7 @@ public:
   uint GetFriendlyFireDamage() const { return damage_friendly_fire; }
   uint GetItselfDamage() const { return damage_itself; }
   uint GetOthersDamage() const { return damage_other_teams; }
-  Double GetAccuracy() const { return (total_shots) ? (Double)damage_other_teams/(Double)total_shots : ZERO; }
+  float GetAccuracy() const { return (total_shots) ? damage_other_teams/(float)total_shots : 0; }
 
   void SetDeathTime(uint _death_time) { death_time = _death_time; };
   uint GetDeathTime() const { return death_time; };

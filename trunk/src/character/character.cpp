@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,14 +21,16 @@
 
 #include <sstream>
 #include <iostream>
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
+#include "character/body.h"
 #include "character/character.h"
 #include "character/damage_stats.h"
 #include "game/config.h"
 #include "game/game_mode.h"
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/text.h"
+#include "gui/energy_bar.h"
 #include "include/action_handler.h"
 #include "interface/interface.h"
 #include "interface/cursor.h"
@@ -50,12 +52,12 @@
 #include "graphic/video.h"
 #endif
 
-const uint HAUT_FONT_MIX = 13;
+const int HEIGHT_FONT_NAME = 13;
 
 // Space between the name, the skin and the energy bar
-const uint ESPACE = 3; // pixels
+const int SPACE = 3; // pixels
 const uint do_nothing_timeout = 5000;
-const Double MIN_SPEED_TO_FLY = 15.0;
+const Double MIN_SPEED_TO_FLY = 5.0;
 
 // Pause for the animation
 #ifdef DEBUG
@@ -74,8 +76,8 @@ const Double MIN_SPEED_TO_FLY = 15.0;
 #endif
 
 // Energy bar
-const uint LARG_ENERGIE = 40;
-const uint HAUT_ENERGIE = 6;
+const int WIDTH_ENERGY = 40;
+const int HEIGHT_ENERGY = 6;
 
 // Delta angle used to move the crosshair
 const Double DELTA_CROSSHAIR = 0.035; /* ~1 degree */
@@ -101,17 +103,17 @@ void Character::SetBody(Body * char_body)
   MSG_DEBUG("random.get", "Character::SetBody(...) direction");
   SetDirection(RandomSync().GetBool() ? DIRECTION_LEFT : DIRECTION_RIGHT);
   MSG_DEBUG("random.get", "Character::SetBody(...) body frame");
-  body->SetFrame(RandomSync().GetLong(0, body->GetFrameCount() - 1));
+  body->SetFrame(RandomSync().GetInt(0, body->GetFrameCount() - 1));
   SetSize(body->GetSize());
 }
 
 static uint GetRandomAnimationTimeValue()
 {
   MSG_DEBUG("random.get", "Character::SetBody(...) body frame");
-  return Time::GetInstance()->Read() + RandomSync().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
+  return Time::GetInstance()->Read() + RandomSync().GetUint(ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
 }
 
-Character::Character (Team& my_team, const std::string &name, Body *char_body) :
+Character::Character(Team& my_team, const std::string &name, Body *char_body) :
   PhysicalObj("character"),
   MovableByUser(),
   character_name(name),
@@ -121,6 +123,7 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   back_jumping(false),
   death_explosion(true),
   firing_angle(0),
+  disease_dealer(NULL),
   disease_damage_per_turn(0),
   disease_duration(0),
   damage_stats(new DamageStatistics(*this)),
@@ -151,15 +154,15 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   m_allow_negative_y = true;
   // Name Text object
   if (Config::GetInstance()->GetDisplayNameCharacter())
-    name_text = new Text(character_name);
+    name_text = new Text(character_name, m_team.GetColor());
   else
     name_text = NULL;
 
   // Energy
   m_energy = GameMode::GetInstance()->character.init_energy;
 
-  energy_bar = new EnergyBar(0, 0, 
-                             LARG_ENERGIE, HAUT_ENERGIE,
+  energy_bar = new EnergyBar(0, 0,
+                             WIDTH_ENERGY, HEIGHT_ENERGY,
                              GameMode::GetInstance()->character.init_energy,
                              0,
                              GameMode::GetInstance()->character.init_energy);
@@ -167,12 +170,12 @@ Character::Character (Team& my_team, const std::string &name, Body *char_body) :
   energy_bar->SetBorderColor(black_color);
   energy_bar->SetBackgroundColor(gray_color);
 
-  SetEnergy(GameMode::GetInstance()->character.init_energy);
+  SetEnergy(GameMode::GetInstance()->character.init_energy, NULL);
 
   MSG_DEBUG("character", "Load character %s", character_name.c_str());
 }
 
-Character::Character (const Character& acharacter) :
+Character::Character(const Character& acharacter) :
   PhysicalObj(acharacter),
   MovableByUser(),
   character_name(acharacter.character_name),
@@ -182,6 +185,7 @@ Character::Character (const Character& acharacter) :
   back_jumping(acharacter.back_jumping),
   death_explosion(acharacter.death_explosion),
   firing_angle(acharacter.firing_angle),
+  disease_dealer(acharacter.disease_dealer),
   disease_damage_per_turn(acharacter.disease_damage_per_turn),
   disease_duration(acharacter.disease_duration),
   damage_stats(new DamageStatistics(*acharacter.damage_stats, *this)),
@@ -201,17 +205,17 @@ Character::Character (const Character& acharacter) :
   previous_strength(acharacter.previous_strength),
   body(NULL)
 {
-  energy_bar = new EnergyBar(acharacter.energy_bar->GetX(), 
+  energy_bar = new EnergyBar(acharacter.energy_bar->GetX(),
                              acharacter.energy_bar->GetY(),
-                             acharacter.energy_bar->GetWidth(), 
+                             acharacter.energy_bar->GetWidth(),
                              acharacter.energy_bar->GetHeight(),
-                             acharacter.energy_bar->GetVal(),
-                             acharacter.energy_bar->GetMinVal(),
-                             acharacter.energy_bar->GetMaxVal());
+                             acharacter.energy_bar->GetCurrentValue(),
+                             acharacter.energy_bar->GetMinValue(),
+                             acharacter.energy_bar->GetMaxValue());
   energy_bar->SetBorderColor(black_color);
   energy_bar->SetBackgroundColor(gray_color);
-  SetEnergy(GameMode::GetInstance()->character.init_energy);
- 
+  SetEnergy(GameMode::GetInstance()->character.init_energy, NULL);
+
   if (acharacter.body) {
     Body * newBody = new Body(*acharacter.body);
     SetBody(newBody);
@@ -234,7 +238,7 @@ Character::~Character()
   if (particle_engine) {
     delete particle_engine;
   }
-  if (NULL != energy_bar) {
+  if (energy_bar) {
     delete energy_bar;
   }
   body            = NULL;
@@ -249,25 +253,25 @@ void Character::SignalDrowning()
   Camera::GetInstance()->FollowObject(this);
 
   // Set energy
-  SetEnergy(0);
+  SetEnergy(0, &ActiveCharacter());
   SetMovement("drowned", true);
-  JukeBox::GetInstance()->Play (GetTeam().GetSoundProfile(),"sink");
+  JukeBox::GetInstance()->Play(GetTeam().GetSoundProfile(),"sink");
   Game::GetInstance()->SignalCharacterDeath (this);
 }
 
 // Signal the character death (short life as you can notice)
 // May you rest in peace young one.
-void Character::SignalGhostState (bool was_dead)
+void Character::SignalGhostState(bool was_dead)
 {
   // Report to damage performer this character lost all of its energy
   ActiveCharacter().damage_stats->MadeDamage(GetEnergy(), *this);
 
   MSG_DEBUG("character", "ghost");
   // Signal the death
-  if (!was_dead) Game::GetInstance()->SignalCharacterDeath (this);
+  if (!was_dead) Game::GetInstance()->SignalCharacterDeath(this);
 }
 
-void Character::SetDirection (LRDirection nv_direction)
+void Character::SetDirection(LRDirection nv_direction)
 {
   body->SetDirection(nv_direction);
   uint l,r,t,b;
@@ -276,26 +280,80 @@ void Character::SetDirection (LRDirection nv_direction)
   m_team.crosshair.Refresh(GetFiringAngle());
 }
 
-void Character::DrawEnergyBar(int dy) const
+bool Character::MustDrawLostEnergy() const
 {
-  if( IsDead() )
-        return;
+  if ((IsActiveCharacter()
+       && Game::GetInstance()->ReadState() != Game::END_TURN)
+      || IsDead())
+    return false;
 
-  energy_bar->DrawXY( Point2i( GetCenterX() - energy_bar->GetWidth() / 2, GetY() + dy)
-                     - Camera::GetInstance()->GetPosition() );
+  return lost_energy != 0;
 }
 
-void Character::DrawName(int dy) const
+bool Character::MustDrawEnergyBar() const
 {
-  if (IsDead()) return;
+  if (Config::GetInstance()->GetDisplayEnergyCharacter()
+      && ((!IsActiveCharacter()
+           && Game::GetInstance()->ReadState() != Game::END_TURN
+           && !IsDead())
+          || MustDrawLostEnergy()))
+    return true;
+
+  return false;
+}
+
+bool Character::MustDrawName() const
+{
+  if (!MustBeDrawn())
+    return false;
+
+  if (Config::GetInstance()->GetDisplayNameCharacter()
+      && !IsActiveCharacter()
+      && Game::GetInstance()->ReadState() != Game::END_TURN)
+    return true;
+
+  return false;
+}
+
+void Character::DrawEnergyBar() const
+{
+  if (!MustDrawEnergyBar())
+    return;
+
+  int dy = -SPACE - HEIGHT_ENERGY;
+  energy_bar->DrawXY(Point2i(GetCenterX() - energy_bar->GetWidth()/2, GetY() + dy)
+                     - Camera::GetInstance()->GetPosition());
+}
+
+void Character::DrawLostEnergy() const
+{
+  if (!MustDrawLostEnergy())
+    return;
+
+  std::ostringstream ss;
+  ss << lost_energy;
+  int dy = - SPACE - HEIGHT_FONT_NAME - SPACE - HEIGHT_ENERGY;
+  if (MustDrawName()) {
+    dy = dy - HEIGHT_FONT_NAME - SPACE;
+  }
+  Text text(ss.str(), m_team.GetColor());
+  text.DrawCenterTop(GetPosition() - Camera::GetInstance()->GetPosition() +
+                     Point2i(GetWidth()/2, dy));
+}
+
+void Character::DrawName() const
+{
+  if (!MustDrawName())
+    return;
+
+  int dy = -SPACE - HEIGHT_FONT_NAME;
+  if (MustDrawEnergyBar()) {
+    dy = dy - HEIGHT_ENERGY - SPACE;
+  }
 
   const int x = GetCenterX();
   const int y = GetY() + dy;
-
-  if (Config::GetInstance()->GetDisplayNameCharacter()) {
-    name_text->DrawCenterTopOnMap(Point2i(x,y));
-  }
-
+  name_text->DrawCenterTopOnMap(Point2i(x,y));
 }
 
 void Character::ResetDamageStats()
@@ -303,48 +361,68 @@ void Character::ResetDamageStats()
   damage_stats->ResetDamage();
 }
 
-void Character::SetEnergyDelta(int delta, bool do_report)
+void Character::ApplyDiseaseDamage()
+{
+  // Copy a bit SetEnergyDelta
+  // If already dead, do nothing
+  if (IsDead()) return;
+
+  SetEnergyDelta(-(int)GetDiseaseDamage(), disease_dealer);
+}
+
+void Character::SetEnergyDelta(int delta, Character* dealer)
 {
   // If already dead, do nothing
   if (IsDead()) return;
 
   MSG_DEBUG("character.energy", "%s has win %d life points\n",
-	    character_name.c_str(), delta);
-
-  // Report damage to damage performer
-  if (do_report)
-    ActiveCharacter().damage_stats->MadeDamage(-delta, *this);
+            character_name.c_str(), delta);
 
   uint saved_energy = GetEnergy();
 
   // Update energy
-  SetEnergy(GetEnergy() + delta);
+  SetEnergy(GetEnergy() + delta, dealer);
 
-  if(IsDead()) return;
+  if (IsDead())
+    return;
 
   // Compute energy lost
   if (delta < 0) {
     lost_energy += (int)GetEnergy() - (int)saved_energy;
 
-    if ( lost_energy > -33 )
-      JukeBox::GetInstance()->Play (GetTeam().GetSoundProfile(), "injured_light");
-    else if ( lost_energy > -66 )
-      JukeBox::GetInstance()->Play (GetTeam().GetSoundProfile(), "injured_medium");
+    if (lost_energy > -33)
+      JukeBox::GetInstance()->Play(GetTeam().GetSoundProfile(), "injured_light");
+    else if (lost_energy > -66)
+      JukeBox::GetInstance()->Play(GetTeam().GetSoundProfile(), "injured_medium");
     else
-      JukeBox::GetInstance()->Play (GetTeam().GetSoundProfile(), "injured_high");
+      JukeBox::GetInstance()->Play(GetTeam().GetSoundProfile(), "injured_high");
+
+    // If energy was lost, let's stop playing the idle animation
+    if (body->GetMovement().substr(0,9) == "animation"
+        || body->GetClothe().substr(0,9) == "animation") {
+      SetClothe("normal");
+      SetMovement("breathe");
+    }
+    // Delay a bit the occurrence of the animation
+    animation_time = Time::GetInstance()->Read()
+                   + (ANIM_PAUSE_MAX + ANIM_PAUSE_MIN)/2;
   } else
     lost_energy = 0;
 
+  // Report damage to damage performer
+  if (dealer && lost_energy < 0)
+      dealer->damage_stats->MadeDamage(-lost_energy, *this);
+
   // "Friendly fire !!"
-  if ( !IsActiveCharacter() && ActiveTeam().IsSameAs(m_team) )
-    JukeBox::GetInstance()->Play (GetTeam().GetSoundProfile(), "friendly_fire");
+  if (dealer!=this && dealer && dealer->GetTeam().IsSameAs(m_team))
+    JukeBox::GetInstance()->Play(m_team.GetSoundProfile(), "friendly_fire");
 }
 
-void Character::SetEnergy(int new_energy)
+void Character::SetEnergy(int new_energy, Character* dealer)
 {
   int diff = new_energy - m_energy;
-  if(diff < 0) {
-    Particle *tmp = new FadingText(long2str(diff));
+  if (diff < 0) {
+    Particle *tmp = new FadingText(int2str(diff));
     tmp->SetXY(GetPosition());
     ParticleEngine::AddNow(tmp);
   }
@@ -353,24 +431,23 @@ void Character::SetEnergy(int new_energy)
 
   // Change energy
   m_energy = InRange_Long((int)new_energy, 0,
-                     GameMode::GetInstance()->character.max_energy);
+                          GameMode::GetInstance()->character.max_energy);
   energy_bar->Actu(m_energy);
 
   // Dead character ?
-  if (GetEnergy() <= 0) Die();
+  if (GetEnergy() <= 0) Die(dealer);
 }
 
-void Character::Die()
+void Character::Die(Character* killer)
 {
   ASSERT (m_alive == ALIVE || m_alive == DROWNED);
 
   MSG_DEBUG("character", "Dying");
 
-  if (m_alive != DROWNED)
-  {
+  if (m_alive != DROWNED) {
     m_alive = DEAD;
 
-    SetEnergy(0);
+    SetEnergy(0, killer);
 
     JukeBox::GetInstance()->Play(GetTeam().GetSoundProfile(),"death");
     body->SetRotation(0.0);
@@ -381,81 +458,66 @@ void Character::Die()
     ud_move_intentions.clear();
     lr_move_intentions.clear();
 
-    if(death_explosion)
+    if (death_explosion)
       ApplyExplosion(GetCenter(), GameMode::GetInstance()->death_explosion_cfg);
     ASSERT(IsDead());
 
     // Signal the death
-    Game::GetInstance()->SignalCharacterDeath (this);
+    Game::GetInstance()->SignalCharacterDeath(this, killer);
   }
 
   damage_stats->SetDeathTime(Time::GetInstance()->Read());
   Camera::GetInstance()->StopFollowingObj(this);
 }
 
-void Character::Draw()
+bool Character::MustBeDrawn() const
 {
-  if (hidden) return; // Character is teleporting...
+  if (hidden)
+    return false; // Character is teleporting...
 
   // Gone in another world ?
-  if (IsGhost()) return;
+  if (IsGhost())
+    return false;
 
   // Character is visible on camera? If not, just leave the function
   // WARNING, this optimization is disabled if it is the active character
   // because there could be some tricks in the drawing of the weapon (cf bug #10242)
   if (!IsActiveCharacter()) {
-    Rectanglei rect(GetPosition(), Vector2<int>(GetWidth(), GetHeight()));
-    if (!rect.Intersect(*Camera::GetInstance())) return;
+    // Beware that GetTestRect on character returns a smaller rectangle,
+    // so you can't use Camera::IsVisible
+    Rectanglei rect(GetPosition(), GetSize());
+    if (!rect.Intersect(*Camera::GetInstance()))
+      return false;
   }
 
-  bool draw_loosing_energy = (lost_energy != 0);
-  if ((IsActiveCharacter()
-       && Game::GetInstance()->ReadState() != Game::END_TURN)
-      || IsDead())
-    draw_loosing_energy = false;
+  return true;
+}
 
+void Character::Draw()
+{
+  if (!MustBeDrawn())
+    return;
 
   Point2i pos = GetPosition();
   body->Draw(pos);
 
-  // Draw energy bar
-  int dy = -((int)ESPACE);
-  if (Config::GetInstance()->GetDisplayEnergyCharacter()
-      && ((!IsActiveCharacter()
-	   && Game::GetInstance()->ReadState() != Game::END_TURN
-	   && !IsDead())
-	  || draw_loosing_energy) )
-  {
-    dy -= HAUT_ENERGIE;
-    DrawEnergyBar (dy);
-    dy -= ESPACE;
-  }
+  DrawEnergyBar();
 
-  // Draw name
-  if (Config::GetInstance()->GetDisplayNameCharacter()
-      && !IsActiveCharacter()
-      && Game::GetInstance()->ReadState() != Game::END_TURN)
-  {
-    dy -= HAUT_FONT_MIX;
-    DrawName (dy);
-    dy -= ESPACE;
-  }
+  //DrawName();
 
-  // Draw lost energy
-  if (draw_loosing_energy)
-  {
-    std::ostringstream ss;
-    ss << lost_energy;
-    dy -= HAUT_FONT_MIX;
-	Text text(ss.str());
-	text.DrawCenterTop(GetPosition() - Camera::GetInstance()->GetPosition() + Point2i( GetWidth()/2, dy));
-  }
+  DrawLostEnergy();
 
 #ifdef DEBUG
-
   if (IsLOGGING("body"))
   {
-    dy -= HAUT_FONT_MIX;
+    int dy = -SPACE - HEIGHT_FONT_NAME;
+    if (MustDrawEnergyBar())
+      dy = -SPACE - HEIGHT_ENERGY;
+    if (MustDrawName())
+      dy = -SPACE - HEIGHT_FONT_NAME;
+    if (MustDrawLostEnergy())
+      dy = -SPACE - HEIGHT_FONT_NAME;
+
     std::string txt = body->GetClothe() + " " + body->GetMovement() + " " + body->GetFrameLoop();
     Text skin_text(txt);
     skin_text.DrawCenterTopOnMap(Point2i(GetX(), GetY() - dy));
@@ -550,11 +612,6 @@ void Character::UpdateLastMovingTime()
   do_nothing_time = Time::GetInstance()->Read();
 }
 
-bool Character::HasGroundUnderFeets() const
-{
-  return IsImmobile() && !IsFalling();
-}
-
 void Character::Refresh()
 {
   StartOrStopWalkingIfNecessary();
@@ -572,59 +629,51 @@ void Character::Refresh()
   Time * global_time = Time::GetInstance();
 
   // center on character who is falling
-  if (FootsInVacuum()) {
+  if (IsFalling()) {
     bool closely = false;
     if (IsActiveCharacter() &&
-	(ActiveTeam().GetWeaponType() == Weapon::WEAPON_JETPACK
-	 || ActiveTeam().GetWeaponType() == Weapon::WEAPON_PARACHUTE))
+        (ActiveTeam().GetWeaponType() == Weapon::WEAPON_JETPACK
+         || ActiveTeam().GetWeaponType() == Weapon::WEAPON_PARACHUTE))
       closely = true;
     Camera::GetInstance()->FollowObject(this, closely);
   }
 
-  if (IsDiseased())
-  {
+  if (IsDiseased()) {
     Point2i bubble_pos = GetPosition();
     if (GetDirection() == DIRECTION_LEFT)
       bubble_pos.x += GetWidth();
     particle_engine->AddPeriodic(bubble_pos, particle_ILL_BUBBLE, false,
-                              - HALF_PI - (Double)GetDirection() * QUARTER_PI, 20.0);
+                                 - HALF_PI - (Double)GetDirection() * QUARTER_PI, 20.0);
   }
 
-  if (IsActiveCharacter() && Game::GetInstance()->ReadState() == Game::PLAYING)
-  {
+  if (IsActiveCharacter() && Game::GetInstance()->ReadState() == Game::PLAYING) {
     if (do_nothing_time + do_nothing_timeout < global_time->Read())
       CharacterCursor::GetInstance()->FollowActiveCharacter();
 
     if (walking_time + 1000 < global_time->Read() && body->GetMovement().find("-shoot") == std::string::npos)
       if (body->GetMovement() != "weapon-" + ActiveTeam().GetWeapon().GetID() + "-select")
-	body->SetMovement("weapon-" + ActiveTeam().GetWeapon().GetID() + "-select");
-  }
-  else
-  {
+        body->SetMovement("weapon-" + ActiveTeam().GetWeapon().GetID() + "-select");
+  } else {
     if (body->GetMovement() == "weapon-" + ActiveTeam().GetWeapon().GetID() + "-select")
       body->SetMovement("breathe");
   }
 
-  if (body->IsWalking() && body->GetMovement() == "walk")
-  {
+  if (body->IsWalking() && body->GetMovement() == "walk") {
     // Play the step sound only twice during the walking animation
-    uint frame_nbr = body->GetFrameCount();
+    uint frame_nbr = body->GetFrameCount()>>1;
     uint cur = body->GetFrame();
-    frame_nbr /= 2;
     cur %= frame_nbr;
 
-    if (cur < frame_nbr / 2 && !step_sound_played)
-    {
+    if (cur < frame_nbr>>1 && !step_sound_played) {
       step_sound_played = true;
       JukeBox::GetInstance()->Play (GetTeam().GetSoundProfile(),"step");
     }
 
-    if (cur > frame_nbr / 2)
+    if (cur > frame_nbr>>1)
       step_sound_played = false;
   }
 
-  if (back_jumping)
-  {
+  if (back_jumping) {
     ASSERT(&ActiveCharacter() == this);
     Double rotation;
     static Double speed_init = GameMode::GetInstance()->character.back_jump_strength *
@@ -638,22 +687,24 @@ void Character::Refresh()
   if (Game::GetInstance()->ReadState() == Game::END_TURN && body->IsWalking())
     body->StopWalking();
 
-  if (Time::GetInstance()->Read() > animation_time && !IsActiveCharacter() && !IsDead()
-      && body->GetMovement().substr(0,9) != "animation"
-      &&  body->GetClothe().substr(0,9) != "animation")
-  {
+  if (Time::GetInstance()->Read() > animation_time
+      && !IsActiveCharacter()
+      && !IsDead()
+      && !IsFalling()
+      && body->GetMovement().compare(0, 9, "animation")
+      && body->GetClothe().compare(0, 9, "animation")) {
     body->PlayAnimation();
     MSG_DEBUG("random.get", "Character::Refresh()");
-    animation_time = Time::GetInstance()->Read() + body->GetMovementDuration() + RandomSync().GetLong(ANIM_PAUSE_MIN,ANIM_PAUSE_MAX);
+    animation_time = Time::GetInstance()->Read() + body->GetMovementDuration()
+                   + RandomSync().GetUint(ANIM_PAUSE_MIN, ANIM_PAUSE_MAX);
   }
 
   // Stop the animation or the black skin if we are playing
   if (IsActiveCharacter()
       && Game::GetInstance()->ReadState() == Game::PLAYING
       && (body->GetMovement().substr(0,9) == "animation"
-	  || body->GetClothe().substr(0,9) == "animation"
-	  || body->GetClothe() == "black"))
-  {
+          || body->GetClothe().substr(0,9) == "animation"
+          || body->GetClothe() == "black")) {
     SetClothe("normal");
     SetMovement("breathe");
   }
@@ -668,10 +719,8 @@ void Character::Refresh()
   // Refresh the body (needed to determine if "weapon-*-begin-shoot" is finnished)
   body->Build();
 
-  if (prepare_shoot)
-  {
-    if (body->GetMovement() != "weapon-" + ActiveTeam().GetWeapon().GetID() + "-begin-shoot")
-    {
+  if (prepare_shoot) {
+    if (body->GetMovement() != "weapon-" + ActiveTeam().GetWeapon().GetID() + "-begin-shoot") {
       // if the movement is finnished, shoot !
       DoShoot();
       prepare_shoot = false;
@@ -688,7 +737,7 @@ void Character::UpdateFiringAngle()
     CharacterCursor::GetInstance()->Hide();
     Double delta = DELTA_CROSSHAIR;
     if (ud_move_intention->IsToDoItSlowly())
-      delta /= 10.0;
+      delta /= 10;
     if (ud_move_intention->GetDirection() == DIRECTION_UP)
       delta = -delta;
     AddFiringAngle(delta);
@@ -731,13 +780,14 @@ void Character::Collision(const Point2d& speed_vector)
 
   Double norm = speed_vector.Norm();
 
-  if (norm > game_mode->safe_fall && speed_vector.y > ZERO)
-  {
+  if (norm > game_mode->safe_fall && speed_vector.y > ZERO) {
     // TODO: take the angle of collision into account!
 
     norm -= game_mode->safe_fall;
     Double degat = norm * game_mode->damage_per_fall_unit;
-    SetEnergyDelta (-(int)degat);
+    // If the player was clumsy and felt, he is the active character and the damage dealer
+    // If the player was blasted, this is because the weapon holder is the active character and the damage dealer
+    SetEnergyDelta(-(int)degat, &ActiveCharacter());
     Game::GetInstance()->SignalCharacterDamage(this);
     SetClothe("normal");
 
@@ -753,8 +803,8 @@ void Character::Collision(const Point2d& speed_vector)
 void Character::SignalGroundCollision(const Point2d& speed_before)
 {
   MSG_DEBUG("character.collision", "%s collides on ground with speed %s, %s (norm = %s)",
-            character_name.c_str(), 
-            Double2str(speed_before.x).c_str(), 
+            character_name.c_str(),
+            Double2str(speed_before.x).c_str(),
             Double2str(speed_before.y).c_str(),
             Double2str(speed_before.Norm()).c_str());
 
@@ -762,12 +812,12 @@ void Character::SignalGroundCollision(const Point2d& speed_before)
 }
 
 void Character::SignalObjectCollision(const Point2d& my_speed_before,
-				      PhysicalObj * /* obj */,
-				      const Point2d& /* obj_speed */)
+                                      PhysicalObj * /* obj */,
+                                      const Point2d& /* obj_speed */)
 {
   MSG_DEBUG("character.collision", "%s collides on object with speed %s, %s (norm = %s)",
             character_name.c_str(),
-            Double2str(my_speed_before.x).c_str(), 
+            Double2str(my_speed_before.x).c_str(),
             Double2str(my_speed_before.y).c_str(),
             Double2str(my_speed_before.Norm()).c_str());
   // In case an object collides with the character, we don't want
@@ -786,16 +836,13 @@ void Character::SignalExplosion()
 
   SetClotheOnce("black");
 
-  if (n > MIN_SPEED_TO_FLY)
-  {
+  if (n > MIN_SPEED_TO_FLY) {
     SetMovement("fly-black");
-  }
-  else
-  {
+  } else {
     SetMovementOnce("black");
-    if (body->GetClothe() == "black"
-	&& body->GetMovement() != "black")
-      std::cerr << "Error: the clothe \"black\" of the character " << GetName() << " is set, but the skin have no \"black\" movement !!!" << std::endl;
+    if (body->GetClothe() == "black" && body->GetMovement() != "black")
+      std::cerr << "Error: the clothe \"black\" of the character " << GetName()
+                << " is set, but the skin have no \"black\" movement !!!" << std::endl;
   }
 
   Game::GetInstance()->SignalCharacterDamage(this);
@@ -842,12 +889,6 @@ bool Character::IsActiveCharacter() const
 }
 
 // Hand position
-void Character::GetHandPosition(Point2i & result) const
-{
-  GetRelativeHandPosition(result);
-  result += GetPosition();
-}
-
 void Character::GetRelativeHandPosition(Point2i & result) const
 {
   body->GetRelativeHandPosition(result);
@@ -861,12 +902,9 @@ Double Character::GetFiringAngle() const {
 
 #include <iostream>
 void Character::SetFiringAngle(Double angle) {
-  /*while(angle > 2 * PI)
-    angle -= 2 * PI;
-  while(angle <= -2 * PI)
-    angle += 2 * PI;*/
+  /* angle = RestrictAngle(angle) */
   angle = InRange_Double(angle, -(ActiveTeam().GetWeapon().GetMaxAngle()),
-                             -(ActiveTeam().GetWeapon().GetMinAngle()));
+                                -(ActiveTeam().GetWeapon().GetMinAngle()));
   firing_angle = angle;
   m_team.crosshair.Refresh(GetFiringAngle());
   body->Rebuild();
@@ -925,28 +963,12 @@ uint Character::GetTeamIndex() const
 uint Character::GetCharacterIndex() const
 {
   uint index = 0;
-  for (Team::iterator it = m_team.begin();
-       it != m_team.end() ; ++it, ++index )
-  {
+  for (Team::iterator it = m_team.begin(); it != m_team.end() ; ++it, ++index) {
     if (&(*it) == this)
       return index;
   }
   ASSERT(false);
   return 0;
-}
-
-const std::string& Character::GetName() const
-{
-    return character_name;
-}
-
-void Character::SetCustomName(const std::string name)
-{
-  if (!name.empty())
-  {
-    name_text->SetText(name);
-    character_name = name;
-  }
 }
 
 // ###################################################################
@@ -956,7 +978,7 @@ void Character::SetCustomName(const std::string name)
 void Character::StartOrStopWalkingIfNecessary()
 {
   const LRMoveIntention * lr_move_intention = GetLastLRMoveIntention();
-  bool should_walk = (lr_move_intention != NULL)
+  bool should_walk = lr_move_intention
     && !GetTeam().AccessWeapon().IsPreventingLRMovement()
     && HasGroundUnderFeets()
     && !IsDead();
@@ -968,7 +990,7 @@ void Character::StartOrStopWalkingIfNecessary()
   }
   if (should_walk && !IsChangingDirection()) {
     bool should_be_slowly = lr_move_intention->IsToDoItSlowly();
-    if (IsWalking() && (should_be_slowly != walking_slowly))
+    if (IsWalking() && should_be_slowly != walking_slowly)
       StopWalking();
     if (!IsWalking())
       StartWalking(should_be_slowly);
@@ -1018,7 +1040,7 @@ void Character::MakeSteps()
   uint walking_pause = GameMode::GetInstance()->character.walking_pause;
 
   const LRMoveIntention * lr_move_intention = GetLastLRMoveIntention();
-  ASSERT(lr_move_intention != NULL);
+  ASSERT(lr_move_intention);
   if (lr_move_intention->IsToDoItSlowly())
     walking_pause *= 10;
   else
@@ -1026,9 +1048,9 @@ void Character::MakeSteps()
 
   // If character moves out of the world, no need to go further: it is dead
   if (GetDirection() == DIRECTION_LEFT)
-    ghost = IsOutsideWorld ( Point2i(-1, 0) );
+    ghost = IsOutsideWorld(Point2i(-1, 0));
   else
-    ghost = IsOutsideWorld ( Point2i(1, 0) );
+    ghost = IsOutsideWorld(Point2i(1, 0));
 
   if (ghost) {
     MSG_DEBUG("ghost", "%s will be a ghost.", GetName().c_str());
@@ -1037,13 +1059,13 @@ void Character::MakeSteps()
   }
 
   // Check we can move (to go not too fast)
-  while ((rl_motion_pause + walking_pause < Time::GetInstance()->Read()) &&
+  while (rl_motion_pause+walking_pause < Time::GetInstance()->Read() &&
          ComputeHeightMovement(height)) {
     walking_time = Time::GetInstance()->Read();
     rl_motion_pause = rl_motion_pause + walking_pause;
 
     // Eventually moves the character
-    SetXY( Point2i(GetX() + GetDirection(), GetY() + height));
+    SetXY(Point2i(GetX() + GetDirection(), GetY() + height));
 
     // If no collision, let gravity do its job
     UpdatePosition();
@@ -1058,7 +1080,7 @@ bool Character::IsChangingDirection()
 bool Character::ComputeHeightMovement(int & height)
 {
   if (IsInVacuum(Point2i(GetDirection(), 0))
-      && !IsInVacuum(Point2i(GetDirection(), +1)) ){
+      && !IsInVacuum(Point2i(GetDirection(), +1))){
     //Land is flat, we can move!
     height = 0;
     return true;
@@ -1199,4 +1221,3 @@ void Character::HandleKeyPressed_BackJump()
     ActionHandler::GetInstance()->NewAction(a);
   }
 }
-

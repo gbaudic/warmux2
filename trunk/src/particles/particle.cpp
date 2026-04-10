@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,18 +19,19 @@
  * Particle Engine
  *****************************************************************************/
 
-#include "particles/particle.h"
+#include <WARMUX_point.h>
 #include <SDL.h>
 #include <map>
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
+#include "map/map.h"
+#include "map/camera.h"
+#include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "tool/resource_manager.h"
-#include <WORMUX_point.h>
 #include "weapon/explosion.h"
-#include "map/map.h"
-#include "network/randomsync.h"
 
+#include "particles/particle.h"
 #include "particles/body_member.h"
 #include "particles/teleport_member.h"
 #include "particles/bullet.h"
@@ -87,30 +88,22 @@ void Particle::Refresh()
 
     m_left_time_to_live--;
 
-    Double lived_time = m_initial_time_to_live - m_left_time_to_live;
+    uint lived_time = m_initial_time_to_live - m_left_time_to_live;
 
-    //during the 1st quarter of the time increase size of particle
-    //after the 1st quarter, decrease the alpha value
-    if((Double)lived_time<m_initial_time_to_live/TWO)
-    {
-      Double coeff = sin((HALF_PI)*((Double)lived_time/((Double)m_initial_time_to_live/TWO)));
-      image->Scale(coeff,coeff);
+    //during the 1st half of the time, increase size of particle
+    //after the 1st half, decrease the alpha value
+    if (2*lived_time<m_initial_time_to_live) {
+      Double coeff = sin(lived_time*PI/m_initial_time_to_live);
+      image->Scale(coeff, coeff);
       SetSize(image->GetSize());
       image->SetAlpha(1.0);
-    }
-    else
-    {
-      Double alpha = ONE - sin((HALF_PI)*((Double)lived_time-((Double)m_initial_time_to_live/TWO))/((Double)m_initial_time_to_live/TWO));
-      image->Scale(1.0,1.0);
+    } else {
+      Double alpha = ONE - sin((2*lived_time-m_initial_time_to_live)*HALF_PI/m_initial_time_to_live);
+      image->Scale(1.0, 1.0);
       image->SetAlpha(alpha);
     }
     m_last_refresh = Time::GetInstance()->Read() ;
   }
-}
-
-bool Particle::StillUseful() const
-{
-  return (m_left_time_to_live > 0);
 }
 
 // ==============================================
@@ -119,7 +112,6 @@ ParticleEngine::ParticleEngine(uint time):
   m_last_refresh(Time::GetInstance()->Read()),
   m_time_between_add(time)
 {}
-
 
 void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
                                  bool upper,
@@ -130,7 +122,7 @@ void ParticleEngine::AddPeriodic(const Point2i &position, particle_t type,
   uint tmp = Time::GetInstance()->Read();
 
   MSG_DEBUG("random.get", "ParticleEngine::AddPeriodic(...)");
-  uint delta = long(m_time_between_add * Double(RandomSync().GetLong(3, 40)) / 10);
+  uint delta = uint(m_time_between_add * Double(RandomSync().GetUint(3, 40)) / 10);
   if (time >= delta) {
     m_last_refresh = tmp;
     ParticleEngine::AddNow(position, 1, type, upper, angle, norme);
@@ -145,30 +137,33 @@ Sprite* ParticleEngine::particle_sprite[particle_spr_nbr];
 
 void ParticleEngine::Load()
 {
+  if (sprites_loaded)
+    return;
+
   // Pre-load the sprite of each particle
-  Profile *res = GetResourceManager().LoadXMLProfile( "weapons.xml", false);
-  particle_sprite[SMOKE_spr] = GetResourceManager().LoadSprite(res,"smoke");
-  particle_sprite[EXPLOSION_SMOKE_spr] = GetResourceManager().LoadSprite(res,"smoke_explosion");
-  particle_sprite[EXPLOSION_BIG_SMOKE_spr] = GetResourceManager().LoadSprite(res,"smoke_big_explosion");
-  particle_sprite[ILL_BUBBLE_spr] = GetResourceManager().LoadSprite(res,"ill_bubble");
-  particle_sprite[FIRE_spr]  = GetResourceManager().LoadSprite(res,"fire_particle");
-  particle_sprite[STAR_spr]  = GetResourceManager().LoadSprite(res,"star_particle");
-  particle_sprite[DARK_SMOKE_spr]  = GetResourceManager().LoadSprite(res,"dark_smoke");
-  particle_sprite[MAGIC_STAR_R_spr] = GetResourceManager().LoadSprite(res,"pink_star_particle");
-  particle_sprite[MAGIC_STAR_R_spr]->EnableRotationCache(32);
-  particle_sprite[MAGIC_STAR_Y_spr] = GetResourceManager().LoadSprite(res,"yellow_star_particle");
-  particle_sprite[MAGIC_STAR_Y_spr]->EnableRotationCache(32);
-  particle_sprite[MAGIC_STAR_B_spr] = GetResourceManager().LoadSprite(res,"blue_star_particle");
-  particle_sprite[MAGIC_STAR_B_spr]->EnableRotationCache(32);
-  particle_sprite[BULLET_spr] = GetResourceManager().LoadSprite(res,"bullet_particle");
-  particle_sprite[BULLET_spr]->EnableRotationCache(6);
-  particle_sprite[POLECAT_FART_spr] = GetResourceManager().LoadSprite(res,"polecat_fart");
-  particle_sprite[CLEARWATER_spr] = GetResourceManager().LoadSprite(res,"water_drop");
-  particle_sprite[LAVA_spr] = GetResourceManager().LoadSprite(res,"lava_drop");
-  particle_sprite[RADIOACTIVE_spr] = GetResourceManager().LoadSprite(res,"radioactive_drop");
-  particle_sprite[DIRTYWATER_spr] = GetResourceManager().LoadSprite(res,"dirtywater_drop");
-  particle_sprite[CHOCOLATEWATER_spr] = GetResourceManager().LoadSprite(res,"chocolate_drop");
-  particle_sprite[EXPLOSION_spr] = GetResourceManager().LoadSprite(res,"explosion_particle");
+  Profile *res = GetResourceManager().LoadXMLProfile("weapons.xml", false);
+  particle_sprite[SMOKE_spr] = LOAD_RES_SPRITE("smoke");
+  particle_sprite[EXPLOSION_SMOKE_spr] = LOAD_RES_SPRITE("smoke_explosion");
+  particle_sprite[EXPLOSION_BIG_SMOKE_spr] = LOAD_RES_SPRITE("smoke_big_explosion");
+  particle_sprite[ILL_BUBBLE_spr] = LOAD_RES_SPRITE("ill_bubble");
+  particle_sprite[FIRE_spr]  = LOAD_RES_SPRITE("fire_particle");
+  particle_sprite[STAR_spr]  = LOAD_RES_SPRITE("star_particle");
+  particle_sprite[DARK_SMOKE_spr]  = LOAD_RES_SPRITE("dark_smoke");
+  particle_sprite[MAGIC_STAR_R_spr] = LOAD_RES_SPRITE("pink_star_particle");
+  particle_sprite[MAGIC_STAR_R_spr]->EnableCaches(false, 32);
+  particle_sprite[MAGIC_STAR_Y_spr] = LOAD_RES_SPRITE("yellow_star_particle");
+  particle_sprite[MAGIC_STAR_Y_spr]->EnableCaches(false, 32);
+  particle_sprite[MAGIC_STAR_B_spr] = LOAD_RES_SPRITE("blue_star_particle");
+  particle_sprite[MAGIC_STAR_B_spr]->EnableCaches(false, 32);
+  particle_sprite[BULLET_spr] = LOAD_RES_SPRITE("bullet_particle");
+  particle_sprite[BULLET_spr]->EnableCaches(false, 6);
+  particle_sprite[POLECAT_FART_spr] = LOAD_RES_SPRITE("polecat_fart");
+  particle_sprite[CLEARWATER_spr] = LOAD_RES_SPRITE("water_drop");
+  particle_sprite[LAVA_spr] = LOAD_RES_SPRITE("lava_drop");
+  particle_sprite[RADIOACTIVE_spr] = LOAD_RES_SPRITE("radioactive_drop");
+  particle_sprite[DIRTYWATER_spr] = LOAD_RES_SPRITE("dirtywater_drop");
+  particle_sprite[CHOCOLATEWATER_spr] = LOAD_RES_SPRITE("chocolate_drop");
+  particle_sprite[EXPLOSION_spr] = LOAD_RES_SPRITE("explosion_particle");
   GetResourceManager().UnLoadXMLProfile(res);
 
   sprites_loaded = true;
@@ -176,9 +171,11 @@ void ParticleEngine::Load()
 
 void ParticleEngine::FreeMem()
 {
+  // Only called at game exit: loading particles is long and costly
+  // and it would be a waste to discard the cache already available
   sprites_loaded = false;
 
-  for(int i=0; i<particle_spr_nbr ; i++)
+  for (int i=0; i<particle_spr_nbr ; i++)
     delete particle_sprite[i];
 }
 
@@ -201,7 +198,7 @@ void ParticleEngine::AddNow(const Point2i &position,
   Particle *particle = NULL;
   Double tmp_angle, tmp_norme;
 
-  for (uint i=0 ; i < nb_particles ; i++) {
+  for (uint i=0; i<nb_particles; i++) {
     switch (type) {
     case particle_SMOKE : particle = new Smoke();
       break;
@@ -244,18 +241,18 @@ void ParticleEngine::AddNow(const Point2i &position,
       break;
     }
 
-    if (particle != NULL) {
+    if (particle) {
 
-      if( norme == -1 ) {
+      if (norme == -1) {
         MSG_DEBUG("random.get", "ParticleEngine::AddNow(...) speed vector length");
-        tmp_norme = Double(RandomSync().GetLong(0, 5000))/100;
+        tmp_norme = RandomSync().GetDouble(0, 5000/100);
       } else {
         tmp_norme = norme;
       }
 
-      if( angle == -1 ) {
+      if (angle == -1) {
         MSG_DEBUG("random.get", "ParticleEngine::AddNow(...) speed vector angle");
-        tmp_angle = - Double(RandomSync().GetLong(0, 3000))/1000;
+        tmp_angle = RandomSync().GetDouble(-3000/1000, 0);
       } else {
         tmp_angle = angle;
       }
@@ -285,28 +282,26 @@ void ParticleEngine::AddBigESmoke(const Point2i &position, const uint &radius)
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
   const uint little_partic_nbr = 1;
-  const Double little_cos[] = { 1.000000, 0.809017, 0.309017, -0.309017, -0.809017, -1.000000, -0.809017, -0.309017, 0.309017, 0.809017 };
-  const Double little_sin[] = { 0.000000, 0.587785, 0.951057, 0.951056, 0.587785, -0.000000, -0.587785, -0.951056, -0.951056, -0.587785 };
+  static const float little_cos[] = { 1.000000, 0.809017, 0.309017, -0.309017, -0.809017, -1.000000, -0.809017, -0.309017, 0.309017, 0.809017 };
+  static const float little_sin[] = { 0.000000, 0.587785, 0.951057, 0.951056, 0.587785, -0.000000, -0.587785, -0.951056, -0.951056, -0.587785 };
 
   Particle *particle = NULL;
-  Double norme;
-  uint size;
 
-  for(uint i=0; i < little_partic_nbr ; i++)
-  {
+  for (uint i=0; i<little_partic_nbr; i++) {
 //      angle = (Double) i * PI * 2.0 / (Double) little_partic_nbr;
-      size = radius *2;
-      norme = 2.5 * radius / 3.0;
+    uint size = radius *2;
+    float norme = 2.5f * radius / 3.0f;
 
-      particle = new ExplosionSmoke(size);
-      particle->SetOnTop(true);
+    particle = new ExplosionSmoke(size);
+    particle->SetOnTop(true);
 
-      Point2i pos = position; //Set position to center of explosion
-      pos = pos - size / 2;       //Set the center of the smoke to the center..
-      pos = pos + Point2i(int(norme * little_cos[i]),int(norme * little_sin[i])); //Put inside the circle of the explosion
+    Point2i pos = position; //Set position to center of explosion
+    pos = pos - size / 2;       //Set the center of the smoke to the center..
+    //Put inside the circle of the explosion
+    pos = pos + Point2i(norme * little_cos[i], norme * little_sin[i]);
 
-      particle->SetXY(pos);
-      lst_particles.push_back(particle);
+    particle->SetXY(pos);
+    lst_particles.push_back(particle);
   }
 }
 
@@ -319,27 +314,24 @@ void ParticleEngine::AddLittleESmoke(const Point2i &position, const uint &radius
   const uint big_partic_nbr = 1;
   // Sin / cos  precomputed value, to avoid recomputing them and speed up.
   // see the commented value of 'angle' to see how it was generated
-  const Double big_cos[] = { 1.000000, -0.809017, 0.309017, 0.309017, -0.809017 };
-  const Double big_sin[] = { 0.000000, 0.587785, -0.951056, 0.951057, -0.587785 };
+  static const float big_cos[] = { 1.000000, -0.809017, 0.309017, 0.309017, -0.809017 };
+  static const float big_sin[] = { 0.000000, 0.587785, -0.951056, 0.951057, -0.587785 };
 
   Particle *particle = NULL;
-  Double norme;
-  uint size;
-  for(uint i=0; i < big_partic_nbr ; i++)
-  {
+  for (uint i=0; i<big_partic_nbr; i++) {
 //      angle = (Double) i * PI * 4.0 / (Double)big_partic_nbr;
-      size = radius;
-      norme = radius / 3.0;
+    uint size = radius;
+    float norme = radius / 3.0f;
 
-      Point2i pos = position; //Set position to center of explosion
-      pos = pos - size / 2;       //Set the center of the smoke to the center..
-      pos = pos + Point2i(int(norme * big_cos[i]),int(norme * big_sin[i])); //Put inside the circle of the explosion
+    Point2i pos = position; //Set position to center of explosion
+    pos = pos - size / 2;       //Set the center of the smoke to the center..
+    pos = pos + Point2i(norme * big_cos[i], norme * big_sin[i]); //Put inside the circle of the explosion
 
-      particle = new ExplosionSmoke(size);
-      particle->SetXY(pos);
-      particle->SetOnTop(true);
+    particle = new ExplosionSmoke(size);
+    particle->SetXY(pos);
+    particle->SetOnTop(true);
 
-      lst_particles.push_back(particle);
+    lst_particles.push_back(particle);
   }
 }
 
@@ -348,13 +340,13 @@ void ParticleEngine::AddExplosionSmoke(const Point2i &position, const uint &radi
   if (!sprites_loaded)
     return;
 
-  if(style == NoESmoke) return;
+  if (style == NoESmoke)
+    return;
 
-
-  if(style == BigESmoke){
-    AddBigESmoke (position, radius);
+  if (style == BigESmoke) {
+    AddBigESmoke(position, radius);
   }else{
-    AddLittleESmoke (position, radius);
+    AddLittleESmoke(position, radius);
   }
 }
 
@@ -362,12 +354,9 @@ void ParticleEngine::Draw(bool upper)
 {
   std::list<Particle *>::iterator Particle_it;
   // draw the particles
-  for (Particle_it=lst_particles.begin(); Particle_it!=lst_particles.end(); ++Particle_it){
-    if ( (*Particle_it)->IsOnTop() == upper) {
+  for (Particle_it=lst_particles.begin(); Particle_it!=lst_particles.end(); ++Particle_it)
+    if ((*Particle_it)->IsOnTop() == upper)
       (*Particle_it)->Draw();
-    }
-  }
-
 }
 
 void ParticleEngine::Refresh()
@@ -378,9 +367,9 @@ void ParticleEngine::Refresh()
     if (! (*it)->StillUseful()) {
       delete *it;
       it = lst_particles.erase(it);
-    }
-    else
+    } else {
       it++;
+    }
   }
 
   // update the particles

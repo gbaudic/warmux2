@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ private:
                     int pas_bon_x,int pas_bon_y) const;
   Point2i lastPos;
 
+  uint alpha_threshold; //Keep redundant to rise performance
+
   static Double table[5][5];
 
 public:
@@ -42,16 +44,13 @@ public:
   void Reset();
   void Free() { FreeMem(); }
 
-  // Is point (x,y) in vacuum ?
-  bool IsEmpty(const Point2i &pos) const;
-
   // Is the playground "open" ?
   bool IsOpen() const { return open; }
 
   //returns the angle formed by the ground tangent au terrain
   Double Tangent(int x,int y) const ;
 
-  void RedrawParticleList(std::list<Rectanglei> &list) const;
+  void RedrawParticleList(const std::list<Rectanglei>& list) const;
 };
 
 #endif

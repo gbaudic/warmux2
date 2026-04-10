@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,26 +21,23 @@
 
 #include "team/team_energy.h"
 #include <sstream>
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include "map/camera.h"
 #include "map/map.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/text.h"
 #include "graphic/sprite.h"
 #include "team/team.h"
 #include "team/teams_list.h"
 #include "include/app.h"
 
-const uint BAR_WIDTH = 13;
-const uint BAR_SPACING = 30;
-const uint BAR_HEIGHT = 50;
-// XXX Not used
-//const uint SPACING = 3;
+#define   BAR_WIDTH       13
 
-const uchar ALPHA = 127;
-const uchar BACK_ALPHA = 0;
+#define   ALPHA           127
+#define   BACK_ALPHA      0
+#define   BACKGROUND_GREY (255*6)/10
 
-const Double MOVE_DURATION = 750.0;
+#define MOVE_DURATION     750.0
 
 void EnergyList::Reset()
 {
@@ -62,31 +59,32 @@ void EnergyList::AddValue(uint value)
   EnergyList::push_back(eval);
 }
 
+uint TeamEnergy::bar_spacing = MAX_BAR_SPACING;
 
-TeamEnergy::TeamEnergy(Team * _team):
-  energy_bar(NULL),
-  value(0),
-  new_value(0),
-  max_value(0),
-  team(_team),
-  icon(NULL),
-  t_team_energy(new Text("None", black_color,
-                         Font::FONT_SMALL, Font::FONT_BOLD, false)),
-  dx(0),
-  dy(0),
-  rank(0),
-  new_rank(0),
-  team_name("not initialized"),
-  move_start_time(0),
-  rank_tmp(0),
-  status(EnergyStatusOK),
-  energy_list()
+TeamEnergy::TeamEnergy(Team * _team)
+  : energy_bar(NULL)
+  , value(0)
+  , new_value(0)
+  , max_value(0)
+  , team(_team)
+  , icon(NULL)
+  , t_team_energy(new Text("None", black_color,
+                           Font::FONT_SMALL, Font::FONT_BOLD, false))
+  , dx(0)
+  , dy(0)
+  , rank(0)
+  , new_rank(0)
+  , team_name("not initialized")
+  , move_start_time(0)
+  , height(44)
+  , rank_tmp(0)
+  , status(EnergyStatusOK)
 {
-  energy_bar = new EnergyBar(0, 0, BAR_WIDTH, BAR_HEIGHT,
+  energy_bar = new EnergyBar(0, 0, BAR_WIDTH, height,
                              0, 0, 100, ProgressBar::PROG_BAR_VERTICAL);
 
-  energy_bar->SetBorderColor(Color(255, 255, 255, ALPHA));
-  energy_bar->SetBackgroundColor(Color(255*6/10, 255*6/10, 255*6/10, BACK_ALPHA));
+  energy_bar->SetBorderColor(Color(255));
+  energy_bar->SetBackgroundColor(Color(BACKGROUND_GREY));
 }
 
 TeamEnergy::~TeamEnergy()
@@ -94,9 +92,7 @@ TeamEnergy::~TeamEnergy()
   if (icon) delete icon;
   if (t_team_energy) delete t_team_energy;
 
-  if (NULL != energy_bar) {
-    delete energy_bar;
-  }
+  if (energy_bar) delete energy_bar;
 }
 
 void TeamEnergy::Config(uint _current_energy,
@@ -108,64 +104,64 @@ void TeamEnergy::Config(uint _current_energy,
   new_value = _current_energy;
   ASSERT(max_value != 0)
   energy_bar->InitVal(value, 0, max_value, ProgressBar::PROG_BAR_VERTICAL);
-  icon = NULL;
   SetIcon(team->GetFlag());
   energy_list.Reset();
 }
 
 void TeamEnergy::SetIcon(const Surface & new_icon)
 {
-  if(icon)
+  if (icon)
     delete icon;
-  icon = new Sprite(new_icon, true);
-  icon->Scale(0.8,0.8);
+  icon = new Sprite(new_icon);
+  icon->EnableCaches(true, 0);
+
+  icon->ScaleSize(height/3, height/3);
 }
 
 void TeamEnergy::Refresh()
 {
-  switch(status)
-  {
-    // energy value from one team have changed
-    case EnergyStatusValueChange:
-      if(new_value > value)
-        value = new_value;
-      if(value > new_value)
-        --value;
-      if(value == new_value)
-        status = EnergyStatusWait;
-      break;
+  switch (status) {
+  // energy value from one team have changed
+  case EnergyStatusValueChange:
+    if (new_value > value)
+      value = new_value;
+    if (value > new_value)
+      --value;
+    if (value == new_value)
+      status = EnergyStatusWait;
+    break;
 
-    // ranking is changing
-    case EnergyStatusRankChange:
-      Move();
-      break;
+  // ranking is changing
+  case EnergyStatusRankChange:
+    Move();
+    break;
 
-      // Currently no move
-    case EnergyStatusOK:
-      if( value != new_value && !IsMoving())
-        status = EnergyStatusValueChange;
-      else
-        if( rank != new_rank )
-          status = EnergyStatusRankChange;
-      break;
+    // Currently no move
+  case EnergyStatusOK:
+    if (value!=new_value && !IsMoving())
+      status = EnergyStatusValueChange;
+    else
+      if (rank != new_rank)
+        status = EnergyStatusRankChange;
+    break;
 
-    // This energy bar wait others bar before moving
-    case EnergyStatusWait:
-      break;
+  // This energy bar wait others bar before moving
+  case EnergyStatusWait:
+    break;
   }
 }
 
 void TeamEnergy::Draw(const Point2i& pos)
 {
   energy_bar->Actu(value);
-  Point2i tmp = pos + Point2i(BAR_SPACING / 2 + rank * (BAR_WIDTH + BAR_SPACING) + dx, dy);
-  energy_bar->DrawXY(tmp);
-  icon->DrawXY(tmp + Point2i(energy_bar->GetWidth() / 2, 0));
+  Point2i tmp = pos + Point2i(rank*bar_spacing + bar_spacing/2 + dx, dy);
+  energy_bar->DrawXY(tmp + Point2i(0, dy+icon->GetHeight()));
+  icon->DrawXY(tmp + Point2i(4-(icon->GetWidth()>>1), 0));
 }
 
 void TeamEnergy::SetValue(uint new_energy)
 {
-  if(new_energy == 0)
+  if (!new_energy)
     SetIcon(team->GetDeathFlag());
   new_value = new_energy;
   energy_list.AddValue(new_energy);
@@ -174,13 +170,13 @@ void TeamEnergy::SetValue(uint new_energy)
 // Move energy bar (change in ranking)
 void TeamEnergy::Move()
 {
-  if( value != new_value && !IsMoving()) {
+  if (value != new_value && !IsMoving()) {
     // Other energy bar are moving so waiting for others to move
     status = EnergyStatusWait;
     return;
   }
 
-  if( rank == new_rank && !IsMoving()) {
+  if (rank == new_rank && !IsMoving()) {
     // Others energy bar are moving
     status = EnergyStatusWait;
     return;
@@ -188,28 +184,20 @@ void TeamEnergy::Move()
 
   // teams ranking have changed
   Time * global_time = Time::GetInstance();
-  if( rank != new_rank )
-  {
-    if(move_start_time == 0)
+  if (rank != new_rank) {
+    if (!move_start_time)
       move_start_time = global_time->Read();
 
-    dx = (int)(((Double)new_rank - rank) * (BAR_WIDTH + BAR_SPACING) * ((global_time->Read() - move_start_time) / MOVE_DURATION));
+    dx = 0.5f*bar_spacing*(new_rank - rank)*(global_time->Read() - move_start_time) / MOVE_DURATION;
+    dy = 0.5f*height*(rank-new_rank) * sin((global_time->Read() - move_start_time)*M_PI/MOVE_DURATION);
 
-    // displacement in arc only when losing place ranking
-    if( new_rank > rank ) {
-      dy = (int)((BAR_HEIGHT * ((Double)rank - new_rank)) * ONE_HALF *
-           sin( PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
-    } else {
-      dy = (int)((BAR_HEIGHT * ((Double)rank - new_rank)) * ONE_HALF *
-          sin( PI * ((global_time->Read() - move_start_time) / MOVE_DURATION)));
-    }
     // End of movement ?
     if( ((long)global_time->Read() - (long)move_start_time) > (long)MOVE_DURATION)
       FinalizeMove();
   } else {
     // While moving, it came back to previous place in ranking
-    dy = (int)((Double)dy - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dy);
-    dx = (int)((Double)dx - ((global_time->Read() - move_start_time) / MOVE_DURATION) * dx);
+    dy -= ((global_time->Read() - move_start_time) / MOVE_DURATION) * dy;
+    dx -= ((global_time->Read() - move_start_time) / MOVE_DURATION) * dx;
   }
 }
 
@@ -222,4 +210,12 @@ void TeamEnergy::FinalizeMove()
   move_start_time = 0;
   status = EnergyStatusWait;
   return;
+}
+
+void TeamEnergy::SetHeight(int h)
+{
+  icon->ScaleSize(h/3, h/3);
+  icon->FixParameters();
+  height = h;
+  energy_bar->SetHeight((2*h)/3-2);
 }

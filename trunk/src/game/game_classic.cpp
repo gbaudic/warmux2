@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "character/character.h"
 #include "game/game_classic.h"
 #include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "include/action_handler.h"
 #include "interface/cursor.h"
 #include "interface/interface.h"
@@ -39,8 +39,8 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WORMUX_debug.h>
-#include <WORMUX_random.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_random.h>
 
 GameClassic::GameClassic()
   : Game()
@@ -51,9 +51,9 @@ void GameClassic::EndOfGame()
 {
   SetState(END_TURN);
   duration = GameMode::GetInstance()->duration_exchange_player + 2;
-  GameMessages::GetInstance()->Add (_("And the winner is..."));
+  GameMessages::GetInstance()->Add(_("And the winner is..."), white_color);
 
-  while (duration >= 1 ) {
+  while (duration >= 1) {
     MainLoop();
   }
 }
@@ -62,73 +62,72 @@ void GameClassic::RefreshClock()
 {
   Time * global_time = Time::GetInstance();
 
-  if (1000 < global_time->Read() - last_clock_update)
-    {
-      last_clock_update = global_time->Read();
+  if (1000 < global_time->Read() - last_clock_update) {
+    last_clock_update = global_time->Read();
 
-      switch (state) {
+    switch (state) {
 
-      case PLAYING:
-        if (duration <= 1) {
+    case PLAYING:
+      if (duration <= 1) {
 
-	  /* let the user release the key to shoot */
-	  if (ActiveTeam().GetWeapon().IsLoading())
-	    break;
+        /* let the user release the key to shoot */
+        if (ActiveTeam().GetWeapon().IsLoading())
+          break;
 
-	  JukeBox::GetInstance()->Play("default", "end_turn");
-	  SetState(END_TURN);
-        } else {
-          duration--;
-	  if (duration == 12) {
-	    countdown_sample.Play("default", "countdown-end_turn");
-	  }
-	  if (duration > 10) {
-	    Interface::GetInstance()->UpdateTimer(duration, false, false);
-	  } else {
-	    Interface::GetInstance()->UpdateTimer(duration, true, false);
-	  }
+        JukeBox::GetInstance()->Play("default", "end_turn");
+        SetState(END_TURN);
+      } else {
+        duration--;
+        if (duration == 12) {
+          countdown_sample.Play("default", "countdown-end_turn");
         }
-        break;
-
-      case HAS_PLAYED:
-        if (duration <= 1) {
-          SetState(END_TURN);
-        } else {
-          duration--;
+        if (duration > 10) {
           Interface::GetInstance()->UpdateTimer(duration, false, false);
-        }
-        break;
-
-      case END_TURN:
-        if (duration <= 1) {
-
-          if (IsAnythingMoving()) {
-            duration = 1;
-            // Hack to be sure that nothing is moving since long enough
-            // it avoids giving hand to another team during the end of an explosion for example
-            break;
-          }
-
-          if (IsGameFinished()) {
-            duration--;
-            break;
-          }
-
-          if (give_objbox && GetWorld().IsOpen()) {
-            NewBox();
-            give_objbox = false;
-            break;
-          }
-          else {
-            SetState(PLAYING);
-            break;
-          }
         } else {
-          duration--;
+          Interface::GetInstance()->UpdateTimer(duration, true, false);
         }
-        break;
-      } // switch
-    }// if
+      }
+      break;
+
+    case HAS_PLAYED:
+      if (duration <= 1) {
+        SetState(END_TURN);
+      } else {
+        duration--;
+        Interface::GetInstance()->UpdateTimer(duration, false, false);
+      }
+      break;
+
+    case END_TURN:
+      if (duration <= 1) {
+
+        if (IsAnythingMoving()) {
+          duration = 1;
+          // Hack to be sure that nothing is moving since long enough
+          // it avoids giving hand to another team during the end of an explosion for example
+          break;
+        }
+
+        if (IsGameFinished()) {
+          duration--;
+          break;
+        }
+
+        if (give_objbox && GetWorld().IsOpen()) {
+          NewBox();
+          give_objbox = false;
+          break;
+        }
+        else {
+          SetState(PLAYING);
+          break;
+        }
+      } else {
+        duration--;
+      }
+      break;
+    } // switch
+  }// if
 }
 
 uint GameClassic::GetRemainingTime() const
@@ -139,7 +138,7 @@ uint GameClassic::GetRemainingTime() const
 // Beginning of a new turn
 void GameClassic::__SetState_PLAYING()
 {
-  MSG_DEBUG("game.statechange", "Playing" );
+  MSG_DEBUG("game.statechange", "Playing");
 
   // initialize counter
   duration = GameMode::GetInstance()->duration_turn;
@@ -193,19 +192,17 @@ void GameClassic::ApplyDeathMode () const
 {
   if (IsGameFinished()) return;
 
-  if (Time::GetInstance()->Read() > GameMode::GetInstance()->duration_before_death_mode * 1000)
-  {
-    GameMessages::GetInstance()->Add (_("Hurry up, you are too slow !!"));
-    FOR_ALL_LIVING_CHARACTERS(team, character)
-    {
+  if (Time::GetInstance()->Read() > GameMode::GetInstance()->duration_before_death_mode * 1000) {
+    GameMessages::GetInstance()->Add(_("Hurry up, you are too slow !!"), white_color);
+    FOR_ALL_LIVING_CHARACTERS(team, character) {
       // If the character energy is lower than damage
       // per turn we reduce the character's health to 1
       if (static_cast<uint>(character->GetEnergy()) >
           GameMode::GetInstance()->damage_per_turn_during_death_mode)
-        // Don't report damage to the active character, it's not the responsible for this damage
-        character->SetEnergyDelta(-(int)GameMode::GetInstance()->damage_per_turn_during_death_mode, false);
+        // No damage dealer, thus pass NULL
+        character->SetEnergyDelta(-(int)GameMode::GetInstance()->damage_per_turn_during_death_mode, NULL);
       else
-        character->SetEnergy(1);
+        character->SetEnergy(1, NULL);
     }
   }
 }
@@ -214,6 +211,3 @@ bool GameClassic::IsGameFinished() const
 {
   return (NbrRemainingTeams() <= 1);
 }
-
-
-

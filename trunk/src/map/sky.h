@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,25 +24,26 @@
 
 #include <list>
 #include <vector>
+#include <WARMUX_base.h>
+#include <WARMUX_point.h>
+#include <WARMUX_rectangle.h>
 #include "graphic/surface.h"
-#include "include/base.h"
-#include <WORMUX_point.h>
-#include <WORMUX_rectangle.h>
 
-class Sky {
-  private:
-    std::vector<Surface> images;
-    Point2i last_pos;
+class Sky
+{
+  // Only keep reference of already loaded images
+  std::vector<const Surface*> images;
+  Point2i last_pos;
 
-    void RedrawParticleList(std::list<Rectanglei> &list) const;
-    void RedrawParticle(const Rectanglei &particle) const;
-    Point2i GetSkyPos(uint layer) const;
+  void RedrawParticleList(std::list<Rectanglei> &list) const;
+  void RedrawParticle(const Rectanglei &particle) const;
+  Point2i GetSkyPos(uint layer) const;
 
-  public:
-    void Init();
-    void Reset();
-    void Draw(bool redraw_all);
-    void Free();
+public:
+  void Init();
+  void Reset();
+  void Draw(bool redraw_all);
+  void Free() { images.clear(); }
 };
 
 #endif

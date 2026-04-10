@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "weapon/cluzooka.h"
 #include "weapon/explosion.h"
 #include "weapon/weapon_cfg.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "game/config.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
@@ -41,39 +41,35 @@ template< typename ClusterType >
 class ClusterSpawner
 {
 protected:
-    bool m_spawned_clusters;
+  bool m_spawned_clusters;
 
-    ClusterSpawner() : m_spawned_clusters( false ) {};
-    virtual ~ClusterSpawner() {};
+  ClusterSpawner() : m_spawned_clusters( false ) {};
+  virtual ~ClusterSpawner() {};
 
-    virtual void SpawnClusters( uint fragments, uint recursion_depth,
-       const Point2i pos, Double speed, Double angle, Double angle_range,
-        ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher )
-    {
+  virtual void SpawnClusters( uint fragments, uint recursion_depth,
+     const Point2i pos, Double speed, Double angle, Double angle_range,
+      ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher )
+  {
 #ifndef CLUSTERS_SPAWN_CLUSTERS
-        ASSERT(recursion_depth == 0);
+    ASSERT(recursion_depth == 0);
 #endif
 
-        // fake explosion 
-        JukeBox::GetInstance()->Play( "default", "weapon/cluzooka_shot" );
-        ParticleEngine::AddExplosionSmoke( pos, 
-            50,
-            ParticleEngine::LittleESmoke );
+    // fake explosion
+    JukeBox::GetInstance()->Play( "default", "weapon/cluzooka_shot" );
+    ParticleEngine::AddExplosionSmoke(pos, 50, ParticleEngine::LittleESmoke);
 
-        ClusterType * cluster;
+    ClusterType * cluster;
 
-        for (uint i = 0; i < fragments; ++i ) 
-        {
-            Double cluster_deviation = angle_range * i / ( Double )fragments - angle_range / TWO;
+    for (uint i = 0; i < fragments; ++i) {
+      Double cluster_deviation = (angle_range * i)/fragments - angle_range*ONE_HALF;
 
-            cluster = new ClusterType( cfg, p_launcher );
-            cluster->Shoot( pos, speed, angle + cluster_deviation, recursion_depth );
+      cluster = new ClusterType(cfg, p_launcher);
+      cluster->Shoot(pos, speed, angle+cluster_deviation, recursion_depth);
 
-            ObjectsList::GetRef().AddObject(cluster);
-        }
-        m_spawned_clusters = true;
+      ObjectsList::GetRef().AddObject(cluster);
     }
-
+    m_spawned_clusters = true;
+  }
 };
 
 class CluzookaConfig : public ExplosiveWeaponConfig
@@ -88,8 +84,8 @@ public:
 
 CluzookaConfig::CluzookaConfig() :
   ExplosiveWeaponConfig(),
-  m_fragments( 5 ),
-  m_angle_dispersion( 45 )
+  m_fragments(5),
+  m_angle_dispersion(45)
 {
 }
 
@@ -149,23 +145,22 @@ void CluzookaCluster::Shoot(const Point2i & start_pos, Double strength, Double a
   m_time_before_spawn = 750;
   // make time a bit random to unsychronize particles
 
-  m_time_before_spawn += RandomSync().GetDouble( -300, 100 );
+  m_time_before_spawn += RandomSync().GetDouble(-300, 100);
 }
 
 void CluzookaCluster::Refresh()
 {
 #ifdef CLUSTERS_SPAWN_CLUSTERS
-  if ( m_recursion_depth > 1 )
-  {
-      uint time = Time::GetInstance()->Read();
-      Double flying_time = ( Double )( time - begin_time );
+  if (m_recursion_depth > 1) {
+    uint time = Time::GetInstance()->Read();
+    Double flying_time = ( Double )( time - begin_time );
 
-      if ( flying_time >= m_time_before_spawn )
-      {
-          DoSpawn();
-          Explosion();
-          return;
-      };
+    if ( flying_time >= m_time_before_spawn )
+    {
+        DoSpawn();
+        Explosion();
+        return;
+    };
   };
 #endif
 
@@ -175,7 +170,7 @@ void CluzookaCluster::Refresh()
 }
 
 void CluzookaCluster::DoSpawn()
-{  
+{
   const uint fragments = 2;
   Double angle;
   Double speed;
@@ -183,7 +178,7 @@ void CluzookaCluster::DoSpawn()
   speed = 25;// always
   Point2i parent_position = GetPosition();
 
-  Double angle_range = PI / 4;
+  Double angle_range = QUARTER_PI;
 
   uint rec_depth = 0;
 #ifdef CLUSTERS_SPAWN_CLUSTERS
@@ -201,18 +196,18 @@ void CluzookaCluster::SignalOutOfMap()
 
 void CluzookaCluster::DoExplosion()
 {
-    if ( !m_spawned_clusters )
-    {
-        ApplyExplosion ( GetPosition(), cfg, "weapon/cluzooka_hit", false, ParticleEngine::LittleESmoke );
-    }
-    else
-        Ghost();    // just hide ourselvers
+  if ( !m_spawned_clusters )
+  {
+    ApplyExplosion(GetPosition(), cfg, "weapon/cluzooka_hit", false, ParticleEngine::LittleESmoke);
+  }
+  else
+    Ghost();    // just hide ourselvers
 }
 
 void CluzookaCluster::Draw()
 {
-    // custom Draw() is needed to avoid drawing timeout on top of clusters
-    image->Draw(GetPosition());
+  // custom Draw() is needed to avoid drawing timeout on top of clusters
+  image->Draw(GetPosition());
 };
 
 void CluzookaCluster::SetEnergyDelta(int /* delta */, bool /* do_report */){};
@@ -249,8 +244,7 @@ CluzookaRocket::CluzookaRocket(ExplosiveWeaponConfig& cfg,
 void CluzookaRocket::Refresh()
 {
   WeaponProjectile::Refresh();
-  if(!IsDrowned())
-  {
+  if (!IsDrowned()) {
     //image->SetRotation_rad(GetSpeedAngle());
     Double flying_time = ( Double )(GetMSSinceTimeoutStart());
 
@@ -259,32 +253,27 @@ void CluzookaRocket::Refresh()
     const Double num_of_full_rotates = 4;
 
     // make it rotate itself for first N msec
-    if( flying_time < time_to_rotate )
-    {
-        Double t = flying_time / time_to_rotate; // portion of time
-        Double inv_t = ONE - t;
-        // rotate speed is max when t is close to 0, and slows down to 1
-        // when t is approaching 1
-        //Double rotate_speed = 1 + num_of_full_rotates * ( 1.0f - t );
-        image->SetRotation_rad( speed_angle + 
-                 TWO * PI * num_of_full_rotates * inv_t * inv_t * inv_t * inv_t );
-    }
-    else
-    {
-        image->SetRotation_rad( speed_angle );
+    if (flying_time < time_to_rotate) {
+      Double t = flying_time / time_to_rotate; // portion of time
+      Double inv_t = ONE - t;
+      // rotate speed is max when t is close to 0, and slows down to 1
+      // when t is approaching 1
+      //Double rotate_speed = 1 + num_of_full_rotates * ( 1.0f - t );
+      inv_t *= inv_t;
+      image->SetRotation_rad(speed_angle + TWO_PI * num_of_full_rotates * inv_t * inv_t);
+    } else {
+      image->SetRotation_rad(speed_angle);
     }
 
     smoke_engine.AddPeriodic(Point2i(GetX() + GetWidth() / 2,
                                      GetY() + GetHeight()/ 2), particle_DARK_SMOKE, false, -1, 2.0);
-  }
-  else
-  {
+  } else {
     image->SetRotation_rad(HALF_PI);
   }
 }
 
 void CluzookaRocket::DoSpawn()
-{  
+{
   const uint fragments = static_cast<CluzookaConfig &>(cfg).m_fragments;
   const Double angle_range = static_cast<CluzookaConfig &>(cfg).m_angle_dispersion * PI / (Double)180;
 
@@ -306,17 +295,16 @@ void CluzookaRocket::DoSpawn()
 
 void CluzookaRocket::DoExplosion()
 {
-    if ( !m_spawned_clusters )
-    {
-        ASSERT( !m_timed_out );
-        WeaponProjectile::DoExplosion();
-    };
+  if (!m_spawned_clusters) {
+    ASSERT( !m_timed_out );
+    WeaponProjectile::DoExplosion();
+  }
 /*
-    // only explode if no clusters were spawned
-    if ( !m_spawned_clusters )
-        WeaponProjectile::DoExplosion();
-    else
-        Ghost();// just go ghost to prevent collisions with clusters
+  // only explode if no clusters were spawned
+  if (!m_spawned_clusters)
+    WeaponProjectile::DoExplosion();
+  else
+    Ghost();// just go ghost to prevent collisions with clusters
 */
 }
 
@@ -332,7 +320,7 @@ void CluzookaRocket::Shoot(Double strength)
 
 void CluzookaRocket::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
+  Weapon::Message(_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 
   flying_sound.Stop();
@@ -348,12 +336,10 @@ void CluzookaRocket::SignalDrowning()
 
 void CluzookaRocket::Explosion()
 {
-  if ( m_timed_out )
-  {
+  if (m_timed_out) {
     DoSpawn();
     Ghost();
-  }
-  else
+  } else
     WeaponProjectile::Explosion();
 
   flying_sound.Stop();
@@ -361,9 +347,9 @@ void CluzookaRocket::Explosion()
 
 void CluzookaRocket::SignalTimeout()
 {
-    m_timed_out = true;
+  m_timed_out = true;
 
-    WeaponProjectile::SignalTimeout();
+  WeaponProjectile::SignalTimeout();
 };
 
 //-----------------------------------------------------------------------------
@@ -379,21 +365,18 @@ Cluzooka::Cluzooka() :
 
 WeaponProjectile * Cluzooka::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new CluzookaRocket(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new CluzookaRocket(cfg(), this);
 }
 
 void Cluzooka::UpdateTranslationStrings()
 {
   m_name = _("Cluzooka");
-  m_help = _("Initial fire angle : Up/Down\nFire : keep the space key pressed until the desired strength\nan ammo per turn");
+  m_help = _("Initial fire angle: Up/Down\nFire: Press space until desired strength is reached\nOne ammo per turn");
 }
 
 std::string Cluzooka::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
-  return Format(ngettext(
-            "%s team has won %u Cluster bazookas!",
-            "%s team has won %u Cluster bazookas!",
-            items_count), TeamName, items_count);
+  return Format(ngettext("%s team has won %u Cluster bazookas!",
+                         "%s team has won %u Cluster bazookas!",
+                         items_count), TeamName, items_count);
 }
-

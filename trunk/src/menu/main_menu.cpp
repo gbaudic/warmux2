@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  *****************************************************************************/
 
 #include "menu/main_menu.h"
-#include "gui/box.h"
+#include "gui/grid_box.h"
 #include "gui/big/button_pic.h"
 #include "game/config.h"
 #include "graphic/text.h"
@@ -39,8 +39,6 @@
 // Position du texte de la version
 const int VERSION_DY = -40;
 
-const int DEFAULT_SCREEN_HEIGHT = 768 ;
-
 MainMenu::~MainMenu()
 {
   delete version_text;
@@ -51,19 +49,22 @@ MainMenu::~MainMenu()
 MainMenu::MainMenu() :
     Menu("main_menu/bg_main", vNo)
 {
-  uint window_width = GetMainWindow().GetWidth();
-
   Point2i size(120,110);
-  Box* box = new GridBox(window_width, size, true);
+  Box* box = new GridBox(2, 4, 6, true);
 
   play = new ButtonPic(_("Play"), "menu/ico_play", size);
   box->AddWidget(play);
 
+#ifndef __SYMBIAN32__
   network = new ButtonPic(_("Network Game"), "menu/ico_network_menu", size);
   box->AddWidget(network);
+#endif
 
   options = new ButtonPic(_("Options"), "menu/ico_options_menu", size);
   box->AddWidget(options);
+
+  bench = new ButtonPic(_("Benchmark"), "menu/ico_benchmark_menu", size);
+  box->AddWidget(bench);
 
   help = new ButtonPic(_("Help"), "menu/ico_help", size);
   box->AddWidget(help);
@@ -85,11 +86,11 @@ MainMenu::MainMenu() :
 
   widgets.Pack();
 
-  std::string s("Version "+Constants::WORMUX_VERSION);
-  version_text = new Text(s, green_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
+  std::string s("Version "+Constants::WARMUX_VERSION);
+  version_text = new Text(s, orange_color, Font::FONT_MEDIUM, Font::FONT_BOLD, true);
 
   std::string s2(Constants::WEB_SITE);
-  website_text = new Text(s2, green_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
+  website_text = new Text(s2, orange_color, Font::FONT_MEDIUM, Font::FONT_BOLD, true);
 
   if (!JukeBox::GetInstance()->IsPlayingMusic()) {
     JukeBox::GetInstance()->PlayMusic("menu");
@@ -98,7 +99,7 @@ MainMenu::MainMenu() :
   StatStart("Main:Menu");
 }
 
-void MainMenu::Init(void) 
+void MainMenu::Init(void)
 {
   Profile * xmlProfile = GetResourceManager().LoadXMLProfile("menu.xml", false);
   XmlReader * xmlFile = xmlProfile->GetXMLDocument();
@@ -112,11 +113,6 @@ void MainMenu::Init(void)
   LoadMenu(xmlProfile, mainMenuNode);
 }
 
-void MainMenu::button_click() const
-{
-  JukeBox::GetInstance()->Play("default", "menu/clic");
-}
-
 void MainMenu::SelectAction(const Widget * widget)
 {
   if (widget == play) {
@@ -127,6 +123,9 @@ void MainMenu::SelectAction(const Widget * widget)
     close_menu = true;
   } else if (widget == options) {
     choice = OPTIONS;
+    close_menu = true;
+  } else if (widget == bench) {
+    choice = BENCHMARK;
     close_menu = true;
   } else if (widget == help) {
     choice = HELP;
@@ -171,7 +170,7 @@ void MainMenu::OnClickUp(const Point2i &mousePosition, int button)
 {
   Widget* b = widgets.ClickUp(mousePosition,button);
   SelectAction(b);
-  button_click();
+  JukeBox::GetInstance()->Play("default", "menu/clic");
 }
 
 void MainMenu::OnClick(const Point2i &/*mousePosition*/, int /*button*/)
@@ -198,8 +197,8 @@ bool MainMenu::signal_cancel()
 bool MainMenu::signal_ok()
 {
   Widget * w = widgets.GetCurrentKeyboardSelectedWidget();
-  if(w != NULL) {
-    SelectAction(widgets.GetCurrentKeyboardSelectedWidget());
+  if (w) {
+    SelectAction(w);
   } else {
     choice = PLAY;
   }
@@ -212,10 +211,28 @@ void MainMenu::DrawBackground()
 
   Menu::DrawBackground();
 
-  version_text->DrawCenter( Point2i(window.GetWidth()/2,
-                            window.GetHeight() + VERSION_DY));
-  website_text->DrawCenter( Point2i(window.GetWidth()/2,
-                            window.GetHeight() + VERSION_DY/2));
-
+  version_text->DrawCenter(Point2i(window.GetWidth()/2,
+                                   window.GetHeight() + VERSION_DY));
+  website_text->DrawCenter(Point2i(window.GetWidth()/2,
+                                   window.GetHeight() + VERSION_DY/2));
 }
 
+void MainMenu::RedrawBackground(const Rectanglei& rect) const
+{
+  Surface& window = GetMainWindow();
+
+  Menu::RedrawBackground(rect);
+
+  Point2i version_pos(window.GetWidth()/2,
+		      window.GetHeight() + VERSION_DY);
+  Point2i website_pos(window.GetWidth()/2,
+		      window.GetHeight() + VERSION_DY/2);
+
+  if (rect.Contains(version_pos)) {
+    version_text->DrawCenter(version_pos);
+  }
+
+  if (rect.Contains(website_pos)) {
+    website_text->DrawCenter(website_pos);
+  }
+}

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include <list>
 #include "object/physical_obj.h"
-#include "include/base.h"
+#include <WARMUX_base.h>
 
 // Forward declarations
 class Sprite;
@@ -78,12 +78,7 @@ const int particle_spr_nbr = EXPLOSION_spr + 1;
 
 class Particle : public PhysicalObj
 {
-  /* If you need this, implement it (correctly)*/
-  Particle(const Particle&);
-  const Particle& operator=(const Particle&);
-  /*********************************************/
-
- protected:
+protected:
   bool on_top; // if true displayed on top of characters and weapons
   uint m_initial_time_to_live;
   uint m_left_time_to_live;
@@ -93,20 +88,19 @@ class Particle : public PhysicalObj
 
   Sprite *image;
 
- public:
+public:
   Particle(const std::string &name);
   ~Particle();
   virtual void Draw();
   virtual void Refresh();
   void SetOnTop(bool b) { on_top = b; }
   bool IsOnTop() const { return on_top; }
-  bool StillUseful() const;
+  bool StillUseful() const { return m_left_time_to_live > 0; }
   bool CheckOnEndTurn() const { return m_check_move_on_end_turn; }
 };
 
 class ParticleEngine
 {
- private:
   uint m_last_refresh;
   uint m_time_between_add;
 
@@ -117,7 +111,7 @@ class ParticleEngine
   static void AddLittleESmoke(const Point2i &pos, const uint &radius);
   static void AddBigESmoke(const Point2i &pos, const uint &radius);
 
- public:
+public:
   ParticleEngine(uint time=100);
   void AddPeriodic(const Point2i &position,
                    particle_t type,

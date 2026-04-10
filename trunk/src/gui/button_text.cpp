@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,10 +22,6 @@
 #include "gui/button_text.h"
 #include "graphic/text.h"
 
-ButtonText::~ButtonText(){
-  delete text;
-}
-
 ButtonText::ButtonText(const Profile *res_profile,
                        const std::string& resource_id,
                        const std::string &new_text,
@@ -35,7 +31,12 @@ ButtonText::ButtonText(const Profile *res_profile,
   text(new Text(new_text, white_color, font_size, font_style))
 { }
 
-void ButtonText::Draw(const Point2i &mousePosition) const
+ButtonText::~ButtonText()
+{
+  delete text;
+}
+
+void ButtonText::Draw(const Point2i &mousePosition)
 {
   Point2i textPosition = position + size/2;
 

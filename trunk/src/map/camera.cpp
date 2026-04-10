@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,13 +19,13 @@
  * Camera : follow an object, center on it or follow mouse interaction.
  *****************************************************************************/
 
-#include <WORMUX_debug.h>
-#include <WORMUX_random.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_random.h>
 
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "interface/cursor.h"
@@ -38,34 +38,37 @@
 #include "tool/math_tools.h"
 #include "tool/string_tools.h"
 
-const Point2d MAX_CAMERA_SPEED(5000, 5000);
-const Point2d MAX_CAMERA_ACCELERATION(1.5,1.5);
-const Double ANTICIPATION = 18;
-const Double REACTIVITY = 0.6;
-const Double SPEED_REACTIVITY = 0.05;
-const int SPEED_REACTIVITY_CEIL = 4;
+static const Point2f MAX_CAMERA_SPEED(5000, 5000);
+static const Point2f MAX_CAMERA_ACCELERATION(1.5,1.5);
 
-const uint SCROLL_KEYBOARD = 20; // pixel
+#define REACTIVITY             0.6
+#define SPEED_REACTIVITY       0.05
+#define REALTIME_FOLLOW_FACTOR 0.15
 
-const Double ADVANCE_ANTICIPATION = 10;
-const int REALTIME_FOLLOW_LIMIT = 25;
-const Double REALTIME_FOLLOW_FACTOR = 0.15;
+#define ANTICIPATION               18
+#define ADVANCE_ANTICIPATION       20
+#define SPEED_REACTIVITY_CEIL       4
+#define SCROLL_KEYBOARD            20 // pixel
+#define REALTIME_FOLLOW_LIMIT      25
+#define MAX_REFRESHES_PER_SECOND  100
 
-uint MAX_REFRESHES_PER_SECOND = 100;
-
-Camera::Camera():
-  m_started_shaking( 0 ),
-  m_shake_duration( 0 ),
-  m_shake_amplitude( 0, 0 ),
-  m_shake_centerpoint( 0, 0 ),
-  m_shake( 0, 0 ),
-  m_last_time_shake_calculated( 0 ),
-  m_speed( 0, 0 ),
-  m_stop(false),
-  m_control_mode(NO_CAMERA_CONTROL),
-  m_begin_controlled_move_time(0),
-  auto_crop(true),
-  followed_object(NULL)
+Camera::Camera()
+  : m_started_shaking(0)
+  , m_shake_duration(0)
+  , m_shake_amplitude(0, 0)
+  , m_shake_centerpoint(0, 0)
+  , m_shake(0, 0)
+  , m_last_time_shake_calculated(0)
+  , m_speed(0, 0)
+  , m_stop(false)
+  , m_control_mode(NO_CAMERA_CONTROL)
+  , m_begin_controlled_move_time(0)
+  , m_mouse_counter(0)
+  , m_scroll_start_pos(0, 0)
+  , m_last_mouse_pos(0, 0)
+  , m_scroll_vector(0.0f, 0.0f)
+  , auto_crop(true)
+  , followed_object(NULL)
 {
   pointer_used_before_scroll = Mouse::POINTER_SELECT;
 }
@@ -82,32 +85,32 @@ void Camera::Reset()
 
 bool Camera::HasFixedX() const
 {
-  return (int)GetWorld().GetWidth() <= GetSizeX();
+  return GetWorld().GetWidth() <= GetSizeX();
 }
 
 bool Camera::HasFixedY() const
 {
-  return (int)GetWorld().GetHeight() <= GetSizeY();
+  return GetWorld().GetHeight() <= GetSizeY();
 }
 
 void Camera::SetXYabs(int x, int y)
 {
-  AppWormux * app = AppWormux::GetInstance();
+  Surface &window = GetMainWindow();
 
   if (!HasFixedX())
     position.x = InRange_Long(x, 0, GetWorld().GetWidth() - GetSizeX());
   else
-    position.x = - (app->video->window.GetWidth() - GetWorld().GetWidth())/2;
+    position.x = (GetWorld().GetWidth() - window.GetWidth())/2;
 
   if (!HasFixedY())
     position.y = InRange_Long(y, 0, GetWorld().GetHeight() - GetSizeY());
   else
-    position.y = - (app->video->window.GetHeight() - GetWorld().GetHeight())/2;
+    position.y = (GetWorld().GetHeight() - window.GetHeight())/2;
 }
 
 void Camera::SetXY(Point2i pos)
 {
-  pos = pos * FreeDegrees();
+  pos = pos*FreeDegrees();
   if (pos.IsNull())
     return;
 
@@ -117,22 +120,25 @@ void Camera::SetXY(Point2i pos)
 void Camera::AutoCrop()
 {
   /* Stuff is put static in order to be able to reach the last position
-   * of the object the camera was following, in case it desapears. This
+   * of the object the camera was following, in case it disappears. This
    * typically happen when something explodes or a character dies. */
   static Point2i obj_pos(0, 0);
 
   Point2i target(0,0);
   bool stop = false;
 
-  if (followed_object && !(followed_object->IsGhost())) {
+  //Stop kinetic scrolling from interfering camera movement
+  m_scroll_vector = Point2f();
+
+  if (followed_object && !followed_object->IsGhost()) {
 
     /* compute the ideal position!
      * it takes the physical object direction into account
      */
     obj_pos = followed_object->GetCenter();
 
-    if (obj_pos > GetPosition() + GetSize() / 7 &&
-	obj_pos < GetPosition() + 6 * GetSize() / 7) {
+    if (obj_pos > GetPosition() + (GetSize()>>3) &&
+        obj_pos < GetPosition() + ((7 * GetSize())>>3)) {
       if (m_stop)
         stop = true;
 
@@ -143,19 +149,15 @@ void Camera::AutoCrop()
     target = obj_pos;
 
     if (followed_object->IsMoving()) {
-      Point2d anticipation = ADVANCE_ANTICIPATION * followed_object->GetSpeed();
+      Double time_delta = 1000 / (Double)Game::GetInstance()->GetLastFrameRate();
+      Point2d anticipation = followed_object->GetSpeed() * time_delta;
 
-      Point2d anticipation_limit = GetSize()/3;
       //limit anticipation to screen size/3
-      if (anticipation.x > anticipation_limit.x) anticipation.x = anticipation_limit.x;
-      if (anticipation.y > anticipation_limit.y) anticipation.y = anticipation_limit.y;
-      if (anticipation.x < -anticipation_limit.x) anticipation.x = -anticipation_limit.x;
-      if (anticipation.y < -anticipation_limit.y) anticipation.y = -anticipation_limit.y;
-
-      target += anticipation;
+      Point2d anticipation_limit = GetSize()/3;
+      target += anticipation.clamp(-anticipation_limit, anticipation_limit);
     }
 
-    target -= GetSize()/2;
+    target -= GetSize()>>1;
 
   } else {
     target = GetPosition();
@@ -163,34 +165,31 @@ void Camera::AutoCrop()
   }
 
   //Compute new speed to reach target
-  Point2d acceleration(0,0);
-  acceleration.x = REACTIVITY * (target.x - ANTICIPATION * m_speed.x - position.x) ;
-  acceleration.y = REACTIVITY * (target.y - ANTICIPATION * m_speed.y - position.y) ;
+  Point2f acceleration = (target - m_speed*ANTICIPATION - position)*REACTIVITY;
   // Limit acceleration
-  if (acceleration.x > MAX_CAMERA_ACCELERATION.x) acceleration.x = MAX_CAMERA_ACCELERATION.x;
-  if (acceleration.y > MAX_CAMERA_ACCELERATION.y) acceleration.y = MAX_CAMERA_ACCELERATION.y;
-  if (acceleration.x < -MAX_CAMERA_ACCELERATION.x) acceleration.x = -MAX_CAMERA_ACCELERATION.x;
-  if (acceleration.y < -MAX_CAMERA_ACCELERATION.y) acceleration.y = -MAX_CAMERA_ACCELERATION.y;
+  acceleration = acceleration.clamp(-MAX_CAMERA_ACCELERATION, MAX_CAMERA_ACCELERATION);
 
- // std::cout<<"acceleration before : "<<acceleration.x<<" "<<acceleration.y<<std::endl;
-  if (abs((int)m_speed.x) > SPEED_REACTIVITY_CEIL) {
-    acceleration.x *= (1 + SPEED_REACTIVITY * (abs((int)m_speed.x) - SPEED_REACTIVITY_CEIL));
+  // std::cout<<"acceleration before : "<<acceleration.x<<" "<<acceleration.y<<std::endl;
+  if ((int)abs(m_speed.x) > SPEED_REACTIVITY_CEIL) {
+    acceleration.x *= (1 + SPEED_REACTIVITY * ((int)abs(m_speed.x) - SPEED_REACTIVITY_CEIL));
   }
 
-  if (abs((int)m_speed.y) > SPEED_REACTIVITY_CEIL) {
-    acceleration.y *= (1 + SPEED_REACTIVITY * (abs((int)m_speed.y) - SPEED_REACTIVITY_CEIL));
+  if ((int)abs(m_speed.y) > SPEED_REACTIVITY_CEIL) {
+    acceleration.y *= (1 + SPEED_REACTIVITY * ((int)abs(m_speed.y) - SPEED_REACTIVITY_CEIL));
   }
 
+  //printf("speed=(%.2f,%.2f)  target=(%i,%i)\n", m_speed.x, m_speed.y, target.x, target.y);
   if (stop) {
     m_speed = m_speed/2;
 
   } else {
 
     //Apply acceleration
-    m_speed = m_speed + acceleration;
+    m_speed += acceleration;
 
-    //Realtime follow is enable if object is too fast to be correctly followed
-
+    // Realtime follow is enabled if object is too fast to be correctly followed
+    // stop can only be true if followed_obj!=NULL
+    // speed is set to 0 if not moving
     if (abs((int)followed_object->GetSpeed().x) > REALTIME_FOLLOW_LIMIT) {
       m_speed.x = (target.x - position.x) * REALTIME_FOLLOW_FACTOR;
     }
@@ -200,23 +199,16 @@ void Camera::AutoCrop()
     }
 
     //Limit
-    if (m_speed.x > MAX_CAMERA_SPEED.x) m_speed.x = MAX_CAMERA_SPEED.x;
-    if (m_speed.y > MAX_CAMERA_SPEED.y) m_speed.y = MAX_CAMERA_SPEED.y;
-    if (m_speed.x < -MAX_CAMERA_SPEED.x) m_speed.x = -MAX_CAMERA_SPEED.x;
-    if (m_speed.y < -MAX_CAMERA_SPEED.y) m_speed.y = -MAX_CAMERA_SPEED.y;
+    m_speed = m_speed.clamp(-MAX_CAMERA_SPEED, MAX_CAMERA_SPEED);
   }
 
   //Update position
-  Point2i next_position(0,0);
-  next_position.x = (int)m_speed.x;
-  next_position.y = (int)m_speed.y;
+  Point2i next_position((int)m_speed.x, (int)m_speed.y);
+  //printf("pos=(%i,%i) speed=(%.2f,%.2f)\n", next_position.x, next_position.y, m_speed.x, m_speed.y);
   SetXY(next_position);
 
-  if (!m_stop &&
-      next_position.x == 0 && next_position.y == 0 &&
-      followed_object->GetSpeed().x == 0 &&
-      followed_object->GetSpeed().y == 0) {
-      m_stop = true;
+  if (!m_stop && next_position.IsNull() && followed_object->GetSpeed().IsNull()) {
+    m_stop = true;
   }
 }
 
@@ -247,46 +239,96 @@ void Camera::ScrollCamera()
     return;
 
   Point2i mousePos = Mouse::GetInstance()->GetPosition();
+  bool over_interface = Interface::GetInstance()->Intersect(mousePos);
 
-  uint zone_size = Config::GetInstance()->GetScrollBorderSize();
-  Point2i sensitZone(zone_size, zone_size);
+  if (!Config::GetInstance()->GetScrollOnBorder()) {
+    /* Kinetic scrolling */
+    if (!SDL_GetMouseState(NULL, NULL) || over_interface) {
+      m_scroll_start_pos = Point2i();
+      m_last_mouse_pos   = Point2i();
+      m_mouse_counter    = 0;
 
-  /* tstVector represents the vector of how deep the cursor is in a sensit
-   * zone; negative value means that the camera has to reduce its coordinates,
-   * a positive value means that it should increase. Actually reduce means
-   * LEFT/UP (for x/y) and increase RIGHT/DOWN directions.
-   * The bigger tstVector is, the faster the camera will scroll. */
-  Point2i tstVector;
-  tstVector = GetSize().inf(mousePos + sensitZone) * (mousePos + sensitZone - GetSize()) ;
-  tstVector -= mousePos.inf(sensitZone) * (sensitZone - mousePos);
+      if (!m_scroll_vector.IsNull()) {
+        Point2f brk = 0.2f * m_scroll_vector.GetfloatNormal();
 
-  if (!tstVector.IsNull()) {
-    SetXY(tstVector);
-    SetAutoCrop(false);
+        MSG_DEBUG("camera",
+                  "scroll_vector=(%.3f,%.3f)  scroll_vector_break=(%.3f,%.3f)\n",
+                  m_scroll_vector.GetX(), m_scroll_vector.GetY(),
+                  brk.GetX(), brk.GetY());
+
+        m_scroll_vector -= brk;
+        SetXY(-m_scroll_vector);
+        if (m_scroll_vector.Norm() < 1)
+          m_scroll_vector = Point2f();
+      }
+      return;
+    }
+
+    if (over_interface)
+      return;
+
+    m_mouse_counter++;
+
+    if (m_scroll_start_pos.IsNull())
+      m_scroll_start_pos = mousePos;
+    if (m_last_mouse_pos.IsNull())
+      m_last_mouse_pos = mousePos;
+
+    m_scroll_vector = mousePos - m_scroll_start_pos;
+    m_scroll_vector = m_scroll_vector / m_mouse_counter;
+    MSG_DEBUG("camera",
+              "scroll_vector=(%.3f,%.3f) mousePos=(%i,%i) lastMousePos=(%i,%i) scrollStartPos=(%i,%i)",
+              m_scroll_vector.GetX(), m_scroll_vector.GetY(),
+              m_last_mouse_pos.GetX(), m_last_mouse_pos.GetY(),
+              m_scroll_start_pos.GetX(), m_scroll_start_pos.GetY());
+
+    if (mousePos != m_last_mouse_pos) {
+      SetXY(-(mousePos-m_last_mouse_pos));
+      m_last_mouse_pos = mousePos;
+      SetAutoCrop(false);
+    }
+  } else {
+
+    uint zone_size = Config::GetInstance()->GetScrollBorderSize();
+    Point2i sensitZone(zone_size, zone_size);
+
+    /* tstVector represents the vector of how deep the cursor is in a sensit
+     * zone; negative value means that the camera has to reduce its coordinates,
+     * a positive value means that it should increase. Actually reduce means
+     * LEFT/UP (for x/y) and increase RIGHT/DOWN directions.
+     * The bigger tstVector is, the faster the camera will scroll. */
+    Point2i tstVector;
+    tstVector = GetSize().inf(mousePos + sensitZone) * (mousePos + sensitZone - GetSize()) ;
+    tstVector -= mousePos.inf(sensitZone) * (sensitZone - mousePos);
+
+    if (!tstVector.IsNull()) {
+      SetXY(tstVector);
+      SetAutoCrop(false);
+    }
+
+    /* mouse pointer ***********************************************************/
+    SaveMouseCursor();
+
+    if (tstVector.IsNull())
+      RestoreMouseCursor();
+    else if (tstVector.IsXNull() && tstVector.y < 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP);
+    else if (tstVector.IsXNull() && tstVector.y > 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN);
+    else if (tstVector.IsYNull() && tstVector.x < 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_LEFT);
+    else if (tstVector.IsYNull() && tstVector.x > 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_RIGHT);
+    else if (tstVector.y > 0 && tstVector.x > 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN_RIGHT);
+    else if (tstVector.y < 0 && tstVector.x > 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP_RIGHT);
+    else if (tstVector.y < 0 && tstVector.x < 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP_LEFT);
+    else if (tstVector.y > 0 && tstVector.x < 0)
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN_LEFT);
+    /***************************************************************************/
   }
-
-  /* mouse pointer ***********************************************************/
-  SaveMouseCursor();
-
-  if (tstVector.IsNull())
-    RestoreMouseCursor();
-  else if (tstVector.IsXNull() && tstVector.y < 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP);
-  else if (tstVector.IsXNull() && tstVector.y > 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN);
-  else if (tstVector.IsYNull() && tstVector.x < 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_LEFT);
-  else if (tstVector.IsYNull() && tstVector.x > 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_RIGHT);
-  else if (tstVector.y > 0 && tstVector.x > 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN_RIGHT);
-  else if (tstVector.y < 0 && tstVector.x > 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP_RIGHT);
-  else if (tstVector.y < 0 && tstVector.x < 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP_LEFT);
-  else if (tstVector.y > 0 && tstVector.x < 0)
-    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN_LEFT);
-  /***************************************************************************/
 }
 
 void Camera::HandleMouseMovement()
@@ -317,7 +359,7 @@ void Camera::HandleMouseMovement()
 
     if (SDL_GetModState() & KMOD_CTRL) {
       m_control_mode = KEYBOARD_CAMERA_CONTROL;
-    }else{
+    } else {
       m_control_mode = MOUSE_CAMERA_CONTROL;
     }
     return;
@@ -343,10 +385,8 @@ void Camera::HandleMouseMovement()
     m_begin_controlled_move_time = 0;
   }
 
+  ScrollCamera();
   last_mouse_pos = curr_pos;
-
-  if (Config::GetInstance()->GetScrollOnBorder())
-    ScrollCamera();
 }
 
 void Camera::HandleMoveIntentions()
@@ -369,15 +409,18 @@ void Camera::HandleMoveIntentions()
     SetAutoCrop(false);
 }
 
-void Camera::Refresh(){
+void Camera::Refresh(bool ignore_user)
+{
   // Refresh gets called very often when the game is paused.
-  // This "if" ensures that the camera doesn't move to fast.
+  // This "if" ensures that the camera doesn't move too fast.
   if (refresh_stopwatch.GetValue() >= 1000 / MAX_REFRESHES_PER_SECOND) {
     // Check if player wants the camera to move
-    HandleMouseMovement();
-    HandleMoveIntentions();
+    if (!ignore_user) {
+      HandleMouseMovement();
+      HandleMoveIntentions();
+    }
 
-    if (auto_crop && followed_object != NULL)
+    if (auto_crop && followed_object)
       AutoCrop();
     refresh_stopwatch.Reset(1.0);
   }
@@ -385,7 +428,7 @@ void Camera::Refresh(){
 
 void Camera::FollowObject(const PhysicalObj *obj, bool follow_closely)
 {
-  MSG_DEBUG( "camera.tracking", "Following object %s (%d)", obj->GetName().c_str(), follow_closely);
+  MSG_DEBUG("camera.tracking", "Following object %s (%d)", obj->GetName().c_str(), follow_closely);
 
   Mouse::GetInstance()->Hide();
 
@@ -397,17 +440,16 @@ void Camera::FollowObject(const PhysicalObj *obj, bool follow_closely)
 
 void Camera::StopFollowingObj(const PhysicalObj* obj)
 {
-  if (followed_object == obj)
-  {
+  if (followed_object == obj) {
     followed_object = NULL;
     m_stop = true;
-    m_speed = Point2d(0,0);
+    m_speed = Point2f(0,0);
   }
 }
 
 bool Camera::IsVisible(const PhysicalObj &obj) const
 {
-   return Intersect( obj.GetRect() );
+  return Intersect(obj.GetRect());
 }
 
 void Camera::CenterOnActiveCharacter()
@@ -429,28 +471,26 @@ Point2i Camera::ComputeShake() const
     return m_shake;
 
   // FIXME: we can underflow to 0 if time and m_started_shaking are large enough
-  Double t = (Double)(time - m_started_shaking) / (Double)m_shake_duration;
+  float t = (float)(time - m_started_shaking) / (float)m_shake_duration;
 
-  Double func_val = 1.0f;
-  if (t >= EPSILON) {
-    const Double k_scale_angle = 10 * PI;
-    Double arg = k_scale_angle * t;
+  float func_val = 1.0f;
+  if (t >= 0.001f) {
+    float k_scale_angle = 10 * M_PI;
+    float arg = k_scale_angle * t;
     // denormalized sinc
     func_val = (1 - t) * sin(arg) / arg;
   }
 
-  Double x_ampl = (Double)RandomLocal().GetDouble( -m_shake_amplitude.x, m_shake_amplitude.x );
-  Double y_ampl = (Double)RandomLocal().GetDouble( -m_shake_amplitude.y, m_shake_amplitude.y );
+  float x_ampl = RandomLocal().Getfloat(-m_shake_amplitude.x, m_shake_amplitude.x);
+  float y_ampl = RandomLocal().Getfloat(-m_shake_amplitude.y, m_shake_amplitude.y);
 
-  m_shake.x = (int)(x_ampl * func_val//( Double )m_shake_amplitude.x * func_val
-		    + (Double)m_shake_centerpoint.x);
-  m_shake.y = (int)(y_ampl * func_val//( Double )m_shake_amplitude.y * func_val
-		    + (Double)m_shake_centerpoint.y);
+  m_shake.x = x_ampl * func_val + m_shake_centerpoint.x;
+  m_shake.y = y_ampl * func_val + m_shake_centerpoint.y;
 
   static uint t_last_time_logged = 0;
   if (time - t_last_time_logged > 10) {
-    MSG_DEBUG("camera.shake", "Shaking: time = %d, t = %s, func_val = %s, shake: %d, %d",
-	      time, Double2str(t).c_str(), Double2str(func_val).c_str(), m_shake.x, m_shake.y);
+    MSG_DEBUG("camera.shake", "Shaking: time = %d, t = %.3f, func_val = %.3f, shake: %d, %d",
+              time, t, func_val, m_shake.x, m_shake.y);
     t_last_time_logged = time;
   }
 
@@ -468,11 +508,11 @@ void Camera::Shake(uint how_long_msec, const Point2i & amplitude, const Point2i 
 
   if (m_started_shaking + m_shake_duration > time) {
     // still shaking, so add amplitude/centerpoint to allow shakes to combine
-    m_shake_amplitude = max( m_shake_amplitude, amplitude );
+    m_shake_amplitude = max(m_shake_amplitude, amplitude);
     m_shake_centerpoint = centerpoint;
 
     // increase shake duration so it lasts how_long_msec from this time
-    m_shake_duration = how_long_msec + ( time - m_started_shaking );
+    m_shake_duration = how_long_msec + (time - m_started_shaking);
   } else {
     // reinit the shake
     m_started_shaking = time;
@@ -487,5 +527,5 @@ void Camera::ResetShake()
   m_started_shaking = 0;
   m_shake_duration = 0;
   m_last_time_shake_calculated = 0;
-  m_shake = Point2i( 0, 0 );
+  m_shake = Point2i(0, 0);
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,33 +19,35 @@
 
 #include <vector>
 #include <sstream>
-
-#include "gui/combo_box.h"
+#include "graphic/polygon_generator.h"
+#include "graphic/sprite.h"
 #include "graphic/text.h"
 #include "graphic/video.h"
-#include "gui/button.h"
+#include "gui/combo_box.h"
+#include "gui/torus_cache.h"
 #include "include/app.h"
+#include "tool/affine_transform.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
-#include "graphic/polygon_generator.h"
-#include "tool/affine_transform.h"
+
+#define SMALL_R 25
+#define BIG_R   35
+#define OPEN_ANGLE 0.96f // 55
 
 ComboBox::ComboBox (const std::string &label,
-		    const std::string &resource_id,
-		    const Point2i &_size,
-		    const std::vector<std::pair<std::string, std::string> > &choices,
-		    const std::string choice):
-  m_choices(choices), m_index(0)
+                    const std::string &resource_id,
+                    const Point2i &_size,
+                    const std::vector<std::pair<std::string, std::string> > &choices,
+                    const std::string choice)
+  : m_choices(choices)
+  , m_index(0)
 {
   position = Point2i(-1, -1);
   size = _size;
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  m_image = GetResourceManager().LoadImage(res, resource_id);
-  m_annulus_background = GetResourceManager().LoadImage(res, "menu/annulus_background");
-  m_annulus_foreground = GetResourceManager().LoadImage(res, "menu/annulus_foreground");
-  m_progress_color = GetResourceManager().LoadColor(res, "menu/annulus_progress_color");
-  GetResourceManager().UnLoadXMLProfile( res);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  torus = new TorusCache(res, resource_id, BIG_R, SMALL_R);
+  GetResourceManager().UnLoadXMLProfile(res);
 
   txt_label = new Text(label, dark_gray_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
   txt_label->SetMaxWidth(GetSizeX());
@@ -55,7 +57,7 @@ ComboBox::ComboBox (const std::string &label,
 
   std::vector<std::string>::size_type index = 0;
   for (std::vector<std::pair<std::string, std::string> >::const_iterator iter
-	 = choices.begin ();
+       = choices.begin ();
        iter != choices.end ();
        iter++) {
 
@@ -72,6 +74,7 @@ ComboBox::~ComboBox ()
   delete txt_label;
   delete txt_value_black;
   delete txt_value_white;
+  delete torus;
 }
 
 void ComboBox::Pack()
@@ -79,86 +82,73 @@ void ComboBox::Pack()
   txt_label->SetMaxWidth(size.x);
 }
 
-void ComboBox::Draw(const Point2i &/*mousePosition*/) const
+void ComboBox::Draw(const Point2i &mousePosition)
 {
-  Surface& video_window = GetMainWindow();
+  Surface& window = GetMainWindow();
 
   //  the computed positions are to center on the image part of the widget
 
-  // 1. first draw the annulus background
-  uint tmp_back_x = GetPositionX() + (GetSizeX() - m_annulus_background.GetWidth())/4 ;
-  uint tmp_back_y = GetPositionY();
-  video_window.Blit(m_annulus_background, Point2i(tmp_back_x, tmp_back_y));
+  // 1. first draw the torus
+  torus->Draw(*this);
 
-  // 2. then draw the progress annulus
-  static uint small_r = 25;
-  static uint big_r = 35;
-  static Double open_angle_value = 0.96; // 55
-  uint center_x = tmp_back_x + m_annulus_background.GetWidth() / 2;
-  uint center_y = tmp_back_y + m_annulus_background.GetHeight() / 2;
-  Double angle;
-  if (m_choices.size () > 1)
-     angle = (TWO * PI - open_angle_value) * (Double)m_index / (Double)(m_choices.size () - 1);
-  else
-    angle = 0;
-  Polygon *tmp = PolygonGenerator::GeneratePartialTorus(big_r * 2, small_r * 2, 100, angle, open_angle_value / TWO);
-  tmp->SetPlaneColor(m_progress_color);
-  tmp->ApplyTransformation(AffineTransform2D::Translate(center_x, center_y));
-  tmp->Draw(&video_window);
-  delete(tmp);
 
-  // 3. then draw the annulus foreground
-  uint tmp_fore_x = tmp_back_x;
-  uint tmp_fore_y = tmp_back_y;
-  video_window.Blit(m_annulus_foreground, Point2i(tmp_fore_x, tmp_fore_y));
+  // 2. then draw buttons
+  #define IMG_BUTTONS_W 5
+  #define IMG_BUTTONS_H 12
 
-  // 4. then draw the image
-  uint tmp_x = center_x - m_image.GetWidth() / 2;
-  uint tmp_y = center_y - m_image.GetHeight() / 2;
+  Point2i center = GetPosition() + torus->GetCenter();
+  if (m_index > 0) {
 
-  video_window.Blit(m_image, Point2i(tmp_x, tmp_y));
+    if (Contains(mousePosition) && mousePosition.x < center.x)
+      torus->m_minus->SetCurrentFrame(1);
+    else
+      torus->m_minus->SetCurrentFrame(0);
 
-  // 5. add in the value image
-  tmp_x = center_x;
-  tmp_y = center_y + small_r - 3;
+    torus->m_minus->Blit(window, GetPosition().x + IMG_BUTTONS_W, GetPosition().y + IMG_BUTTONS_H);
+  }
+
+  if (m_index < m_choices.size() - 1) {
+    if (Contains(mousePosition) && mousePosition.x > center.x)
+      torus->m_plus->SetCurrentFrame(1);
+    else
+      torus->m_plus->SetCurrentFrame(0);
+
+    torus->m_plus->Blit(window, GetPosition().x + GetSize().x - torus->m_plus->GetWidth() - IMG_BUTTONS_W,
+                     GetPosition().y + IMG_BUTTONS_H);
+  }
+
+  // 3. add in the value image
+  uint tmp_x = center.x;
+  uint tmp_y = center.y + SMALL_R - 3;
   uint value_h = Font::GetInstance(Font::FONT_MEDIUM)->GetHeight();
 
   txt_value_black->DrawCenterTop(Point2i(tmp_x + 1, tmp_y + 1 - value_h/2));
   txt_value_white->DrawCenterTop(Point2i(tmp_x, tmp_y - value_h/2));
 
-  // 6. and finally the label image
+  // 7. and finally the label image
   txt_label->DrawCenterTop(Point2i(GetPositionX() + GetSizeX()/2,
-                            GetPositionY() + GetSizeY() - txt_label->GetHeight()));
+                                   GetPositionY() + GetSizeY() - txt_label->GetHeight()));
 }
 
 Widget* ComboBox::ClickUp(const Point2i &mousePosition, uint button)
 {
   NeedRedrawing();
 
-  if (button == Mouse::BUTTON_LEFT() && Contains(mousePosition)) {
-
+  bool is_click = Mouse::IS_CLICK_BUTTON(button);
+  if ( (is_click && mousePosition.x > (GetPositionX() + GetSizeX()/2))
+       || button == SDL_BUTTON_WHEELUP ) {
     SetChoice(m_index + 1);
     return this;
-
-  } else if (button == Mouse::BUTTON_RIGHT() && Contains(mousePosition)) {
-
+  } else if ( (is_click && mousePosition.x <= (GetPositionX() + GetSizeX()/2))
+              || button == SDL_BUTTON_WHEELDOWN ) {
     SetChoice(m_index - 1);
     return this;
-
-  } else if( button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition) ) {
-
-    SetChoice (m_index - 1);
-    return this;
-
-  } else if( button == SDL_BUTTON_WHEELUP && Contains(mousePosition) ) {
-
-    SetChoice(m_index + 1);
-    return this;
   }
+
   return NULL;
 }
 
-void ComboBox::SetChoice (std::vector<std::string>::size_type index)
+void ComboBox::SetChoice(std::vector<std::string>::size_type index)
 {
   std::string text;
 
@@ -170,6 +160,7 @@ void ComboBox::SetChoice (std::vector<std::string>::size_type index)
   txt_value_black->SetText(m_choices[m_index].second);
   txt_value_white->SetText(m_choices[m_index].second);
 
+  RecreateTorus();
   NeedRedrawing();
 }
 
@@ -178,4 +169,14 @@ int ComboBox::GetIntValue() const
   int tmp = 0;
   sscanf(GetValue().c_str(),"%d", &tmp);
   return tmp;
+}
+
+void ComboBox::RecreateTorus()
+{
+  float angle;
+  if (m_choices.size () > 1)
+    angle = m_index*(2*M_PI - OPEN_ANGLE) / (m_choices.size () - 1);
+  else
+    angle = 0;
+  torus->Refresh(angle, OPEN_ANGLE);
 }

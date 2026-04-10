@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,7 +42,9 @@ WeaponsList::~WeaponsList()
   for (; it != end; ++it)
     delete *it;
 
-  delete weapons_res_profile;
+  // no need to delete objects in m_weapons_launcher_list nor clear the 2 lists !
+
+  GetResourceManager().UnLoadXMLProfile(weapons_res_profile);
   weapons_res_profile = NULL;
 }
 
@@ -50,29 +52,41 @@ WeaponsList::~WeaponsList()
 
 WeaponsList::WeaponsList(const xmlNode* weapons_xml)
 {
-  weapons_res_profile = GetResourceManager().LoadXMLProfile( "weapons.xml", false);
-  m_weapons_list.push_back(new Bazooka);
-  m_weapons_list.push_back(new SubMachineGun);
-  m_weapons_list.push_back(new Gun);
-  m_weapons_list.push_back(new Shotgun);
-  m_weapons_list.push_back(new SnipeRifle);
-  m_weapons_list.push_back(new RiotBomb);
-  m_weapons_list.push_back(new Cluzooka);
-  m_weapons_list.push_back(new AutomaticBazooka);
-  m_weapons_list.push_back(new Dynamite);
-  m_weapons_list.push_back(new GrenadeLauncher);
-  m_weapons_list.push_back(new DiscoGrenadeLauncher);
-  m_weapons_list.push_back(new ClusterLauncher);
-  m_weapons_list.push_back(new FootBombLauncher);
-  m_weapons_list.push_back(new FlameThrower);
+  weapons_res_profile = GetResourceManager().LoadXMLProfile("weapons.xml", false);
+
+  // First launcher weapons
+  m_launcher_weapons_list.push_back(new AnvilLauncher);
+  m_launcher_weapons_list.push_back(new TuxLauncher);
+  m_launcher_weapons_list.push_back(new GnuLauncher);
+  m_launcher_weapons_list.push_back(new PolecatLauncher);
+  m_launcher_weapons_list.push_back(new BounceBallLauncher);
+  m_launcher_weapons_list.push_back(new AutomaticBazooka);
+  m_launcher_weapons_list.push_back(new GrenadeLauncher);
+  m_launcher_weapons_list.push_back(new DiscoGrenadeLauncher);
+  m_launcher_weapons_list.push_back(new ClusterLauncher);
+  m_launcher_weapons_list.push_back(new FootBombLauncher);
+  m_launcher_weapons_list.push_back(new Bazooka);
+  m_launcher_weapons_list.push_back(new RiotBomb);
+  m_launcher_weapons_list.push_back(new Cluzooka);
+  m_launcher_weapons_list.push_back(new SubMachineGun);
+  m_launcher_weapons_list.push_back(new Gun);
+  m_launcher_weapons_list.push_back(new Shotgun);
+  m_launcher_weapons_list.push_back(new SnipeRifle);
+  m_launcher_weapons_list.push_back(new RailGun);
+  m_launcher_weapons_list.push_back(new Dynamite);
+  m_launcher_weapons_list.push_back(new FlameThrower);
+  m_launcher_weapons_list.push_back(new Mine);
+
+  // Copy launcher weapons to normal list
+  //m_weapons_list = m_launcher_weapons_list;
+  m_weapons_list.insert(m_weapons_list.end(),
+                        m_launcher_weapons_list.begin(),
+                        m_launcher_weapons_list.end());
+
+
+  // Add other weapons
   m_weapons_list.push_back(new Baseball);
-  m_weapons_list.push_back(new Mine);
   m_weapons_list.push_back(new AirAttack);
-  m_weapons_list.push_back(new AnvilLauncher);
-  m_weapons_list.push_back(new TuxLauncher);
-  m_weapons_list.push_back(new GnuLauncher);
-  m_weapons_list.push_back(new PolecatLauncher);
-  m_weapons_list.push_back(new BounceBallLauncher);
   m_weapons_list.push_back(new Slap);
   m_weapons_list.push_back(new Teleportation);
   m_weapons_list.push_back(new Parachute);
@@ -111,11 +125,12 @@ void WeaponsList::UpdateTranslation()
 bool WeaponsList::GetWeaponBySort(Weapon::category_t sort, Weapon::Weapon_type &type)
 {
   weapons_list_it it, end=m_weapons_list.end();
+  bool open = ActiveMap()->LoadedData()->IsOpened();
 
   /* find the current position */
-  it = find(m_weapons_list.begin(),
-            m_weapons_list.end(),
-            &ActiveTeam().GetWeapon());
+  it = std::find(m_weapons_list.begin(),
+                 m_weapons_list.end(),
+                 &ActiveTeam().GetWeapon());
 
   /* if the current weapon match the criteria */
   if (it != end && ActiveTeam().GetWeapon().Category() == sort)
@@ -126,7 +141,7 @@ bool WeaponsList::GetWeaponBySort(Weapon::category_t sort, Weapon::Weapon_type &
       } while(it != end
               && ((*it)->Category() != sort
                   || ActiveTeam().ReadNbAmmos((*it)->GetType()) == 0
-                  || (!((*it)->CanBeUsedOnClosedMap()) && !(ActiveMap()->IsOpened())))
+                  || (!((*it)->CanBeUsedOnClosedMap()) && !open))
               );
 
       /* Ok, a weapon was found let's return it */
@@ -151,7 +166,7 @@ bool WeaponsList::GetWeaponBySort(Weapon::category_t sort, Weapon::Weapon_type &
   while(it != end
       && ((*it)->Category() != sort
         || ActiveTeam().ReadNbAmmos((*it)->GetType()) == 0
-        || (!(*it)->CanBeUsedOnClosedMap() && ActiveMap()->IsOpened())))
+            || (!(*it)->CanBeUsedOnClosedMap() && open)))
     ++it;
 
   /* Ok, a weapon was found let's return it if it is not the one active */
@@ -169,9 +184,8 @@ Weapon * WeaponsList::GetRandomWeaponToDrop()
 {
   std::list<Weapon*>::iterator it;
   Double probability_sum = 0;
-  for (it = m_weapons_list.begin(); it != m_weapons_list.end(); it++) {
+  for (it = m_weapons_list.begin(); it != m_weapons_list.end(); ++it) {
     probability_sum += (*it)->GetDropProbability();
-    it++;
   }
   ASSERT(probability_sum > 0);
 
@@ -203,11 +217,19 @@ class test_weapon_type {
     bool operator() (const Weapon* w) const { return w->GetType()==m_type; }
 };
 
-Weapon* WeaponsList::GetWeapon (Weapon::Weapon_type type)
+Weapon* WeaponsList::GetWeapon (Weapon::Weapon_type type) const
 {
   weapons_list_it it;
   it = std::find_if(m_weapons_list.begin(), m_weapons_list.end(), test_weapon_type(type));
   ASSERT (it != m_weapons_list.end());
+  return *it;
+}
+
+WeaponLauncher* WeaponsList::GetWeaponLauncher(Weapon::Weapon_type type) const
+{
+  launcher_weapons_list_it it;
+  it = std::find_if(m_launcher_weapons_list.begin(), m_launcher_weapons_list.end(), test_weapon_type(type));
+  ASSERT (it != m_launcher_weapons_list.end());
   return *it;
 }
 

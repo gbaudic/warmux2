@@ -5,7 +5,7 @@
 #ifndef XML_DOCUMENT_H
 #define XML_DOCUMENT_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include <string>
 #include <vector>
 #include "graphic/colors.h"
@@ -29,21 +29,21 @@ public:
   bool LoadFromString(const std::string &contents);
   std::string ExportToString() const;
 
-  bool IsOk() const;
+  bool IsOk() const { return doc != NULL; }
 
   // Return the *exploitable* root (use root->parent for the real one) */
   const xmlNode* GetRoot() const;
 
   // Return the direct children matching name
-  static xmlNodeArray GetNamedChildren(const xmlNode* father, 
+  static xmlNodeArray GetNamedChildren(const xmlNode* father,
                                        const std::string & name);
 
   // Return the first child node element named "nodeName" of "father".
-  const xmlNode * GetFirstNamedChild(const xmlNode * father, 
+  const xmlNode * GetFirstNamedChild(const xmlNode * father,
                                      const std::string & nodeName);
 
   // Return the current number of children nodes of "father" node.
-  unsigned long GetNbChildren(const xmlNode * father);
+  uint GetNbChildren(const xmlNode * father);
 
   // Return the first child node of "father", otherwise NULL
   const xmlNode * GetFirstChild(const xmlNode * father);
@@ -61,24 +61,27 @@ public:
   static bool ReadDouble(const xmlNode* father,
                          const std::string &name,
                          Double &output);
+  static bool Readfloat(const xmlNode* father,
+                        const std::string &name,
+                        float &output);
   static bool ReadInt(const xmlNode* father,
                       const std::string &name,
                       int &output);
   static bool ReadUint(const xmlNode* father,
                        const std::string &name,
-                       unsigned int &output);
+                       uint &output);
   static bool ReadBool(const xmlNode* father,
                        const std::string &name,
                        bool &output);
 
   // get an XML element
   static const xmlNode* GetMarker(const xmlNode* x,
-				  const std::string &name);
+                                  const std::string &name);
 
   // Access to the 'anchor' <[name] name="[attr_name]"> : have to be uniq !
   static const xmlNode* Access(const xmlNode* x,
-			       const std::string &name,
-			       const std::string &attr_name);
+                               const std::string &name,
+                               const std::string &attr_name);
 
   // Lit un attribut d'un noeud
   static bool ReadStringAttr(const xmlNode* x,
@@ -87,18 +90,21 @@ public:
   static bool ReadDoubleAttr(const xmlNode* x,
                              const std::string &name,
                              Double &output);
+  static bool ReadfloatAttr(const xmlNode* x,
+                            const std::string &name,
+                            float &output);
   static bool ReadIntAttr(const xmlNode* x,
                           const std::string &name,
                           int &output);
   bool ReadPercentageAttr(const xmlNode* node,
                           const std::string & attributName,
-                          Double & outputValue);
+                          float & outputValue);
   bool ReadPixelAttr(const xmlNode* node,
                      const std::string & attributName,
                      int & outputValue);
   static bool ReadUintAttr(const xmlNode* x,
                            const std::string &name,
-                           unsigned int &output);
+                           uint &output);
   static bool ReadBoolAttr(const xmlNode* x,
                            const std::string &name,
                            bool &output);
@@ -118,10 +124,6 @@ private:
 
 class XmlWriter
 {
-  /* if you need that, implement it (correctly)*/
-  XmlWriter(const XmlWriter&);
-  XmlWriter operator=(const XmlWriter&);
-  /*********************************************/
   void Reset();
 
 protected:
@@ -138,13 +140,13 @@ public:
   bool Create(const std::string &filename, const std::string &root,
               const std::string &version, const std::string &encoding);
 
-  bool IsOk() const;
+  bool IsOk() const { return m_doc && m_root; }
 
   xmlNode *GetRoot() const;
 
   xmlNode *WriteElement(xmlNode* x,
-                    const std::string &name,
-                    const std::string &value);
+                        const std::string &name,
+                        const std::string &value);
 
   void WriteComment(xmlNode* x,
                     const std::string& comment);

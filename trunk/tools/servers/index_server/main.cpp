@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <sys/socket.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -47,55 +48,60 @@
 // map < version, client >
 std::multimap<std::string, Client*> clients;
 
-std::string config_file = "wormux_index_server.conf";
+std::string config_file = "warmux_index_server.conf";
 
-void ShowUsage(void)
+void printUsage(char *argv[])
 {
-  std::cout << "Wormux Index Server (" << PACKAGE_VERSION <<")" << std::endl
-	    << "===================" << std::endl
-	    << "Usage: wormux-inder_server [OPTIONS]" << std::endl
-	    << "       -d             : run as daemon" << std::endl
-	    << "       -f config_file : set an alternative configuration file" << std::endl;
-  exit(EXIT_FAILURE);
-
-  return;
-}
-
-void DoFork(void)
-{
-  pid_t fwis = fork();
-  switch (fwis) {
-    case EAGAIN:
-      DPRINT(INFO, "Cannot fork due to system restriction. Try to increase KERN_MAXPROC, KERN_MAXPROCPERUID or RLIMIT_NPROC.");
-      exit(EXIT_FAILURE);
-      break;
-    case ENOMEM:
-      DPRINT(INFO, "Cannot fork due to insufficient swap or memory space.");
-      exit(EXIT_FAILURE);
-      break;
-    case 0: // Forked successfully
-      break;
-    default:
-      exit(EXIT_SUCCESS);
-      break;
-  }
+  printf("Usage: %s [OPTIONS]\n", argv[0]);
+  printf("OPTIONS:\n"
+	 "  -h|--help: print this help and exit\n"
+	 "  -v|--version: print version and exit\n"
+	 "  -d|--daemon: start as daemon (in background)\n"
+	 "  -f|--file: specify config file\n"
+	 );
+  printf("\nConfig file is reloaded when receiving a -HUP signal BUT some configuration options need program to be restarted\n");
 }
 
 void parseArgs(int argc, char *argv[])
 {
   int opt;
 
-  while ((opt = getopt(argc, argv, "f:d")) != -1) {
+  struct option long_options[] = {
+    {"help",	     no_argument,       NULL, 'h'},
+    {"version",	     no_argument,       NULL, 'v'},
+    {"daemon",       no_argument,       NULL, 'd'},
+    {"file",         required_argument, NULL, 'f'},
+    {NULL,           no_argument,       NULL,  0 }
+  };
+
+  while ((opt = getopt_long(argc, argv, "hvdf:", long_options, NULL)) != -1) {
     switch (opt) {
+    case 'h':
+      printUsage(argv);
+      exit(EXIT_SUCCESS);
+      break;
+
+    case 'v':
+      printf("Warmux index server version %s\n", PACKAGE_VERSION);
+      exit(EXIT_SUCCESS);
+      break;
+
+    case 'd':
+      Env::Daemonize();
+      break;
+
     case 'f':
       config_file = optarg;
       break;
-    case 'd':
-      DoFork();
+
+    case '?': /* returns by getopt if option was invalid */
+      printUsage(argv);
+      exit(EXIT_FAILURE);
       break;
-    case '?':
+
     default:
-      ShowUsage();
+      fprintf(stderr, "Sorry, it seems that option '-%c' is not implemented!\n", opt);
+      exit(EXIT_FAILURE);
       break;
     }
   }
@@ -107,7 +113,7 @@ int main(int argc, char* argv[])
 
   config.Load(config_file);
 
-  DPRINT(INFO, "Wormux index server version %i", VERSION);
+  DPRINT(INFO, "Warmux index server version %i", VERSION);
   DPRINT(INFO, "%s", wx_clock.DateStr());
 
   Env::SetConfigClass(config);
@@ -127,6 +133,7 @@ int main(int argc, char* argv[])
 
   // Set the maximum number of connection
   Env::SetMaxConnection();
+  Env::SetupAutoReloadConf();
 
   stats.Init();
 

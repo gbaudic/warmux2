@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <sstream>
 #include "character/character.h"
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "include/action_handler.h"
 #include "interface/game_msg.h"
 #include "map/map.h"
@@ -47,10 +47,10 @@ const uint MIN_TIME_BETWEEN_JOLT = 100; // in milliseconds
 
 class AirhammerConfig : public WeaponConfig
 {
-  public:
-    uint range;
-    AirhammerConfig();
-    void LoadXml(const xmlNode* elem);
+public:
+  uint range;
+  AirhammerConfig();
+  void LoadXml(const xmlNode* elem);
 };
 
 //-----------------------------------------------------------------------------
@@ -74,7 +74,7 @@ Airhammer::Airhammer():
 void Airhammer::UpdateTranslationStrings()
 {
   m_name = _("Airhammer");
-  m_help = _("How to use it : keep the space key pressed\nan ammo per turn");
+  m_help = _("Press space to dig\nAmmo is used when counter reaches zero\nOne ammo per turn");
 }
 
 //-----------------------------------------------------------------------------
@@ -92,7 +92,7 @@ bool Airhammer::p_Shoot()
                          true, -THREE * QUARTER_PI, 5.0 + Time::GetInstance()->Read() % 5);
   ParticleEngine::AddNow(pos + Point2i(3*impact.GetWidth()/4,9), 1, particle_AIR_HAMMER,
                          true, -QUARTER_PI, 5.0 + Time::GetInstance()->Read() % 5);
-  GetWorld().Dig( pos, impact );
+  GetWorld().Dig(pos, impact);
 
   return true;
 }
@@ -172,13 +172,15 @@ std::string Airhammer::GetWeaponWinString(const char *TeamName, uint items_count
 
 //-----------------------------------------------------------------------------
 
-AirhammerConfig& Airhammer::cfg() {
+AirhammerConfig& Airhammer::cfg()
+{
   return static_cast<AirhammerConfig&>(*extra_params);
 }
 
 //-----------------------------------------------------------------------------
 
-AirhammerConfig::AirhammerConfig(){
+AirhammerConfig::AirhammerConfig()
+{
   range =  30;
 }
 

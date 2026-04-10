@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,23 +23,19 @@
 #define FPS_H
 
 #include <list>
-#include "include/base.h"
+#include <WARMUX_base.h>
 
 class Text;
 
 class FramePerSecond
 {
-private:
-  /* If you need this, implement it (correctly) */
-  FramePerSecond(const FramePerSecond&);
-  FramePerSecond operator=(const FramePerSecond&);
-  /**********************************************/
-
   // Minimum number of values needed to compute the average
   static const uint MIN_NB_VALUES;
 
+  uint total_frames;
+
   int nb_valid_values;
-  Double average;
+  float average;
   std::list<uint> nb_frames;
   uint time_in_second;
   Text* text;
@@ -51,9 +47,11 @@ public:
   FramePerSecond();
   ~FramePerSecond();
   void Reset();
-  void AddOneFrame();
+  void AddOneFrame() { ++nb_frames.front(); total_frames++; }
   void Refresh();
   void Draw();
+  uint GetTotalFrames() const { return total_frames; }
+  float GetLastValue() const { return average; }
 };
 
 #endif

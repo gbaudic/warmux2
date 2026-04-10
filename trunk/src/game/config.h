@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Configuration of Wormux : store game config of every tunable variable of Wormux.
+ * Configuration of Warmux : store game config of every tunable variable of Warmux.
  * Vars have a default value and can be change with the file configuration.
  * This object aims to become the only place where the XML is read and/or
  * written. It is handled as a singleton pattern whereas one doesn't really
@@ -33,10 +33,10 @@
 #include <list>
 #include <string>
 #include <map>
-#include "include/base.h"
-#include <WORMUX_singleton.h>
-#include <WORMUX_point.h>
-#include <WORMUX_team_config.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
+#include <WARMUX_point.h>
+#include <WARMUX_team_config.h>
 
 // Forward declarations
 class ObjectConfig;
@@ -58,11 +58,13 @@ public:
   static const int COLORKEY = 1;
 
   const ObjectConfig &GetObjectConfig(const std::string &name,
-                                     const std::string &xml_config) const;
+                                      const std::string &xml_config) const;
   void RemoveAllObjectConfigs();
 
-  void SetLanguage(const std::string language);
+#ifdef ENABLE_NLS
+  void SetLanguage(const std::string& language);
   std::string GetLanguage() const { return default_language; };
+#endif
 
   bool GetDisplayEnergyCharacter() const { return display_energy_character; };
   void SetDisplayEnergyCharacter(const bool dec) { display_energy_character = dec; };
@@ -70,8 +72,8 @@ public:
   bool GetDisplayNameCharacter() const { return display_name_character; };
   void SetDisplayNameCharacter(const bool dnc) { display_name_character = dnc; };
 
-  bool GetDisplayWindParticles() const { return display_wind_particles; };
-  void SetDisplayWindParticles(bool dwp) { display_wind_particles = dwp; };
+  uint GetWindParticlesPercentage() const { return wind_particles_percentage; };
+  void SetWindParticlesPercentage(uint dwp) { wind_particles_percentage = dwp; };
 
   bool GetDisplayMultiLayerSky() const { return display_multi_layer_sky; };
   void SetDisplayMultiLayerSky(bool dmsl) { display_multi_layer_sky = dmsl; };
@@ -132,7 +134,9 @@ public:
   const std::string& GetTtfFilename();
 
   std::string GetDataDir() const { return data_dir; };
+#ifdef ENABLE_NLS
   std::string GetLocaleDir() const { return locale_dir; };
+#endif
   std::string GetPersonalDataDir() const { return personal_data_dir; };
   std::string GetPersonalConfigDir() const { return personal_config_dir; };
   std::string GetChatLogDir() const { return chat_log_dir; };
@@ -172,7 +176,10 @@ protected:
   std::string m_filename;
 
   // Code setting it must make sure it ends with the path separator
-  std::string data_dir, locale_dir, personal_data_dir, personal_config_dir, chat_log_dir;
+#ifdef ENABLE_NLS
+  std::string locale_dir;
+#endif
+  std::string data_dir, personal_data_dir, personal_config_dir, chat_log_dir;
 
   std::list<ConfigTeam> teams;
   std::string map_name;
@@ -182,7 +189,7 @@ protected:
   // Game settings
   bool display_energy_character;
   bool display_name_character;
-  bool display_wind_particles;
+  uint wind_particles_percentage;
   bool display_multi_layer_sky;
   bool default_mouse_cursor;
 
@@ -221,7 +228,9 @@ protected:
   std::list<ConfigTeam> network_local_teams;
 
   // Font setting
+#ifdef ENABLE_NLS
   std::map<std::string, std::string>  fonts;
+#endif
   std::string font_dir;
   std::string ttf_filename;
 

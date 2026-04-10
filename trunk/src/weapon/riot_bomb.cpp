@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ void RiotBombRocket::Refresh()
 
 void RiotBombRocket::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
+  Weapon::Message(_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 
   flying_sound.Stop();
@@ -117,13 +117,12 @@ RiotBomb::RiotBomb() :
 void RiotBomb::UpdateTranslationStrings()
 {
   m_name = _("Riot Bomb");
-  m_help = _("Initial fire angle : Up/Down\nFire : keep the space key pressed until the desired strength\nan ammo per turn");
+  m_help = _("Initial fire angle: Up/Down\nFire: Press space until desired strength is reached\nOne ammo per turn");
 }
 
 WeaponProjectile * RiotBomb::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new RiotBombRocket(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new RiotBombRocket(cfg(), this);
 }
 
 std::string RiotBomb::GetWeaponWinString(const char *TeamName, uint items_count ) const

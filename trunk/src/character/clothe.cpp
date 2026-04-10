@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,13 +19,13 @@
  *****************************************************************************/
 
 #include "tool/xml_document.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 #include "character/clothe.h"
 #include "character/member.h"
 #include <map>
 #include <iostream>
 
-Clothe::Clothe(const xmlNode *                  xml, 
+Clothe::Clothe(const xmlNode *                  xml,
                std::map<std::string, Member*> & members_lst):
   name(),
   layers()
@@ -48,16 +48,20 @@ Clothe::Clothe(const xmlNode *                  xml,
     }
 
     std::map<std::string, Member *>::iterator itMember = members_lst.find(att);
-    
+
     if (itMember != members_lst.end()) {
-      layers.push_back(itMember->second);
+      Member *member = itMember->second;
+      layers.push_back(member);
+      // Weapon member doesn't have a sprite, don't check it
+      if (member->GetType()!="weapon" && member->MustRefresh())
+        must_refresh.push_back(itMember->second);
     } else {
       std::cerr << "Undefined clothe member \"" << att << "\"" << std::endl;
     }
   }
 }
 
-Clothe::Clothe(Clothe *                         c, 
+Clothe::Clothe(Clothe *                         c,
                std::map<std::string, Member*> & members_lst):
   name(c->name),
   layers()
@@ -65,21 +69,10 @@ Clothe::Clothe(Clothe *                         c,
   for (std::vector<Member*>::iterator it = c->layers.begin();
       it != c->layers.end();
       ++it) {
-    layers.push_back(members_lst.find((*it)->GetName())->second);
+    Member *member = members_lst.find((*it)->GetName())->second;
+    layers.push_back(member);
+    // Weapon member doesn't have a sprite, don't check it
+    if (member->GetType()!="weapon" && member->MustRefresh())
+      must_refresh.push_back(member);
   }
-}
-
-Clothe::~Clothe()
-{
-  layers.clear();
-}
-
-const std::string & Clothe::GetName() const
-{
-  return name;
-}
-
-const std::vector<Member*> & Clothe::GetLayers() const
-{
-  return layers;
 }

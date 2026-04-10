@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,10 +34,10 @@ Polygon * PolygonGenerator::GenerateCircle(Double diameter, int nb_point)
 Polygon * PolygonGenerator::GenerateRectangle(Double width, Double height)
 {
   Polygon * tmp = new Polygon();
-  tmp->AddPoint(Point2d( width / TWO,  height / TWO));
-  tmp->AddPoint(Point2d( width / TWO, -height / TWO));
-  tmp->AddPoint(Point2d(-width / TWO, -height / TWO));
-  tmp->AddPoint(Point2d(-width / TWO,  height / TWO));
+  tmp->AddPoint(Point2d( width * ONE_HALF,  height * ONE_HALF));
+  tmp->AddPoint(Point2d( width * ONE_HALF, -height * ONE_HALF));
+  tmp->AddPoint(Point2d(-width * ONE_HALF, -height * ONE_HALF));
+  tmp->AddPoint(Point2d(-width * ONE_HALF,  height * ONE_HALF));
   return tmp;
 }
 
@@ -53,14 +53,12 @@ Polygon * PolygonGenerator::GenerateRectangle(const Point2d & orig, const Point2
 
 Polygon * PolygonGenerator::GenerateRectangle(const Rectanglei & r)
 {
-  return PolygonGenerator::GenerateRectangle(POINT2I_2_POINT2D(r.GetPosition()),
-                                             POINT2I_2_POINT2D(r.GetSize()));
+  return PolygonGenerator::GenerateRectangle(r.GetPosition(), r.GetSize());
 }
 
 Polygon * PolygonGenerator::GenerateRectangle(const Point2i & orig, const Point2i & size)
 {
-  return PolygonGenerator::GenerateRectangle(POINT2I_2_POINT2D(orig),
-                                             POINT2I_2_POINT2D(size));
+  return PolygonGenerator::GenerateRectangle((Point2d)orig, (Point2d)size);
 }
 
 Polygon * PolygonGenerator::GenerateDentedCircle(Double diameter, int nb_point, Double rand_offset)
@@ -69,8 +67,8 @@ Polygon * PolygonGenerator::GenerateDentedCircle(Double diameter, int nb_point, 
   AffineTransform2D trans = AffineTransform2D();
   Point2d top;
   for(int i = 0; i < nb_point; i++) {
-    top = Point2d(ZERO, (diameter + RandomSync().GetDouble(-rand_offset, rand_offset)) / TWO);
-    trans.SetRotation((TWO * PI * -i) / nb_point);
+    top = Point2d(ZERO, (diameter + RandomSync().GetDouble(-rand_offset, rand_offset)) * ONE_HALF);
+    trans.SetRotation((TWO_PI * -i) / nb_point);
     tmp->AddPoint(trans * top);
   }
   return tmp;
@@ -79,23 +77,23 @@ Polygon * PolygonGenerator::GenerateDentedCircle(Double diameter, int nb_point, 
 Polygon * PolygonGenerator::GenerateRoundedRectangle(Double width, Double height, Double edge)
 {
   Polygon * tmp = new Polygon();
-  Double edge_vector = edge / TWO;
-  tmp->AddBezierCurve(Point2d(-width / 2 + edge, -height / 2),
+  Double edge_vector = edge * ONE_HALF;
+  tmp->AddBezierCurve(Point2d(-width * ONE_HALF + edge, -height * ONE_HALF),
                       Point2d(-edge_vector, 0),
                       Point2d(0, -edge_vector),
-                      Point2d(-width / 2, -height / 2 + edge));
-  tmp->AddBezierCurve(Point2d(-width / 2, height / 2 - edge),
+                      Point2d(-width * ONE_HALF, -height * ONE_HALF + edge));
+  tmp->AddBezierCurve(Point2d(-width * ONE_HALF, height * ONE_HALF - edge),
                       Point2d(0, edge_vector),
                       Point2d(-edge_vector, 0),
-                      Point2d(-width / 2 + edge, height / 2));
-  tmp->AddBezierCurve(Point2d(width / 2 - edge, height / 2),
+                      Point2d(-width * ONE_HALF + edge, height * ONE_HALF));
+  tmp->AddBezierCurve(Point2d(width * ONE_HALF - edge, height * ONE_HALF),
                       Point2d(edge_vector, 0),
                       Point2d(0, edge_vector),
-                      Point2d(width / 2, height / 2 - edge));
-  tmp->AddBezierCurve(Point2d(width / 2, -height / 2 + edge),
+                      Point2d(width * ONE_HALF, height * ONE_HALF - edge));
+  tmp->AddBezierCurve(Point2d(width * ONE_HALF, -height * ONE_HALF + edge),
                       Point2d(0, -edge_vector),
                       Point2d(edge_vector, 0),
-                      Point2d(width / 2 - edge, -height / 2));
+                      Point2d(width * ONE_HALF - edge, -height * ONE_HALF));
   return tmp;
 }
 
@@ -151,12 +149,12 @@ Polygon * PolygonGenerator::GeneratePie(Double diameter, int nb_point, Double an
   AffineTransform2D trans = AffineTransform2D();
   Point2d top;
   for(int i = 0; i < nb_point; i++) {
-    top = Point2d(ZERO, diameter / TWO);
+    top = Point2d(ZERO, diameter * ONE_HALF);
     trans.SetRotation(angle_offset + ((i * angle) / nb_point));
     tmp->AddPoint(trans * top);
   }
-  if(angle < 2 * PI)
-    tmp->AddPoint(Point2d(ZERO, ZERO));
+  if(angle < TWO_PI)
+    tmp->AddPoint(Point2d(0, 0));
   return tmp;
 }
 
@@ -169,12 +167,12 @@ Polygon * PolygonGenerator::GeneratePartialTorus(Double diameter, Double min_dia
   }
   Polygon * tmp = new Polygon();
   AffineTransform2D trans = AffineTransform2D();
-  Point2d top = Point2d(ZERO, diameter / TWO);
+  Point2d top = Point2d(0, diameter*ONE_HALF);
   for(int i = 0; i < nb_point; i++) {
     trans.SetRotation(angle_offset + ((i * angle) / (nb_point - 1)));
     tmp->AddPoint(trans * top);
   }
-  top = Point2d(ZERO, min_diameter / TWO);
+  top = Point2d(0, min_diameter*ONE_HALF);
   for(int i = nb_point - 1; i >= 0; i--) {
     trans.SetRotation(angle_offset + ((i * angle) / (nb_point - 1)));
     tmp->AddPoint(trans * top);
@@ -188,4 +186,3 @@ DecoratedBox * PolygonGenerator::GenerateDecoratedBox(Double width, Double heigh
 
   return tmp;
 }
-

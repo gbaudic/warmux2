@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "character/body.h"
 #include "map/map.h"
 #include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "sound/jukebox.h"
 #include "team/team.h"
@@ -61,7 +61,7 @@ Blowtorch::Blowtorch() :
 void Blowtorch::UpdateTranslationStrings()
 {
   m_name = _("Blowtorch");
-  m_help = _("How to use it : keep the space key pressed\nAngle : Up/Down\nan ammo per turn");
+  m_help = _("Keep the space key pressed\nAngle: Up/Down\nOne ammo per turn");
 }
 
 void Blowtorch::p_Deselect()
@@ -79,10 +79,10 @@ bool Blowtorch::p_Shoot()
   Double dy = sin(angle) * h;
 
   Point2i pos = Point2i(hole.x+(int)dx, hole.y+(int)dy);
-  Double char_height = ActiveCharacter().GetHeight();
-  Double char_width = ActiveCharacter().GetWidth();
-  Double size = sqrt(char_height * char_height + char_width * char_width)/2;
-  GetWorld().Dig(pos, (int)size);
+  int char_height = ActiveCharacter().GetHeight();
+  int char_width  = ActiveCharacter().GetWidth();
+  int size = ((int)sqrt(Double(char_height * char_height + char_width * char_width)))/2;
+  GetWorld().Dig(pos, size);
   JukeBox::GetInstance()->Play("default", "weapon/blowtorch");
 
   return true;

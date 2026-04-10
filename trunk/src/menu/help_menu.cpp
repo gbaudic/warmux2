@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,94 +23,127 @@
 #include "graphic/text.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
+#include "gui/control_config.h"
+#include "gui/figure_widget.h"
+#include "gui/tabs.h"
 #include "menu/help_menu.h"
 #include "game/config.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 
-HelpMenu::HelpMenu()  :
-  Menu("help/background", vOk),
-  img_keyboard(NULL)
+HelpMenu::HelpMenu()
+  : Menu("help/background", vCancel)
 {
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  img_keyboard = new Sprite(GetResourceManager().LoadImage(res, "help/shortkeys"), true);
-  img_keyboard->cache.EnableLastFrameCache();
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+
+  int window_w = GetMainWindow().GetWidth();
+  int window_h = GetMainWindow().GetHeight();
+
+  float factor = (window_w < 640) ? 0.02f : 0.05f;
+  int border   = window_w * factor;
+  int max_w    = window_w - 2*border;
+  int max_h    = window_h - actions_buttons->GetSizeY() - border;
+
+  MultiTabs    *tabs = new MultiTabs(Point2i(max_w, max_h));
+  FigureWidget *w;
+  tabs->SetPosition(border, border);
+
+  /********                     Start game menu                    ********/
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/startgame_menu", Font::FONT_BIG);
+  w->AddCaption(_("Select number of playing teams"), 216, 28, 432); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Change number of players per team"), 619, 35, 362); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Click/wheelmouse to change the team.\nYou can't select the same team several times."), 167, 176, 325);
+  w->AddCaption(_("Click to let a player handle the team instead of the AI, and vice versa"), 574, 187, 445); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Map author information: name, email, nickname, country"), 511, 263, 557); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Click on either side of the central (selected) map or use wheelmouse to change the selected map."), 388, 324, 753);
+  tabs->AddNewTab("unused", _("Game menu"), w);
+
+  /********                     Game mode menu                    ********/
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/game_mode", Font::FONT_BIG);
+  w->AddCaption(_("Experiment new game rules"), 192, 70, 381);// Select between "classic", "blitz" and "unlimited" rules
+  w->AddCaption(_("Increase this if you are a slow player"), 193, 24, 381);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("When a character can be switched"), 607, 24, 381);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("More energy, more shots needed"), 607, 70, 379);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("If you like medkits,\nincrease this"), 191, 361, 379);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Increase this if you like long games"), 191, 407, 381);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Increase this for faster death mode end"), 606, 407, 381);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("The bigger the faster you'll fall!"), 607, 361, 381);// TRANSLATORS: please be imaginative and keep it short!
+  tabs->AddNewTab("unused", _("Game mode"), w);
+
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/ingame", Font::FONT_LARGE);
+  w->AddCaption(_("Minimap, more details in another tab"), 313, 56, 595); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Interface and touch controls, more details in other tabs"), 399, 334, 737); // TRANSLATORS: please be imaginative and keep it short!
+  tabs->AddNewTab("unused", _("Ingame display"), w);
+
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/interface", Font::FONT_LARGE);
+  w->AddCaption(_("Wind strength and direction.\nClick here to switch to touch controls."), 389, 48, 775); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Character name.\nCharacter energy.\nTeam name."), 228, 152, 445); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Teams in decreasing order of total energy"), 625, 150, 331); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Current weapon and ammo left, long click to display its help.\nClick to open selection menu."), 238, 392, 474); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Time left in this turn and time elapsed since game start.\nClick to pause"), 639, 392, 315); // TRANSLATORS: please be imaginative and keep it short!
+  tabs->AddNewTab("unused", _("Interface"), w);
+
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/touch interface", Font::FONT_LARGE);
+  w->AddCaption(_("Touch/click to fire / start filling weapon speed gauge"), 415, 42, 707); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Touch/click the left or right arrows to move respectively left or right"), 204, 150, 400); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Touch/click the left or right arrows to respectively raise or lower the aim"), 594, 155, 359); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Touch/click to jump. Maintaining the touch/click to high jump."), 354, 345, 705); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Touch/click to change the weapon timer"), 382, 428, 758); // TRANSLATORS: please be imaginative and keep it short!
+  tabs->AddNewTab("unused", _("Touch controls"), w);
+
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/minimap", Font::FONT_BIG);
+  w->AddCaption(_("Area currently displayed"), 205, 270, 405);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Position of the characters.\nA circle surrounds the active character."), 610, 335, 375);// TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Position of bonus boxes or medkits"), 205, 403, 405);// TRANSLATORS: please be imaginative and keep it short!
+  tabs->AddNewTab("unused", _("Minimap"), w);
+
+#ifndef ANDROID
+  w = new FigureWidget(Point2i(max_w,
+                               tabs->GetSizeY() - tabs->GetHeaderHeight()),
+                       "help/shortkeys", (Font::font_size_t)14);
+  w->AddCaption(_("Quit game"), 81, 13, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("High jump"), 439, 326, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Jump backwards"), 439, 297, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Jump backwards"), 439, 356, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Drag&drop: Move camera"), 520, 395, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Center camera on character"), 520, 422, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Show/hide the interface"), 271, 43, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Toggle fullscreen"), 491, 42, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Configuration menu"), 491, 72, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Talk in network battles"), 92, 296, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Change weapon category"), 81, 72, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Change weapon countdown"), 618, 164, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Change aim angle"), 618, 194, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Move character"), 618, 286, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("On map: select a target"), 618, 225, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("On a character: select it"), 618, 256, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Show weapons menu"), 618, 134, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Smaller aim angle and walk step"), 92, 326, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Move camera with mouse or arrows"), 386, 394, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Weapon: Fire / Bonus box: drop"), 260, 326, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Toggle minimap"), 271, 72, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Change active character"), 92, 356, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Center camera on character"), 386, 422, 132); // TRANSLATORS: please be imaginative and keep it short!
+  w->AddCaption(_("Quickly quit game with Ctrl"), 81, 43, 132); // TRANSLATORS: please be imaginative and keep it short!
+  tabs->AddNewTab("unused", _("Keyboard"), w);
+#endif
+
+  tabs->AddNewTab("unused", _("Current controls"),
+                  new ControlConfig(tabs->GetSize(), true));
+
   GetResourceManager().UnLoadXMLProfile(res);
+  widgets.AddWidget(tabs);
+  widgets.Pack();
 }
-
-HelpMenu::~HelpMenu()
-{
-  if (NULL != img_keyboard) {
-    delete img_keyboard;
-  }
-}
-
-bool HelpMenu::signal_ok()
-{
-  return true;
-}
-
-bool HelpMenu::signal_cancel()
-{
-  return true;
-}
-
-void HelpMenu::DrawBackground()
-{
-  Menu::DrawBackground();
-
-  int border_x = int(GetMainWindow().GetWidth() - img_keyboard->GetWidth()) / 2;
-  if (border_x < 0)
-    border_x = 0;
-
-  int border_y = int(GetMainWindow().GetHeight() - img_keyboard->GetHeight()) / 2;
-  if (border_y < 0)
-    border_y = 0;
-
-  img_keyboard->Blit(GetMainWindow(), border_x, border_y);
-
-  const uint MIDDLE_X = 64;
-  const uint MIDDLE_Y = 13;
-
-  Text tmp(_("Quit game"), dark_gray_color, Font::FONT_TINY, Font::FONT_BOLD, false); tmp.SetMaxWidth(130);
-  tmp.DrawCenter(Point2i(15 + border_x + MIDDLE_X, 1 + border_y + MIDDLE_Y));
-  tmp.SetText(_("High jump")); tmp.DrawCenter(Point2i(373 + border_x + MIDDLE_X, 313 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Jump")); tmp.DrawCenter(Point2i(373 + border_x + MIDDLE_X, 284 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Jump backwards")); tmp.DrawCenter(Point2i(373 + border_x + MIDDLE_X, 342 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Drag&drop: Move the camera")); tmp.DrawCenter(Point2i(454 + border_x + MIDDLE_X, 380 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Click: Center the camera on the character")); tmp.DrawCenter(Point2i(454 + border_x + MIDDLE_X, 410 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Show/hide the interface")); tmp.DrawCenter(Point2i(205 + border_x + MIDDLE_X, 31 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Fullscreen / window")); tmp.DrawCenter(Point2i(425 + border_x + MIDDLE_X, 30 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Configuration menu")); tmp.DrawCenter(Point2i(425 + border_x + MIDDLE_X, 59 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Talk in network battles")); tmp.DrawCenter(Point2i(26 + border_x + MIDDLE_X, 284 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Change the weapon category")); tmp.DrawCenter(Point2i(15 + border_x + MIDDLE_X, 60 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Change the weapon countdown")); tmp.DrawCenter(Point2i(552 + border_x + MIDDLE_X, 153 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Change the aim angle")); tmp.DrawCenter(Point2i(552 + border_x + MIDDLE_X, 182 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Move the character")); tmp.DrawCenter(Point2i(552 + border_x + MIDDLE_X, 274 + border_y + MIDDLE_Y));
-  tmp.SetText(_("On map: Select a target")); tmp.DrawCenter(Point2i(552 + border_x + MIDDLE_X, 213 + border_y + MIDDLE_Y));
-  tmp.SetText(_("On a character: Select it")); tmp.DrawCenter(Point2i(552 + border_x + MIDDLE_X, 244 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Show the weapons menu")); tmp.DrawCenter(Point2i(552 + border_x + MIDDLE_X, 121 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Smaller aim angle and walk step")); tmp.DrawCenter(Point2i(26 + border_x + MIDDLE_X, 314 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Move the camera with mouse or arrows")); tmp.DrawCenter(Point2i(320 + border_x + MIDDLE_X, 380 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Weapon: Fire / Bonus box: fall fast")); tmp.DrawCenter(Point2i(194 + border_x + MIDDLE_X, 313 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Show/hide the minimap")); tmp.DrawCenter(Point2i(205 + border_x + MIDDLE_X, 60 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Change the active character")); tmp.DrawCenter(Point2i(26 + border_x + MIDDLE_X, 343 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Center the camera on the character")); tmp.DrawCenter(Point2i(320 + border_x + MIDDLE_X, 410 + border_y + MIDDLE_Y));
-  tmp.SetText(_("Quickly quit game with Ctrl")); tmp.DrawCenter(Point2i(15 + border_x + MIDDLE_X, 30 + border_y + MIDDLE_Y));
-}
-
-void HelpMenu::Draw(const Point2i& /*mousePosition*/)
-{
-}
-
-void HelpMenu::OnClick(const Point2i &mousePosition, int button)
-{
-  widgets.Click(mousePosition, button);
-}
-
-void HelpMenu::OnClickUp(const Point2i &mousePosition, int button)
-{
-  widgets.ClickUp(mousePosition, button);
-}
-
-//-----------------------------------------------------------------------------

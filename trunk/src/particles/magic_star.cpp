@@ -1,7 +1,7 @@
 
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "particles/magic_star.h"
 #include "particles/particle.h"
 #include "network/randomsync.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 
 MagicStarParticle::MagicStarParticle() :
@@ -34,7 +34,7 @@ MagicStarParticle::MagicStarParticle() :
   m_time_between_scale = 25;
 
   MSG_DEBUG("random.get", "MagicStarParticle::MagicStarParticle()");
-  uint color=RandomSync().GetLong(0,2);
+  uint color=RandomSync().GetUint(0,2);
   switch(color)
   {
     case 0 : image = ParticleEngine::GetSprite(MAGIC_STAR_R_spr); break;
@@ -53,7 +53,7 @@ void MagicStarParticle::Refresh()
     if (m_left_time_to_live <= 0) return ;
     Double lived_time = m_initial_time_to_live - m_left_time_to_live;
     Double coeff = sin(HALF_PI*((Double)lived_time/((Double)m_initial_time_to_live)));
-    image->SetRotation_rad(coeff * TWO * PI);
+    image->SetRotation_rad(coeff * TWO_PI);
   }
   Particle::Refresh();
 }

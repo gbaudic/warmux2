@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
 #include "interface/game_msg.h"
@@ -174,7 +174,7 @@ void SuperTux::SignalGoingOutOfWater()
 
 void SuperTux::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("Bye bye Tux..."));
+  Weapon::Message(_("Bye bye Tux..."));
   WeaponProjectile::SignalOutOfMap();
 
   flying_sound.Stop();
@@ -222,14 +222,12 @@ TuxLauncher::TuxLauncher() :
 void TuxLauncher::UpdateTranslationStrings()
 {
   m_name = _("SuperTux");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Set initial direction with up/down\nPress space to launch\nUse Left/Right to change direction");
 }
 
 WeaponProjectile * TuxLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new SuperTux(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new SuperTux(cfg(), this);
 }
 
 bool TuxLauncher::p_Shoot ()
@@ -262,11 +260,6 @@ void TuxLauncher::Refresh()
   }
 }
 
-bool TuxLauncher::ShouldBeDrawn()
-{
-  return !(current_tux || tux_death_time);
-}
-
 void TuxLauncher::SignalEndOfProjectile()
 {
   if (!current_tux)
@@ -284,7 +277,6 @@ void TuxLauncher::StartShooting()
   Weapon::StartShooting();
 }
 
-
 void TuxLauncher::StopShooting()
 {
   if (current_tux) {
@@ -294,27 +286,11 @@ void TuxLauncher::StopShooting()
     Weapon::StopShooting();
 }
 
-bool TuxLauncher::IsPreventingLRMovement()
-{
-  return (current_tux || tux_death_time);
-}
-
-bool TuxLauncher::IsPreventingJumps()
-{
-  return (current_tux || tux_death_time);
-}
-
-bool TuxLauncher::IsPreventingWeaponAngleChanges()
-{
-  return (current_tux || tux_death_time);
-}
-
 std::string TuxLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {
-  return Format(ngettext(
-            "%s team has won %u tux launcher! Never seen a flying penguin?",
-            "%s team has won %u tux launchers! Never seen a flying penguin?",
-            items_count), TeamName, items_count);
+  return Format(ngettext("%s team has won %u tux launcher! Never seen a flying penguin?",
+                         "%s team has won %u tux launchers! Never seen a flying penguin?",
+                         items_count), TeamName, items_count);
 }
 
 SuperTuxWeaponConfig& TuxLauncher::cfg()

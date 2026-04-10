@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,23 +23,21 @@
 #include <string>
 #include <list>
 #include "surface.h"
-#include "include/base.h"
+#include <WARMUX_base.h>
 
-class Video{
- private:
+class Video
+{
   uint m_max_fps;     // If equals to zero, it means no limit
   uint m_max_delay;
   bool SDLReady;
   bool fullscreen;
-  bool hardware;
   SDL_Surface *icon;
 
   std::list<Point2i> available_configs;
   void ComputeAvailableConfigs();
 
-  bool __SetConfig(const int w, const int h, const bool _fullscreen, const bool _hardware);
+  bool __SetConfig(const int w, const int h, const bool _fullscreen);
 
-  void SetWindowIcon(const std::string& icon);
   void InitSDL(void);
 
 public:
@@ -48,9 +46,8 @@ public:
   void SetMaxFps(uint max_fps);
   uint GetMaxFps() const { return m_max_fps; };
   uint GetMaxDelay() const { return m_max_delay; };
-  void AddConfigIfAbsent(int w, int h);
+  void AddUniqueConfigSorted(int w, int h);
 
-public:
   Video();
   ~Video();
 
@@ -64,8 +61,11 @@ public:
   void ToggleFullscreen();
 
   void Flip(void);
+
+  bool SaveScreenshot();
 };
 
 Surface& GetMainWindow();
+void SwapWindowClip(Rectanglei& clip);
 
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define GUI_TABS_H
 
 #include <vector>
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "gui/widget.h"
 
 class Button;
@@ -38,14 +38,14 @@ private:
 
   uint max_visible_tabs;
 
-  int current_tab;
+  uint current_tab;
   uint first_tab;
   uint nb_visible_tabs;
   uint tab_header_width;
+  uint tab_header_height;
 
   Button* prev_tab_bt;
   Button* next_tab_bt;
-  Point2i tab_size;
 
   void PrevTab();
   void NextTab();
@@ -54,27 +54,27 @@ private:
 
 public:
   MultiTabs(const Point2i& size);
-  ~MultiTabs();
+  virtual ~MultiTabs();
 
   void AddNewTab(const std::string& id, const std::string& title, Widget* w);
   const std::string& GetCurrentTabId() const;
 
-  uint GetHeaderHeight() const;
+  uint GetHeaderHeight() const { return tab_header_height; }
 
   void SelectTab(uint current);
 
   // from widget
   virtual void NeedRedrawing();
-  virtual void Draw(const Point2i &mousePosition) const;
+  virtual void Draw(const Point2i &mousePosition);
   virtual void Update(const Point2i &mousePosition,
-		      const Point2i &lastMousePosition);
+                      const Point2i &lastMousePosition);
   virtual void Pack();
 
   virtual bool SendKey(const SDL_keysym&);
   virtual Widget* Click(const Point2i &mousePosition, uint button);
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
-  void SetMaxVisibleTabs(uint max);
+  void SetMaxVisibleTabs(uint max) { max_visible_tabs = max; }
 };
 
 #endif // GUI_TABS_H

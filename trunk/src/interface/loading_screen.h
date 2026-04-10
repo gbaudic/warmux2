@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,18 +22,20 @@
 #ifndef LOADING_SCREEN_H
 #define LOADING_SCREEN_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include <string>
 
 // Forwar declarations
 class Profile;
 class Sprite;
+class Text;
 
 class LoadingScreen
 {
  private:
   Profile * res;
   Sprite * loading_bg;
+  Text * loading_text;
   int icon_count;
 
  public:

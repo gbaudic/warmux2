@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,31 +20,29 @@
 
 #ifndef MOVEMENT_H
 #define MOVEMENT_H
-#include <map>
+
 #include <vector>
-#include "include/base.h"
-#include <WORMUX_point.h>
-#include <WORMUX_types.h>
+#include <WARMUX_base.h>
+#include <WARMUX_point.h>
+#include <WARMUX_types.h>
+
+#include "character/member.h"
+#include "tool/math_tools.h"
 
 typedef struct _xmlNode xmlNode;
 
+// Position of a member relative to its superior one
 class member_mvt
-{  // Position of a member relative to its superior one
+{  
+  MemberType type;
   Double angle_rad; // angle in radian
 public:
-  Point2f pos;
-  Point2f scale;
+  Point2d pos;
+  Point2d scale;
   /* SetAngle take radian values */
-  inline void SetAngle(Double angle)
-  {
-    while(angle_rad > TWO * PI)
-      angle_rad -= TWO * PI;
-    while(angle_rad <= -TWO * PI)
-      angle_rad += TWO * PI;
-    angle_rad = angle;
-  }
+  void SetAngle(Double angle) { angle_rad = RestrictAngle(angle); }
   /* GetAngle returns radian values */
-  inline const Double &GetAngle() const { return angle_rad; }
+  const Double &GetAngle() const { return angle_rad; }
   Double alpha;
   int follow_cursor_limit;
   bool follow_cursor;
@@ -52,21 +50,22 @@ public:
   bool follow_half_crosshair;
   bool follow_speed;
   bool follow_direction;
-  member_mvt(): angle_rad(0), pos(0.0, 0.0), scale(1.0, 1.0), alpha(1),
-                follow_cursor_limit(0), follow_cursor(false),
-                follow_crosshair(false), follow_half_crosshair(false),
-                follow_speed(false), follow_direction(false)
+  member_mvt(const std::string& name = DUMMY_MEMBER)
+    : type(name)
+    , angle_rad(ZERO), pos(ZERO, ZERO), scale(ONE, ONE), alpha(ONE)
+    , follow_cursor_limit(0), follow_cursor(false)
+    , follow_crosshair(false), follow_half_crosshair(false)
+    , follow_speed(false), follow_direction(false)
   { };
+  operator const MemberType& () const { return type; }
+  bool operator==(const MemberType& other) const { return type == other; }
+  bool operator!=(const MemberType& other) const { return type == other; }
 };
 
 class Movement
 {
-  /* If you need this, implement it (correctly) */
-  const Movement& operator=(const Movement&);
-  Movement(const Movement&);
-  /**********************************************/
 public:
-  typedef std::map<std::string, class member_mvt> member_def; // Describe the position of each member for a given frame
+  typedef std::vector<class member_mvt> member_def; // Describe the position of each member for a given frame
 
 private:
   uint ref_count;
@@ -80,26 +79,31 @@ private:
 
 public:
   Movement(const xmlNode* xml);
-  ~Movement();
+  ~Movement() { };
 
-  void SetType(const std::string& type);
-  const std::string& GetType() const;
+  void SetType(const std::string& _type) { type = _type; }
+  const std::string& GetType() const { return type; }
 
-  uint GetFrameDuration() const;
-  uint GetNbLoops() const;
+  uint GetFrameDuration() const { return duration_per_frame; }
+  uint GetNbLoops() const { return nb_loops; }
 
-  bool IsAlwaysMoving() const;
+  bool IsAlwaysMoving() const { return always_moving; }
 
   // TODO lami: use a pointer ... std::vector<Movement::member_def *>
-  const std::vector<Movement::member_def> & GetFrames() const;
+  const std::vector<Movement::member_def> & GetFrames() const { return frames; }
 
-  uint GetTestLeft() const;
-  uint GetTestRight() const;
-  uint GetTestTop() const;
-  uint GetTestBottom() const;
+  uint GetTestLeft() const { return test_left; }
+  uint GetTestRight() const { return test_right; }
+  uint GetTestTop() const { return test_top; }
+  uint GetTestBottom() const { return test_bottom; }
 
-  static void ShareMovement(Movement* mvt);
-  static void UnshareMovement(Movement* mvt);
+  static void ShareMovement(Movement* mvt) { mvt->ref_count++; }
+  static void UnshareMovement(Movement* mvt)
+  {
+    mvt->ref_count--;
+    if (!mvt->ref_count)
+      delete mvt;
+  }
 };
 
 #endif //MEMBER_H

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
  *****************************************************************************/
 
 #include "character/character.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "graphic/surface.h"
 #include "graphic/video.h"
@@ -42,19 +42,21 @@
 #include "weapon/weapon_cfg.h"
 
 
-class AutomaticBazookaConfig : public ExplosiveWeaponConfig {
-  public:
-    Double uncontrolled_turn_speed;
-    Double max_controlled_turn_speed;
-    Double fuel_time;
-    Double rocket_force;
-    AutomaticBazookaConfig();
-    void LoadXml(const xmlNode* elem);
+class AutomaticBazookaConfig : public ExplosiveWeaponConfig
+{
+public:
+  Double uncontrolled_turn_speed;
+  Double max_controlled_turn_speed;
+  Double fuel_time;
+  Double rocket_force;
+  AutomaticBazookaConfig();
+  void LoadXml(const xmlNode* elem);
 };
 
 class RPG : public WeaponProjectile
 {
-private:
+  // Avoid dynamic_cast, hoping no race condition between WeaponProjectile::cfg and it
+  AutomaticBazookaConfig& acfg;
   ParticleEngine smoke_engine;
   SoundSample flying_sound;
 protected:
@@ -77,8 +79,11 @@ protected:
   void SignalDrowning();
 };
 
-RPG::RPG(AutomaticBazookaConfig& cfg, WeaponLauncher * p_launcher) :
-  WeaponProjectile("rocket", cfg, p_launcher), smoke_engine(20), m_lastrefresh(0)
+RPG::RPG(AutomaticBazookaConfig& cfg, WeaponLauncher * p_launcher)
+ : WeaponProjectile("rocket", cfg, p_launcher)
+ , acfg(cfg)
+ , smoke_engine(20)
+ , m_lastrefresh(0)
 {
   m_targeted = false;
   explode_colliding_character = true;
@@ -99,43 +104,38 @@ void RPG::Shoot(Double strength)
 
 void RPG::Refresh()
 {
-  AutomaticBazookaConfig &acfg = dynamic_cast<AutomaticBazookaConfig &>(cfg);
   uint time = Time::GetInstance()->Read();
   Double flying_time = GetMSSinceTimeoutStart();
   uint timestep = time - m_lastrefresh;
   m_lastrefresh = time;
-  if (!m_targeted)
-  {
-    // rocket is turning around herself    
-    angle_local += acfg.uncontrolled_turn_speed * timestep / ((Double)1000);
-    if(angle_local > PI) angle_local = -PI;
+  if (!m_targeted) {
+    // rocket is turning around herself
+    angle_local += acfg.uncontrolled_turn_speed * timestep * (Double)0.001;
+    if (angle_local > PI) angle_local = -PI;
 
     // TPS_AV_ATTIRANCE msec later being launched, the rocket is homing to the target
-    if(flying_time > (1000 * GetTotalTimeout()) * (m_initial_strength/ActiveTeam().AccessWeapon().max_strength))
-    {
+    if (flying_time > 1000 * GetTotalTimeout() * (m_initial_strength/ActiveTeam().AccessWeapon().max_strength)) {
       m_targeted = true;
       SetSpeed(0,0);
-      angle_local = GetPosition().ComputeAngle( m_targetPoint );
+      angle_local = GetPosition().ComputeAngle(m_targetPoint);
       m_force = acfg.rocket_force;
       SetExternForce(m_force, angle_local);
       SetGravityFactor(0);
       SetWindFactor(0);
     }
-  }
-  else
-  {
+  } else {
     SetExternForce(m_force, angle_local+HALF_PI); // reverse the force applyed on the last Refresh()
 
-    if(flying_time - GetTotalTimeout() < acfg.fuel_time* (Double)1000) {
-      smoke_engine.AddPeriodic(Point2i(GetX() + GetWidth() / 2,
-                                       GetY() + GetHeight()/ 2), particle_DARK_SMOKE, false, -1, 2.0);
-      Double wish_angle = GetPosition().ComputeAngle( m_targetPoint );
-      Double max_rotation = abs(acfg.max_controlled_turn_speed * timestep / (Double)1000);
+    if (flying_time - GetTotalTimeout() < acfg.fuel_time*1000) {
+      smoke_engine.AddPeriodic(GetPosition() + (GetSize()>>1),
+                               particle_DARK_SMOKE, false, -1, 2.0);
+      Double wish_angle = GetPosition().ComputeAngle(m_targetPoint);
+      Double max_rotation = abs(acfg.max_controlled_turn_speed * timestep * (Double)0.001);
       Double diff = fmod(wish_angle-angle_local, PI*TWO);
-      if(diff < -PI) diff += PI*TWO;
-      if(diff > PI) diff -= PI*TWO;
+      if (diff < -PI) diff += TWO_PI;
+      if (diff > PI) diff -= TWO_PI;
       //diff should now be between -PI and PI...
-      if(diff > max_rotation) {
+      if (diff > max_rotation) {
         angle_local += max_rotation;
       } else if (diff < -max_rotation) {
         angle_local -= max_rotation;
@@ -148,9 +148,9 @@ void RPG::Refresh()
     } else {
       SetGravityFactor(1);
       m_force = 0; //if there's no fuel left just let it crash into the ground somewhere
-      if(!IsDrowned()) {
+      if (!IsDrowned()) {
         angle_local += acfg.uncontrolled_turn_speed * timestep / (Double)1000;
-        if(angle_local > PI) angle_local = - PI;
+        if (angle_local > PI) angle_local = - PI;
       } else {
         angle_local = HALF_PI;
       }
@@ -172,14 +172,14 @@ void RPG::SignalDrowning()
 
 void RPG::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The automatic rocket has left the battlefield..."));
+  Weapon::Message(_("The automatic rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 
   flying_sound.Stop();
 }
 
 // Set the coordinate of the target
-void RPG::SetTarget (int x, int y)
+void RPG::SetTarget(int x, int y)
 {
   m_targetPoint.x = x;
   m_targetPoint.y = y;
@@ -202,7 +202,7 @@ struct target_t
 };
 
 AutomaticBazooka::AutomaticBazooka() :
-  WeaponLauncher(WEAPON_AUTOMATIC_BAZOOKA, "automatic_bazooka",new AutomaticBazookaConfig() )
+  WeaponLauncher(WEAPON_AUTOMATIC_BAZOOKA, "automatic_bazooka", new AutomaticBazookaConfig())
 {
   UpdateTranslationStrings();
 
@@ -211,14 +211,15 @@ AutomaticBazooka::AutomaticBazooka() :
   m_allow_change_timeout = true;
   m_target = new target_t;
   m_target->selected = false;
-  m_target->image = GetResourceManager().LoadImage( weapons_res_profile, "baz_cible");
+  m_target->image = GetResourceManager().LoadImage(weapons_res_profile, "baz_cible");
   ReloadLauncher();
 }
 
 void AutomaticBazooka::UpdateTranslationStrings()
 {
   m_name = _("Automatic Bazooka");
-  m_help = _("How to use it : left click on the target\nInitial fire angle : Up/Down\nFire : keep the space key pressed until the desired strength\nan ammo per turn");
+  m_help = _("Usage: left click on the target\nInitial fire angle: Up/Down\n"
+             "Firing: keep the space key pressed until the desired strength\nOne ammo per turn");
 }
 
 AutomaticBazooka::~AutomaticBazooka()
@@ -229,8 +230,7 @@ AutomaticBazooka::~AutomaticBazooka()
 
 WeaponProjectile * AutomaticBazooka::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new RPG(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new RPG(cfg(), this);
 }
 
 void AutomaticBazooka::Draw()
@@ -259,10 +259,8 @@ void AutomaticBazooka::p_Deselect()
   WeaponLauncher::p_Deselect();
   if (m_target->selected) {
     // need to clear the old target
-    GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
-                        m_target->pos.y-m_target->image.GetHeight()/2,
-                        m_target->image.GetWidth(),
-                        m_target->image.GetHeight()));
+    GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos - (m_target->image.GetSize()>>1),
+                                        m_target->image.GetSize()));
   }
 }
 
@@ -270,16 +268,14 @@ void AutomaticBazooka::ChooseTarget(Point2i mouse_pos)
 {
   if (m_target->selected) {
     // need to clear the old target
-    GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
-                        m_target->pos.y-m_target->image.GetHeight()/2,
-                        m_target->image.GetWidth(),
-                        m_target->image.GetHeight()));
+    GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos - (m_target->image.GetSize()>>1),
+                                        m_target->image.GetSize()));
   }
 
   m_target->pos = mouse_pos;
   m_target->selected = true;
 
-  if(!ActiveTeam().IsLocalHuman())
+  if (!ActiveTeam().IsLocalHuman())
     Camera::GetInstance()->SetXYabs(mouse_pos - Camera::GetInstance()->GetSize()/2);
   DrawTarget();
   static_cast<RPG *>(projectile)->SetTarget(m_target->pos.x, m_target->pos.y);
@@ -287,15 +283,14 @@ void AutomaticBazooka::ChooseTarget(Point2i mouse_pos)
 
 void AutomaticBazooka::DrawTarget() const
 {
-  if( !m_target->selected ) return;
+  if (!m_target->selected) return;
 
-  GetMainWindow().Blit(m_target->image, m_target->pos - m_target->image.GetSize()/2 - Camera::GetInstance()->GetPosition());
+  GetMainWindow().Blit(m_target->image,
+                       m_target->pos - (m_target->image.GetSize()>>1)
+                       - Camera::GetInstance()->GetPosition());
 
-  GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos.x-m_target->image.GetWidth()/2,
-                                 m_target->pos.y-m_target->image.GetHeight()/2,
-                                 m_target->image.GetWidth(),
-                                 m_target->image.GetHeight()));
-
+  GetWorld().ToRedrawOnMap(Rectanglei(m_target->pos - (m_target->image.GetSize()>>1),
+                                      m_target->image.GetSize()));
 }
 
 bool AutomaticBazooka::IsReady() const
@@ -303,30 +298,31 @@ bool AutomaticBazooka::IsReady() const
   return (EnoughAmmo() && m_target->selected);
 }
 
-AutomaticBazookaConfig &AutomaticBazooka::cfg() {
-    return static_cast<AutomaticBazookaConfig &>(*extra_params);
-}
-
-AutomaticBazookaConfig::AutomaticBazookaConfig() {
-    uncontrolled_turn_speed = PI*8;
-    max_controlled_turn_speed = PI*4;
-    fuel_time = 10;
-    rocket_force = 2500;
-}
-
-void AutomaticBazookaConfig::LoadXml(const xmlNode* elem) {
-    ExplosiveWeaponConfig::LoadXml(elem);
-    XmlReader::ReadDouble(elem, "uncontrolled_turn_speed", uncontrolled_turn_speed);
-    XmlReader::ReadDouble(elem, "max_controlled_turn_speed", max_controlled_turn_speed);
-    XmlReader::ReadDouble(elem, "fuel_time", fuel_time);
-    XmlReader::ReadDouble(elem, "rocket_force", rocket_force);
-}
-
-std::string AutomaticBazooka::GetWeaponWinString(const char *TeamName, uint items_count ) const
+AutomaticBazookaConfig &AutomaticBazooka::cfg()
 {
-  return Format(ngettext(
-            "%s team has won %u automatic bazooka!",
-            "%s team has won %u automatic bazookas!",
-            items_count), TeamName, items_count);
+  return static_cast<AutomaticBazookaConfig &>(*extra_params);
 }
 
+AutomaticBazookaConfig::AutomaticBazookaConfig()
+{
+  uncontrolled_turn_speed = PI*8;
+  max_controlled_turn_speed = PI*4;
+  fuel_time = 10;
+  rocket_force = 2500;
+}
+
+void AutomaticBazookaConfig::LoadXml(const xmlNode* elem)
+{
+  ExplosiveWeaponConfig::LoadXml(elem);
+  XmlReader::ReadDouble(elem, "uncontrolled_turn_speed", uncontrolled_turn_speed);
+  XmlReader::ReadDouble(elem, "max_controlled_turn_speed", max_controlled_turn_speed);
+  XmlReader::ReadDouble(elem, "fuel_time", fuel_time);
+  XmlReader::ReadDouble(elem, "rocket_force", rocket_force);
+}
+
+std::string AutomaticBazooka::GetWeaponWinString(const char *TeamName, uint items_count) const
+{
+  return Format(ngettext("%s team has won %u automatic bazooka!",
+                         "%s team has won %u automatic bazookas!",
+                         items_count), TeamName, items_count);
+}

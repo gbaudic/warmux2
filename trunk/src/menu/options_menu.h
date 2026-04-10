@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,83 +27,87 @@
 
 
 class ButtonPic;
-class ListBox;
+class ItemBox;
 class CheckBox;
 class ComboBox;
 class CustomTeam;
 class SpinButtonWithPicture;
 class TextBox;
-
+class ControlConfig;
 
 class OptionMenu : public Menu
 {
- public:
-   OptionMenu();
-   ~OptionMenu();
-   static void CheckUpdates();
-
- private:
-
-   /* If you need this, implement it (correctly)*/
-   OptionMenu(const OptionMenu&);
-   OptionMenu operator=(const OptionMenu&);
-   /********************************************/
-
-   /* Graphic options controllers */
-   ComboBox *cbox_video_mode;
-   ListBox *lbox_languages;
-   CheckBox *opt_display_wind_particles;
-   CheckBox *opt_display_multisky;
-   CheckBox *opt_display_energy;
-   CheckBox *opt_display_name;
-#ifndef __APPLE__
-   CheckBox *full_screen;
+private:
+  /* Graphic options controllers */
+#ifdef ENABLE_NLS
+  ItemBox *lbox_languages;
 #endif
-   SpinButtonWithPicture *opt_max_fps;
+  SpinButtonWithPicture *opt_wind_particles_percentage;
+  CheckBox *opt_display_energy;
+  CheckBox *opt_display_name;
+#ifndef HAVE_HANDHELD
+  CheckBox *opt_display_multisky;
+#endif
 
-   /* Sound options controllers */
-   ComboBox *cbox_sound_freq;
-   uint initial_vol_mus;
-   uint initial_vol_eff;
-   SpinButtonWithPicture *volume_music;
-   SpinButtonWithPicture *volume_effects;
-   CheckBox *music_cbox;
-   CheckBox *effects_cbox;
-   CheckBox *warn_cbox;
+#ifndef ANDROID
+  ComboBox *cbox_video_mode;
+#endif
+  SpinButtonWithPicture *opt_max_fps;
 
-   /* Misc options controllers */
-   CheckBox *opt_updates;
-   CheckBox *opt_lefthanded_mouse;
-   CheckBox *opt_scroll_on_border;
-   SpinButtonWithPicture * opt_scroll_border_size;
+  /* Sound options controllers */
+  ComboBox *cbox_sound_freq;
+  uint initial_vol_mus;
+  uint initial_vol_eff;
+  SpinButtonWithPicture *volume_music;
+  SpinButtonWithPicture *volume_effects;
+  CheckBox *music_cbox;
+  CheckBox *effects_cbox;
+  CheckBox *warn_cbox;
 
-   void SaveOptions();
-   void OnClick(const Point2i &mousePosition, int button);
-   void OnClickUp(const Point2i &mousePosition, int button);
-   void Draw(const Point2i &mousePosition);
-   static uint fromVolume(uint vol);
-   static uint toVolume(uint level);
+  /* Misc options controllers */
+  CheckBox *opt_updates;
+#ifndef HAVE_TOUCHSCREEN
+  CheckBox *full_screen;
+  CheckBox *opt_lefthanded_mouse;
+  CheckBox *opt_scroll_on_border;
+  SpinButtonWithPicture * opt_scroll_border_size;
+#endif
 
-   /* Teams controllers */
+  void SaveOptions();
+  void OnClickUp(const Point2i &mousePosition, int button);
+  static uint fromVolume(uint vol);
+  static uint toVolume(uint level);
 
-   ListBox *lbox_teams;
-   Button *add_team;
-   Button *delete_team;
-   CustomTeam  *selected_team;
-   TextBox *tbox_team_name;
-   Label *team_name;
-   std::vector<TextBox *> tbox_character_name_list;
+  /* Teams controllers */
 
-   bool TeamInfoValid();
-   void AddTeam();
-   void DeleteTeam();
-   void LoadTeam();
-   void ReloadTeamList();
-   bool SaveTeam();
-   void SelectTeam();
+  ItemBox *lbox_teams;
+  Button *add_team;
+  Button *delete_team;
+  CustomTeam  *selected_team;
+  TextBox *tbox_team_name;
+  Label *team_name;
+  std::vector<TextBox *> tbox_character_name_list;
 
-   bool signal_ok();
-   bool signal_cancel();
+#ifdef ENABLE_NLS
+  void AddLanguageItem(const char* label, const char* value);
+#endif
+  bool TeamInfoValid();
+  void AddTeam();
+  void DeleteTeam();
+  void LoadTeam();
+  void ReloadTeamList();
+  bool SaveTeam();
+  void SelectTeam();
+
+  /* Controls config */
+  ControlConfig *controls;
+
+  bool signal_ok();
+  bool signal_cancel();
+
+public:
+  OptionMenu();
+  static void CheckUpdates();
 };
 
 #endif

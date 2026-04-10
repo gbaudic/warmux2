@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "game/config.h"
 #include "graphic/font.h"
 #include "graphic/sprite.h"
+#include "graphic/text.h"
 #include "graphic/video.h"
 #include "tool/resource_manager.h"
 
@@ -32,32 +33,38 @@ LoadingScreen::LoadingScreen(int icon_count):
 {
   // Get the background image
   Config * config = Config::GetInstance();
-  AppWormux * app = AppWormux::GetInstance();
+  AppWarmux * app = AppWarmux::GetInstance();
 
-  loading_bg = new Sprite(Surface((
-                                   config->GetDataDir()
+  loading_bg = new Sprite(Surface((config->GetDataDir()
                                    + "menu" + PATH_SEPARATOR
-                                   + "background_loading.jpg").c_str()),
-			  true);
-  loading_bg->cache.EnableLastFrameCache();
+                                   + "background_loading.jpg").c_str()));
   loading_bg->ScaleSize(app->video->window.GetWidth(), app->video->window.GetHeight());
 
+  std::string loading_str(_("loading..."));
+  loading_text = new Text(loading_str, white_color, Font::FONT_HUGE, Font::FONT_BOLD, false);
+
   // Get profile from resource manager
-  res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   DrawBackground();
 }
 
 LoadingScreen::~LoadingScreen()
 {
   delete loading_bg;
+  delete loading_text;
   GetResourceManager().UnLoadXMLProfile(res);
 }
 
 void LoadingScreen::DrawBackground()
 {
   loading_bg->ScaleSize(GetMainWindow().GetWidth(), GetMainWindow().GetHeight());
-  loading_bg->Blit( GetMainWindow(), 0, 0);
-  AppWormux::GetInstance()->video->Flip();
+  loading_bg->Blit(GetMainWindow(), 0, 0);
+
+  Point2i loading_text_pos(GetMainWindow().GetWidth()/2,
+			   GetMainWindow().GetHeight()/2 - 80);
+  loading_text->DrawCenter(loading_text_pos);
+
+  AppWarmux::GetInstance()->video->Flip();
 }
 
 void LoadingScreen::StartLoading(uint nb, const std::string& resource,
@@ -70,15 +77,13 @@ void LoadingScreen::StartLoading(uint nb, const std::string& resource,
   int x = ((GetMainWindow().GetWidth() - icon_count*120)/2)+ index*120;
   int y = (GetMainWindow().GetHeight()/2)+40;
 
-  Rectanglei dest ( x+slot_margin_x,
-                    y,
-                    image.GetWidth(),
-                    image.GetHeight() );
-  GetMainWindow().Blit( image, dest.GetPosition());
+  Rectanglei dest (x+slot_margin_x, y, image.GetWidth(), image.GetHeight());
+  GetMainWindow().Blit(image, dest.GetPosition());
 
-  Font::GetInstance(Font::FONT_MEDIUM)->WriteCenter(Point2i(x+120/2, y+80), label, white_color);
+  Font::GetInstance(Font::FONT_MEDIUM)->WriteCenter(Point2i(x+120/2, y+80),
+                                                    label, white_color);
 
-  AppWormux::GetInstance()->video->Flip();
+  AppWarmux::GetInstance()->video->Flip();
 }
 
 

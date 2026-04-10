@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 #define WIND_H
 
 #include <list>
-#include "include/base.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 #include "object/physical_obj.h"
 
 // Forward declarations
@@ -36,13 +36,7 @@ typedef struct _xmlNode xmlNode;
 
 class WindParticle : public PhysicalObj
 {
-private:
-  /* You should not need this */
-  WindParticle(const WindParticle & obj);
-  const WindParticle & operator = (const WindParticle & obj);
-
   Sprite * sprite;
-  Sprite * flipped;
 
 public:
   WindParticle(const std::string & xml_file, 
@@ -54,8 +48,7 @@ public:
 
 class Wind : public Singleton<Wind>
 {
-private:
-  long m_val, m_nv_val;
+  int m_val, m_nv_val;
   uint m_last_move;
   uint m_last_part_mvt;
 
@@ -65,14 +58,14 @@ private:
   void RandomizeParticlesPos(); // Put particles randomly on the screen
 
   Wind();
-  ~Wind();
+  ~Wind() { RemoveAllParticles(); }
   friend class Singleton<Wind>;
 
 public:
-  Double GetStrength() const;
+  Double GetStrength() const { return m_nv_val * WIND_STRENGTH / 100.0; }
   void ChooseRandomVal();
 
-  void SetVal(long val);
+  void SetVal(int val) { m_nv_val = val; }
   void Refresh();
   void Reset();
   void DrawParticles();

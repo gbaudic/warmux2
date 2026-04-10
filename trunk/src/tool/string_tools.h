@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,21 +22,23 @@
 #ifndef STRING_TOOLS_H
 #define STRING_TOOLS__H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include <string>
 
 // Conversion string -> type
 // Renvoie false cas d'erreur
-bool str2long (const std::string &txt, long &valeur);
-bool str2int (const std::string &txt, int &valeur);
-bool str2Double (const std::string &txt, Double &valeur);
+bool str2int(const std::string &txt, int &value);
+bool str2uint(const std::string &txt, uint &value);
+bool str2Double(const std::string &txt, Double &value);
+bool str2float(const std::string &txt, float& value);
 bool str2bool(const std::string &str, bool &value);
 
 // Conversion type -> string
-std::string long2str (long x);
-std::string ulong2str (ulong x);
-std::string Double2str (Double x, int places = -1);
-std::string bool2str (bool x);
+std::string int2str(int x);
+std::string uint2str(uint x);
+std::string Double2str(Double x, int places = -1);
+std::string float2str(float x);
+std::string bool2str(bool x);
 
 #ifdef _WIN32
 // Allocated with new

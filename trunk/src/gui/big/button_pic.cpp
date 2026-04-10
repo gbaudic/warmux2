@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,12 +28,12 @@
 #include "tool/math_tools.h"
 
 ButtonPic::ButtonPic(const std::string &label,
-		     const std::string &resource_id,
-		     const Point2i &_size) :
+         const std::string &resource_id,
+         const Point2i &_size) :
   Widget(_size)
 {
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
-  m_img_normal = GetResourceManager().LoadImage(res, resource_id);
+  m_img_normal = GetResourceManager().LoadImage(res, resource_id, true);
   GetResourceManager().UnLoadXMLProfile(res);
 
   txt_label = new Text(label, dark_gray_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
@@ -54,10 +54,10 @@ ButtonPic::ButtonPic(Profile * profile,
 }
 
 /*
-  <ButtonPic x="250px" y="50px" 
+  <ButtonPic x="250px" y="50px"
              width="120px" height="110px"
-             action="localGame" 
-             picture="menu/i_play.png" 
+             action="localGame"
+             picture="menu/i_play.png"
              text="Play" />
 */
 bool ButtonPic::LoadXMLConfiguration(void)
@@ -68,9 +68,8 @@ bool ButtonPic::LoadXMLConfiguration(void)
   }
   XmlReader * xmlFile = profile->GetXMLDocument();
 
+  ParseXMLGeometry();
   ParseXMLMisc();
-  ParseXMLPosition();
-  ParseXMLSize();
   ParseXMLBorder();
   ParseXMLBackground();
 
@@ -92,9 +91,9 @@ bool ButtonPic::LoadXMLConfiguration(void)
   return true;
 }
 
-void ButtonPic::Draw(const Point2i &mousePosition) const
+void ButtonPic::Draw(const Point2i &mousePosition)
 {
-  Surface& surf = AppWormux::GetInstance()->video->window;
+  Surface& surf = AppWarmux::GetInstance()->video->window;
 
   // center the image horizontally
   uint tmp_x = GetPositionX() + (GetSizeX() - m_img_normal.GetWidth())/2 ;
@@ -109,9 +108,8 @@ void ButtonPic::Draw(const Point2i &mousePosition) const
     txt_label->SetColor(dark_gray_color);
   }
 
-  txt_label->DrawCenterTop(GetPosition()
-			   + Point2i(GetSizeX()/2,
-				     GetSizeY() - txt_label->GetHeight()));
+  txt_label->DrawCenterTop(GetPosition() + Point2i(GetSizeX()/2,
+                           GetSizeY() - txt_label->GetHeight()));
 }
 
 void ButtonPic::Pack()

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,11 +34,11 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 #include "tool/math_tools.h"
 #include "tool/string_tools.h"
 #include "tool/resource_manager.h"
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
 #include "weapon/weapon.h"
 
 Profile *weapons_res_profile = NULL;
@@ -49,8 +49,8 @@ int GetDamageFromExplosion(const ExplosiveWeaponConfig &config, Double distance)
     return 0;
 
   Double dmg;
-  if( config.explosion_range != ZERO)
-    dmg = cos(HALF_PI * distance / (Double)config.explosion_range);
+  if (config.explosion_range.IsNotZero())
+    dmg = cos(HALF_PI * distance / config.explosion_range);
   else
     dmg = cos(HALF_PI * distance);
 
@@ -61,8 +61,8 @@ int GetDamageFromExplosion(const ExplosiveWeaponConfig &config, Double distance)
 Double GetForceFromExplosion(const ExplosiveWeaponConfig &config, Double distance)
 {
   Double force;
-  if(config.blast_range != ZERO)
-    force = cos(HALF_PI * distance / (Double)config.blast_range);
+  if (config.blast_range.IsNotZero())
+    force = cos(HALF_PI * distance / config.blast_range);
   else
     force = cos(HALF_PI * distance);
 
@@ -74,8 +74,7 @@ void ApplyExplosion (const Point2i &pos,
                      const ExplosiveWeaponConfig &config,
                      const std::string& son,
                      bool fire_particle,
-                     ParticleEngine::ESmokeStyle smoke
-                     )
+                     ParticleEngine::ESmokeStyle smoke)
 {
   MSG_DEBUG("explosion", "explosion range : %s", Double2str(config.explosion_range,0).c_str());
 
@@ -95,7 +94,7 @@ void ApplyExplosion (const Point2i &pos,
 #endif
 
   // Make a hole in the ground
-  if(config.explosion_range != ZERO)
+  if (config.explosion_range.IsNotZero())
     GetWorld().Dig(pos, (int)config.explosion_range);
 
   // Play a sound
@@ -105,12 +104,12 @@ void ApplyExplosion (const Point2i &pos,
 
   // Apply damage on the character.
   // Do not care about the death of the active character.
-  Double highest_force = 0.0;
+  Double highest_force = ZERO;
   Character* fastest_character = NULL;
-  FOR_ALL_CHARACTERS(team, character)
-  {
+  Character* player = &ActiveCharacter();
+  FOR_ALL_CHARACTERS(team, character) {
     Double distance = pos.Distance(character -> GetCenter());
-    if(distance < ONE)
+    if (distance < ONE)
       distance = ONE;
 
     // If the character is in the explosion range, apply damage on it !
@@ -118,74 +117,69 @@ void ApplyExplosion (const Point2i &pos,
     if (dmg != 0) {
       MSG_DEBUG("explosion", "\n*Character %s : distance= %f", character->GetName().c_str(), Double2str(distance).c_str());
       MSG_DEBUG("explosion", "hit_point_loss energy= %d", character->GetName().c_str(), dmg);
-      character->SetEnergyDelta (-dmg);
+      character->SetEnergyDelta(-dmg, player);
     }
 
     // If the character is in the blast range, apply the blast on it !
-    if (distance <= config.blast_range)
-    {
+    if (distance <= config.blast_range) {
       Double force = GetForceFromExplosion(config, distance);
 
-      if ( force > highest_force )
-      {
-        if(!(*character).IsDead()){
+      if (force > highest_force) {
+        if(!(*character).IsDead()) {
           fastest_character = &(*character);
         }
         highest_force = force;
       }
 
       Double angle;
-      if (!EqualsZero(distance))
-      {
-        angle  = pos.ComputeAngle(character -> GetCenter());
-        if( angle > 0 )
+      if (!EqualsZero(distance)) {
+        angle  = pos.ComputeAngle(character->GetCenter());
+        if (angle > 0)
           angle  = - angle;
       }
       else
-        angle = -PI/2;
+        angle = -HALF_PI;
 
 
       MSG_DEBUG("explosion", "force = %s", Double2str(force).c_str());
-      ASSERT(character->GetMass() != ZERO);
-      character->AddSpeed (force / character->GetMass(), angle);
+      ASSERT(character->GetMass().IsNotZero());
+      character->AddSpeed(force / character->GetMass(), angle);
       character->SignalExplosion();
     }
   }
 
-  if(fastest_character != NULL)
+  if (fastest_character != NULL)
     Camera::GetInstance()->FollowObject(fastest_character);
 
   // Apply the blast on physical objects.
-  FOR_EACH_OBJECT(it)
-   {
-     PhysicalObj *obj = *it;
+  FOR_EACH_OBJECT(it) {
+   PhysicalObj *obj = *it;
 
-     if (obj->CollidesWithGround() && !obj->IsGhost())
-     {
-       Double distance = pos.Distance(obj->GetCenter());
-       if(distance < ONE)
-         distance = ONE;
+   // CanBeBlasted() is a hack
+   if (obj->CanBeBlasted() && !obj->IsGhost()) {
+     Double distance = pos.Distance(obj->GetCenter());
+     if (distance < ONE)
+       distance = ONE;
 
-       int dmg = GetDamageFromExplosion(config, distance);
-       if (dmg != 0) {
-         obj->SetEnergyDelta(-dmg);
-       }
+     int dmg = GetDamageFromExplosion(config, distance);
+     if (dmg) {
+       obj->SetEnergyDelta(-dmg, player);
+     }
 
-       if (distance <= (Double)config.blast_range)
-       {
-         Double force = GetForceFromExplosion(config, distance);
-         Double angle;
-         if (!EqualsZero(distance))
-           angle  = pos.ComputeAngle(obj->GetCenter());
-         else
-           angle = -HALF_PI;
+     if (distance <= (Double)config.blast_range) {
+       Double force = GetForceFromExplosion(config, distance);
+       Double angle;
+       if (!EqualsZero(distance))
+         angle  = pos.ComputeAngle(obj->GetCenter());
+       else
+         angle = -HALF_PI;
 
-         ASSERT( obj->GetMass() != ZERO);
+       ASSERT(obj->GetMass().IsNotZero());
 
-         obj->AddSpeed (force / obj->GetMass(), angle);
-       }
+       obj->AddSpeed(force / obj->GetMass(), angle);
      }
    }
+ }
 
   ParticleEngine::AddExplosionSmoke(pos, (int)config.particle_range, smoke);
 
@@ -194,20 +188,16 @@ void ApplyExplosion (const Point2i &pos,
      ParticleEngine::AddNow(pos , 5, particle_FIRE, true);
 
   // Add explosion sprite
-  if ( config.explosion_range > 25 && config.damage > 0 )
-  {
-    ParticleEngine::AddNow(pos,1,particle_EXPLOSION,true);
+  if (config.explosion_range>25 && config.damage>0) {
+    ParticleEngine::AddNow(pos, 1, particle_EXPLOSION,true);
   }
 
   // Shake the camera (FIXME: use actual vectors?)
-  if ( config.explosion_range > 25 && config.damage > 0 )
-  {
+  if (config.explosion_range>25 && config.damage>0) {
      int reduced_range = ( int )config.explosion_range / 2;
-     Camera::GetInstance()->Shake( (int)(config.explosion_range * 15),
-         Point2i( RandomLocal().GetLong( -reduced_range, reduced_range  ),
-                (int)config.explosion_range ),
-         Point2i( 0, 0 )
-        );
-  };
+     Camera::GetInstance()->Shake((int)(config.explosion_range * 15),
+                                  Point2i(RandomLocal().GetInt(-reduced_range, reduced_range),
+                                          (int)config.explosion_range),
+                                  Point2i( 0, 0 ));
+  }
 }
-

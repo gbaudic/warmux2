@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,48 +26,48 @@
 #include "tool/resource_manager.h"
 #include <vector>
 
-class EnergyBar : public ProgressBar 
+class EnergyBar : public ProgressBar
 {
+public:
+  class Threshold
+  {
   public:
-    class Threshold
-    {
-      public:
-        Double value;
-        Color color;
-        Double redCoef;
-        Double greenCoef;
-        Double blueCoef;
-        Double alphaCoef;
-        
-        bool operator < (const Threshold & threshold) const {
-          return value < threshold.value;
-        }
-    };
-    static const int NB_OF_ENERGY_COLOR = 6;
+    float value;
+    Color color;
+    float redCoef;
+    float greenCoef;
+    float blueCoef;
 
-  private:
-    Profile * profile;
-    const xmlNode * widgetNode;
-    std::vector<Threshold> listThresholds;
+    bool operator < (const Threshold & threshold) const {
+      return value < threshold.value;
+    }
+  };
+  static const uint NB_OF_ENERGY_COLOR = 6;
 
-  public:
-    EnergyBar(uint _x,
-              uint _y,
-              uint _width,
-              uint _height,
-              long _value = 0,
-              long minValue = 0,
-              long maxValue = 100,
-              enum orientation _orientation = PROG_BAR_HORIZONTAL);
-    EnergyBar(Profile * _profile,
-              const xmlNode * _widgetNode);
+private:
+  Profile * profile;
+  const xmlNode * widgetNode;
+  std::vector<Threshold> listThresholds;
 
-    virtual bool LoadXMLConfiguration(void);
-    void ProcessThresholds(int thresholdNumber,
-                           Double thresholdMax,
-                           Color & colorMax);
-    void SortThresholds();
-    void Actu(long val);
+public:
+  EnergyBar(uint _x,
+            uint _y,
+            uint _width,
+            uint _height,
+            int _value = 0,
+            int minValue = 0,
+            int maxValue = 100,
+            enum orientation _orientation = PROG_BAR_HORIZONTAL);
+  EnergyBar(Profile * _profile,
+            const xmlNode * _widgetNode);
+  virtual ~EnergyBar(void) {}
+
+  virtual bool LoadXMLConfiguration(void);
+  void ProcessThresholds(uint thresholdNumber,
+                         float thresholdMax,
+                         Color & colorMax);
+  void SortThresholds();
+  void Actu(int val);
 };
 
 #endif /* ENERGY_BAR_H */

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef GUI_BUTTON_H
 #define GUI_BUTTON_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "gui/widget.h"
 
 // Forward declarations
@@ -31,24 +31,20 @@ class Profile;
 
 class Button : public Widget
 {
-  /* If you need this, implement it (correctly)*/
-  Button(const Button&);
-  Button operator=(const Button&);
-  /*********************************************/
-
 protected:
-  bool img_scale;
-  Sprite *image;
+  bool     img_scale;
+  Sprite * image;
 
 public:
-  Button (const Profile *res_profile, const std::string& resource_id,
+  Button (const Profile * res_profile,
+          const std::string & resource_id,
           bool img_scale = false);
   Button(Profile * profile,
          const xmlNode * baseListBoxNode);
   virtual ~Button();
 
   virtual bool LoadXMLConfiguration(void);
-  virtual void Draw(const Point2i &mousePosition) const;
+  virtual void Draw(const Point2i & mousePosition);
   virtual void Pack();
 };
 

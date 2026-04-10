@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,16 +21,16 @@
 
 #include "ai/ai_strategy.h"
 
-const Double RATING_EPSILON = 0.00001;
+const float RATING_EPSILON = 0.00001;
 const uint WATCH_MISSILE_TIME_IN_MS = 2000;
 
-AIStrategy::AIStrategy(Double rating):
+AIStrategy::AIStrategy(float rating):
 rating(rating)
 {
   // do nothing
 }
 
-AIStrategy::CompareResult AIStrategy::CompareRatingWith(AIStrategy * other)
+AIStrategy::CompareResult AIStrategy::CompareRatingWith(AIStrategy * other) const
 {
   if (this->GetRating() + RATING_EPSILON < other->GetRating())
     return AIStrategy::LOWER_RATING;
@@ -47,7 +47,7 @@ AIStrategy(-1.0f) // It's worse then skipping the turn (rating 0) as the human n
   // do nothing
 }
 
-AICommand * DoNothingStrategy::CreateCommand()
+AICommand * DoNothingStrategy::CreateCommand() const
 {
   return new DoNothingForeverCommand;
 }
@@ -58,7 +58,7 @@ AIStrategy(0.0f)
   // do nothing
 }
 
-AICommand * SkipTurnStrategy::CreateCommand()
+AICommand * SkipTurnStrategy::CreateCommand() const
 {
   CommandList * commands = new CommandList();
   commands->Add(new SelectWeaponCommand(Weapon::WEAPON_SKIP_TURN));
@@ -67,7 +67,8 @@ AICommand * SkipTurnStrategy::CreateCommand()
   return commands;
 }
 
-static CommandList * CreateSelectCommandList(Character & character, Weapon::Weapon_type weapon, LRDirection  direction, Double angle, int timeout = -1)
+static CommandList * CreateSelectCommandList(const Character & character, Weapon::Weapon_type weapon,
+                                             LRDirection  direction, float angle, int timeout = -1)
 {
   CommandList * commands = new CommandList();
   commands->Add(new SelectCharacterCommand(&character));
@@ -84,18 +85,20 @@ static CommandList * CreateSelectCommandList(Character & character, Weapon::Weap
   return commands;
 }
 
-ShootWithGunStrategy::ShootWithGunStrategy(Double rating, Character & shooter, Weapon::Weapon_type weapon, LRDirection  direction, Double angle, int bullets):
-AIStrategy(rating),
-shooter(shooter),
-weapon(weapon),
-direction(direction),
-angle(angle),
-bullets(bullets)
+ShootWithGunStrategy::ShootWithGunStrategy(float rating, const Character & shooter,
+                                           Weapon::Weapon_type weapon, LRDirection direction,
+                                           float angle, int bullets)
+  : AIStrategy(rating)
+  , shooter(shooter)
+  , weapon(weapon)
+  , direction(direction)
+  , angle(angle)
+  , bullets(bullets)
 {
   // do nothing
 }
 
-AICommand * ShootWithGunStrategy::CreateCommand()
+AICommand * ShootWithGunStrategy::CreateCommand() const
 {
   CommandList * commands = CreateSelectCommandList(shooter, weapon, direction, angle);
   for (int i = 0; i < bullets; i++) {
@@ -108,19 +111,21 @@ AICommand * ShootWithGunStrategy::CreateCommand()
   return commands;
 }
 
-LoadAndFireStrategy::LoadAndFireStrategy(Double rating, Character & shooter, Weapon::Weapon_type weapon, LRDirection  direction, Double angle, Double strength, int timeout):
-AIStrategy(rating),
-shooter(shooter),
-weapon(weapon),
-direction(direction),
-angle(angle),
-strength(strength),
-timeout(timeout)
+LoadAndFireStrategy::LoadAndFireStrategy(float rating, const Character & shooter,
+                                         Weapon::Weapon_type weapon, LRDirection direction,
+                                         float angle, float strength, int timeout)
+  : AIStrategy(rating)
+  , shooter(shooter)
+  , weapon(weapon)
+  , direction(direction)
+  , angle(angle)
+  , strength(strength)
+  , timeout(timeout)
 {
   // do nothing
 }
 
-AICommand * LoadAndFireStrategy::CreateCommand()
+AICommand * LoadAndFireStrategy::CreateCommand() const
 {
   CommandList * commands = CreateSelectCommandList(shooter, weapon, direction, angle, timeout);
   commands->Add(new StartShootingCommand());

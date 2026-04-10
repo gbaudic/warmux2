@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Network layer for Wormux.
+ * Network layer for Warmux.
  *****************************************************************************/
 
 #ifndef NETWORK_H
@@ -24,10 +24,10 @@
 //-----------------------------------------------------------------------------
 #include <list>
 #include <string>
-#include <WORMUX_network.h>
-#include <WORMUX_player.h>
-#include <WORMUX_singleton.h>
-#include "include/base.h"
+#include <WARMUX_network.h>
+#include <WARMUX_player.h>
+#include <WARMUX_singleton.h>
+#include <WARMUX_base.h>
 //-----------------------------------------------------------------------------
 
 // Use this debug to store network communication to a file
@@ -53,7 +53,6 @@ class WSocketSet;
 
 class NetworkThread
 {
-private:
   static SDL_Thread* thread; // network thread, where we receive data from network
   static bool stop_thread;
 
@@ -61,20 +60,15 @@ private:
   static int ThreadRun(void* no_param);
 public:
   static void Start();
-  static void Stop();
+  static void Stop() { stop_thread = true; }
 
-  static bool Continue();
+  static bool Continue() { return !stop_thread; }
   static void Wait();
 };
 
 
 class Network : public Singleton<Network>
 {
-private:
-  /* if you need that, implement it (correctly)*/
-  Network(const Network&);
-  const Network& operator=(const Network&);
-  /*********************************************/
   static int num_objects;
 
   std::list<DistantComputer*> cpu; // list of the connected computer
@@ -103,7 +97,7 @@ protected:
 
   void DisconnectNetwork();
 
-  void SetGameName(const std::string& game_name);
+  void SetGameName(const std::string& _game_name) { game_name = _game_name; }
 public:
   NetworkMenu* network_menu;
 
@@ -114,29 +108,29 @@ public:
 
   // Start a client
   static connection_state_t ClientStart(const std::string &host, const std::string &port,
-					const std::string& password);
+                                        const std::string& password);
 
   // Start a server
   static connection_state_t ServerStart(const std::string &port,
-					const std::string& game_name,
-					const std::string& password);
+                                        const std::string& game_name,
+                                        const std::string& password);
 
   static void Disconnect();
-  static bool IsConnected();
+  static bool IsConnected() { return !GetInstance()->IsLocal() && NetworkThread::Continue(); }
 
   virtual bool IsLocal() const { return false; }
   virtual bool IsServer() const { return false; }
   virtual bool IsClient() const { return false; }
 
   void SetGameMaster(); // useful when we re-electing a game master
-  bool IsGameMaster() const;
-  const std::string& GetGameName() const;
-  const std::string& GetPassword() const;
-  Player& GetPlayer();
-  const Player& GetPlayer() const;
+  bool IsGameMaster() const { return game_master_player; }
+  const std::string& GetGameName() const { return game_name; }
+  const std::string& GetPassword() const { return password; }
+  Player& GetPlayer() { return player; }
+  const Player& GetPlayer() const { return player; }
   Player * LockRemoteHostsAndGetPlayer(uint player_id);
 
-  std::list<DistantComputer*>& GetRemoteHosts();
+  std::list<DistantComputer*>& GetRemoteHosts() { return cpu; }
 
   std::list<DistantComputer*>& LockRemoteHosts();
   const std::list<DistantComputer*>& LockRemoteHosts() const;
@@ -156,7 +150,7 @@ public:
 
   // Manage network state
   void SetState(WNet::net_game_state_t state);
-  WNet::net_game_state_t GetState() const;
+  WNet::net_game_state_t GetState() const { return state; }
   void SendNetworkState();
 
   bool IsTurnMaster() const;

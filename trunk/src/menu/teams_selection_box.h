@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,38 +23,62 @@
 #define TEAMS_SELECTION_BOX_H
 
 #include <vector>
-#include "gui/box.h"
+#include "gui/horizontal_box.h"
+#include "gui/scroll_box.h"
 
 // Forward declarations
 class SpinButtonWithPicture;
 class TeamBox;
 
+#ifndef __SYMBIAN32__
+const uint MAX_NB_TEAMS=8;
+#else
 const uint MAX_NB_TEAMS=4;
+#endif
+
+class TeamScrollBox : public ScrollBox
+{
+  // We need a real copy around for when we get destroyed
+  std::vector<TeamBox*> teams;
+  // Number of teams to be displayed
+  uint  count;
+public:
+  TeamScrollBox(const std::vector<TeamBox*>& teams, const Point2i &size);
+  ~TeamScrollBox();
+  void SetNbTeams(uint nb);
+};
 
 // -----------------------------------------------
 // -----------------------------------------------
 
 class TeamsSelectionBox : public HBox
 {
- private:
-  /* If you need this, implement it (correctly) */
-  TeamsSelectionBox(const TeamsSelectionBox&);
-  TeamsSelectionBox operator=(const TeamsSelectionBox&);
-  /**********************************************/
-  void SetNbTeams(uint nb_teams);
-  void PrevTeam(int i);
-  void NextTeam(int i);
-
-  void Init(bool network);
- protected:
+protected:
+  TeamScrollBox* list_box;
   SpinButtonWithPicture *local_teams_nb;
   std::vector<TeamBox*> teams_selections;
 
- public:
+public:
   TeamsSelectionBox(const Point2i &size, bool network, bool w_border);
 
-  virtual void ValidTeamsSelection();
+  virtual void Draw(const Point2i &mousePosition);
+
+  virtual void ValidTeamsSelection() = 0;
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button) = 0;
   virtual Widget* Click(const Point2i &mousePosition, uint button);
+};
+
+class LocalTeamsSelectionBox : public TeamsSelectionBox
+{
+private:
+  void PrevTeam(int i);
+  void NextTeam(int i);
+  void SetNbTeams(uint nb_teams);
+
+public:
+  LocalTeamsSelectionBox(const Point2i &size, bool border);
+
+  virtual void ValidTeamsSelection();
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 };
 

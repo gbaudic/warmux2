@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,21 +64,18 @@ Gun::Gun() : WeaponLauncher(WEAPON_GUN, "gun", new ExplosiveWeaponConfig())
 
   m_category = RIFLE;
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_fire"));
-  m_weapon_fire->EnableRotationCache(32);
   ReloadLauncher();
 }
 
 void Gun::UpdateTranslationStrings()
 {
   m_name = _("Gun");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to shoot\nUse Up/Down to change initial angle");
 }
 
 WeaponProjectile * Gun::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new GunBullet(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new GunBullet(cfg(), this);
 }
 
 bool Gun::p_Shoot()

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,7 +29,8 @@ class Team;
 class Sprite;
 class Text;
 
-typedef enum {
+typedef enum
+{
   // Energy bar are waiting for a new change
   EnergyStatusOK,
 
@@ -42,6 +43,8 @@ typedef enum {
   // Waiting for a change to be finished before moving
   EnergyStatusWait
 } energy_t;
+
+static const uint MAX_BAR_SPACING = 33;
 
 class EnergyValue : public std::pair<uint, uint>
 {
@@ -64,67 +67,65 @@ protected:
   void Reset();
   void AddValue(uint value);
   EnergyList() : m_max_value(0), m_last_value(0) { };
-  ~EnergyList() {
-    Reset();
-  };
+  ~EnergyList() { Reset(); }
 public:
   typedef std::vector<EnergyValue*>::const_iterator const_iterator;
   uint GetMaxValue() const { return m_max_value; };
-  uint GetDuration() const { return at(size()-1)->GetDuration(); }
+  uint GetDuration() const { uint s = size(); return (s>0) ? at(s-1)->GetDuration() : 0; }
 };
 
 class TeamEnergy
 {
-  private :
-    /* If you need this, implement it (correctly) */
-    TeamEnergy(const TeamEnergy&);
-    TeamEnergy operator=(const TeamEnergy&);
-    /**********************************************/
+  EnergyBar * energy_bar;
+  // displayed value
+  uint        value;
+  // team value
+  uint        new_value;
+  // initial energy
+  uint        max_value;
 
-    EnergyBar * energy_bar;
-    // displayed value
-    uint        value;
-    // team value
-    uint        new_value;
-    // initial energy
-    uint        max_value;
+  Team        *team;
+  Sprite      *icon;
+  Text        *t_team_energy;
 
-    Team        *team;
-    Sprite      *icon;
-    Text        *t_team_energy;
+  int         dx;
+  int         dy;
 
-    int         dx;
-    int         dy;
+  uint        rank;
+  uint        new_rank;
 
-    uint        rank;
-    uint        new_rank;
+  std::string team_name;
 
-    std::string team_name;
+  uint        move_start_time;
 
-    uint        move_start_time;
+  static uint bar_spacing;
+  int         height;
 
-  public :
-    uint        rank_tmp;
-    energy_t    status;
-    EnergyList  energy_list;
+public :
+  uint        rank_tmp;
+  energy_t    status;
+  EnergyList  energy_list;
 
-    TeamEnergy(Team * _team);
-    ~TeamEnergy();
-    void Config(uint _current_energy, uint _max_energy);
+  TeamEnergy(Team * _team);
+  ~TeamEnergy();
+  void Config(uint _current_energy, uint _max_energy);
 
-    void Refresh();
-    void Draw(const Point2i& pos);
+  void Refresh();
+  void Draw(const Point2i& pos);
 
-    void SetIcon(const Surface & icon);
-    void SetValue(uint new_energy);
+  void SetIcon(const Surface & icon);
+  void SetValue(uint new_energy);
 
-    void SetRanking(uint value) { rank = new_rank = value; }
-    void NewRanking(uint value) { new_rank = value; }
-    // Move energy bar (change ranking)
-    void Move();
-    bool IsMoving() const { return (dx!=0 || dy!=0); }
-    // Move energy bar immediatly to its destination
-    void FinalizeMove();
+  void SetRanking(uint value) { rank = new_rank = value; }
+  void NewRanking(uint value) { new_rank = value; }
+  // Move energy bar (change ranking)
+  void Move();
+  bool IsMoving() const { return (dx!=0 || dy!=0); }
+  // Move energy bar immediatly to its destination
+  void FinalizeMove();
+  void SetHeight(int height);
+
+  static void SetSpacing(uint spacing) { bar_spacing = std::min(MAX_BAR_SPACING, spacing); }
 };
 
 #endif /* TEAM_ENERGY_H */

@@ -24,6 +24,13 @@ SRC=${ROOT}src/
 export CC=gcc-4.0
 export CXX=g++-4.0
 export LD=g++-4.0
+NBTHREADS=1
+
+if [ ! -n "$DEBUG_BUILD" ]
+then
+    export DEBUG_BUILD=0
+    echo "> Making a RELEASE build"
+fi
 
 # used for non-universal builds (universal builds change this to 10.4)
 export MACOSX_DEPLOYMENT_TARGET=10.5
@@ -42,35 +49,40 @@ export PPC_BUILD=0
 # flags only used when building as UB
 export FAT_CFLAGS="-isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch ppc -arch i386 -I/Developer/SDKs/MacOSX10.4u.sdk/usr/include -mmacosx-version-min=10.4"
 export FAT_LDFLAGS="-mmacosx-version-min=10.4 -Wl,-syslibroot,/Developer/SDKs/MacOSX10.4u.sdk -arch ppc -arch i386 -L/Developer/SDKs/MacOSX10.4u.sdk/usr/lib"
-
 # flags only used when cross-building to PCC
-export PPC_CFLAGS="-isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch ppc -I/Developer/SDKs/MacOSX10.4u.sdk/usr/include -mmacosx-version-min=10.4"
+
+export PPC_CFLAGS="-isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch ppc -mmacosx-version-min=10.4"
 export PPC_LDFLAGS="-mmacosx-version-min=10.4 -Wl,-syslibroot,/Developer/SDKs/MacOSX10.4u.sdk -arch ppc -L/Developer/SDKs/MacOSX10.4u.sdk/usr/lib"
 
-APP_VERSION=0.8.3
-BUNDLE_NAME=Wormux
+APP_VERSION=10.12
+BUNDLE_NAME=Warmux
 DMG_TARGET="${BUNDLE_NAME}-${APP_VERSION}"
 DMG_OUT=${BUNDLE_NAME}-${APP_VERSION}-`uname -p`
 
 
 if [ "$1" = "--help" ]
 then
-    echo "This script builds Wormux on Mac OS X by using the CMake build system"
+    echo "This script builds Warmux on Mac OS X by using the CMake build system"
     echo "Requirements :"
     echo "  - CMake 2.6 +"
     echo "  - libintl (gnu gettext) headers [a universal binary of the library is included"
     echo "                                   along this script but not the headers]"
-    echo "  - the mac dependencies package (http://download.gna.org/wormux/mac/mac_dependencies.zip)"
+    echo "  - the mac dependencies package (http://download.gna.org/warmux/mac/mac_dependencies.zip)"
     echo "    installed in your /Library/Frameworks directory."
     echo ""
     echo "targets :"
-    echo "./cmake_build              : default build (i386, compatible OS X 10.5+)"
-    echo "./cmake_build    universal : build a universal app"
+    echo "./cmake_build.sh           : default build (i386, compatible OS X 10.5+)"
+    echo "./cmake_build.sh universal : build a universal app"
     echo "./cmake_build.sh ppc       : cross-compile to PPC"
     echo ""
     echo "arguments :"
-    echo "-j<x> : launch make with x threads"
-
+    echo "<x> : launch make with x threads (e.g. ./cmake_build.sh universal 2)"
+    echo ""
+    echo "To make a debug build, use 'export DEBUG_BUILD=1' before launching the script"
+    echo ""
+    echo "* Note that this script does not make a clean build on each invocation. To make a clean"
+    echo "  build, simply remove the generated build folder and launch again."
+    
     exit 1
 fi
 
@@ -86,7 +98,7 @@ then
         PPC_BUILD=1
     else
         NBTHREADS=$1
-        echo "Launch with ${NBTHREADS} !"
+        echo "> Using ${NBTHREADS} threads"
     fi
 fi
 
@@ -109,7 +121,7 @@ then
     fi
         
     NBTHREADS=$TMP2
-    echo "Launch with ${NBTHREADS} !"
+    echo "> Using ${NBTHREADS} threads"
 fi
 
 if [ ${UNIVERSAL_BUILD} = 1 ]; then
@@ -185,13 +197,11 @@ TMP=${MAC}tmpbuild/
 #fi
 mkdir -p ${TMP}
 
-APP=${MAC}Wormux.app
+APP=${MAC}Warmux.app
 if [ -e ${APP} ]
 then
-    echo "******************"
-    echo "Clean package Wormux.app"
+    echo "Cleaning existing Warmux.app..."
     rm -rf ${APP}
-    echo "******************"
 fi
 
 if [ -e ${DMG_OUT}.app ]
@@ -210,7 +220,7 @@ then
     echo "******************"
 fi
 
-echo "Create Wormux.app tree"
+echo "Create Warmux.app tree"
 mkdir -p ${APP}/Contents/MacOS/
 mkdir -p ${APP}/Contents/Frameworks/
 RES=${APP}/Contents/Resources/
@@ -218,9 +228,9 @@ mkdir -p ${RES}data/
 mkdir -p ${RES}locale/
 
 # Add icon and info.plist and PkgInfo
-cp ${MAC}Info.plist.in ${APP}/Contents/Info.plist
+sed s/%VERS%/${APP_VERSION}/ < ${MAC}Info.plist.in > ${APP}/Contents/Info.plist
 cp ${MAC}PkgInfo.in ${APP}/Contents/PkgInfo
-cp ${ROOT}data/wormux_128x128.icns ${RES}Wormux.icns
+cp ${ROOT}data/icon/warmux.icns ${RES}Warmux.icns
 
 
 #export CMAKE_INSTALL_PREFIX=${RES}
@@ -232,13 +242,27 @@ cp ${ROOT}data/wormux_128x128.icns ${RES}Wormux.icns
 cd ${TMP}
 echo "Configuring CMake build"
 
-if ! cmake ${ROOT} --graphviz=viz.dot -DDATA_PATH=${RES} -DBIN_PATH=${APP}/Contents/MacOS/ -DBUILD=Release -DPREFIX=${RES} #-DGETTEXT_LIBRARY="../../libintl.a"
-then
-    echo "CMake error"
-    exit 1
+if [ ${DEBUG_BUILD} = 1 ]; then
+
+    echo "Making a DEBUG build"
+
+    if ! cmake ${ROOT} --graphviz=viz.dot -DDATA_PATH=${RES} -DBIN_PATH=${APP}/Contents/MacOS/ -DBUILD=Debug -DPREFIX=${RES} #-DGETTEXT_LIBRARY="../../libintl.a"
+    then
+        echo "CMake error"
+        exit 1
+    fi
+
+else
+
+    if ! cmake ${ROOT} --graphviz=viz.dot -DDATA_PATH=${RES} -DBIN_PATH=${APP}/Contents/MacOS/ -DBUILD=Release -DPREFIX=${RES} #-DGETTEXT_LIBRARY="../../libintl.a"
+    then
+        echo "CMake error"
+        exit 1
+    fi
+
 fi
 
-if ! make VERBOSE=1 -j2
+if ! make VERBOSE=1 -j${NBTHREADS}
 then
     echo "make error"
     exit 1
@@ -259,7 +283,7 @@ mv ${RES}/share/locale ${RES}
 rm -rf ${RES}/share
 
 # Do a simple test for check if data is well copied
-if [ -e ${RES}/data/wormux_default_config.xml ]
+if [ -e ${RES}/data/warmux_default_config.xml ]
 then
     echo "Default_config ok"
 else
@@ -278,7 +302,7 @@ touch ${APP}
 #cd ${MAC};
 
 # If frameworks are not available, they'll be download from this mirror
-#MIRROR=http://plorf.homeip.net/wormux/lib/
+#MIRROR=http://plorf.homeip.net/warmux/lib/
 #if [ ! -e "${MAC}frameworks.tar.bz2" ]
 #then 
 #    echo "Frameworks will be downloaded from ${MIRROR} (3MB)";

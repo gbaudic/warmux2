@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,12 +24,12 @@
 #include <map>
 #include <string>
 
-#include <WORMUX_action.h>
-#include <WORMUX_distant_cpu.h>
-#include <WORMUX_network.h>
-#include <WORMUX_socket.h>
-#include <WORMUX_singleton.h>
-#include <WORMUX_types.h>
+#include <WARMUX_action.h>
+#include <WARMUX_distant_cpu.h>
+#include <WARMUX_network.h>
+#include <WARMUX_socket.h>
+#include <WARMUX_singleton.h>
+#include <WARMUX_types.h>
 #include <WSERVER_config.h>
 #include <WSERVER_debug.h>
 
@@ -110,8 +110,8 @@ public:
 };
 
 uint Action_TimeStamp();
-void WORMUX_ConnectHost(DistantComputer& host);
-void WORMUX_DisconnectHost(DistantComputer& host);
-void WORMUX_DisconnectPlayer(Player& player);
+void WARMUX_ConnectHost(DistantComputer& host);
+void WARMUX_DisconnectHost(DistantComputer& host);
+void WARMUX_DisconnectPlayer(Player& player);
 
 #endif

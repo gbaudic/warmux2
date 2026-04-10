@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,29 +22,21 @@
 #include "graphic/color.h"
 #include <SDL.h>
 
-Color Color::operator*(const Color &fact) const{
-  return Color((Uint8) ((Uint32)red * fact.red / 255),
-               (Uint8) ((Uint32)green * fact.green / 255),
-               (Uint8) ((Uint32)blue * fact.blue / 255),
-               (Uint8) ((Uint32)alpha * fact.alpha / 255));
-}
+SDL_Color Color::GetSDLColor() const
+{
+  SDL_Color sdlColor = { value.components.red, value.components.green,
+                         value.components.blue, value.components.alpha };
 
-SDL_Color Color::GetSDLColor() const{
-        SDL_Color sdlColor;
-
-        sdlColor.r = red;
-        sdlColor.g = green;
-        sdlColor.b = blue;
-        sdlColor.unused = alpha;
-
-        return sdlColor;
+  return sdlColor;
 }
 
 Uint32 Color::GetColor() const
 {
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
-  return (red << 24) | green << 16 | blue << 8 | alpha;
+  return (value.components.red << 24) | (value.components.green << 16) |
+         (value.components.blue << 8) | value.components.alpha;
 #else
-  return (alpha << 24) | blue << 16 | green << 8 | red;
+  return (value.components.alpha << 24) | (value.components.blue << 16) |
+         (value.components.green << 8) | value.components.red;
 #endif
 }

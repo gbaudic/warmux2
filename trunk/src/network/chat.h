@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
+ *  Warmux is a convivial mass murder game.
  *  Copyright (C) 2007 Jon de Andres
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,8 @@
 #define CHAT_H
 
 #include <string>
-#include "include/base.h"
+#include <WARMUX_base.h>
+#include "graphic/color.h"
 #include "graphic/text_list.h"
 
 // Forward declarations
@@ -35,12 +36,7 @@ union SDL_Event;
 
 class Chat
 {
- private:
-  /* If you need this, implement it (correctly)*/
-  Chat(const Chat&);
-  const Chat& operator=(const Chat&);
-  /*********************************************/
-
+private:
   TextList chat;
   Text* input;
   Text* msg;
@@ -56,11 +52,11 @@ class Chat
   ~Chat();
   void Show();
   void ShowInput();
-  bool CheckInput() const;
-  void Clear();
-  void NewMessage(const std::string& msg);
-  void HandleKeyPressed(const SDL_Event& event);
-  void HandleKeyReleased(const SDL_Event& event);
+  bool CheckInput() const { return check_input; }
+  void Clear() { chat.Clear(); }
+  void NewMessage(const std::string& msg, const Color& color);
+  void HandleKeyPressed(const SDL_Event& evnt);
+  void HandleKeyReleased(const SDL_Event& evnt);
 
   static void SendMessage(const std::string& msg);
 };

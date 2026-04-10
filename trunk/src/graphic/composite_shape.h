@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,14 +29,15 @@ class Polygon;
 class Surface;
 class AffineTransform2D;
 
-class CompositeShape {
- protected:
+class CompositeShape
+{
+protected:
   std::vector<Polygon *> layers;
- public:
-  CompositeShape();
-  void AddLayer(Polygon * poly);
+public:
+  CompositeShape() { }
+  void AddLayer(Polygon * poly) { layers.push_back(poly); }
   void ApplyTransformation(const AffineTransform2D & trans);
-  std::vector<Polygon *> GetLayer() const;
+  std::vector<Polygon *> GetLayer() const { return layers; }
   // Drawing
   void Draw(Surface * dest);
   void DrawOnScreen();

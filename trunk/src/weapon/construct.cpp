@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,14 +19,14 @@
  * Add a structure to the ground
  *****************************************************************************/
 
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include "weapon/construct.h"
 #include "weapon/explosion.h"
 #include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
 #include "interface/interface.h"
@@ -47,7 +47,7 @@
 #include "include/app.h"
 #endif
 
-const Double DELTA_ANGLE = PI / SIX; // should be a multiple
+static const Double DELTA_ANGLE = PI / 6; // should be a multiple
 
 
 Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
@@ -57,7 +57,8 @@ Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
   UpdateTranslationStrings();
 
   construct_spr = GetResourceManager().LoadSprite( weapons_res_profile, "construct_spr");
-  construct_spr->EnableRotationCache(static_cast<int>(TWO * PI / DELTA_ANGLE));
+  // The 12 is the result of (TWO * PI) / DELTA_ANGLE
+  construct_spr->EnableCaches(false, 12);
   m_name = _("Construct");
   m_category = TOOL;
   m_can_change_weapon = true;
@@ -68,9 +69,7 @@ Construct::Construct() : Weapon(WEAPON_CONSTRUCT, "construct",
 void Construct::UpdateTranslationStrings()
 {
   m_name = _("Construct");
-
-  /* TODO: FILL IT */
-  /* m_help = */
+  m_help = _("Click onto the place, where you\nwant to place the construction.\nUp/down changes direction.");
 }
 
 Construct::~Construct()
@@ -80,15 +79,15 @@ Construct::~Construct()
 
 std::string Construct::GetWeaponWinString(const char *TeamName, uint items_count) const
 {
-  return Format(ngettext(
-            "%s team has won %u construct weapon! Don't forget your helmet.",
-            "%s team has won %u construct weapons! Don't forget your helmet.",
-            items_count), TeamName, items_count);
+  return Format(ngettext("%s team has won %u construct weapon! Don't forget your helmet.",
+                         "%s team has won %u construct weapons! Don't forget your helmet.",
+                         items_count),
+                TeamName, items_count);
 }
 
-bool Construct::p_Shoot ()
+bool Construct::p_Shoot()
 {
-  if(!target_chosen)
+  if (!target_chosen)
     return false;
   JukeBox::GetInstance()->Play("default", "weapon/construct");
   GetWorld().MergeSprite(dst - construct_spr->GetSizeMax()/2, construct_spr);
@@ -102,10 +101,11 @@ void Construct::Draw()
   Weapon::Draw();
 
   if (EnoughAmmo()
-    && EnoughAmmoUnit()
-    && !Interface::GetInstance()->weapons_menu.IsDisplayed()
-    && Interface::GetInstance()->IsDisplayed()
-    && Network::GetInstance()->IsTurnMaster()) {
+      && EnoughAmmoUnit()
+      && !Interface::GetInstance()->weapons_menu.IsDisplayed()
+      && Interface::GetInstance()->IsDisplayed()
+      && Network::GetInstance()->IsTurnMaster()) {
+
     dst = Mouse::GetInstance()->GetWorldPosition();
     construct_spr->SetRotation_rad(angle);
     construct_spr->Draw(dst - construct_spr->GetSize() / 2);
@@ -139,13 +139,13 @@ void Construct::ChooseTarget(Point2i mouse_pos)
 
   // Check collision with characters and other physical objects
   FOR_ALL_CHARACTERS(team, c) {
-    if ((c->GetTestRect()).Intersect(rect))
+    if (c->GetTestRect().Intersect(rect))
       return;
   }
 
   FOR_ALL_OBJECTS(it) {
     PhysicalObj *obj = *it;
-    if ((obj->GetTestRect()).Intersect(rect))
+    if (obj->GetTestRect().Intersect(rect))
       return;
   }
 

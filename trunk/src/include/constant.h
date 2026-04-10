@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,17 +21,17 @@
 
 #ifndef CONSTANT_H
 #define CONSTANT_H
-#include "base.h"
+#include <WARMUX_base.h>
 #include <string>
 #include <vector>
-#include <WORMUX_singleton.h>
-#include <WORMUX_point.h>
+#include <WARMUX_singleton.h>
+#include <WARMUX_point.h>
 
 class Constants : public Singleton<Constants>
 {
 public:
-  // Version number of Wormux
-  static const std::string WORMUX_VERSION;
+  // Version number of Warmux
+  static const std::string WARMUX_VERSION;
 
   // Env variables name to override previous values
   static const std::string ENV_DATADIR;

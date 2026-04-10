@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,39 +22,43 @@
 #ifndef SPIN_BUTTON_H
 #define SPIN_BUTTON_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "graphic/colors.h"
 #include "widget.h"
 #include "abstract_spin_button.h"
 #include <string>
+#include "gui/label.h"
 
 class Button;
-class Text;
+//class Text;
 
 class SpinButton : public AbstractSpinButton
 {
- private:
-  /* If you need this, implement it (correctly)*/
-  SpinButton(const SpinButton&);
-  SpinButton operator=(const SpinButton&);
-  /*********************************************/
+  bool     shadowed;
+  Label *  txtLabel;
+  Label *  txtValue;
+  Button * m_plus;
+  Button * m_minus;
 
-  bool shadowed;
-
-  Text *txt_label, *txt_value;
-  Button *m_plus, *m_minus;
-
- public:
-  SpinButton(const std::string &label, int width,
-             int value, int step, int min_value, int max_value,
-             const Color& color = white_color, bool shadowed = true);
-  virtual ~SpinButton();
+public:
+  SpinButton(const std::string & label,
+             int width,
+             int value,
+             int step,
+             int min_value,
+             int max_value,
+             const Color & color = white_color,
+             bool shadowed = true);
+  SpinButton(Profile * profile,
+             const xmlNode * spinButtonNode);
+  virtual ~SpinButton(void);
 
   // From Widget
   virtual void Pack();
-  virtual void Draw(const Point2i &mousePosition) const;
-  virtual Widget* Click(const Point2i &/*mousePosition*/, uint /*button*/) const { return NULL; };
-  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
+  virtual void Draw(const Point2i & mousePosition);
+  virtual Widget * Click(const Point2i &/*mousePosition*/, uint /*button*/) const { return NULL; };
+  virtual Widget * ClickUp(const Point2i & mousePosition, uint button);
+  virtual bool LoadXMLConfiguration(void);
 
   // From AbstractSpinButton
   virtual void ValueHasChanged();

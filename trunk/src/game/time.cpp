@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
  *****************************************************************************/
 
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "network/network.h"
 #include "team/team.h"
 #include "team/teams_list.h"
@@ -64,14 +64,14 @@ bool Time::CanBeIncreased()
 void Time::LetRealTimePassUntilFrameEnd()
 {
   ASSERT(!IsWaiting());
-  long delay;
+  int64_t delay;
   do {
-    delay = static_cast<long>(current_time) - stopwatch.GetValue();
+    delay = current_time - (int64_t)stopwatch.GetValue();
     if (delay > 0) {
       SDL_Delay((uint)delay);
       MSG_DEBUG("time.skip","Do nothing for: %d", delay);
     }
-  } while(delay > 0);
+  } while (delay > 0);
 }
 
 bool Time::IsWaiting()

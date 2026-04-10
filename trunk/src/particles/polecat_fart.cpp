@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ void PolecatFart::Refresh()
   FOR_ALL_LIVING_CHARACTERS(team, c) {
     if ((c->GetTestRect()).Intersect(GetTestRect())) {
       //c->SetEnergyDelta(-10);
-      c->SetDiseaseDamage(5, std::numeric_limits<uint>::max());
+      c->SetDiseaseDamage(&ActiveCharacter(), 5, std::numeric_limits<uint>::max());
       is_active = false;
     }
   }

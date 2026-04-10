@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  * Polygon class. Store point of a polygon and handle affine transformation
  *****************************************************************************/
 
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include "graphic/polygon.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
@@ -45,20 +45,9 @@ PolygonBuffer::PolygonBuffer()
   buffer_size = 0;
 }
 
-PolygonBuffer::~PolygonBuffer()
-{
-  delete[] vx;
-  delete[] vy;
-}
-
-int PolygonBuffer::GetSize() const
-{
-  return buffer_size;
-}
-
 void PolygonBuffer::SetSize(const int size)
 {
-  if(array_size > size) {
+  if (array_size > size) {
     buffer_size = size;
   } else {
     int16_t * tmp_vx = vx;
@@ -68,7 +57,7 @@ void PolygonBuffer::SetSize(const int size)
     array_size = (array_size * 2 > size ? array_size * 2 : size);
     vx = new int16_t[array_size];
     vy = new int16_t[array_size];
-    for(int i = 0; i < buffer_size; i++) {
+    for (int i = 0; i < buffer_size; i++) {
       vx[i] = tmp_vx[i];
       vy[i] = tmp_vy[i];
     }
@@ -106,43 +95,7 @@ PolygonItem::PolygonItem(const Sprite * sprite, const Point2d & pos, H_align h_a
 
 PolygonItem::~PolygonItem()
 {
-  // delete(item);
-}
-
-void PolygonItem::SetPosition(const Point2d & pos)
-{
-  transformed_position = position = pos;
-}
-
-void PolygonItem::SetAlignment(H_align h_a, V_align v_a)
-{
-  h_align = h_a;
-  v_align = v_a;
-}
-
-Point2d & PolygonItem::GetPosition()
-{
-  return position;
-}
-
-Point2d & PolygonItem::GetTransformedPosition()
-{
-  return transformed_position;
-}
-
-Point2i PolygonItem::GetIntTransformedPosition() const
-{
-  return Point2i((int)transformed_position.x, (int)transformed_position.y);
-}
-
-void PolygonItem::SetSprite(Sprite * sprite)
-{
-  item = sprite;
-}
-
-Sprite * PolygonItem::GetSprite()
-{
-  return item;
+  delete item;
 }
 
 void PolygonItem::ApplyTransformation(const AffineTransform2D & trans)
@@ -152,14 +105,14 @@ void PolygonItem::ApplyTransformation(const AffineTransform2D & trans)
 
 void PolygonItem::Draw(Surface * dest)
 {
-  if(item == NULL)
+  if (!item)
     return;
   item->Blit(*dest, GetOffsetAlignment());
 }
 
 bool PolygonItem::Contains(const Point2d & p) const
 {
-  return Rectanglei(GetOffsetAlignment(), item->GetSize()).Contains(Point2i((int)p.x, (int)p.y));
+  return Rectanglei(GetOffsetAlignment(), item->GetSize()).Contains(Point2i(p.x, p.y));
 }
 
 Point2i PolygonItem::GetOffsetAlignment() const
@@ -181,12 +134,6 @@ Point2i PolygonItem::GetOffsetAlignment() const
 //=========== POLYGON ============ //
 // Store a vector of points and handle affine transformation,
 // Bezier interpolation handling etc.
-
-Polygon::Polygon()
-{
-  Init();
-}
-
 Polygon::Polygon(const std::vector<Point2d>& shape)
 {
   Init();
@@ -198,15 +145,15 @@ Polygon::Polygon(Polygon & poly)
 {
   Init();
   texture = poly.texture;
-  if(poly.IsPlaneColor()) {
+  if (poly.IsPlaneColor()) {
     plane_color = new Color(poly.GetPlaneColor());
   }
-  if(poly.IsBordered()) {
+  if (poly.IsBordered()) {
     border_color = new Color(poly.GetBorderColor());
   }
   transformed_shape = original_shape = poly.original_shape;
   shape_buffer->SetSize(original_shape.size());
-  for(std::vector<PolygonItem *>::iterator elt = poly.items.begin(); elt != poly.items.end(); elt++) {
+  for (std::vector<PolygonItem *>::iterator elt = poly.items.begin(); elt != poly.items.end(); elt++) {
     AddItem((*elt)->GetSprite(), (*elt)->GetPosition(), (*elt)->GetHAlign(), (*elt)->GetVAlign());
   }
 }
@@ -245,21 +192,21 @@ void Polygon::Init()
 void Polygon::ApplyTransformation(const AffineTransform2D & trans, bool save_transformation)
 {
   int i = 0;
-  for(std::vector<Point2d>::iterator point = original_shape.begin();
+  for (std::vector<Point2d>::iterator point = original_shape.begin();
       point != original_shape.end(); point++, i++) {
     transformed_shape[i] = trans * (*point);
-    if(save_transformation)
+    if (save_transformation)
       (*point) = transformed_shape[i];
     shape_buffer->vx[i] = (int)transformed_shape[i].x;
     shape_buffer->vy[i] = (int)transformed_shape[i].y;
-    if(i == 0) {
+    if (i == 0) {
       max = min = transformed_shape[i];
     } else {
       max = max.max(transformed_shape[i]);
       min = min.min(transformed_shape[i]);
     }
   }
-  for(std::vector<PolygonItem *>::iterator item = items.begin();
+  for (std::vector<PolygonItem *>::iterator item = items.begin();
       item != items.end(); item++) {
     (*item)->ApplyTransformation(trans);
   }
@@ -268,23 +215,17 @@ void Polygon::ApplyTransformation(const AffineTransform2D & trans, bool save_tra
 // Reset the point
 void Polygon::ResetTransformation()
 {
-  for(int i = 0; i < (int)original_shape.size(); i++) {
+  for (int i = 0; i < (int)original_shape.size(); i++) {
     transformed_shape[i] = original_shape[i];
     shape_buffer->vx[i] = (int)original_shape[i].x;
     shape_buffer->vy[i] = (int)original_shape[i].y;
-    if(i == 0) {
+    if (i == 0) {
       max = min = transformed_shape[i];
     } else {
       max = max.max(transformed_shape[i]);
       min = min.min(transformed_shape[i]);
     }
   }
-}
-
-// Applying definitively the transformation
-void Polygon::SaveTransformation(const AffineTransform2D & trans)
-{
-  ApplyTransformation(trans, true);
 }
 
 // Check if a point is inside the polygon using Jordan curve theorem (amen).
@@ -338,7 +279,7 @@ void Polygon::AddPoint(const Point2d & p)
 
 void Polygon::InsertPoint(int index, const Point2d & p)
 {
-  if(index == GetNbOfPoint()) {
+  if (index == GetNbOfPoint()) {
     AddPoint(p);
     return;
   }
@@ -348,7 +289,7 @@ void Polygon::InsertPoint(int index, const Point2d & p)
   int i = 0;
   shape_buffer->SetSize(original_shape.size() + 1);
   // Inserting first part of the point
-  for(point = original_shape.begin();
+  for (point = original_shape.begin();
       point != original_shape.end() && i < index; point++, i++) {
     tmp = *point;
     vector_tmp.push_back(tmp);
@@ -360,7 +301,7 @@ void Polygon::InsertPoint(int index, const Point2d & p)
   shape_buffer->vx[i] = (int)p.x;
   shape_buffer->vy[i++] = (int)p.y;
   // And inserting remaining points of previous shape
-  for(; point != original_shape.end(); point++, i++) {
+  for (; point != original_shape.end(); point++, i++) {
     tmp = *point;
     vector_tmp.push_back(tmp);
     shape_buffer->vx[i] = (int)tmp.x;
@@ -375,9 +316,9 @@ void Polygon::DeletePoint(int index)
   Point2d tmp;
   int i = 0;
   shape_buffer->SetSize(shape_buffer->GetSize() - 1);
-  for(std::vector<Point2d>::iterator point = original_shape.begin();
+  for (std::vector<Point2d>::iterator point = original_shape.begin();
       point != original_shape.end(); point++, i++) {
-    if(i == index) continue; // Skip point to remove
+    if (i == index) continue; // Skip point to remove
     tmp = (*point);
     vector_tmp.push_back(*point);
     shape_buffer->vx[i] = (int)tmp.x;
@@ -388,87 +329,28 @@ void Polygon::DeletePoint(int index)
   transformed_shape = original_shape = vector_tmp;
 }
 
-void Polygon::AddItem(const Sprite * sprite, const Point2d & pos, PolygonItem::H_align h_a, PolygonItem::V_align v_a)
-{
-  items.push_back(new PolygonItem(sprite, pos, h_a, v_a));
-}
-
-void Polygon::AddItem(PolygonItem * item)
-{
-  items.push_back(item);
-}
-
 void Polygon::DelItem(int index)
 {
   std::vector<PolygonItem *> vector_tmp;
   Point2d tmp;
   int i = 0;
-  for(std::vector<PolygonItem *>::iterator item = items.begin();
-      item != items.end(); item++, i++) {
-    if(i == index) continue; // Skip point to remove
+  for (std::vector<PolygonItem *>::iterator item = items.begin();
+       item != items.end(); item++, i++) {
+    if (i == index) // Skip point to remove
+      continue;
     vector_tmp.push_back(*item);
   }
   items = vector_tmp;
 }
 
-std::vector<PolygonItem *> Polygon::GetItem() const
-{
-  return items;
-}
-
 void Polygon::ClearItem(bool free_mem)
 {
-  for(std::vector<PolygonItem *>::iterator item = items.begin();
-      item != items.end(); item++) {
-    if(free_mem)
+  for (std::vector<PolygonItem *>::iterator item = items.begin();
+       item != items.end(); item++) {
+    if (free_mem)
       delete (*item);
   }
   items.clear();
-}
-
-Double Polygon::GetWidth() const
-{
-  return max.x - min.x;
-}
-
-Double Polygon::GetHeight() const
-{
-  return max.y - min.y;
-}
-
-Point2d Polygon::GetSize() const
-{
-  return max - min;
-}
-
-Point2i Polygon::GetIntSize() const
-{
-  return GetIntMax() - GetIntMin() + Point2i(1, 1);
-}
-
-Point2d Polygon::GetMin() const
-{
-  return min;
-}
-
-Point2i Polygon::GetIntMin() const
-{
-  return Point2i((int)min.x, (int)min.y);
-}
-
-Point2d Polygon::GetMax() const
-{
-  return max;
-}
-
-Point2i Polygon::GetIntMax() const
-{
-  return Point2i((int)max.x, (int)max.y);
-}
-
-Rectanglei Polygon::GetRectangleToRefresh() const
-{
-  return Rectanglei(GetIntMin(), GetIntSize());
 }
 
 Point2d Polygon::GetRandomUpperPoint()
@@ -479,7 +361,7 @@ Point2d Polygon::GetRandomUpperPoint()
   MSG_DEBUG("random.get", "Polygon::GetRandomUpperPoint()");
   int start = RandomSync().GetInt(0, GetNbOfPoint());
   int i;
-  for(i = 0; i < start; i++)
+  for (i = 0; i < start; i++)
     point++;
   Double max_tmp = 0.4;
   while(point != transformed_shape.end()) {
@@ -487,19 +369,14 @@ Point2d Polygon::GetRandomUpperPoint()
     i++;
     tmp = *point - previous;
     tmp = tmp / tmp.Norm();
-    if(tmp.y > max_tmp)
+    if (tmp.y > max_tmp)
       return tmp;
   }
   return Point2d();
 }
 
-int Polygon::GetNbOfPoint() const
-{
-  return (int)original_shape.size();
-}
-
 // And the famous Bezier curve. And this algorithm is that simple ? I'm so disappointed !
-// But now you can tell the world wormux is using Bezier curves.
+// But now you can tell the world warmux is using Bezier curves.
 void Polygon::AddBezierCurve(const Point2d& anchor1, const Point2d& control1,
                              const Point2d& control2, const Point2d& anchor2,
                              const int num_steps, const bool add_first_point,
@@ -508,14 +385,14 @@ void Polygon::AddBezierCurve(const Point2d& anchor1, const Point2d& control1,
   Point2d tmp1 = anchor1 + control1;
   Point2d tmp2 = anchor2 + control2;
   Double a, b;
-  if(add_first_point)
+  if (add_first_point)
     AddPoint(anchor1);
-  for(int step = 1; step < num_steps - 1; step++) {
-    a = ((Double)step / (Double)num_steps) * ONE;
+  for (int step = 1; step < num_steps - 1; step++) {
+    a = step / (Double)num_steps;
     b = 1 - a;
     AddPoint(anchor1 * b * b * b + tmp1 * THREE * b * b * a + tmp2 * THREE * b * a * a + anchor2 * a * a * a);
   }
-  if(add_last_point)
+  if (add_last_point)
     AddPoint(anchor2);
 }
 
@@ -527,7 +404,7 @@ void Polygon::AddRandomCurve(const Point2d& start, const Point2d& end,
 {
   Point2d step = (end - start) / num_steps;
   Point2d tmp;
-  if(add_first_point)
+  if (add_first_point)
     AddPoint(start);
   for (int i = 1; i < num_steps - 1; i++) {
     MSG_DEBUG("random.get", "Polygon::AddRandomCurve(...)");
@@ -536,7 +413,7 @@ void Polygon::AddRandomCurve(const Point2d& start, const Point2d& end,
     Double y = RandomSync().GetDouble(-y_random_offset, y_random_offset);
     AddPoint(start + (step * i) + Point2d(x,y));
   }
-  if(add_last_point)
+  if (add_last_point)
     AddPoint(end);
 }
 
@@ -547,16 +424,16 @@ Polygon * Polygon::GetBezierInterpolation(Double smooth_value, int num_steps, Do
   Polygon * shape = new Polygon();
   Double l1, l2, l3;
   AffineTransform2D trans = AffineTransform2D();
-  for(int index_p1 = 0; index_p1 < (int)original_shape.size(); index_p1++) {
+  for (int index_p1 = 0; index_p1 < (int)original_shape.size(); index_p1++) {
     p0 = original_shape[(index_p1 == 0 ? original_shape.size() : index_p1) - 1];
     p1 = original_shape[index_p1];
     p2 = original_shape[(index_p1 + 1) % original_shape.size()];
     p3 = original_shape[(index_p1 + 2) % original_shape.size()];
 
     // compute center of [p0,p1], [p1,p2] and [p2,p3]
-    c0 = p0 + ((p1 - p0) / TWO);
-    c1 = p1 + ((p2 - p1) / TWO);
-    c2 = p2 + ((p3 - p2) / TWO);
+    c0 = p0 + ONE_HALF*(p1 - p0);
+    c1 = p1 + ONE_HALF*(p2 - p1);
+    c2 = p2 + ONE_HALF*(p3 - p2);
 
     // Distance
     l1 = p0.Distance(p1);
@@ -568,7 +445,7 @@ Polygon * Polygon::GetBezierInterpolation(Double smooth_value, int num_steps, Do
     v2 = (c1 - c2) * (l2 / (l2 + l3)) * smooth_value;
 
     // Randomization
-    if(rand != ZERO) {
+    if (rand != ZERO) {
       MSG_DEBUG("random.get", "Polygon::GetBezierInterpolation(...)");
       trans.SetRotation(RandomSync().GetDouble(-rand, rand));
       v1 = trans * v1;
@@ -579,28 +456,24 @@ Polygon * Polygon::GetBezierInterpolation(Double smooth_value, int num_steps, Do
 
     shape->AddBezierCurve(p1, v1, v2, p2, num_steps, false);
   }
-  for(std::vector<PolygonItem *>::iterator elt = items.begin(); elt != items.end(); elt++) {
+  for (std::vector<PolygonItem *>::iterator elt = items.begin(); elt != items.end(); elt++) {
     shape->AddItem((*elt)->GetSprite(), (*elt)->GetPosition(), (*elt)->GetHAlign(), (*elt)->GetVAlign());
   }
   return shape;
 }
 
-PolygonBuffer * Polygon::GetPolygonBuffer()
-{
-  return shape_buffer;
-}
-
 // expand the polygon (to draw a little border for example)
 void Polygon::Expand(Double expand_value)
 {
-  if(original_shape.size() < 2) return;
-  if(!IsClockWise())
+  if (original_shape.size() < 2)
+    return;
+  if (!IsClockWise())
     expand_value = -expand_value;
   std::vector<Point2d> tmp_shape;
   AffineTransform2D trans = AffineTransform2D::Rotate(HALF_PI);
   Point2d current, next, vect, expand;
   int i, j, k;
-  for(i = 0; i < (int)original_shape.size(); i++) {
+  for (i = 0; i < (int)original_shape.size(); i++) {
     j = (i + 1) % original_shape.size();
     current = original_shape[i];
     next    = original_shape[j];
@@ -624,84 +497,50 @@ void Polygon::Expand(Double expand_value)
   transformed_shape = original_shape = tmp_shape;
 }
 
-// Get information about Polygon
-bool Polygon::IsTextured() const
-{
-  return texture != NULL;
-}
-
-bool Polygon::IsPlaneColor() const
-{
-  return plane_color != NULL;
-}
-
-bool Polygon::IsBordered() const
-{
-  return border_color != NULL;
-}
-
-// Texture handling
-Surface * Polygon::GetTexture()
-{
-  return texture;
-}
-
-void Polygon::SetTexture(Surface * texture_surface)
-{
-  texture = texture_surface;
-}
-
 // Color handling
 void Polygon::SetBorderColor(const Color & color)
 {
-  if(border_color == NULL)
-    border_color = new Color();
-  *border_color = color;
+  if (!border_color)
+    border_color = new Color(color);
+  else
+    *border_color = color;
 }
 
 void Polygon::SetPlaneColor(const Color & color)
 {
-  if(plane_color == NULL)
-    plane_color = new Color();
-  *plane_color = color;
-}
-
-const Color & Polygon::GetBorderColor() const
-{
-  return *border_color;
-}
-
-const Color & Polygon::GetPlaneColor() const
-{
-  return *plane_color;
+  if (!plane_color)
+    plane_color = new Color(color);
+  else
+    *plane_color = color;
 }
 
 void Polygon::Draw(Surface * dest)
 {
   // Draw polygon
-  if(is_closed) {
-    if(IsPlaneColor())
+  if (is_closed) {
+    if (IsPlaneColor())
       dest->FilledPolygon(shape_buffer->vx, shape_buffer->vy, shape_buffer->GetSize(), *plane_color);
-    if(IsTextured())
+    if (IsTextured())
       dest->TexturedPolygon(shape_buffer->vx, shape_buffer->vy, shape_buffer->GetSize(), texture, 0, 0);
-    if(IsBordered())
+    if (IsBordered())
       dest->AAPolygonColor(shape_buffer->vx, shape_buffer->vy, shape_buffer->GetSize(), *border_color);
   } else {
     // Draw Line
     Color *tmp;
-    if(IsBordered())
+    if (IsBordered())
       tmp = border_color;
     else
       tmp = plane_color;
-    if(tmp != NULL) {
-      for(int i = 0; i < shape_buffer->GetSize() - 1; i++) {
-        dest->AALineColor(shape_buffer->vx[i], shape_buffer->vx[i + 1], shape_buffer->vy[i], shape_buffer->vy[i + 1], *tmp);
+    if (tmp) {
+      for (int i = 0; i < shape_buffer->GetSize() - 1; i++) {
+        dest->AALineColor(shape_buffer->vx[i], shape_buffer->vx[i + 1],
+                          shape_buffer->vy[i], shape_buffer->vy[i + 1], *tmp);
       }
     }
   }
   // Draw Item
-  for(std::vector<PolygonItem *>::iterator item = items.begin();
-      item != items.end(); item++) {
+  for (std::vector<PolygonItem *>::iterator item = items.begin();
+       item != items.end(); item++) {
     (*item)->Draw(dest);
   }
 }
@@ -715,47 +554,44 @@ void Polygon::DrawOnScreen()
 ////////////////////////////
 // DecoratedBox
 
-DecoratedBox::DecoratedBox(Double width, Double height):Polygon(),
-m_border(NULL),
-m_style(DecoratedBox::STYLE_ROUNDED)
+DecoratedBox::DecoratedBox(Double width, Double height)
+ : Polygon()
+ , m_border(NULL)
+ , m_style(DecoratedBox::STYLE_ROUNDED)
 {
-  min =  Point2d(0.0, 0.0);
+  min = Point2d(0.0, 0.0);
   max = Point2d(width, height);
   original_min = min;
   original_max = max;
-
-
 }
 
 DecoratedBox::~DecoratedBox()
 {
-  delete m_border;
+  if (m_border)
+    delete m_border;
 }
 
 void DecoratedBox::Draw(Surface * dest)
 {
-  if(!m_border){
-    m_border = new Surface(Point2i((int)GetSize().x,(int)GetSize().y),SDL_SWSURFACE, true);
-    GenerateBorder(*m_border);
+  if (!m_border) {
+    //m_border = new Surface(Point2i(GetSize().x, GetSize().y), SDL_SWSURFACE, true);
+    Surface border = Surface(GetSize(), SDL_SWSURFACE, true);
+    GenerateStyledBorder(border, m_style);
+    m_border = new Surface(border.DisplayFormatAlpha());
   }
   dest->Blit(*m_border, min);
 
 
   // Draw Item
-  for(std::vector<PolygonItem *>::iterator item = items.begin();
+  for (std::vector<PolygonItem *>::iterator item = items.begin();
       item != items.end(); item++) {
     (*item)->Draw(dest);
   }
 }
 
-void DecoratedBox::SetStyle(DecoratedBox::Style style)
-{
-  m_style = style;
-}
-
 void DecoratedBox::SetPosition(Double x, Double y)
 {
-    for(std::vector<PolygonItem *>::iterator item = items.begin();
+    for (std::vector<PolygonItem *>::iterator item = items.begin();
       item != items.end(); item++) {
       Point2d old_pos = (*item)->GetPosition();
       old_pos.x += x - min.x;
@@ -770,154 +606,133 @@ void DecoratedBox::SetPosition(Double x, Double y)
     original_max = max;
 }
 
-void DecoratedBox::GenerateBorder(Surface & source)
+void GenerateStyledBorder(Surface & source, DecoratedBox::Style style)
 {
+  Profile     *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  Surface     rounding_style[3][3];
+  std::string style_str;
+  int         i, j;
 
-  Surface rounding_style [3][3];
-  Surface rounding_style_mask [3][3];
-
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-
-  std::string style;
-
-  switch(m_style)
+  switch (style)
   {
-      case STYLE_ROUNDED:
-      style = "rounding";
-      break;
-      case STYLE_SQUARE:
-      style = "square";
-      break;
+    case DecoratedBox::STYLE_ROUNDED:
+    style_str = "rounding";
+    break;
+    case DecoratedBox::STYLE_SQUARE:
+    style_str = "square";
+    break;
   }
 
   // styled box
-  rounding_style[1][2] = GetResourceManager().LoadImage( res, "interface/"+style+"_bottom");
-  rounding_style[0][2] = GetResourceManager().LoadImage( res, "interface/"+style+"_bottom_left");
-  rounding_style[2][2] = GetResourceManager().LoadImage( res, "interface/"+style+"_bottom_right");
-  rounding_style[1][0] = GetResourceManager().LoadImage( res, "interface/"+style+"_top");
-  rounding_style[0][0] = GetResourceManager().LoadImage( res, "interface/"+style+"_top_left");
-  rounding_style[2][0] = GetResourceManager().LoadImage( res, "interface/"+style+"_top_right");
-  rounding_style[0][1] = GetResourceManager().LoadImage( res, "interface/"+style+"_left");
-  rounding_style[2][1] = GetResourceManager().LoadImage( res, "interface/"+style+"_right");
-  rounding_style[1][1] = GetResourceManager().LoadImage( res, "interface/"+style+"_center");
+  rounding_style[1][2] = LOAD_RES_IMAGE("interface/"+style_str+"_bottom");
+  rounding_style[0][2] = LOAD_RES_IMAGE("interface/"+style_str+"_bottom_left");
+  rounding_style[2][2] = LOAD_RES_IMAGE("interface/"+style_str+"_bottom_right");
+  rounding_style[1][0] = LOAD_RES_IMAGE("interface/"+style_str+"_top");
+  rounding_style[0][0] = LOAD_RES_IMAGE("interface/"+style_str+"_top_left");
+  rounding_style[2][0] = LOAD_RES_IMAGE("interface/"+style_str+"_top_right");
+  rounding_style[0][1] = LOAD_RES_IMAGE("interface/"+style_str+"_left");
+  rounding_style[2][1] = LOAD_RES_IMAGE("interface/"+style_str+"_right");
+  rounding_style[1][1] = LOAD_RES_IMAGE("interface/"+style_str+"_center");
+  for (j=0; j<3; j++)
+    for (i=0; i<3; i++)
+      rounding_style[j][i].SetAlpha(0, 0);
 
-  rounding_style_mask[1][2] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_bottom");
-  rounding_style_mask[0][2] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_bottom_left");
-  rounding_style_mask[2][2] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_bottom_right");
-  rounding_style_mask[1][0] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_top");
-  rounding_style_mask[0][0] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_top_left");
-  rounding_style_mask[2][0] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_top_right");
-  rounding_style_mask[0][1] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_left");
-  rounding_style_mask[2][1] = GetResourceManager().LoadImage( res, "interface/"+style+"_mask_right");
+  GetResourceManager().UnLoadXMLProfile(res);
 
   Surface save_surf(source.GetSize(),SDL_SWSURFACE, true);
-  save_surf.MergeSurface(source, Point2i(0,0));
-  Rectanglei temp_rect;
+  source.SetAlpha(0, 0);
+  save_surf.Blit(source);
 
-  source = Surface(Surface(source.GetSize(),SDL_SWSURFACE, true));
-
-  temp_rect.SetPosition(Point2i(0,0));
-  temp_rect.SetSize(source.GetSize());
+  Rectanglei temp_rect(Point2i(0,0), source.GetSize());
 
   Point2i temp_position;
 
   temp_position = temp_rect.GetPosition();
-  source.MergeSurface(rounding_style[0][0], temp_position);
+  source.Blit(rounding_style[0][0], temp_position);
 
   temp_position = temp_rect.GetPosition();
   temp_position.x += temp_rect.GetSize().x - rounding_style[2][0].GetSize().x;
-  source.MergeSurface(rounding_style[2][0],temp_position);
+  source.Blit(rounding_style[2][0], temp_position);
 
   temp_position = temp_rect.GetPosition();
   temp_position.y += temp_rect.GetSize().y - rounding_style[0][2].GetSize().y;
-  source.MergeSurface(rounding_style[0][2],temp_position);
+  source.Blit(rounding_style[0][2], temp_position);
 
   temp_position = temp_rect.GetPosition();
   temp_position.x += temp_rect.GetSize().x - rounding_style[2][2].GetSize().x;
   temp_position.y += temp_rect.GetSize().y - rounding_style[2][2].GetSize().y;
-  source.MergeSurface(rounding_style[2][2],temp_position);
+  source.Blit(rounding_style[2][2], temp_position);
 
 
-  for(int i = rounding_style[0][0].GetSize().x; i< (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);i++){
+  for (i = rounding_style[0][0].GetSize().x;
+       i < temp_rect.GetSize().x - rounding_style[2][0].GetSize().x;
+       i++) {
     temp_position = temp_rect.GetPosition();
     temp_position.x += i;
-    source.MergeSurface(rounding_style[1][0],temp_position);
+    source.Blit(rounding_style[1][0], temp_position);
 
     temp_position.y += temp_rect.GetSize().y - rounding_style[1][2].GetSize().y;
-    source.MergeSurface(rounding_style[1][2],temp_position);
+    source.Blit(rounding_style[1][2], temp_position);
 
   }
 
-  for(int i = rounding_style[0][0].GetSize().y; i< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);i++){
+  for (i = rounding_style[0][0].GetSize().y;
+       i < temp_rect.GetSize().y - rounding_style[0][2].GetSize().y;
+       i++) {
     temp_position = temp_rect.GetPosition();
     temp_position.y += i;
-    source.MergeSurface(rounding_style[0][1],temp_position);
+    source.Blit(rounding_style[0][1],temp_position);
 
     temp_position.x += temp_rect.GetSize().x - rounding_style[2][1].GetSize().x;
-    source.MergeSurface(rounding_style[2][1],temp_position);
+    source.Blit(rounding_style[2][1],temp_position);
 
   }
 
-  for(int i = rounding_style[0][0].GetSize().x; i< (temp_rect.GetSize().x - rounding_style[2][0].GetSize().x);i++){
+  for (i = rounding_style[0][0].GetSize().x;
+       i < temp_rect.GetSize().x - rounding_style[2][0].GetSize().x;
+       i++) {
 
-    for(int j = rounding_style[0][0].GetSize().y; j< (temp_rect.GetSize().y - rounding_style[0][2].GetSize().y);j++){
+    for (j = rounding_style[0][0].GetSize().y;
+         j < temp_rect.GetSize().y - rounding_style[0][2].GetSize().y;
+         j++) {
       temp_position = temp_rect.GetPosition() + Point2i(i,j);
-      source.MergeSurface(rounding_style[1][1],temp_position);
+      source.Blit(rounding_style[1][1],temp_position);
     }
   }
 
-  //Corner
-  save_surf.MergeAlphaSurface(rounding_style_mask[0][0],Point2i(0,0));
-  save_surf.MergeAlphaSurface(rounding_style_mask[2][0],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,0));
-  save_surf.MergeAlphaSurface(rounding_style_mask[0][2],Point2i(0,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
-  save_surf.MergeAlphaSurface(rounding_style_mask[2][2],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
-
-  //Top
-  save_surf.MergeAlphaSurface(rounding_style_mask[1][0],Point2i(rounding_style_mask[0][0].GetSize().x,0));
-  //Bottom
-  save_surf.MergeAlphaSurface(rounding_style_mask[1][2],Point2i(rounding_style_mask[0][0].GetSize().x,temp_rect.GetSize().y - rounding_style_mask[0][2].GetSize().y));
-  //Left
-  save_surf.MergeAlphaSurface(rounding_style_mask[0][1],Point2i(0,rounding_style_mask[0][0].GetSize().y));
-  //Right
-  save_surf.MergeAlphaSurface(rounding_style_mask[2][1],Point2i(temp_rect.GetSize().x - rounding_style_mask[2][0].GetSize().x,rounding_style_mask[0][0].GetSize().y));
-
-
-   source.MergeSurface(save_surf, Point2i(0,0));
+  source.SetAlpha(SDL_SRCALPHA, 0);
+  source.Blit(save_surf);
 }
-
 
 void DecoratedBox::ApplyTransformation(const AffineTransform2D & trans, bool save_transformation)
 {
-  Point2d new_min =  trans * original_min;
+  Point2d new_min = trans * original_min;
   Point2d new_max = trans * original_max;
 
-  Double one_half = 0.5;
-  if((round(max.x - min.x +one_half)!=round( new_max.x -new_min.x+one_half)) || (round(max.y - min.y )!=round( new_max.y -new_min.y)))
-  {
-      delete m_border;
-      m_border = NULL;
+  if ( round(max.x - min.x +ONE_HALF) != round(new_max.x -new_min.x+ONE_HALF) ||
+       round(max.y - min.y) != round(new_max.y -new_min.y) ) {
+    delete m_border;
+    m_border = NULL;
   }
 
   min = new_min;
   max = new_max;
 
-  if(save_transformation)
-  {
-
-   original_min = min;
-   original_max = max;
+  if (save_transformation) {
+    original_min = min;
+    original_max = max;
   }
 
-  for(std::vector<PolygonItem *>::iterator item = items.begin();
-      item != items.end(); item++) {
+  for (std::vector<PolygonItem *>::iterator item = items.begin();
+       item != items.end(); item++) {
     (*item)->ApplyTransformation(trans);
   }
 }
 
 void DecoratedBox::ResetTransformation()
 {
-  if((round(max.x - min.x )!=round( original_max.x -original_min.x)) || (round(max.y - min.y )!=round( original_max.y -original_min.y)))
-   {
+  if ( round(max.x - min.x)!=round(original_max.x -original_min.x) ||
+       round(max.y - min.y)!=round(original_max.y -original_min.y) ) {
       delete m_border;
       m_border = NULL;
    }

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,15 +19,15 @@
  * Contains AICommand implementations which can be used to let the AI send actions.
  *****************************************************************************/
 
-#include <WORMUX_action.h>
+#include <WARMUX_action.h>
 #include "ai/ai_command.h"
 #include "character/character.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "include/action_handler.h"
 #include "team/team.h"
 #include "team/teams_list.h"
 
-IncreaseAngleCommand::IncreaseAngleCommand(Double target_angle, bool slowly):
+IncreaseAngleCommand::IncreaseAngleCommand(float target_angle, bool slowly):
   target_angle(target_angle),
   slowly(slowly),
   is_increasing(false)
@@ -37,7 +37,7 @@ IncreaseAngleCommand::IncreaseAngleCommand(Double target_angle, bool slowly):
 
 bool IncreaseAngleCommand::Execute()
 {
-  Double current_angle = ActiveCharacter().GetAbsFiringAngle();
+  float current_angle = ActiveCharacter().GetAbsFiringAngle().tofloat();
   if (current_angle >= target_angle) {
     if (is_increasing) {
       Action *a = new Action(Action::ACTION_CHARACTER_STOP_MOVING_DOWN);
@@ -56,7 +56,7 @@ bool IncreaseAngleCommand::Execute()
   }
 }
 
-DecreaseAngleCommand::DecreaseAngleCommand(Double target_angle, bool slowly):
+DecreaseAngleCommand::DecreaseAngleCommand(float target_angle, bool slowly):
   target_angle(target_angle),
   slowly(slowly),
   is_decreasing(false)
@@ -67,7 +67,7 @@ DecreaseAngleCommand::DecreaseAngleCommand(Double target_angle, bool slowly):
 
 bool DecreaseAngleCommand::Execute()
 {
-  Double current_angle = ActiveCharacter().GetAbsFiringAngle();
+  float current_angle = ActiveCharacter().GetAbsFiringAngle().tofloat();
   if (current_angle <= target_angle) {
     if (is_decreasing) {
       Action *a = new Action(Action::ACTION_CHARACTER_STOP_MOVING_UP);
@@ -94,11 +94,6 @@ CommandList::~CommandList() {
   }
 }
 
-void CommandList::Add(AICommand * command)
-{
-  commands.push(command);
-}
-
 bool CommandList::Execute()
 {
   while (commands.size() > 0) {
@@ -113,12 +108,7 @@ bool CommandList::Execute()
   return true;
 }
 
-int CommandList::Size()
-{
-  return commands.size();
-}
-
-SetWeaponAngleCommand::SetWeaponAngleCommand(Double angle):target_angle(angle)
+SetWeaponAngleCommand::SetWeaponAngleCommand(float angle):target_angle(angle)
 {
   // do nothing
 }
@@ -127,7 +117,7 @@ bool SetWeaponAngleCommand::Execute()
 {
   bool first_call = commands.Size() == 0;
   if (first_call) {
-    Double current_angle = ActiveCharacter().GetAbsFiringAngle();
+    float current_angle = ActiveCharacter().GetAbsFiringAngle().tofloat();
     if (current_angle > target_angle) {
       commands.Add(new DecreaseAngleCommand(target_angle, false));
       commands.Add(new IncreaseAngleCommand(target_angle, true));
@@ -253,7 +243,7 @@ bool SelectWeaponCommand::Execute()
   return true;
 }
 
-SelectCharacterCommand::SelectCharacterCommand(Character * character):
+SelectCharacterCommand::SelectCharacterCommand(const Character * character):
   character(character)
 {
   // do nothing
@@ -263,14 +253,11 @@ bool SelectCharacterCommand::Execute()
 {
   if (character->IsActiveCharacter())
     return true;
-  Action * action = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
-  uint index = character->GetCharacterIndex();
-  action->Push((int)index);
-  ActionHandler::GetInstance()->NewAction(action);
+  ActionHandler::GetInstance()->NewActionActiveCharacter(character->GetCharacterIndex());
   return true;
 }
 
-WaitForStrengthCommand::WaitForStrengthCommand(Double target_strength):
+WaitForStrengthCommand::WaitForStrengthCommand(float target_strength):
 target_strength(target_strength)
 {
   // do nothing
@@ -278,7 +265,7 @@ target_strength(target_strength)
 
 bool WaitForStrengthCommand::Execute()
 {
-  Double current_strength = ActiveTeam().GetWeapon().GetStrength();
+  float current_strength = ActiveTeam().GetWeapon().GetStrength().tofloat();
   return (current_strength >= target_strength);
 }
 

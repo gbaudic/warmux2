@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,28 +26,28 @@ Label::Label(const std::string & text,
              Font::font_size_t fontSize,
              Font::font_style_t fontStyle,
              const Color & fontColor,
-             bool centered,
+             Text::Alignment align,
              bool shadowed,
-             const Color & shadowColor) :
-  Text(text, fontColor, fontSize,
-       fontStyle, shadowed, shadowColor),
-  center(centered)
+             const Color & shadowColor)
+  : Text(text, fontColor, fontSize, fontStyle, shadowed, shadowColor)
+  , align(align)
 {
   size.x = maxWidth;
   SetMaxWidth(size.x);
   size.y = GetHeight();
+  Widget::clickable = false;
 }
 
-Label::Label(const Point2i & size) :
-  Widget(size),
-  center(false)
+Label::Label(const Point2i & size)
+  : Widget(size, false)
+  , align(Text::ALIGN_LEFT_TOP)
 {
 }
 
 Label::Label(Profile * profile,
-             const xmlNode * labelNode) :
-  Widget(profile, labelNode),
-  center(false)
+             const xmlNode * labelNode)
+  : Widget(profile, labelNode)
+  , align(Text::ALIGN_LEFT_TOP)
 {
 }
 
@@ -61,31 +61,47 @@ bool Label::LoadXMLConfiguration()
     return false;
   }
 
-  ParseXMLPosition();
-  ParseXMLSize();
+  ParseXMLGeometry();
   ParseXMLBorder();
   ParseXMLBackground();
-  
-  Text::LoadXMLConfiguration(profile->GetXMLDocument(), 
+
+  Text::LoadXMLConfiguration(profile->GetXMLDocument(),
                              widgetNode);
 
   return true;
 }
 
-void Label::Draw(const Point2i & mousePosition) const
+void Label::Draw(const Point2i& /*mousePosition*/)
 {
-  (void)mousePosition;
-
-  if (!center) {
-    DrawTopLeft(position);
-  } else {
+  switch (align) {
+  case Text::ALIGN_CENTER:
+    DrawCenter(position + size/2);
+    break;
+  case Text::ALIGN_CENTER_TOP:
     DrawCenterTop(Point2i(position.x + size.x/2, position.y));
+    break;
+  case Text::ALIGN_CENTER_BOTTOM:
+    DrawCenterBottom(Point2i(position.x + size.x/2, position.y + size.y));
+    break;
+  case Text::ALIGN_LEFT_CENTER:
+    DrawLeftCenter(Point2i(position.x, position.y + size.y/2));
+    break;
+  case Text::ALIGN_RIGHT_CENTER:
+    DrawRightCenter(Point2i(position.x + size.x, position.y + size.y/2));
+    break;
+   case Text::ALIGN_RIGHT_TOP:
+    DrawRightTop(Point2i(position.x + size.x, position.y));
+    break;
+  case Text::ALIGN_LEFT_TOP:
+  default:
+    DrawLeftTop(position);
+    break;
   }
 }
 
 void Label::Pack()
 {
-  SetMaxWidth(size.x);
+  if (max_width) SetMaxWidth(size.x);
   size.y = GetHeight();
 }
 
@@ -95,7 +111,6 @@ void Label::SetText(const std::string & new_txt)
 
   Text::SetText(new_txt);
 
-  SetMaxWidth(size.x);
+  if (max_width) SetMaxWidth(size.x);
   size.y = GetHeight();
 }
-

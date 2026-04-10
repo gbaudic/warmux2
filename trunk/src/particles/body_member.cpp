@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,21 +24,23 @@
 #include "graphic/sprite.h"
 #include "network/randomsync.h"
 
-BodyMemberParticle::BodyMemberParticle(const Sprite& spr, const Point2i& position) :
-  Particle("body_member_particle"),
-  angle_rad(0)
+BodyMemberParticle::BodyMemberParticle(Sprite& spr, const Point2i& position)
+  : Particle("body_member_particle")
+  , angle_rad(0)
 {
   SetCollisionModel(true, false, false);
   m_left_time_to_live = 100;
+  // Bug #17408: make sure there's an available surface for the sprite
+  spr.RefreshSurface();
   image = new Sprite(spr.GetSurface());
-  image->EnableRotationCache(32);
-  ASSERT(image->GetWidth() != 0 && image->GetHeight()!=0);
+  image->EnableCaches(false, 0); // Some generic particle code requires it to be flipped
+  ASSERT(image->GetWidth() && image->GetHeight());
   SetXY(position);
 
   SetSize(image->GetSize());
   SetOnTop(true);
   MSG_DEBUG("random.get", "BodyMemberParticle::BodyMemberParticle(...) speed vector length");
-  Double speed_vector_length = (Double)RandomSync().GetLong(10, 15);
+  Double speed_vector_length = (Double)RandomSync().GetInt(10, 15);
   MSG_DEBUG("random.get", "BodyMemberParticle::BodyMemberParticle(...) speed vector angle");
   Double speed_vector_angle = - RandomSync().GetDouble(0, 3);
   SetSpeed(speed_vector_length, speed_vector_angle);
@@ -52,7 +54,7 @@ void BodyMemberParticle::Refresh()
   angle_rad += GetSpeedXY().Norm() * 20;
   angle_rad = fmod(angle_rad, 2 *PI);
   //FIXME what about negatives values ? what would happen ?
-  if(m_left_time_to_live < 50)
+  if (m_left_time_to_live < 50)
     image->SetAlpha(m_left_time_to_live / 50.0);
   image->SetRotation_rad(angle_rad);
   image->Update();

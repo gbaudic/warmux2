@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef AI_COMMAND_H
 #define AI_COMMAND_H
 
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include <queue>
 #include "weapon/weapon.h"
 
@@ -52,11 +52,11 @@ class DoNothingForeverCommand : public AICommand
 class IncreaseAngleCommand : public AICommand
 {
   private:
-    const Double target_angle;
+    const float target_angle;
     const bool slowly;
     bool is_increasing;
   public:
-    IncreaseAngleCommand(Double target_angle, bool slowly);
+    IncreaseAngleCommand(float target_angle, bool slowly);
     virtual bool Execute();
 };
 
@@ -68,11 +68,11 @@ class IncreaseAngleCommand : public AICommand
 class DecreaseAngleCommand : public AICommand
 {
   private:
-    const Double target_angle;
+    const float target_angle;
     const bool slowly;
     bool is_decreasing;
   public:
-    DecreaseAngleCommand(Double target_angle, bool slowly);
+    DecreaseAngleCommand(float target_angle, bool slowly);
     virtual bool Execute();
 };
 
@@ -84,17 +84,17 @@ class CommandList : public AICommand
     CommandList() {};
     virtual ~CommandList();
     virtual bool Execute();
-    void Add(AICommand * command);
-    int Size();
+    void Add(AICommand * command) { commands.push(command); }
+    int Size() { return commands.size(); }
 };
 
 class SetWeaponAngleCommand : public AICommand
 {
   private:
     CommandList commands;
-    const Double target_angle;
+    const float target_angle;
   public:
-    SetWeaponAngleCommand(Double angle);
+    SetWeaponAngleCommand(float angle);
     virtual bool Execute();
 };
 
@@ -146,10 +146,10 @@ class SetDirectionCommand : public AICommand
 class LoadAndShootCommand : public AICommand
 {
   private:
-    const Double target_strength;
+    const float target_strength;
     bool is_shooting;
   public:
-    LoadAndShootCommand(Double strength);
+    LoadAndShootCommand(float strength);
     virtual bool Execute();
 };*/
 
@@ -175,18 +175,18 @@ class SelectWeaponCommand : public AICommand
 class SelectCharacterCommand : public AICommand
 {
   private:
-    Character * character;
+    const Character * character;
   public:
-    SelectCharacterCommand(Character * character);
+    SelectCharacterCommand(const Character * character);
     virtual bool Execute();
 };
 
 class WaitForStrengthCommand : public AICommand
 {
   private:
-    Double target_strength;
+    float target_strength;
   public:
-    WaitForStrengthCommand(Double target_strength);
+    WaitForStrengthCommand(float target_strength);
     virtual bool Execute();
 };
 

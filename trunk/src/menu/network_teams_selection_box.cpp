@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
  *  Network teams selection box
  *****************************************************************************/
 
+#include "menu/teams_selection_box.h"
 #include "menu/network_teams_selection_box.h"
 #include "menu/team_box.h"
 #include "game/config.h"
@@ -38,11 +39,19 @@ NetworkTeamsSelectionBox::NetworkTeamsSelectionBox(const Point2i &_size, bool w_
   TeamsSelectionBox(_size, true, w_border)
 {
   local_teams_nb->SetMaxValue(GameMode::GetInstance()->GetMaxTeamsPerNetworkPlayer());
+
+  GetTeamsList().Clear();
+
+  // No selected team(s) by default
+  for (uint i=0; i<teams_selections.size(); i++) {
+    teams_selections.at(i)->ClearTeam();
+  }
 }
 
 Widget* NetworkTeamsSelectionBox::ClickUp(const Point2i &mousePosition, uint button)
 {
-  if (!Contains(mousePosition)) return NULL;
+  if (!Contains(mousePosition))
+    return NULL;
 
   uint current_nb_teams = local_teams_nb->GetValue();
 
@@ -55,46 +64,41 @@ Widget* NetworkTeamsSelectionBox::ClickUp(const Point2i &mousePosition, uint but
       RequestTeamRemoval();
     }
   } else {
+    Widget *w = (list_box) ? list_box->ClickUp(mousePosition, button)
+                           : WidgetList::ClickUp(mousePosition, button);
+
     for (uint i=0; i<teams_selections.size() ; i++) {
 
-      if ( teams_selections.at(i)->Contains(mousePosition) &&
-           teams_selections.at(i)->IsLocal() ) {
+      if (teams_selections[i]->Contains(mousePosition) &&
+          teams_selections[i]->IsLocal()) {
+        Widget * at = teams_selections[i];
+        Rectanglei r(at->GetPosition(), Point2i(38,38));
 
-        Widget * w = teams_selections.at(i)->ClickUp(mousePosition, button);
-
-        if ( w == NULL ) {
-	  Rectanglei r(teams_selections.at(i)->GetPositionX(),
-                       teams_selections.at(i)->GetPositionY(),
-                       38,
-                       38);
-          if ( r.Contains(mousePosition) ) {
-            if ( button == Mouse::BUTTON_LEFT() || button == SDL_BUTTON_WHEELDOWN ) {
-              NextTeam(i);
-            } else if ( button == Mouse::BUTTON_RIGHT() || button == SDL_BUTTON_WHEELUP ) {
-              PrevTeam(i);
-            }
-          } else {
-	    Rectanglei r2(teams_selections.at(i)->GetPositionX(),
-			  teams_selections.at(i)->GetPositionY() + 39,
-			  38,
-			  30);
-	    if (r2.Contains(mousePosition)) {
-	      teams_selections.at(i)->SwitchPlayerType();
-	    }
-	  }
+        if (r.Contains(mousePosition)) {
+          if (button == Mouse::BUTTON_LEFT() || button == SDL_BUTTON_WHEELDOWN) {
+            NextTeam(i);
+          } else if (button == Mouse::BUTTON_RIGHT() || button == SDL_BUTTON_WHEELUP) {
+            PrevTeam(i);
+          }
+          return at;
         } else {
-          return w;
+          Rectanglei r2(teams_selections.at(i)->GetPositionX(),
+                        teams_selections.at(i)->GetPositionY() + 39,
+                        38,
+                        30);
+          if (r2.Contains(mousePosition)) {
+            teams_selections[i]->SwitchPlayerType();
+            return at;
+          }
         }
-        break;
+
+        return w;
       }
     }
+
+    return w;
   }
 
-  return NULL;
-}
-
-Widget* NetworkTeamsSelectionBox::Click(const Point2i &/*mousePosition*/, uint /*button*/)
-{
   return NULL;
 }
 
@@ -106,6 +110,8 @@ const std::string NetworkTeamsSelectionBox::GetLocalPlayerName()
   char* name = LocaleToUTF8(getenv("USERNAME"));
   result = name;
   delete[] name;
+#elif defined(ANDROID)
+  result = "Android";
 #else
   result = getenv("USER");
 #endif
@@ -119,36 +125,36 @@ void NetworkTeamsSelectionBox::PrevTeam(uint i)
   bool to_continue;
   Team* tmp;
   int previous_index = -1, index;
+  uint max_teams = GameMode::GetInstance()->GetMaxTeamsPerNetworkPlayer();
 
   GetTeamsList().FindById(teams_selections.at(i)->GetTeam()->GetId(), previous_index);
 
   index = previous_index-1;
 
-  do
-    {
-      to_continue = false;
+  do {
+    to_continue = false;
 
-      // select the last team if we are outside list
-      if ( index < 0 )
-        index = int(GetTeamsList().full_list.size())-1;
+    // select the last team if we are outside list
+    if (index < 0)
+      index = int(GetTeamsList().full_list.size())-1;
 
-      // Get the team at current index
-      tmp = GetTeamsList().FindByIndex(index);
+    // Get the team at current index
+    tmp = GetTeamsList().FindByIndex(index);
 
-      // Check if that team is already selected
-      for (uint j = 0; j < MAX_NB_TEAMS; j++) {
-        if (j!= i && tmp == teams_selections.at(j)->GetTeam()) {
-          index--;
-          to_continue = true;
-          break;
-        }
+    // Check if that team is already selected
+    for (uint j = 0; j < max_teams; j++) {
+      if (j!= i && tmp == teams_selections.at(j)->GetTeam()) {
+        index--;
+        to_continue = true;
+        break;
       }
+    }
 
-      // We have found a team which is not selected
-      if (tmp != NULL && !to_continue) {
-        SetLocalTeam(i, *tmp);
-      }
-    } while (index != previous_index && to_continue);
+    // We have found a team which is not selected
+    if (tmp != NULL && !to_continue) {
+      SetLocalTeam(i, *tmp);
+    }
+  } while (index != previous_index && to_continue);
 }
 
 void NetworkTeamsSelectionBox::NextTeam(uint i)
@@ -156,39 +162,39 @@ void NetworkTeamsSelectionBox::NextTeam(uint i)
   bool to_continue;
   Team* tmp;
   int previous_index = -1, index;
+  uint max_teams = GameMode::GetInstance()->GetMaxTeamsPerNetworkPlayer();
 
-  if (teams_selections.at(i)->GetTeam() != NULL)
+  if (teams_selections.at(i)->GetTeam())
     GetTeamsList().FindById(teams_selections.at(i)->GetTeam()->GetId(), previous_index);
 
   index = previous_index+1;
 
-  do
-    {
-      to_continue = false;
+  do {
+    to_continue = false;
 
-      // select the first team if we are outside list
-      if ( index >= int(GetTeamsList().full_list.size()) )
-        index = 0;
+    // select the first team if we are outside list
+    if (index >= int(GetTeamsList().full_list.size()))
+      index = 0;
 
-      // Get the team at current index
-      tmp = GetTeamsList().FindByIndex(index);
+    // Get the team at current index
+    tmp = GetTeamsList().FindByIndex(index);
 
-      // Check if that team is already selected
-      for (uint j = 0; j < MAX_NB_TEAMS; j++) {
-        if (j!= i && tmp == teams_selections.at(j)->GetTeam()) {
-          index++;
-          to_continue = true;
-          break;
-        }
+    // Check if that team is already selected
+    for (uint j = 0; j < max_teams; j++) {
+      if (j!= i && tmp == teams_selections.at(j)->GetTeam()) {
+        index++;
+        to_continue = true;
+        break;
       }
+    }
 
-      // We have found a team which is not selected
-      if (tmp != NULL && !to_continue) {
-        if (teams_selections.at(i)->GetTeam() == NULL)
-          tmp->SetPlayerName(GetLocalPlayerName());
-        SetLocalTeam(i, *tmp);
-      }
-    } while ( index != previous_index && to_continue);
+    // We have found a team which is not selected
+    if (tmp != NULL && !to_continue) {
+      if (teams_selections.at(i)->GetTeam() == NULL)
+        tmp->SetPlayerName(GetLocalPlayerName());
+      SetLocalTeam(i, *tmp);
+    }
+  } while (index != previous_index && to_continue);
 }
 
 void NetworkTeamsSelectionBox::RequestTeam()
@@ -211,7 +217,8 @@ void NetworkTeamsSelectionBox::RequestTeamRemoval()
 
 bool NetworkTeamsSelectionBox::IsSelected(Team * team)
 {
-  for (uint j = 0; j < MAX_NB_TEAMS; j++) {
+  uint max_teams = GameMode::GetInstance()->GetMaxTeamsPerNetworkPlayer();
+  for (uint j = 0; j < max_teams ; j++) {
     if (team == teams_selections.at(j)->GetTeam()) {
       return true;
     }
@@ -221,8 +228,9 @@ bool NetworkTeamsSelectionBox::IsSelected(Team * team)
 
 bool NetworkTeamsSelectionBox::HasOpenTeamSlot()
 {
-  for (uint j = 0; j < MAX_NB_TEAMS; j++) {
-    if (teams_selections.at(j)->GetTeam() == NULL) {
+  uint max_teams = GameMode::GetInstance()->GetMaxTeamsPerNetworkPlayer();
+  for (uint j = 0; j < max_teams; j++) {
+    if (!teams_selections.at(j)->GetTeam()) {
       return true;
     }
   }
@@ -235,7 +243,7 @@ Team * NetworkTeamsSelectionBox::FindUnusedTeam(const std::string default_team_i
   Team * team = GetTeamsList().FindById(default_team_id, index);
   int team_count = GetTeamsList().full_list.size();
   int checked_teams = 0;
-  while(((team == NULL) || IsSelected(team)) && (checked_teams <= team_count)) {
+  while((!team || IsSelected(team)) && checked_teams <= team_count) {
     index++;
     if (index >= team_count)
       index = 0;
@@ -250,7 +258,7 @@ void NetworkTeamsSelectionBox::SetLocalTeam(uint i, Team& team)
 {
   team.SetRemote(false);
 
-  if (teams_selections.at(i)->GetTeam() != NULL) {
+  if (teams_selections.at(i)->GetTeam()) {
     teams_selections.at(i)->SetTeam(team, false);
   }
 }
@@ -258,7 +266,7 @@ void NetworkTeamsSelectionBox::SetLocalTeam(uint i, Team& team)
 void NetworkTeamsSelectionBox::AddTeamCallback(const std::string& team_id)
 {
   for (uint i=0; i < teams_selections.size(); i++) {
-    if (teams_selections.at(i)->GetTeam() == NULL) {
+    if (!teams_selections.at(i)->GetTeam()) {
       int index;
       /* FindPlayingById should be faster */
       Team * tmp = GetTeamsList().FindById(team_id, index);
@@ -271,19 +279,20 @@ void NetworkTeamsSelectionBox::AddTeamCallback(const std::string& team_id)
   // Count the current number of local teams
   uint nb_local_teams=0;
   for (uint i=0; i < teams_selections.size(); i++) {
-    if (teams_selections.at(i)->GetTeam() != NULL &&
-        teams_selections.at(i)->IsLocal()) {
+    if (teams_selections.at(i)->GetTeam() && teams_selections.at(i)->IsLocal()) {
       nb_local_teams++;
     }
   }
+
   local_teams_nb->SetValue(nb_local_teams);
+  UpdateNbTeams();
 }
 
 void NetworkTeamsSelectionBox::UpdateTeamCallback(const std::string& old_team_id,
-						  const std::string& team_id)
+                                                  const std::string& team_id)
 {
   for (uint i=0; i < teams_selections.size(); i++) {
-    if (teams_selections.at(i)->GetTeam() != NULL &&
+    if (teams_selections.at(i)->GetTeam() &&
         teams_selections.at(i)->GetTeam()->GetId() == old_team_id) {
       int index = 0;
       Team * tmp = GetTeamsList().FindById(team_id, index);
@@ -298,7 +307,7 @@ void NetworkTeamsSelectionBox::UpdateTeamCallback(const std::string& old_team_id
 void NetworkTeamsSelectionBox::DelTeamCallback(const std::string& team_id)
 {
   for (uint i=0; i < teams_selections.size(); i++) {
-    if (teams_selections.at(i)->GetTeam() != NULL &&
+    if (teams_selections.at(i)->GetTeam() &&
         teams_selections.at(i)->GetTeam()->GetId() == team_id) {
 
       teams_selections.at(i)->ClearTeam();
@@ -309,12 +318,13 @@ void NetworkTeamsSelectionBox::DelTeamCallback(const std::string& team_id)
   // Count the current number of local teams
   uint nb_local_teams=0;
   for (uint i=0; i < teams_selections.size(); i++) {
-    if (teams_selections.at(i)->GetTeam() != NULL &&
+    if (teams_selections.at(i)->GetTeam() &&
         teams_selections.at(i)->IsLocal()) {
       nb_local_teams++;
     }
   }
   local_teams_nb->SetValue(nb_local_teams);
+  UpdateNbTeams();
 }
 
 
@@ -324,7 +334,7 @@ void NetworkTeamsSelectionBox::ValidTeamsSelection()
 
   uint nb_teams=0;
   for (uint i=0; i < teams_selections.size(); i++) {
-    if (teams_selections.at(i)->GetTeam() != NULL)
+    if (teams_selections.at(i)->GetTeam())
       nb_teams++;
   }
 
@@ -332,7 +342,7 @@ void NetworkTeamsSelectionBox::ValidTeamsSelection()
     std::list<uint> selection;
 
     for (uint i=0; i < teams_selections.size(); i++) {
-      if (teams_selections.at(i)->GetTeam() != NULL) {
+      if (teams_selections.at(i)->GetTeam()) {
         int index = -1;
         teams_selections.at(i)->ValidOptions();
         GetTeamsList().FindById(teams_selections.at(i)->GetTeam()->GetId(), index);
@@ -344,4 +354,22 @@ void NetworkTeamsSelectionBox::ValidTeamsSelection()
   }
 
   Config::GetInstance()->SetNetworkLocalTeams();
+}
+
+void NetworkTeamsSelectionBox::UpdateNbTeams()
+{
+  // If we are not running this special widget, this is useless
+  if (!list_box)
+    return;
+
+  uint nb_teams = 0;
+  for (uint i=0; i < teams_selections.size(); i++) {
+    if (teams_selections.at(i)->GetTeam())
+      nb_teams++;
+  }
+
+  list_box->SetNbTeams(nb_teams);
+  // Fix scrollbox not being redrawn: this is performed *after* the
+  // screen has been refreshed, because of the callbacks
+  list_box->NeedRedrawing();
 }

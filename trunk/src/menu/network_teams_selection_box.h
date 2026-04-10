@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,19 +23,13 @@
 #define NETWORK_TEAMS_SELECTION_BOX_H
 
 #include <vector>
-#include <WORMUX_team_config.h>
+#include <WARMUX_team_config.h>
 #include "menu/teams_selection_box.h"
 
 class Team;
 
 class NetworkTeamsSelectionBox : public TeamsSelectionBox
 {
- private:
-  /* If you need this, implement it (correctly) */
-  NetworkTeamsSelectionBox(const NetworkTeamsSelectionBox&);
-  NetworkTeamsSelectionBox operator=(const NetworkTeamsSelectionBox&);
-  /**********************************************/
-
   void RemoveLocalTeam(uint i);
   void SetLocalTeam(uint i, Team& team);
 
@@ -47,12 +41,12 @@ class NetworkTeamsSelectionBox : public TeamsSelectionBox
   bool IsSelected(Team * team);
 
   void RequestTeamRemoval();
+  void UpdateNbTeams();
 
- public:
+public:
   NetworkTeamsSelectionBox(const Point2i &size, bool w_border);
 
   virtual void ValidTeamsSelection();
-  virtual Widget* Click(const Point2i &mousePosition, uint button);
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 
   void AddTeamCallback(const std::string& team_id);

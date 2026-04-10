@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@
  *  The stopwatch can be used to messure how much time elapses.
  *****************************************************************************/
 
-#include <SDL.h>
 #include "game/stopwatch.h"
-#include <WORMUX_error.h>
+#include <SDL.h>
+#include <WARMUX_error.h>
 
 Stopwatch::Stopwatch()
 {

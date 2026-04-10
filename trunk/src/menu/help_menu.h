@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,26 +24,10 @@
 
 #include "menu/menu.h"
 
-// Forward declarations
-class ListBox;
-class Sprite;
-
 class HelpMenu : public Menu
 {
- private:
-  Sprite* img_keyboard;
-
-  bool signal_ok();
-  bool signal_cancel();
-
-  void Draw(const Point2i &mousePosition);
-  void DrawBackground();
-
-  void OnClick(const Point2i &mousePosition, int button);
-  void OnClickUp(const Point2i &mousePosition, int button);
- public:
+public:
   HelpMenu();
-  virtual ~HelpMenu();
 };
 
 #endif /* HELP_MENU_H */

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Network client layer for Wormux.
+ * Network client layer for Warmux.
  *****************************************************************************/
-#include <WORMUX_socket.h>
+#include <WARMUX_socket.h>
 #include <SDL_thread.h>
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 
 //-----------------------------------------------------------------------------
 #include "include/action_handler.h"
@@ -83,7 +83,7 @@ connection_state_t NetworkClient::HandShake(WSocket& server_socket)
   // 1) Send the version number
   MSG_DEBUG("network", "Client: sending version number");
 
-  if (!server_socket.SendStr(Constants::WORMUX_VERSION))
+  if (!server_socket.SendStr(Constants::WARMUX_VERSION))
     goto error;
 
   // is it ok ?
@@ -92,11 +92,11 @@ connection_state_t NetworkClient::HandShake(WSocket& server_socket)
 
   MSG_DEBUG("network", "Client: server version number is %s", version.c_str());
 
-  if (Constants::WORMUX_VERSION != version) {
+  if (Constants::WARMUX_VERSION != version) {
     std::string str = Format(_("The client and server versions are incompatible "
-			       "(local=%s, server=%s). Please try another server."),
-			     Constants::WORMUX_VERSION.c_str(), version.c_str());
-    AppWormux::DisplayError(str);
+                               "(local=%s, server=%s). Please try another server."),
+                             Constants::WARMUX_VERSION.c_str(), version.c_str());
+    AppWarmux::DisplayError(str);
     goto error;
   }
 

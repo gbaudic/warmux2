@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,86 +23,69 @@
 #include <sstream>
 #include <assert.h>
 
-bool str2long (const std::string &txt, long &valeur)
+template<typename T>
+bool str2type(const std::string &txt, T &value)
 {
   std::stringstream ss;
   ss << txt;
-  ss >> valeur;
+  ss >> value;
   return true;
 }
 
-bool str2int (const std::string &txt, int &valeur)
-{
-  std::stringstream ss;
-  ss << txt;
-  ss >> valeur;
-  return true;
-}
+bool str2uint(const std::string &txt, uint &value) { return str2type<uint>(txt, value); }
 
-bool str2Double (const std::string &txt, Double &valeur)
-{
-  std::stringstream ss;
-  ss << txt;
-  ss >> valeur;
-  return true;
-}
+bool str2int(const std::string &txt, int &value) { return str2type<int>(txt, value); }
+
+bool str2Double(const std::string &txt, Double &value) { return str2type<Double>(txt, value); }
+
+bool str2float(const std::string &txt, float& value) { return str2type<float>(txt, value); }
 
 bool str2bool(const std::string &str, bool &value)
 {
   // Try to convert str to a boolean value
   // return true and set the value on succeed
   // return if false its not a boolean
-  if(str=="1" || str=="true" || str=="on")
-  {
+  if (str=="1" || str=="true" || str=="on") {
     value = true;
     return true;
   }
-  if(str=="0" || str=="false" || str=="off")
-  {
+  if (str=="0" || str=="false" || str=="off") {
     value = false;
     return true;
   }
   return false;
 }
 
-std::string Double2str (Double x, int places)
+std::string Double2str(Double x, int places)
 {
   std::ostringstream ss;
   printTo(ss, x, places);
   return ss.str();
 }
 
-std::string long2str (long x)
+template<typename T>
+std::string type2str(T value)
 {
-  std::ostringstream ss;
-  ss << x;
+  std::stringstream ss;
+  ss << value;
   return ss.str();
 }
 
-std::string ulong2str (ulong x)
-{
-  std::ostringstream ss;
-  ss << x;
-  return ss.str();
-}
+std::string float2str(float x) { return type2str<float>(x); }
+std::string int2str(int x) { return type2str<int>(x); }
+std::string uint2str(uint x) { return type2str<uint>(x); }
 
-std::string bol2str (bool x)
+std::string bool2str(bool x)
 {
-  std::ostringstream ss;
-  if(x)
-    ss << "true";
-  else
-    ss << "false";
-  return ss.str();
+  return (x) ? "true" : "false";
 }
 
 #ifdef _WIN32
 #  include <windows.h>
-
 char* LocaleToUTF8(const char* data)
 {
   assert(data);
-  printf("Converting %s\n", data);
+  //printf("Converting %s\n", data);
 
   // Convert from OEM to UTF-16
   int len = 2*MultiByteToWideChar(CP_OEMCP, 0, data, -1, NULL, 0);

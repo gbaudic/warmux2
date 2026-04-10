@@ -1,9 +1,9 @@
 SUBDIRS = .
 
-bin_PROGRAMS = wormux
+bin_PROGRAMS = warmux
 
-wormux_SOURCES = \
-  ai/ai_command.cpp \
+warmux_SOURCES = \
+        ai/ai_command.cpp \
         ai/ai_command.h \
         ai/ai_idea.cpp \
         ai/ai_idea.h \
@@ -14,7 +14,6 @@ wormux_SOURCES = \
         ai/ai_stupid_player.h \
         ai/ai_weapons_weighting.cpp \
         ai/ai_weapons_weighting.h \
-        ai/trajectory.cpp \
         ai/trajectory.h \
         character/body.cpp \
         character/body.h \
@@ -28,10 +27,10 @@ wormux_SOURCES = \
         character/damage_stats.h \
         character/member.cpp \
         character/member.h \
+        character/member_type.h \
         character/movement.cpp \
         character/movement.h \
-        config.h \
-	game/config.cpp \
+        game/config.cpp \
         game/config.h \
         game/game.cpp \
         game/game.h \
@@ -42,16 +41,14 @@ wormux_SOURCES = \
         game/game_mode.cpp \
         game/game_mode.h \
         game/time.cpp \
-        game/time.h \
+        game/game_time.h \
         game/stopwatch.cpp \
         game/stopwatch.h \
-	graphic/color.cpp \
+        graphic/color.cpp \
         graphic/color.h \
         graphic/colors.h \
         graphic/composite_shape.cpp \
         graphic/composite_shape.h \
-        graphic/effects.cpp \
-        graphic/effects.h \
         graphic/fading_effect.h \
         graphic/font.cpp \
         graphic/font.h \
@@ -67,8 +64,6 @@ wormux_SOURCES = \
         graphic/spriteanimation.h \
         graphic/spritecache.cpp \
         graphic/spritecache.h \
-        graphic/spriteframe.cpp \
-        graphic/spriteframe.h \
         graphic/surface.cpp \
         graphic/surface.h \
         graphic/text.cpp \
@@ -78,9 +73,18 @@ wormux_SOURCES = \
         graphic/textured_polygon.h \
         graphic/video.cpp \
         graphic/video.h \
+        gui/abstract_spin_button.cpp \
         gui/abstract_spin_button.h \
         gui/big/button_pic.cpp \
         gui/big/button_pic.h \
+        gui/control_config.h \
+        gui/control_config.cpp \
+        gui/grid_box.cpp \
+        gui/grid_box.h \
+        gui/vertical_box.cpp \
+        gui/vertical_box.h \
+        gui/horizontal_box.cpp \
+        gui/horizontal_box.h \
         gui/box.cpp \
         gui/box.h \
         gui/button.cpp \
@@ -94,12 +98,12 @@ wormux_SOURCES = \
         gui/container.h \
         gui/energy_bar.cpp \
         gui/energy_bar.h \
+        gui/figure_widget.cpp \
+        gui/figure_widget.h \
+        gui/graph_canvas.cpp \
+        gui/graph_canvas.h \
         gui/label.cpp \
         gui/label.h \
-        gui/list_box.cpp \
-        gui/list_box.h \
-        gui/list_box_w_label.cpp \
-        gui/list_box_w_label.h \
         gui/msg_box.cpp \
         gui/msg_box.h \
         gui/null_widget.h \
@@ -111,10 +115,12 @@ wormux_SOURCES = \
         gui/progress_bar.h \
         gui/question.cpp \
         gui/question.h \
+        gui/scroll_box.cpp \
+        gui/scroll_box.h \
+        gui/select_box.cpp \
+        gui/select_box.h \
         gui/spin_button.cpp \
         gui/spin_button.h \
-        gui/spin_button_big.cpp \
-        gui/spin_button_big.h \
         gui/spin_button_picture.cpp \
         gui/spin_button_picture.h \
         gui/tabs.cpp \
@@ -123,6 +129,8 @@ wormux_SOURCES = \
         gui/talk_box.h \
         gui/text_box.cpp \
         gui/text_box.h \
+        gui/torus_cache.cpp \
+        gui/torus_cache.h \
         gui/widget.cpp \
         gui/widget.h \
         gui/widget_list.cpp \
@@ -132,11 +140,9 @@ wormux_SOURCES = \
         include/action_handler.cpp \
         include/action_handler.h \
         include/app.h \
-        include/base.h \
-        include/binreloc.h \
         include/constant.cpp \
         include/constant.h \
-	include/debugmasks.h \
+        include/debugmasks.h \
         interface/cursor.cpp \
         interface/cursor.h \
         interface/game_msg.cpp \
@@ -155,10 +161,11 @@ wormux_SOURCES = \
         interface/mouse.h \
         interface/mouse_cursor.cpp \
         interface/mouse_cursor.h \
-        interface/movable_by_user.cpp \
         interface/movable_by_user.h \
         interface/move_intention.cpp \
         interface/move_intention.h \
+        interface/weapon_help.cpp \
+        interface/weapon_help.h \
         interface/weapon_menu.cpp \
         interface/weapon_menu.h \
         main.cpp \
@@ -182,8 +189,11 @@ wormux_SOURCES = \
         map/water.h \
         map/wind.cpp \
         map/wind.h \
+        menu/benchmark_menu.cpp \
+        menu/benchmark_menu.h \
         menu/credits_menu.cpp \
         menu/credits_menu.h \
+        menu/game_menu.h \
         menu/game_menu.cpp \
         menu/game_menu.h \
         menu/game_mode_editor.cpp \
@@ -212,7 +222,6 @@ wormux_SOURCES = \
         menu/team_box.h \
         menu/teams_selection_box.cpp \
         menu/teams_selection_box.h \
-        msvc/config.h \
         msvc/getopt.h \
         network/admin_commands.cpp \
         network/admin_commands.h \
@@ -368,6 +377,8 @@ wormux_SOURCES = \
         weapon/parachute.h \
         weapon/polecat.cpp \
         weapon/polecat.h \
+        weapon/rail_gun.cpp \
+        weapon/rail_gun.h \
         weapon/riot_bomb.cpp \
         weapon/riot_bomb.h \
         weapon/shotgun.cpp \
@@ -399,22 +410,22 @@ wormux_SOURCES = \
         weapon/weapons_list.cpp \
         weapon/weapons_list.h
 
-wormux_LDFLAGS = -Wl,--as-needed
+warmux_LDFLAGS = -Wl,--as-needed
 
-if AUTOPACKAGE
-DEFINE_AUTOPACKAGE=-DUSE_AUTOPACKAGE
-endif
+AM_CXXFLAGS = -I $(top_srcdir)/src -DINSTALL_DATADIR=\"@DATADIR@\"  \
+  -DINSTALL_LOCALEDIR=\"@LOCALEDIR@\" -DFONT_FILE=\"@FONTFILE@\"    \
+  -DPACKAGE_VERSION=\"$(PACKAGE_VERSION)\" @LIBCURL_CPPFLAGS@       \
+  -I$(top_srcdir)/lib/warmux/include -I$(top_srcdir)/lib/fixedpoint
 
-AM_CXXFLAGS = -I $(top_srcdir)/src -DINSTALL_DATADIR=\"@DATADIR@\"      \
-  -DINSTALL_LOCALEDIR=\"@LOCALEDIR@\" -DFONT_FILE=\"@FONTFILE@\"        \
-  -DPACKAGE_VERSION=\"$(PACKAGE_VERSION)\" $(DEFINE_AUTOPACKAGE)        \
-  @LIBCURL_CPPFLAGS@ -I$(top_srcdir)/lib/wormux/include                 \
-  -I$(top_srcdir)/lib/fixedpoint
 
 if WIN32
-wormux_SOURCES += wormux.rc wormux.ico
-.rc.o:
-	$(WINDRES) -o $@ -i $<
+warmux_SOURCES += warmux.rc
+.rc.o: $(top_srcdir)/lib/warmux/include/config_autotools.h
+	$(WINDRES) -I$(top_srcdir)/lib/warmux/include -D HAVE_CONFIG_H -o $@ -i $<
+endif
+
+if MAEMO
+warmux_SOURCES += maemo/osso.cpp maemo/osso.h
 endif
 
 LIBS+=@LIBINTL@
@@ -425,5 +436,5 @@ else
 LIBS += @LIBCURL@
 endif
 
-wormux_LDADD=$(top_srcdir)/lib/fixedpoint/libfixedpoint.a $(top_srcdir)/lib/wormux/libwormux.a
-wormux_DEPENDENCIES=$(top_srcdir)/lib/fixedpoint/libfixedpoint.a $(top_srcdir)/lib/wormux/libwormux.a
+warmux_LDADD=$(top_srcdir)/lib/fixedpoint/libfixedpoint.a $(top_srcdir)/lib/warmux/libwarmux.a
+warmux_DEPENDENCIES=$(top_srcdir)/lib/fixedpoint/libfixedpoint.a $(top_srcdir)/lib/warmux/libwarmux.a

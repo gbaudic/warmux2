@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WORMUX_point.h>
+#include <WARMUX_point.h>
 #include "tool/xml_document.h"
 
 class SyringeConfig : public WeaponConfig
@@ -67,23 +67,22 @@ Syringe::Syringe() : Weapon(WEAPON_SYRINGE, "syringe", new SyringeConfig())
 void Syringe::UpdateTranslationStrings()
 {
   m_name = _("Syringe");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Go to player\nPress space to inject\nWill cure your teammate or slowly kill your opponent");
 }
 
-bool Syringe::p_Shoot (){
+bool Syringe::p_Shoot ()
+{
   Double angle = ActiveCharacter().GetFiringAngle();
   Double radius = 0.0;
   bool end = false;
 
   JukeBox::GetInstance()->Play ("default","weapon/syringe_shoot");
 
-  do
-  {
+  Character* player = &ActiveCharacter();
+  do {
     // Did we have finished the computation
     radius += ONE;
-    if (cfg().range < radius)
-    {
+    if (cfg().range < radius) {
       radius = cfg().range;
       end = true;
     }
@@ -95,15 +94,19 @@ bool Syringe::p_Shoot (){
     ActiveCharacter().GetHandPosition(hand_position);
     Point2i pos_to_check = hand_position + relative_pos;
 
-    FOR_ALL_LIVING_CHARACTERS(team, character)
-    if (&(*character) != &ActiveCharacter())
-    {
-      // Did we touch somebody ?
-      if( character->Contain(pos_to_check) )
-      {
-        // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
-        character->SetDiseaseDamage(cfg().damage, cfg().turns);
-        end = true;
+    FOR_ALL_LIVING_CHARACTERS(team, character) {
+      if (&(*character) != player) {
+        // Did we touch somebody ?
+        if (character->Contain(pos_to_check)) {
+          // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
+          if (!player->GetTeam().IsSameAs(character->GetTeam()) || !player->IsDiseased())
+            character->SetDiseaseDamage(player, cfg().damage, cfg().turns);
+          else {
+            // The syringe can cure if applied to a teammate!
+            character->Cure();
+          }
+          end = true;
+        }
       }
     }
   } while (!end);

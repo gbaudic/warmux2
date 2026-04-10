@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,11 +27,11 @@
 #include <set>
 #include <utility>
 
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 #include <SDL.h>
 #include <SDL_mixer.h>
 
-#include "include/base.h"
-#include <WORMUX_singleton.h>
 #include "sample_cache.h"
 
 //-----------------------------------------------------------------------------
@@ -48,7 +48,7 @@
  *
  * A comment is a line begined with a '#' char.
  *
- * When wormux is launched, there is a menu playlist and a ingame playlist.
+ * When warmux is launched, there is a menu playlist and a ingame playlist.
  * At startup of a playlist, a random music is selected, after that, at the end
  * of the current music, we play the next music in list. If this is the last
  * music, we go back to the first music...
@@ -70,16 +70,10 @@
 
 class JukeBox : public Singleton<JukeBox>
 {
-private:
-  /* If you need this, implement it (correctly) */
-  JukeBox(const JukeBox&);
-  JukeBox operator=(const JukeBox&);
-  /**********************************************/
-
   typedef struct
   {
     std::string filename;
-    Double      level;
+    float       level;
   } sample_info;
   typedef std::multimap<std::string, sample_info>::value_type
     sound_sample;
@@ -96,7 +90,8 @@ private:
   PlayListMap::const_iterator playing_pl;
   std::vector<std::string>::const_iterator playing_music;
 
-  struct s_m_config{
+  struct s_m_config
+  {
     bool music;
     bool effects;
     int frequency;
@@ -115,6 +110,7 @@ private:
 
 protected:
   JukeBox();
+  ~JukeBox() { End(); }
   friend class Singleton<JukeBox>;
 
 public:
@@ -123,18 +119,20 @@ public:
 
   void Init();
   void End();
+  bool OpenDevice();
+  void CloseDevice();
 
-  bool UseMusic() const {return m_config.music;};
-  bool UseEffects() const {return m_config.effects;};
-  int GetFrequency() const {return m_config.frequency;};
-  int HowManyChannels() const {return m_config.channels;};
-  void Pause() const;
-  void Resume() const;
+  bool UseMusic() const { return m_config.music; }
+  bool UseEffects() const { return m_config.effects; }
+  int GetFrequency() const { return m_config.frequency; }
+  int HowManyChannels() const { return m_config.channels; }
+  void Pause(bool all=false) const;
+  void Resume(bool all=false) const;
 
-  void ActiveMusic (bool on);
-  void ActiveEffects (bool on) {m_config.effects = on;};
+  void ActiveMusic(bool on);
+  void ActiveEffects(bool on) { m_config.effects = on; }
 
-  void SetFrequency (int frequency);
+  void SetFrequency(int frequency);
   void SetNumbersOfChannel(int channels); // Not used
 
   void LoadXML(const std::string& profile);
@@ -145,14 +143,8 @@ public:
   void StopMusic();
   void NextMusic();
 
-  inline bool IsPlayingMusic() const
-    {
-      return (!playlist.empty() && playing_pl != playlist.end());
-    }
-  inline bool IsPlayingMusicSample() const
-    {
-      return (IsPlayingMusic() && playing_music != playing_pl->second.end());
-    }
+  bool IsPlayingMusic() const { return (!playlist.empty() && playing_pl != playlist.end()); }
+  bool IsPlayingMusicSample() const { return (IsPlayingMusic() && playing_music != playing_pl->second.end()); }
 
   /**
    * Playing a sound effect
@@ -173,7 +165,7 @@ private:
    * @return the channel used to play the sample
    * <i>loop</i>: -1 for loop forever, else number of times -1 to play
    */
-  int PlaySample (Mix_Chunk * sample, Double level=1.0, int loop=0);
+  int PlaySample(Mix_Chunk * sample, float level=1.0, int loop=0);
 };
 //-----------------------------------------------------------------------------
 #endif

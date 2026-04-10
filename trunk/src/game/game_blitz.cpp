@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "character/character.h"
 #include "game/game_blitz.h"
 #include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "include/action_handler.h"
 #include "interface/cursor.h"
 #include "interface/interface.h"
@@ -45,7 +45,7 @@ GameBlitz::GameBlitz()
 void GameBlitz::EndOfGame()
 {
   SetState(END_TURN);
-  GameMessages::GetInstance()->Add (_("And the winner is..."));
+  GameMessages::GetInstance()->Add(_("And the winner is..."), white_color);
 
   counter = GameMode::GetInstance()->duration_exchange_player + 2;
   while (counter)
@@ -61,11 +61,11 @@ GameBlitz::time_iterator GameBlitz::GetCurrentTeam()
 
 GameBlitz::time_iterator GameBlitz::KillTeam(GameBlitz::time_iterator cur)
 {
-  FOR_EACH_LIVING_CHARACTER(cur->first, character)
-  {
-    character->Die();
+  FOR_EACH_LIVING_CHARACTER(cur->first, character) {
+    character->Die(NULL);
   }
-  GameMessages::GetInstance()->Add (Format(_("%s team was fragged down."), cur->first->GetName().c_str()));
+  GameMessages::GetInstance()->Add(Format(_("%s team was fragged down."), cur->first->GetName().c_str()),
+                                   cur->first->GetColor());
   cur->second = 0;
   times.erase(cur);
   return times.end();
@@ -75,8 +75,7 @@ bool GameBlitz::Run()
 {
   // Make sure map is empty
   times.clear();
-  FOR_EACH_TEAM(team)
-  {
+  FOR_EACH_TEAM(team) {
     times[*team] = GameMode::GetInstance()->duration_turn;
   }
 
@@ -108,15 +107,15 @@ void GameBlitz::RefreshClock()
         } else {
           duration--;
 
-	  if (duration == 12) {
-	    countdown_sample.Play("default", "countdown-end_turn");
-	  }
+          if (duration == 12) {
+            countdown_sample.Play("default", "countdown-end_turn");
+          }
 
-	  if (duration > 10) {
-	    Interface::GetInstance()->UpdateTimer(duration, false, false);
-	  } else {
-	    Interface::GetInstance()->UpdateTimer(duration, true, false);
-	  }
+          if (duration > 10) {
+            Interface::GetInstance()->UpdateTimer(duration, false, false);
+          } else {
+            Interface::GetInstance()->UpdateTimer(duration, true, false);
+          }
         }
         break;
 
@@ -164,7 +163,7 @@ uint GameBlitz::GetRemainingTime() const
 // Beginning of a new turn
 void GameBlitz::__SetState_PLAYING()
 {
-  MSG_DEBUG("game.statechange", "Playing" );
+  MSG_DEBUG("game.statechange", "Playing");
 
   Wind::GetRef().ChooseRandomVal();
 
@@ -202,8 +201,8 @@ void GameBlitz::__SetState_END_TURN()
   CharacterCursor::GetInstance()->Hide();
   last_clock_update = Time::GetInstance()->Read();
   // Ensure the clock sprite isn't NULL:
-  Interface::GetInstance()->UpdateTimer(GameMode::GetInstance()->duration_exchange_player, 
-                                        false, 
+  Interface::GetInstance()->UpdateTimer(GameMode::GetInstance()->duration_exchange_player,
+                                        false,
                                         true);
 
   // Applying Disease damage and Death mode.

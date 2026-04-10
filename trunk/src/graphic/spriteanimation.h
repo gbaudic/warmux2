@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,9 +25,12 @@
 #ifndef _SPRITE_ANIMATION_H
 #define _SPRITE_ANIMATION_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
+#include <WARMUX_debug.h>
 
 class Sprite;
+
+#define SPEED_BITS  8
 
 class SpriteAnimation
 {
@@ -42,8 +45,8 @@ private:
   Sprite &sprite;
 
   // Speed
-  unsigned int last_update;
-  Double speed_factor;
+  uint last_update;
+  int speed_factor;
   int frame_delta; // Used in Update() to get next frame
   int loop_wait;
   int loop_wait_random;
@@ -63,21 +66,29 @@ public:
   // Control animation
   void Start();
   void Update();
-  void Finish();
-  bool IsFinished() const;
+  void Finish() { finished = true; }
+  bool IsFinished() const { return finished; }
   void CalculateWait();
 
   // Control speed
-  void SetSpeedFactor(Double nv_speed);
+  void SetSpeedFactor(Double nv_speed) { speed_factor = nv_speed<<SPEED_BITS; }
 
   // Control options
-  void SetPlayBackward(bool enable);
-  void SetLoopMode(bool enable);
-  void SetPingPongMode(bool enable);
-  void SetLoopWaitRandom(int time);
-  void SetLoopWait(int time);
-  void SetShowOnFinish(SpriteShowOnFinish show);
-  SpriteShowOnFinish GetShowOnFinish() const;
+  void SetPlayBackward(bool enable) { frame_delta = enable ? -1 : 1; }
+  void SetLoopMode(bool enable) { loop = enable; }
+  void SetPingPongMode(bool enable) { pingpong = enable; }
+  void SetLoopWaitRandom(int time)
+  {
+    MSG_DEBUG("eye", "SetLoopWaitRandom  : %d -> %d", loop_wait_random, time);
+    loop_wait_random = time;
+  }
+  void SetLoopWait(int time)
+  {
+    MSG_DEBUG("eye", "SetLoopWait  : %d -> %d", loop_wait, time);
+    loop_wait = time;
+  }
+  void SetShowOnFinish(SpriteShowOnFinish show) { show_on_finish = show; loop = false; }
+  SpriteShowOnFinish GetShowOnFinish() const { return show_on_finish; }
 };
 
 #endif /* _SPRITE_ANIMATION_H */

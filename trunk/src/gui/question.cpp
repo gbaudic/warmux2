@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,11 +19,11 @@
  * Display a text during the game, waiting for input by the user
  *****************************************************************************/
 
+#include "graphic/video.h"
 #include <SDL_events.h>
 #include "gui/question.h"
 #include "graphic/sprite.h"
 #include "graphic/text.h"
-#include "graphic/video.h"
 #include "include/app.h"
 #include "interface/mouse.h"
 #include "tool/resource_manager.h"
@@ -33,7 +33,7 @@ Question::Question(type _type)
   background = NULL;
   text = NULL;
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   switch (_type) {
   case WARNING:
     icon = new Sprite(GetResourceManager().LoadImage(res,"menu/ico_warning"));
@@ -57,12 +57,12 @@ Question::~Question()
     delete icon;
 }
 
-int Question::TreatsKey (const SDL_Event &event){
+int Question::TreatsKey (const SDL_Event &evnt){
 
   // Tests the key
   choice_iterator it=choices.begin(), end=choices.end();
   for (; it != end; ++it){
-    if (event.key.keysym.sym == it -> key()) {
+    if (evnt.key.keysym.sym == it -> key()) {
       return it -> val();
     }
   }
@@ -77,7 +77,7 @@ int Question::TreatsKey (const SDL_Event &event){
 
 void Question::Draw() const
 {
-  AppWormux * app = AppWormux::GetInstance();
+  AppWarmux * app = AppWarmux::GetInstance();
 
   Point2i icon_size(0,0);
   Point2i icon_border(0,0);
@@ -96,12 +96,12 @@ void Question::Draw() const
   }
   else if (text->GetText() != "") {
     Point2i rect_size(text->GetWidth() + icon_size.GetX() + icon_border.GetX() + 10,
-		      std::max(text->GetHeight(), icon_size.GetY() + icon_border.GetY()) + 10);
+                      std::max(text->GetHeight(), icon_size.GetY() + icon_border.GetY()) + 10);
 
     top_corner = app->video->window.GetSize() / 2 - rect_size / 2;
     rect = Rectanglei(top_corner, rect_size);
 
-    AppWormux * appli = AppWormux::GetInstance();
+    AppWarmux * appli = AppWarmux::GetInstance();
 
     appli->video->window.BoxColor(rect, defaultColorBox);
     appli->video->window.RectangleColor(rect, defaultColorRect);
@@ -119,39 +119,45 @@ void Question::Draw() const
   }
 }
 
-int Question::Ask ()
+int Question::Ask(bool onKeyUp)
 {
-  SDL_Event event;
+  SDL_Event evnt;
 
-  int answer = default_choice.value;
-  bool end_of_boucle = false;
+  int  answer = default_choice.value;
+  bool end    = false;
 
   Draw();
   Mouse::pointer_t prev_pointer = Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
-  do{
-    while( SDL_PollEvent( &event) ){
-      if ( (event.type == SDL_QUIT || event.type == SDL_MOUSEBUTTONUP) &&
-           default_choice.active ){
+  do {
+    while (SDL_PollEvent(&evnt)){
+      if ((evnt.type == SDL_QUIT || evnt.type == SDL_MOUSEBUTTONUP) &&
+          default_choice.active) {
         answer = default_choice.value;
-        end_of_boucle = true;
+        end = true;
+        break;
       }
 
-      if (event.type == SDL_KEYUP) {
-        answer = TreatsKey(event);
-        if (answer != -1)
-          end_of_boucle = true;
+      // We might be put inactive while there
+      AppWarmux::CheckInactive(evnt);
+
+      if ((onKeyUp && evnt.type == SDL_KEYUP) || evnt.type == SDL_KEYDOWN) {
+        answer = TreatsKey(evnt);
+        if (answer != -1) {
+          end = true;
+          break;
+        }
       }
     } // SDL_PollEvent
 
     // To not use all CPU
-    if (!end_of_boucle) {
+    if (!end) {
       SDL_Delay(50);
     }
 
-    AppWormux::GetInstance()->video->Flip();
-  } while (!end_of_boucle);
+    AppWarmux::GetInstance()->video->Flip();
+  } while (!end);
 
-  AppWormux::GetInstance()->RefreshDisplay();
+  AppWarmux::GetInstance()->RefreshDisplay();
   Mouse::GetInstance()->SetPointer(prev_pointer);
 
   return answer;
@@ -165,22 +171,17 @@ void Question::Set (const std::string &pmessage,
   default_choice.active = default_active;
   default_choice.value = default_value;
 
-  if(background != NULL)
-  {
+  if (background) {
     delete background;
     background = NULL;
   }
 
-  if(bg_sprite != "")
-  {
-    Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-    background = new Sprite(GetResourceManager().LoadImage(res,bg_sprite), true);
-    background->cache.EnableLastFrameCache();
+  if (bg_sprite != "") {
+    Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+    background = new Sprite(LOAD_RES_IMAGE(bg_sprite));
     background->ScaleSize(GetMainWindow().GetSize());
     GetResourceManager().UnLoadXMLProfile( res);
-  }
-  else
-  {
+  } else {
     text->SetMaxWidth(GetMainWindow().GetWidth()/2);
   }
 }

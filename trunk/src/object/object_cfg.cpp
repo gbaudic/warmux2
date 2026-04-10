@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@
 #include "object/object_cfg.h"
 #include "game/config.h"
 #include "game/game_mode.h"
-#include "include/base.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_base.h>
+#include <WARMUX_debug.h>
 #include "tool/xml_document.h"
 //-----------------------------------------------------------------------------
 

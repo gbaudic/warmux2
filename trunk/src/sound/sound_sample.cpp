@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,9 +20,9 @@
  * SDL
  *****************************************************************************/
 
-#include <SDL_mixer.h>
 #include "sound/sound_sample.h"
 #include "sound/jukebox.h"
+#include <SDL_mixer.h>
 
 std::map<int, SoundSample*> SoundSample::sound_samples_channel;
 

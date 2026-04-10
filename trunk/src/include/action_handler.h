@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Define all Wormux actions.
+ * Define all Warmux actions.
  *****************************************************************************/
 
 #ifndef ACTION_HANDLER_H
@@ -24,9 +24,9 @@
 //-----------------------------------------------------------------------------
 #include <map>
 #include <list>
-#include <WORMUX_action_handler.h>
+#include <WARMUX_action_handler.h>
 #include "include/action.h"
-#include "include/base.h"
+#include <WARMUX_base.h>
 
 //-----------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ private:
 
 public:
   void NewAction(Action* a, bool repeat_to_network=true);
-  void NewActionActiveCharacter(Action* a); // send infos (on the network) about active character in the same time
+  void NewActionActiveCharacter(int index=-1); // send infos (on the network) about active character
 
   void NewRequestTeamAction(const ConfigTeam & team);
 
@@ -61,9 +61,9 @@ void SyncCharacters();
 
 void SendInitialGameInfo(DistantComputer* client, int added_player_id);
 
-void WORMUX_ConnectHost(DistantComputer& host);
-void WORMUX_DisconnectHost(DistantComputer& host);
-void WORMUX_DisconnectPlayer(Player& player);
+void WARMUX_ConnectHost(DistantComputer& host);
+void WARMUX_DisconnectHost(DistantComputer& host);
+void WARMUX_DisconnectPlayer(Player& player);
 
 //-----------------------------------------------------------------------------
 #endif

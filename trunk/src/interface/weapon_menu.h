@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef WEAPON_MENU_H
 #define WEAPON_MENU_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "interface/mouse.h"
 #include "graphic/polygon.h"
 #include "tool/affine_transform.h"
@@ -47,14 +47,13 @@ private:
 
  public:
   WeaponMenuItem(Weapon * weapon, const Point2d & position);
-  ~WeaponMenuItem();
   bool IsMouseOver();
   void SetZoom(bool value);
   void Draw(Surface * dest);
   uint GetZoomTime() const { return zoom_time; };
   void SetZoomTime(uint time) { zoom_time = time; };
   Weapon * GetWeapon() const { return weapon; };
-  void SetParent(WeaponsMenu *);
+  void SetParent(WeaponsMenu *parent) { m_parent = parent; }
 };
 
 class WeaponsMenu
@@ -66,7 +65,6 @@ class WeaponsMenu
  private:
   Polygon * weapons_menu;
   Polygon * tools_menu;
-  Polygon * help;
   WeaponMenuItem * current_overfly_item;
   AffineTransform2D position;
   AffineTransform2D shear;
@@ -83,6 +81,7 @@ class WeaponsMenu
   int * nb_weapon_type;
 
   Mouse::pointer_t old_pointer;
+  Point2i click_pos;
 
  public:
   WeaponsMenu();
@@ -90,10 +89,10 @@ class WeaponsMenu
   void RefreshWeaponList();
   void AddWeapon(Weapon* new_item);
   void Draw();
-  void SwitchDisplay() { if(show) Hide(); else Show(); };
+  void SwitchDisplay(const Point2i& pos = Point2i(-1, -1)) { if (show) Hide(); else Show(pos); };
   AffineTransform2D ComputeWeaponTransformation();
   AffineTransform2D ComputeToolTransformation();
-  void Show();
+  void Show(const Point2i& pos);
   void Hide(bool play_sound=true);
   void Reset();
   void SetHelp(const std::ostringstream&) const { };
@@ -109,4 +108,4 @@ class WeaponsMenu
   void SetRotationTime(uint time) { rotation_time = time; };
 };
 
-#endif
+#endif // WEAPON_MENU_H

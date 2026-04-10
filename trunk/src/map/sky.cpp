@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,16 +30,15 @@
 
 void Sky::Init()
 {
-  std::vector<Surface> sky_layer = ActiveMap()->ReadSkyLayer();
+  InfoMapAccessor *normal = ActiveMap()->LoadData();
+  const std::vector<Surface>& sky_layer = normal->ReadSkyLayer();
 
   if (0 < sky_layer.size()) {
     for (uint i = 0; i < sky_layer.size(); i++) {
-      images.push_back(sky_layer[i]);
+      images.push_back(&(sky_layer[i]));
     }
   } else {
-    Surface tmp_image = ActiveMap()->ReadImgSky();
-    tmp_image.SetAlpha(0, 0);
-    images.push_back(tmp_image.DisplayFormat());
+    images.push_back(&normal->ReadImgSky());
   }
 }
 
@@ -50,21 +49,12 @@ void Sky::Reset()
   last_pos.SetValues(INT_MAX, INT_MAX);
 }
 
-void Sky::Free()
-{
-  std::vector<Surface>::iterator it = images.begin();
-
-  for ( ; it != images.end(); ++it) {
-    (*it).Free();
-  }
-  images.clear();
-}
-
 void Sky::Draw(bool redraw_all)
 {
-  if (last_pos != Camera::GetInstance()->GetPosition() || redraw_all) {
-    last_pos = Camera::GetInstance()->GetPosition();
-    RedrawParticle(Rectanglei(Camera::GetInstance()->GetPosition(), GetMainWindow().GetSize()));
+  Point2i cur_pos = Camera::GetInstance()->GetPosition();
+  if (last_pos != cur_pos || redraw_all) {
+    last_pos = cur_pos;
+    RedrawParticle(Rectanglei(cur_pos, GetMainWindow().GetSize()));
     return;
   }
 
@@ -74,11 +64,8 @@ void Sky::Draw(bool redraw_all)
 
 void Sky::RedrawParticleList(std::list<Rectanglei> & list) const
 {
-  std::list<Rectanglei>::iterator it = list.begin();
-
-  for ( ; it != list.end(); ++it) {
+  for (std::list<Rectanglei>::iterator it = list.begin() ; it != list.end(); ++it)
     RedrawParticle(*it);
-  }
 }
 
 void Sky::RedrawParticle(const Rectanglei & particle) const
@@ -89,7 +76,7 @@ void Sky::RedrawParticle(const Rectanglei & particle) const
 
   for (uint layer = 0; layer < images.size(); ++layer) {
     ds.SetPosition(GetSkyPos(layer) + tmpPos);
-    GetMainWindow().Blit(images[layer], ds, tmpPos);
+    GetMainWindow().Blit(*(images[layer]), ds, tmpPos);
   }
 }
 
@@ -101,5 +88,5 @@ Point2i Sky::GetSkyPos(uint layer) const
   Double x_sky = (Double)(tmp.x) / (Double)(GetWorld().GetWidth() - GetMainWindow().GetWidth());
   Double y_sky = (Double)(tmp.y) / (Double)(GetWorld().GetHeight() - GetMainWindow().GetHeight());
 
-  return (images[layer].GetSize() - GetMainWindow().GetSize()) * Point2d(x_sky, y_sky);
+  return (images[layer]->GetSize() - GetMainWindow().GetSize()) * Point2d(x_sky, y_sky);
 }

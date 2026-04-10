@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
  *****************************************************************************/
 
 #include "tool/text_handling.h"
+#include <SDL.h>
 #include "tool/copynpaste.h"
 
 static bool MoveCursorLeft(const std::string& text, std::string::size_type& pos)
@@ -49,7 +50,7 @@ static bool RemoveUTF8CharBefore(std::string& text, std::string::size_type& pos)
   if (pos != 0) {
     while ((text[--pos] & 0xc0) == 0x80)
       {
-	text.erase(pos, 1);
+        text.erase(pos, 1);
       }
     text.erase(pos, 1);
     return true;
@@ -78,20 +79,20 @@ static bool InsertUTF8Char(std::string& text, std::string::size_type& pos, const
   if (key.unicode > 0)
     {
       if (key.unicode < 0x80) // 1 byte char
-	{
-	  text.insert(pos++, 1, (char)key.unicode);
-	}
+        {
+          text.insert(pos++, 1, (char)key.unicode);
+        }
       else if (key.unicode < 0x800) // 2 byte char
-	{
-	  text.insert(pos++, 1, (char)(((key.unicode & 0x7c0) >> 6) | 0xc0));
-	  text.insert(pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
-	}
+        {
+          text.insert(pos++, 1, (char)(((key.unicode & 0x7c0) >> 6) | 0xc0));
+          text.insert(pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
+        }
       else // if (key.unicode < 0x10000) // 3 byte char
-	{
-	  text.insert(pos++, 1, (char)(((key.unicode & 0xf000) >> 12) | 0xe0));
-	  text.insert(pos++, 1, (char)(((key.unicode & 0xfc0) >> 6) | 0x80));
-	  text.insert(pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
-	}
+        {
+          text.insert(pos++, 1, (char)(((key.unicode & 0xf000) >> 12) | 0xe0));
+          text.insert(pos++, 1, (char)(((key.unicode & 0xfc0) >> 6) | 0x80));
+          text.insert(pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
+        }
       return true;
     }
 

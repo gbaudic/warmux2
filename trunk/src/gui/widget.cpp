@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,89 +26,91 @@
 #include "graphic/surface.h"
 #include "graphic/video.h"
 #include "include/app.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 
-Widget::Widget():
-  Rectanglei(),
-  has_focus(false),
-  visible(true),
-  is_highlighted(false),
-  border_color(white_color),
-  border_size(0),
-  background_color(transparent_color),
-  highlight_bg_color(transparent_color),
-  ct(NULL),
-  need_redrawing(true),
-  profile(NULL),
-  widgetNode(NULL),
-  actionName("NoAction")
+Widget::Widget()
+  : Rectanglei()
+  , has_focus(false)
+  , visible(true)
+  , is_highlighted(false)
+  , border_color(white_color)
+  , border_size(0)
+  , background_color(transparent_color)
+  , highlight_bg_color(transparent_color)
+  , ct(NULL)
+  , need_redrawing(true)
+  , clickable(true)
+  , profile(NULL)
+  , widgetNode(NULL)
+  , actionName("NoAction")
 {
 }
 
-Widget::Widget(const Point2i &size):
-  Rectanglei(0, 0, size.x, size.y),
-  has_focus(false),
-  visible(true),
-  is_highlighted(false),
-  border_color(white_color),
-  border_size(0),
-  background_color(transparent_color),
-  highlight_bg_color(transparent_color),
-  ct(NULL),
-  need_redrawing(true),
-  profile(NULL),
-  widgetNode(NULL),
-  actionName("NoAction")
+Widget::Widget(const Point2i &size, bool clickable)
+  : Rectanglei(0, 0, size.x, size.y)
+  , has_focus(false)
+  , visible(true)
+  , is_highlighted(false)
+  , border_color(white_color)
+  , border_size(0)
+  , background_color(transparent_color)
+  , highlight_bg_color(transparent_color)
+  , ct(NULL)
+  , need_redrawing(true)
+  , clickable(clickable)
+  , profile(NULL)
+  , widgetNode(NULL)
+  , actionName("NoAction")
 {
 }
 
 Widget::Widget(Profile * _profile,
-               const xmlNode * _widgetNode):
-  Rectanglei(0, 0, size.x, size.y),
-  has_focus(false),
-  visible(true),
-  is_highlighted(false),
-  border_color(white_color),
-  border_size(0),
-  background_color(transparent_color),
-  highlight_bg_color(transparent_color),
-  ct(NULL),
-  need_redrawing(true),
-  profile(_profile),
-  widgetNode(_widgetNode),
-  actionName("NoAction")
+               const xmlNode * _widgetNode)
+  : Rectanglei(0, 0, size.x, size.y)
+  , has_focus(false)
+  , visible(true)
+  , is_highlighted(false)
+  , border_color(white_color)
+  , border_size(0)
+  , background_color(transparent_color)
+  , highlight_bg_color(transparent_color)
+  , ct(NULL)
+  , need_redrawing(true)
+  , profile(_profile)
+  , widgetNode(_widgetNode)
+  , actionName("NoAction")
 {
 }
 
 // From Container: it redraws the border and the background
-void Widget::RedrawBackground(const Rectanglei& rect)
+void Widget::RedrawBackground(const Rectanglei& rect) const
 {
-  Surface& surf = GetMainWindow();
-
   if (ct != NULL)
     ct->RedrawBackground(rect);
 
   if (!visible)
     return;
 
+  Surface& surf = GetMainWindow();
+
   if (IsHighlighted() && highlight_bg_color != transparent_color) {
     surf.BoxColor(*this, highlight_bg_color);
   } else if (background_color != transparent_color) {
     surf.BoxColor(rect, background_color);
   }
+}
 
-  if (border_size != 0 && border_color != transparent_color) {
-    if (rect == *this)
-      surf.RectangleColor(*this, border_color, border_size);
-    else {
-      // TODO: partial redraw of the border...
-      ASSERT(border_color.GetAlpha() == SDL_ALPHA_OPAQUE);
-      surf.RectangleColor(*this, border_color, border_size);
-    }
-  }
+void Widget::RedrawForeground() const
+{
+  if (!visible)
+    return;
+
+  Surface& surf = GetMainWindow();
 
   if (IsLOGGING("widget.border"))
     surf.RectangleColor(*this, c_red, border_size);
+  else if (border_size != 0 && border_color != transparent_color)
+    surf.RectangleColor(*this, border_color, border_size);
 }
 
 void Widget::ParseXMLMisc(void)
@@ -144,7 +146,7 @@ void Widget::ParseXMLBackground(void)
 
   Color backgroundColor = defaultOptionColorBox;
   xmlFile->ReadHexColorAttr(widgetNode, "backgroundColor", backgroundColor);
-  SetBackgroundColor(backgroundColor);  
+  SetBackgroundColor(backgroundColor);
 }
 
 void Widget::ParseXMLPosition(void)
@@ -171,8 +173,8 @@ int Widget::ParseHorizontalTypeAttribut(const std::string & attributName,
   }
 
   XmlReader * xmlFile = profile->GetXMLDocument();
-  Double tmpValue;
-  
+  float tmpValue;
+
   if (xmlFile->ReadPercentageAttr(widgetNode, attributName, tmpValue)) {
     finalValue = GetMainWindow().GetWidth() * tmpValue / 100;
   } else {
@@ -181,17 +183,17 @@ int Widget::ParseHorizontalTypeAttribut(const std::string & attributName,
   return finalValue;
 }
 
-int Widget::ParseVerticalTypeAttribut(const std::string & attributName, 
+int Widget::ParseVerticalTypeAttribut(const std::string & attributName,
                                       int defaultValue)
 {
   int finalValue = defaultValue;
-  
+
   if (NULL == profile || NULL == widgetNode) {
     return finalValue;
   }
 
   XmlReader * xmlFile = profile->GetXMLDocument();
-  Double tmpValue;
+  float tmpValue;
 
   if (xmlFile->ReadPercentageAttr(widgetNode, attributName, tmpValue)) {
     finalValue = GetMainWindow().GetHeight() * tmpValue / 100;
@@ -201,12 +203,39 @@ int Widget::ParseVerticalTypeAttribut(const std::string & attributName,
   return finalValue;
 }
 
+void Widget::ParseXMLGeometry(void)
+{
+  if (NULL == profile || NULL == widgetNode) {
+    return;
+  }
+
+  ParseXMLSize();
+
+  XmlReader * xmlFile = profile->GetXMLDocument();
+
+  std::string alignType;
+  xmlFile->ReadStringAttr(widgetNode, "alignType", alignType);
+  if ("manual" == alignType) {
+    ParseXMLPosition();
+  } else if ("centeredInX" == alignType) {
+    SetPosition((GetMainWindow().GetWidth() - GetSizeX()) / 2,
+                ParseVerticalTypeAttribut("y", 0));
+  } else if ("centeredInY" == alignType) {
+    SetPosition(ParseHorizontalTypeAttribut("x", 0),
+                (GetMainWindow().GetHeight() - GetSizeY()) / 2);
+  } else if ("centeredInXY" == alignType) {
+    SetPosition((GetMainWindow().GetSize() - GetSize()) / 2);
+  } else {
+    ParseXMLPosition();
+  }
+}
+
 void Widget::Update(const Point2i &mousePosition,
                     const Point2i &lastMousePosition)
 {
   if (need_redrawing ||
-      (Contains(mousePosition) && mousePosition != lastMousePosition) ||
-      (Contains(lastMousePosition) && !Contains(mousePosition))) {
+      (Rectanglei::Contains(mousePosition) && mousePosition != lastMousePosition) ||
+      (Rectanglei::Contains(lastMousePosition) && !Rectanglei::Contains(mousePosition))) {
 
     // Redraw the border and the background
     RedrawBackground(*this);
@@ -216,6 +245,7 @@ void Widget::Update(const Point2i &mousePosition,
     if (visible) {
       Draw(mousePosition);
     }
+    RedrawForeground();
   }
   need_redrawing = false;
 }
@@ -232,19 +262,21 @@ void Widget::SetFocus(bool focus)
 
 Widget* Widget::Click(const Point2i &mousePosition, uint /* button */)
 {
-  if (Contains(mousePosition)) {
+  if (clickable && visible && Contains(mousePosition)) {
     NeedRedrawing();
     return this;
   }
+
   return NULL;
 }
 
 Widget* Widget::ClickUp(const Point2i &mousePosition, uint /* button */)
 {
-  if (Contains(mousePosition)) {
+  if (clickable && visible && Contains(mousePosition)) {
     NeedRedrawing();
     return this;
   }
+
   return NULL;
 }
 
@@ -263,8 +295,7 @@ bool Widget::Contains(const Point2i& point) const
 
 void Widget::SetBorder(const Color &_border_color, uint _border_size)
 {
-  if (border_color != _border_color ||
-      border_size != _border_size) {
+  if (border_color != _border_color || border_size != _border_size) {
     border_color = _border_color;
     border_size = _border_size;
     NeedRedrawing();
@@ -300,3 +331,34 @@ void Widget::SetHighlightBgColor(const Color &_highlight_bg_color)
   }
 }
 
+// backup must be passed back to UnsetClip!
+Rectanglei Widget::GetClip(Rectanglei& backup) const
+{
+  Rectanglei wlr = *this;
+  Rectanglei wlr_tmp;
+
+  // Get current clip rectangle in wlr_original, SDL clip rectangle is now garbage
+  SwapWindowClip(backup);
+  if (wlr.GetSizeX()>0 && wlr.GetSizeY()>0) {
+    // Clip widget clip rectangle with current one
+    wlr.Clip(backup);
+    if (!wlr.GetSizeX() || !wlr.GetSizeY()) {
+      SwapWindowClip(backup);
+      return wlr;
+    }
+    // Back up final clip rectangle
+    wlr_tmp = wlr;
+  } else {
+    // Clip rectangle was in fact garbage
+    wlr_tmp = wlr = backup;
+  }
+  // Set final clip rectangle, wlr_tmp now has the previous garbage clip rectangle
+  SwapWindowClip(wlr_tmp);
+
+  return wlr;
+}
+
+void Widget::UnsetClip(Rectanglei& backup) const
+{
+  SwapWindowClip(backup);
+}

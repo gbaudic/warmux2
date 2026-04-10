@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 
 #include <sstream>
 #include "map/map.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "object/objects_list.h"
 #include "interface/game_msg.h"
@@ -77,7 +77,6 @@ Shotgun::Shotgun() : WeaponLauncher(WEAPON_SHOTGUN, "shotgun", new ExplosiveWeap
 
   announce_missed_shots = false;
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile,m_id+"_fire"));
-  m_weapon_fire->EnableRotationCache(32);
 
   ReloadLauncher();
 }
@@ -85,15 +84,13 @@ Shotgun::Shotgun() : WeaponLauncher(WEAPON_SHOTGUN, "shotgun", new ExplosiveWeap
 void Shotgun::UpdateTranslationStrings()
 {
   m_name = _("Shotgun");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to shoot\nUse Up/Down to change initial angle");
 }
 
 // Return a buckshot instance for the shotgun
 WeaponProjectile * Shotgun::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new ShotgunBuckshot(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new ShotgunBuckshot(cfg(), this);
 }
 
 void Shotgun::ShootSound() const

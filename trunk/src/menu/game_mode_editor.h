@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef GAME_MODE_EDITOR_H
 #define GAME_MODE_EDITOR_H
 
-#include "gui/box.h"
+#include "gui/grid_box.h"
 
 // Forward declarations
 class SpinButtonWithPicture;
@@ -31,11 +31,6 @@ class CheckBox;
 
 class GameModeEditor : public GridBox
 {
-  /* If you need this, implement it (correctly)*/
-  GameModeEditor(const GameModeEditor&);
-  GameModeEditor operator=(const GameModeEditor&);
-  /********************************************/
-
   ComboBox *opt_game_mode;
 
   ComboBox *opt_allow_character_selection;
@@ -51,7 +46,6 @@ class GameModeEditor : public GridBox
 
 public:
   GameModeEditor(uint max_line_width, const Point2i& option_size, bool _draw_border=true);
-  ~GameModeEditor();
 
   const ComboBox* GetGameModeComboBox() const { return opt_game_mode; };
 

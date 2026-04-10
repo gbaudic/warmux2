@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,38 +28,37 @@
 
 const uint FramePerSecond::MIN_NB_VALUES = 4;
 
-FramePerSecond::~FramePerSecond(){
+FramePerSecond::~FramePerSecond()
+{
   delete text;
 }
 
-FramePerSecond::FramePerSecond():
-  nb_valid_values(-1),
-  average(-1),
-  nb_frames(),
-  time_in_second(0),
-  text(NULL),
-  display(true)
+FramePerSecond::FramePerSecond()
+  : total_frames(0)
+  , nb_valid_values(-1)
+  , average(-1)
+  , time_in_second(0)
+  , text(NULL)
+  , display(true)
 {
-  for( uint i=0; i<=MIN_NB_VALUES; ++i )
-    nb_frames.push_back (0);
+  for (uint i=0; i<=MIN_NB_VALUES; ++i)
+    nb_frames.push_back(0);
 }
 
-void FramePerSecond::Reset(){
+void FramePerSecond::Reset()
+{
+  total_frames = 0;
   average = -1;
   nb_frames.clear();
 
-  for( uint i=0; i<=MIN_NB_VALUES; ++i )
-    nb_frames.push_back (0);
+  for (uint i=0; i<=MIN_NB_VALUES; ++i)
+    nb_frames.push_back(0);
 
   time_in_second = SDL_GetTicks()+1000;
   nb_valid_values = -1;
 
   if(text == NULL)
     text = new Text("");
-}
-
-void FramePerSecond::AddOneFrame(){
-  ++nb_frames.front();
 }
 
 void FramePerSecond::Refresh()
@@ -90,13 +89,13 @@ void FramePerSecond::Refresh()
   }
 }
 
-void FramePerSecond::Draw(){
+void FramePerSecond::Draw()
+{
   if( !display )
     return;
   if( average < 0 )
     return;
 
-  text->SetText(Format(_("%s fps"), Double2str(average,1).c_str()));
-  text->DrawTopRight(Point2i(GetMainWindow().GetWidth()-1,0));
+  text->SetText(Format(_("%.1f fps"), average));
+  text->DrawRightTop(Point2i(GetMainWindow().GetWidth()-1,0));
 }
-

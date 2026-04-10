@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ void Grenade::Refresh()
 
 void Grenade::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The grenade left the battlefield before exploding!"));
+  Weapon::Message(_("The grenade left the battlefield before exploding!"));
   WeaponProjectile::SignalOutOfMap();
 }
 
@@ -74,14 +74,12 @@ GrenadeLauncher::GrenadeLauncher() :
 void GrenadeLauncher::UpdateTranslationStrings()
 {
   m_name = _("Grenade");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Up/Down: Set direction\nSet timer 1-6 using +/- or 1-6 keys\nPress space till desired strength");
 }
 
 WeaponProjectile * GrenadeLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new Grenade(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new Grenade(cfg(), this);
 }
 
 std::string GrenadeLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const

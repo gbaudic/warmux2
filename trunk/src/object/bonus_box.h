@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef BONUS_BOX_H
 #define BONUS_BOX_H
 //-----------------------------------------------------------------------------
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "weapon/weapon.h"
 #include "objbox.h"
 
@@ -33,15 +33,18 @@ class Action;
 
 class BonusBox : public ObjBox
 {
-  private:
-    Weapon * weapon;
+  Weapon * weapon;
+  static Sprite* icon;
+  static int icon_ref;
 
-    bool ExplodesInsteadOfBonus(Character * c);
-    void ApplyBonus (Team &team, Character &character);
-  public:
-    BonusBox(Weapon * weapon);
+  bool ExplodesInsteadOfBonus(Character * c);
+  void ApplyBonus (Team &team, Character &character);
+public:
+  BonusBox(Weapon * weapon);
+  ~BonusBox();
 
-    void ApplyBonus(Character *);
+  void ApplyBonus(Character *);
+  const Surface* GetIcon() const;
 };
 
 //-----------------------------------------------------------------------------

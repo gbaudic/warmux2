@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #ifndef MAP_H
 #define MAP_H
 
-#include "include/base.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 #include "map/ground.h"
 #include "map/sky.h"
 #include "map/water.h"
@@ -52,11 +52,6 @@ enum // trace flags
 
 class Map : public Singleton<Map>
 {
-private:
-  /* if you need it, implement it*/
-  Map(const Map&);
-  const Map& operator=(const Map&);
-
   Text * author_info1;
   Text * author_info2;
 
@@ -79,7 +74,7 @@ public:
   void Refresh();
   void FreeMem();
   void Draw(bool redraw_all = false);
-  void DrawWater();
+  void DrawWater() { water.Draw(); }
   void DrawSky(bool redraw_all = false);
   void DrawAuthorName();
 
@@ -93,24 +88,24 @@ public:
 
   // Are we in the world or in vacuum ?
   bool IsInVacuum(const Point2i &pos) const { return ground.IsEmpty(pos); };
-  bool IsInVacuum (int x, int y) const { return ground.IsEmpty(Point2i(x, y)); };
-  bool RectIsInVacuum (const Rectanglei &rect) const;
-  bool ParanoiacRectIsInVacuum (const Rectanglei &rect) const;
+  bool IsInVacuum(int x, int y) const { return ground.IsEmpty(Point2i(x, y)); };
+  bool RectIsInVacuum(const Rectanglei &rect) const;
+  bool ParanoiacRectIsInVacuum(const Rectanglei &rect) const;
 
   // Test only the border lines
   // Test occurs on test rectangle with dx, dy delta
-  bool IsInVacuum_top (const PhysicalObj &obj, int dx, int dy) const;
-  bool IsInVacuum_bottom (const PhysicalObj &obj, int dx, int dy) const;
-  bool IsInVacuum_left (const PhysicalObj &obj, int dx, int dy) const;
-  bool IsInVacuum_right (const PhysicalObj &obj, int dx, int dy) const;
+  bool IsInVacuum_top(const PhysicalObj &obj, int dx, int dy) const;
+  bool IsInVacuum_bottom(const PhysicalObj &obj, int dx, int dy) const;
+  bool IsInVacuum_left(const PhysicalObj &obj, int dx, int dy) const;
+  bool IsInVacuum_right(const PhysicalObj &obj, int dx, int dy) const;
 
   // Is outside of the world ?
-  bool IsOutsideWorldX (int x) const { return (x < 0) || ((int)GetWidth() <= x); };
-  bool IsOutsideWorldY (int y) const { return (y < 0) || ((int)GetHeight() <= y); };
-  bool IsOutsideWorldXwidth (int x, uint larg) const { return (x + (int)larg - 1 < 0) || ((int)GetWidth() <= x); };
-  bool IsOutsideWorldYheight (int y, uint haut) const { return ((y + (int)haut - 1 < 0) || ((int)GetHeight() <= y)); };
-  bool IsOutsideWorldXY (int x, int y) const { return IsOutsideWorldX(x) || IsOutsideWorldY(y); };
-  bool IsOutsideWorld (const Point2i &pos) const { return IsOutsideWorldXY(pos.x, pos.y); };
+  bool IsOutsideWorldX(int x) const { return (x < 0) || ((int)GetWidth() <= x); };
+  bool IsOutsideWorldY(int y) const { return (y < 0) || ((int)GetHeight() <= y); };
+  bool IsOutsideWorldXwidth(int x, uint larg) const { return (x + (int)larg - 1 < 0) || ((int)GetWidth() <= x); };
+  bool IsOutsideWorldYheight(int y, uint haut) const { return ((y + (int)haut - 1 < 0) || ((int)GetHeight() <= y)); };
+  bool IsOutsideWorldXY(int x, int y) const { return IsOutsideWorldX(x) || IsOutsideWorldY(y); };
+  bool IsOutsideWorld(const Point2i &pos) const { return IsOutsideWorldXY(pos.x, pos.y); };
 
   // Is it an open or closed world ?
   bool IsOpen() const { return ground.IsOpen(); }
@@ -118,12 +113,12 @@ public:
   // Dig the map using a picture
   void Dig(const Point2i& position, const Surface& alpha_sur);
   // Dig a circle hole in the map
-  void Dig(const Point2i& center, const uint radius);
+  void Dig(const Point2i& center, uint radius);
 
   // Insert a sprite into the ground
-  void PutSprite(const Point2i& pos, const Sprite* spr);
+  void PutSprite(const Point2i& pos, Sprite* spr);
   // Merge a sprite into the ground
-  void MergeSprite(const Point2i& pos, const Sprite* spr);
+  void MergeSprite(const Point2i& pos, Sprite* spr);
 
   int GetWidth() const { return ground.GetSizeX(); }
   int GetHeight() const { return ground.GetSizeY(); }
@@ -131,8 +126,8 @@ public:
   Double GetDistanceBetweenCharacters() const { return min_distance_between_characters; }
 
  private:
-  bool HorizontalLine_IsInVacuum (int left, int y,  int right) const;
-  bool VerticalLine_IsInVacuum (int x,  int top, int bottom) const;
+  bool HorizontalLine_IsInVacuum(int left, int y,  int right) const;
+  bool VerticalLine_IsInVacuum(int x,  int top, int bottom) const;
 
   void SwitchDrawingCache();
   void SwitchDrawingCacheParticles();
@@ -141,6 +136,6 @@ public:
   friend class Singleton<Map>;
 };
 
-Map& GetWorld();
+inline Map& GetWorld() { return Map::GetRef(); }
 
 #endif

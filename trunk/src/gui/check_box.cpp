@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ CheckBox::CheckBox(const std::string & label,
        Font::FONT_SMALL,
        Font::FONT_BOLD,
        false,
-       true),
+       black_color),
   m_value(value),
   m_checked_image(NULL)
 {
@@ -56,8 +56,6 @@ void CheckBox::Init(uint width)
   m_checked_image = GetResourceManager().LoadSprite(res, "menu/check");
   GetResourceManager().UnLoadXMLProfile(res);
 
-  m_checked_image->cache.EnableLastFrameCache();
-
   position = Point2i(W_UNDEF, W_UNDEF);
   size.x = width;
   size.y = Text::GetHeight();
@@ -73,8 +71,7 @@ CheckBox::~CheckBox()
 void CheckBox::Pack()
 {
   Text::SetMaxWidth(size.x - m_checked_image->GetWidth() -2);
-  size.y = std::max(uint(Text::GetHeight()),
-		    m_checked_image->GetHeight());
+  size.y = std::max(uint(Text::GetHeight()), m_checked_image->GetHeight());
 }
 
 bool CheckBox::LoadXMLConfiguration()
@@ -85,9 +82,7 @@ bool CheckBox::LoadXMLConfiguration()
 
   XmlReader * xmlFile = profile->GetXMLDocument();
 
-  ParseXMLPosition();
-  ParseXMLSize();
-  ParseXMLBorder();
+  ParseXMLGeometry();
   ParseXMLBackground();
 
   Text::LoadXMLConfiguration(xmlFile, widgetNode);
@@ -115,20 +110,18 @@ bool CheckBox::LoadXMLConfiguration()
   }
 
   m_checked_image = new Sprite();
-  m_checked_image->AddFrame(picChecked);
-  m_checked_image->AddFrame(picUnchecked);
+  m_checked_image->AddFrame(picChecked.DisplayFormatAlpha());
+  m_checked_image->AddFrame(picUnchecked.DisplayFormatAlpha());
 
-  //m_checked_image->cache.EnableLastFrameCache();
+  //m_checked_image->EnableLastFrameCache();
 
   return true;
 }
 
 
-void CheckBox::Draw(const Point2i &/*mousePosition*/) const
+void CheckBox::Draw(const Point2i &/*mousePosition*/)
 {
   Surface& surf = GetMainWindow();
-
-  Text::DrawTopLeft(GetPosition());
 
   if (m_value) {
     m_checked_image->SetCurrentFrame(0);
@@ -136,7 +129,17 @@ void CheckBox::Draw(const Point2i &/*mousePosition*/) const
     m_checked_image->SetCurrentFrame(1);
   }
 
-  m_checked_image->Blit(surf, GetPositionX() + GetSizeX() - 16, GetPositionY());
+  if (txt == "") {
+    // No text, center
+    m_checked_image->Blit(surf, position + (GetSize() - m_checked_image->GetSizeMax())/2);
+  } else {
+    // Image on the right
+    m_checked_image->Blit(surf,
+                          position.x + size.x - m_checked_image->GetWidthMax(),
+                          position.y + (size.y - m_checked_image->GetHeightMax())/2);
+    // Text on the left
+    Text::DrawLeftCenter(GetPosition()+Point2i(0, size.y/2));
+  }
 }
 
 Widget * CheckBox::ClickUp(const Point2i &/*mousePosition*/,

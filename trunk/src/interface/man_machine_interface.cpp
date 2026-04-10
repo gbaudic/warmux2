@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,13 +19,13 @@
  * Virtual class to handle man/machine interaction
  *****************************************************************************/
 
-#include <SDL_events.h>
 #include "interface/man_machine_interface.h"
 #include "interface/interface.h"
 #include "character/character.h"
+#include "game/config.h"
 #include "game/game.h"
 #include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "include/action_handler.h"
@@ -38,18 +38,20 @@
 #include "team/team.h"
 #include "sound/jukebox.h"
 #include "weapon/weapons_list.h"
+#include <SDL_events.h>
+
 
 void ManMachineInterface::Reset()
 {
   for (int i = 0; i != 256; i++)
-    PressedKeys[i] = false ;
+    PressedKeys[i] = false;
 }
 
-bool ManMachineInterface::IsRegistredEvent(uint8 event_type)
+bool ManMachineInterface::IsRegistredEvent(uint32_t event_type)
 {
-  std::list<uint8>::iterator it;
-  for(it = registred_event.begin(); it != registred_event.end(); it ++) {
-    if(event_type == (*it))
+  std::list<uint32_t>::iterator it;
+  for (it = registred_event.begin(); it != registred_event.end(); it ++) {
+    if (event_type == (*it))
       return true;
   }
   return false;
@@ -61,11 +63,9 @@ int ManMachineInterface::GetKeyAssociatedToAction(Key_t at) const
   std::map<int, std::vector<Key_t> >::const_iterator it;
   std::vector<Key_t>::const_iterator itv;
   for (it = layout.begin(); it != layout.end(); it++) {
-    std::vector<Key_t> key_list = it->second;
-    for (itv = key_list.begin(); itv != key_list.end(); itv++)
-    {
-      if ( *itv == at)
-      {
+    const std::vector<Key_t>& key_list = it->second;
+    for (itv = key_list.begin(); itv != key_list.end(); itv++) {
+      if (*itv == at) {
         return it->first;
       }
     }
@@ -145,6 +145,9 @@ void ManMachineInterface::HandleKeyPressed(const Key_t &key)
       if (Game::GetInstance()->ReadState() == Game::HAS_PLAYED)
         return;
       break;
+    case KEY_SCREENSHOT:
+      AppWarmux::GetInstance()->video->SaveScreenshot();
+      return;
     default:
       // key not supported
       return;
@@ -206,12 +209,15 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
     // Always available
     switch(key){
       // Managing interface
+    case KEY_HELP:
+      Game::GetInstance()->UserAsksForHelpMenu();
+      return;
     case KEY_QUIT:
     case KEY_PAUSE:
       Game::GetInstance()->UserAsksForMenu();
       return;
     case KEY_FULLSCREEN:
-      AppWormux::GetInstance()->video->ToggleFullscreen();
+      AppWarmux::GetInstance()->video->ToggleFullscreen();
       return;
     case KEY_CHAT:
       if(Network::IsConnected())
@@ -221,10 +227,10 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
       Camera::GetInstance()->CenterOnActiveCharacter();
       return;
     case KEY_TOGGLE_INTERFACE:
-      Interface::GetInstance()->EnableDisplay (!Interface::GetInstance()->IsDisplayed());
+      Interface::GetInstance()->EnableDisplay(!Interface::GetInstance()->IsDisplayed());
       return;
     case KEY_MINIMAP_FROM_GAME:
-      Interface::GetInstance()->ToggleMinimap ();
+      Interface::GetInstance()->ToggleMinimap();
       return;
     case KEY_MENU_OPTIONS_FROM_GAME: {
       OptionMenu options_menu;
@@ -243,6 +249,52 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
     case KEY_MOVE_CAMERA_DOWN:
       Camera::GetInstance()->RemoveUDMoveIntention(INTENTION_MOVE_DOWN);
       return;
+    case KEY_DECREASE_MINIMAP:
+      Interface::GetInstance()->MinimapSizeDelta(1);
+      return;
+    case KEY_INCREASE_MINIMAP:
+      Interface::GetInstance()->MinimapSizeDelta(-1);
+      return;
+    case KEY_DECREASE_VOLUME:
+      {
+        Config *cfg = Config::GetInstance();
+        int volume = cfg->GetVolumeMusic() - 5;
+        if (volume > 0) {
+          cfg->SetVolumeMusic(volume);
+        } else {
+          cfg->SetVolumeMusic(0);
+          JukeBox::GetInstance()->ActiveMusic(false);
+        }
+        volume = cfg->GetVolumeEffects() - 5;
+        if (volume > 0) {
+          cfg->SetVolumeEffects(volume);
+        } else {
+          cfg->SetVolumeEffects(0);
+          JukeBox::GetInstance()->ActiveEffects(false);
+        }
+        return;
+      }
+    case KEY_INCREASE_VOLUME:
+      {
+        Config *cfg = Config::GetInstance();
+        int max_volume = cfg->GetMaxVolume();
+        int volume = cfg->GetVolumeMusic() + 5;
+        if (volume < max_volume) {
+          cfg->SetVolumeMusic(volume);
+        } else {
+          cfg->SetVolumeMusic(max_volume);
+        }
+        JukeBox::GetInstance()->ActiveMusic(true);
+
+        volume = cfg->GetVolumeEffects() + 5;
+        if (volume < max_volume) {
+          cfg->SetVolumeEffects(volume);
+        } else {
+          cfg->SetVolumeEffects(max_volume);
+        }
+        JukeBox::GetInstance()->ActiveEffects(true);
+        return;
+      }
     default:
       break;
     }
@@ -268,7 +320,6 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
     if (!ActiveTeam().IsLocalHuman()) return;
     if (ActiveCharacter().IsDead()) return;
     if (Game::GetInstance()->ReadState() == Game::END_TURN) return;
-
 
     switch (key) {
       case KEY_MOVE_RIGHT:
@@ -403,19 +454,14 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
     switch(key) {
 
     case KEY_NEXT_CHARACTER:
-      {
-        if (GameMode::GetInstance()->AllowCharacterSelection()) {
-          SDLMod mod = SDL_GetModState();
-          if (mod & KMOD_CTRL) {
-            ActiveTeam().PreviousCharacter();
-          } else {
-            ActiveTeam().NextCharacter();
-          }
-          Action * next_character = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
-          uint next_character_index = ActiveCharacter().GetCharacterIndex();
-          next_character->Push((int)next_character_index);
-          ActionHandler::GetInstance()->NewAction(next_character);
+      if (GameMode::GetInstance()->AllowCharacterSelection()) {
+        SDLMod mod = SDL_GetModState();
+        if (mod & KMOD_CTRL) {
+          ActiveTeam().PreviousCharacter();
+        } else {
+          ActiveTeam().NextCharacter();
         }
+        ActionHandler::GetInstance()->NewActionActiveCharacter();
       }
       return;
 
@@ -445,21 +491,22 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
       return;
     }
 
-    if ( weapon_sort != Weapon::INVALID ) {
+    if (weapon_sort != Weapon::INVALID && ActiveTeam().GetWeapon().CanChangeWeapon()) {
       Weapon::Weapon_type weapon;
       WeaponsList * weapons_list = Game::GetInstance()->GetWeaponsList();
-      if (weapons_list->GetWeaponBySort(weapon_sort, weapon))
-        {
-          ASSERT (weapon >= Weapon::FIRST && weapon <= Weapon::LAST);
-          ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_PLAYER_CHANGE_WEAPON, weapon));
-        }
+      if (weapons_list->GetWeaponBySort(weapon_sort, weapon)) {
+        ASSERT (weapon >= Weapon::FIRST && weapon <= Weapon::LAST);
+        ActionHandler::GetInstance()->NewAction(new Action(Action::ACTION_PLAYER_CHANGE_WEAPON, weapon));
+      }
     }
   }
 }
 
-void ManMachineInterface::ClearKeyAction()
+void ManMachineInterface::ClearKeyAction(Key_t at)
 {
-  layout.clear();
+  int key = GetKeyAssociatedToAction(at);
+  if (key)
+    layout[key].clear();
 }
 
 int ManMachineInterface::GetKeyFromKeyName(const std::string &name) const
@@ -542,6 +589,7 @@ int ManMachineInterface::GetKeyFromKeyName(const std::string &name) const
   if(name == "delete") return SDLK_DELETE;
   // End of ASCII mapped keysyms
 
+#if SDL_MINOR_VERSION == 2
   // International keyboard syms
   if(name == "world_0") return SDLK_WORLD_0;
   if(name == "world_1") return SDLK_WORLD_1;
@@ -639,6 +687,7 @@ int ManMachineInterface::GetKeyFromKeyName(const std::string &name) const
   if(name == "world_93") return SDLK_WORLD_93;
   if(name == "world_94") return SDLK_WORLD_94;
   if(name == "world_95") return SDLK_WORLD_95;
+#endif
 
   // Numeric keypad
   if(name == "kp0") return SDLK_KP0;
@@ -797,6 +846,7 @@ std::string ManMachineInterface::GetKeyNameFromKey(int key) const
   if(key == SDLK_DELETE) return "delete";
   // End of ASCII mapped keysyms
 
+#if SDL_MINOR_VERSION == 2
   // International keyboard syms
   if(key == SDLK_WORLD_0) return "world_0";
   if(key == SDLK_WORLD_1) return "world_1";
@@ -894,6 +944,7 @@ std::string ManMachineInterface::GetKeyNameFromKey(int key) const
   if(key == SDLK_WORLD_93) return "world_93";
   if(key == SDLK_WORLD_94) return "world_94";
   if(key == SDLK_WORLD_95) return "world_95";
+#endif
 
   // Numeric keypad
   if(key == SDLK_KP0) return "kp0";
@@ -974,7 +1025,6 @@ std::string ManMachineInterface::GetKeyNameFromKey(int key) const
 
 ManMachineInterface::Key_t ManMachineInterface::GetActionFromActionName(const std::string &name) const
 {
-
   if(name == "quit") return KEY_QUIT;
   if(name == "weapons1") return KEY_WEAPONS1;
   if(name == "weapons2") return KEY_WEAPONS2;
@@ -1004,6 +1054,7 @@ ManMachineInterface::Key_t ManMachineInterface::GetActionFromActionName(const st
   if(name == "move_camera_down") return KEY_MOVE_CAMERA_DOWN;
   if(name == "jump") return KEY_JUMP;
   if(name == "high_jump") return KEY_HIGH_JUMP;
+  if(name == "help") return KEY_HELP;
   if(name == "back_jump") return KEY_BACK_JUMP;
   if(name == "shoot") return KEY_SHOOT;
   if(name == "change_weapon") return KEY_CHANGE_WEAPON;
@@ -1021,9 +1072,13 @@ ManMachineInterface::Key_t ManMachineInterface::GetActionFromActionName(const st
   if(name == "next_character") return KEY_NEXT_CHARACTER;
   if(name == "menu_options_from_game") return KEY_MENU_OPTIONS_FROM_GAME;
   if(name == "minimap_from_game") return KEY_MINIMAP_FROM_GAME;
+  if(name == "decrease_minimap") return KEY_DECREASE_MINIMAP;
+  if(name == "increase_minimap") return KEY_INCREASE_MINIMAP;
+  if(name == "decrease_volume") return KEY_DECREASE_VOLUME;
+  if(name == "increase_volume") return KEY_INCREASE_VOLUME;
+  if(name == "screenshot") return KEY_SCREENSHOT;
 
   return KEY_NONE;
-
 }
 
 std::string ManMachineInterface::GetActionNameFromAction(ManMachineInterface::Key_t key) const
@@ -1057,6 +1112,7 @@ std::string ManMachineInterface::GetActionNameFromAction(ManMachineInterface::Ke
   if(key == KEY_MOVE_CAMERA_DOWN) return "move_camera_down";
   if(key == KEY_JUMP) return "jump";
   if(key == KEY_HIGH_JUMP) return "high_jump";
+  if(key == KEY_HELP) return "help";
   if(key == KEY_BACK_JUMP) return "back_jump";
   if(key == KEY_SHOOT) return "shoot";
   if(key == KEY_CHANGE_WEAPON) return "change_weapon";
@@ -1074,6 +1130,69 @@ std::string ManMachineInterface::GetActionNameFromAction(ManMachineInterface::Ke
   if(key == KEY_NEXT_CHARACTER) return "next_character";
   if(key == KEY_MENU_OPTIONS_FROM_GAME) return "menu_options_from_game";
   if(key == KEY_MINIMAP_FROM_GAME) return "minimap_from_game";
+  if(key == KEY_DECREASE_MINIMAP) return "decrease_minimap";
+  if(key == KEY_INCREASE_MINIMAP) return "increase_minimap";
+  if(key == KEY_DECREASE_VOLUME) return "decrease_volume";
+  if(key == KEY_INCREASE_VOLUME) return "increase_volume";
+  if(key == KEY_SCREENSHOT) return "screenshot";
 
   return "none";
+}
+
+std::string ManMachineInterface::GetHumanReadableActionName(Key_t key) const
+{
+  if(key == KEY_QUIT) return _("Quit");
+  if(key == KEY_WEAPONS1) return _("'Heavy' weapon category");
+  if(key == KEY_WEAPONS2) return _("'Rifle' weapon category");
+  if(key == KEY_WEAPONS3) return _("'Throwing' weapon category");
+  if(key == KEY_WEAPONS4) return _("'Special' weapon category");
+  if(key == KEY_WEAPONS5) return _("'Duel' weapon category");
+  if(key == KEY_WEAPONS6) return _("'Move' weapon category");
+  if(key == KEY_WEAPONS7) return _("'Tool' weapon category");
+  if(key == KEY_WEAPONS8) return _("Weapon category 8");
+  if(key == KEY_PAUSE) return _("Pause");
+  if(key == KEY_FULLSCREEN) return _("Toggle fullscreen");
+  if(key == KEY_TOGGLE_INTERFACE) return _("Toggle interface");
+  if(key == KEY_CENTER) return _("Center on active character");
+  if(key == KEY_TOGGLE_WEAPONS_MENUS) return _("Toggle weapons menu");
+  if(key == KEY_CHAT) return _("Chat");
+  if(key == KEY_MOVE_LEFT) return _("Move left");
+  if(key == KEY_MOVE_LEFT_SLOWLY) return _("Move left slowly");
+  if(key == KEY_MOVE_RIGHT) return _("Move right");
+  if(key == KEY_MOVE_RIGHT_SLOWLY) return _("Move right slowly");
+  if(key == KEY_UP) return _("Up");
+  if(key == KEY_UP_SLOWLY) return _("Up slowly");
+  if(key == KEY_DOWN) return _("Down");
+  if(key == KEY_DOWN_SLOWLY) return _("Down slowly");
+  if(key == KEY_MOVE_CAMERA_LEFT) return _("Move camera left");
+  if(key == KEY_MOVE_CAMERA_RIGHT) return _("Move camera right");
+  if(key == KEY_MOVE_CAMERA_UP) return _("Move camera up");
+  if(key == KEY_MOVE_CAMERA_DOWN) return _("Move camera down");
+  if(key == KEY_JUMP) return _("Jump");
+  if(key == KEY_HIGH_JUMP) return _("High jump");
+  if(key == KEY_HELP) return _("Help");
+  if(key == KEY_BACK_JUMP) return _("Back jump");
+  if(key == KEY_SHOOT) return _("Shoot");
+  if(key == KEY_CHANGE_WEAPON) return _("Change weapon");
+  if(key == KEY_WEAPON_1) return Format(_("Explosion delay of %u"), 1);
+  if(key == KEY_WEAPON_2) return Format(_("Explosion delay of %u"), 2);
+  if(key == KEY_WEAPON_3) return Format(_("Explosion delay of %u"), 3);
+  if(key == KEY_WEAPON_4) return Format(_("Explosion delay of %u"), 4);
+  if(key == KEY_WEAPON_5) return Format(_("Explosion delay of %u"), 5);
+  if(key == KEY_WEAPON_6) return Format(_("Explosion delay of %u"), 6);
+  if(key == KEY_WEAPON_7) return Format(_("Explosion delay of %u"), 7);
+  if(key == KEY_WEAPON_8) return Format(_("Explosion delay of %u"), 8);
+  if(key == KEY_WEAPON_9) return Format(_("Explosion delay of %u"), 9);
+  if(key == KEY_WEAPON_LESS) return _("Decrease explosion delay");
+  if(key == KEY_WEAPON_MORE) return _("Increase explosion delay");
+  if(key == KEY_NEXT_CHARACTER) return _("Next character");
+  if(key == KEY_MENU_OPTIONS_FROM_GAME) return _("Open options menu");
+  if(key == KEY_MINIMAP_FROM_GAME) return _("Toggle minimap");
+  if(key == KEY_DECREASE_MINIMAP) return _("Decrease minimap size");
+  if(key == KEY_INCREASE_MINIMAP) return _("Increase minimap size");
+  if(key == KEY_DECREASE_VOLUME) return _("Decrease sound volume");
+  if(key == KEY_INCREASE_VOLUME) return _("Increase sound volume");
+  if(key == KEY_SCREENSHOT) return _("Take screenshot");
+
+  return _("None");
 }

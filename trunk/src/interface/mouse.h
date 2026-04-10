@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,9 +24,9 @@
 
 #include <map>
 #include "graphic/surface.h"
-#include "include/base.h"
-#include <WORMUX_singleton.h>
-#include <WORMUX_point.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
+#include <WARMUX_point.h>
 
 // Forward declarations
 struct SDL_event;
@@ -67,10 +67,17 @@ private:
   pointer_t current_pointer;
   uint last_hide_time;
 
+  // For timed operations
+  SDL_TimerID long_click_timer;
+  Point2i     click_pos;
+  bool        is_long_click, was_long_click;
+
+  void EndLongClickTimer();
+
   void GetDesignatedCharacter() const;
 
-  void ActionLeftClic(bool shift = false) const;
-  void ActionRightClic(bool shift = false) const;
+  void ActionLeftClick(bool shift = false) const;
+  void ActionRightClick(bool shift = false) const;
   void ActionWheelDown(bool shift = false) const;
   void ActionWheelUp(bool shift = false) const;
   MouseCursor& GetCursor(pointer_t pointer) const;
@@ -78,6 +85,7 @@ private:
 protected:
   friend class Singleton<Mouse>;
   Mouse();
+  ~Mouse() { EndLongClickTimer(); }
 
 public:
 
@@ -85,8 +93,9 @@ public:
   // and manage left-handed mouse option "transparently"
   static Uint8 BUTTON_RIGHT();
   static Uint8 BUTTON_LEFT();
+  static bool  IS_CLICK_BUTTON(uint button);
 
-  bool HandleClic (const SDL_Event& event) const;
+  bool HandleEvent(const SDL_Event& evnt);
   void Refresh();
 
   Point2i GetPosition() const;
@@ -95,7 +104,7 @@ public:
   void SetPosition(Point2i pos);
 
   // Choose the pointer
-  pointer_t GetPointer() const;
+  pointer_t GetPointer() const { return current_pointer; }
   pointer_t SetPointer(pointer_t pointer);
   void Draw() const;
 
@@ -105,6 +114,8 @@ public:
 
   bool HasFocus() const;
 
-  visibility_t GetVisibility() const { return visible; };
+  visibility_t GetVisibility() const { return visible; }
+
+  void SetLongClick() { is_long_click = true; long_click_timer = 0; }
 };
 #endif

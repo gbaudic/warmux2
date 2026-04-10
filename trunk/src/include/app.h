@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,44 +16,49 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Application Wormux.
+ * Application Warmux.
  *****************************************************************************/
 
-#ifndef APP_WORMUX_H
-#define APP_WORMUX_H
+#ifndef APP_WARMUX_H
+#define APP_WARMUX_H
 
 #include <string>
-#include "base.h"
+#include <WARMUX_base.h>
 
 class Video;
 class Menu;
+class Color;
+union SDL_Event;
 
-class AppWormux
+class AppWarmux
 {
 public:
   Video *video;
 
 private:
   Menu *menu;
-  static AppWormux * singleton;
+  static AppWarmux * singleton;
 
-  AppWormux();
+  AppWarmux();
   void InitWindow();
   void DisplayLoadingPicture();
   void DisplayWelcomeMessage() const;
   void End() const;
 
-  Menu* GetCurrentMenu() const;
+  Menu* GetCurrentMenu() const { return menu; }
 public:
-  void SetCurrentMenu(Menu *menu);
+  void SetCurrentMenu(Menu *_menu) { menu = _menu; }
   void RefreshDisplay();
   static void DisplayError(const std::string &msg);
-  void ReceiveMsgCallback(const std::string& msg);
-  static AppWormux * GetInstance();
-  ~AppWormux();
+  void ReceiveMsgCallback(const std::string& msg, const Color& color);
+  static AppWarmux * GetInstance();
+  ~AppWarmux();
   static void EmergencyExit();
 
   int Main(void);
+
+  // Calls this to check if Warmux must be moved to background
+  static bool CheckInactive(SDL_Event& evnt);
 };
 
 #endif

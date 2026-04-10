@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,10 +33,60 @@
 #define CONTROL_OFFSET (MODIFIER_OFFSET * CONTROL_BIT)
 #define ALT_OFFSET (MODIFIER_OFFSET * ALT_BIT)
 
+#if SDL_MINOR_VERSION != 2
+#  define SDLK_LAST  SDL_NUM_SCANCODES
+#endif
 
-Keyboard::Keyboard() :
-  ManMachineInterface(),
-  modifier_bits(0)
+
+int  Keyboard::GetRawKeyCode(int key_code) const
+{
+  return key_code % MODIFIER_OFFSET;
+}
+
+bool Keyboard::HasShiftModifier(int key_code) const
+{
+  return (key_code/SHIFT_OFFSET)&1;
+}
+
+bool Keyboard::HasAltModifier(int key_code) const
+{
+  return (key_code/ALT_OFFSET)&1;
+}
+
+bool Keyboard::HasControlModifier(int key_code) const
+{
+  return (key_code/CONTROL_OFFSET)&1;
+}
+
+ManMachineInterface::Key_t
+Keyboard::GetRegisteredAction(int raw_key_code, bool ctrl, bool alt, bool shift) const
+{
+  int key_code = raw_key_code + shift*SHIFT_OFFSET +
+                 alt*ALT_OFFSET + ctrl*CONTROL_OFFSET;
+
+  // If the map doesn't have such key, exit immediately
+  std::map<int, std::vector<Key_t> >::const_iterator it = layout.find(key_code);
+  if (it == layout.end())
+    return KEY_NONE;
+
+  // Must use at because [] has side effect of inserting a new key,
+  // despite our previous verification
+  return ((*it).second.size()) ?(*it).second[0] : KEY_NONE;
+}
+
+bool Keyboard::SaveKeyEvent(Key_t at, int raw_key_code,
+                            bool ctrl, bool alt, bool shift)
+{
+  int key_code = raw_key_code + shift*SHIFT_OFFSET
+               + alt*ALT_OFFSET + ctrl*CONTROL_OFFSET;
+  SetKeyAction(key_code, at);
+  return true;
+}
+
+
+Keyboard::Keyboard()
+  : ManMachineInterface()
+  , modifier_bits(0)
 {
   //Disable repeated events when a key is kept down
   SDL_EnableKeyRepeat(0,0);
@@ -49,24 +99,20 @@ Keyboard::Keyboard() :
 
 void Keyboard::SetDefaultConfig()
 {
-  SetKeyAction(SDLK_ESCAPE,                  ManMachineInterface::KEY_QUIT);
+  SetKeyAction(SDLK_ESCAPE, ManMachineInterface::KEY_QUIT);
 }
 
 void Keyboard::SetConfig(const xmlNode *node)
 {
-  ASSERT(node != NULL);
+  ASSERT(node);
 
   //Remove old key configuration
-  ClearKeyAction();
+  ClearKeyBindings();
 
   xmlNodeArray list = XmlReader::GetNamedChildren(node, "bind");
-  for (xmlNodeArray::iterator it = list.begin(); it != list.end(); ++it)
-  {
+  for (xmlNodeArray::iterator it = list.begin(); it != list.end(); ++it) {
     std::string key_name, action_name;
-    bool shift, control, alt;
-    shift = false;
-    control = false;
-    alt = false;
+    bool shift = false, control = false, alt = false;
 
     //Extract XML config
     XmlReader::ReadStringAttr(*it, "key", key_name);
@@ -79,7 +125,12 @@ void Keyboard::SetConfig(const xmlNode *node)
     int key;
     Key_t action;
 
+    // Set internal key
     key = GetKeyFromKeyName(key_name);
+    // Reject config set for other values
+    if (SDLK_BACKSPACE == key || SDLK_DELETE == key)
+      continue;
+
     if (shift) {
       key += SHIFT_OFFSET;
     }
@@ -94,40 +145,35 @@ void Keyboard::SetConfig(const xmlNode *node)
 
     //Set association
     SetKeyAction(key, action);
-
   }
 }
 
-void Keyboard::SaveConfig( xmlNode *node) const
+void Keyboard::SaveConfig(xmlNode *node) const
 {
   xmlNode *keyboard_node = xmlAddChild(node, xmlNewNode(NULL /* empty prefix */, (const xmlChar*)"keyboard"));
   std::map<int, std::vector<Key_t> >::const_iterator it;
 
-  for (it = layout.begin(); it != layout.end(); it++)
-  {
-    const std::vector<Key_t> actions = it->second;
-    for (uint i = 0; i < actions.size(); i++)
-    {
-      bool shift, control, alt;
-      shift = false;
-      control = false;
-      alt = false;
+  for (it = layout.begin(); it != layout.end(); it++) {
+    const std::vector<Key_t>& actions = it->second;
+    for (uint i = 0; i < actions.size(); i++) {
       int key = it->first;
 
-      if (key > CONTROL_OFFSET)
-      {
+      if (key == SDLK_UNKNOWN)
+        continue;
+
+      bool shift = false, control = false, alt = false;
+
+      if (key > CONTROL_OFFSET) {
         key -= CONTROL_OFFSET;
         control = true;
       }
 
-      if (key > ALT_OFFSET)
-      {
+      if (key > ALT_OFFSET) {
         key -= ALT_OFFSET;
         alt = true;
       }
 
-      if (key > SHIFT_OFFSET)
-      {
+      if (key > SHIFT_OFFSET) {
         key -= SHIFT_OFFSET;
         shift = true;
       }
@@ -153,15 +199,14 @@ void Keyboard::HandleKeyComboEvent(int key_code, Key_Event_t event_type)
             key_code % MODIFIER_OFFSET);
   std::map<int, std::vector<Key_t> >::iterator it = layout.find(key_code);
 
-  if(it == layout.end())
+  if (it == layout.end())
     return;
 
 
-  std::vector<Key_t> keys = it->second;
+  const std::vector<Key_t>& keys = it->second;
   std::vector<Key_t>::const_iterator itv;
 
-  for(itv = keys.begin(); itv != keys.end() ; itv++)
-  {
+  for (itv = keys.begin(); itv != keys.end() ; itv++) {
     //While player writes, it cannot control the game but PAUSE.
     if (Game::GetInstance()->chatsession.CheckInput()) {
       switch (*itv) {
@@ -172,12 +217,12 @@ void Keyboard::HandleKeyComboEvent(int key_code, Key_Event_t event_type)
       }
     }
 
-    if(event_type == KEY_PRESSED) {
+    if (event_type == KEY_PRESSED) {
       HandleKeyPressed(*itv);
       return;
     }
 
-    if(event_type == KEY_RELEASED) {
+    if (event_type == KEY_RELEASED) {
       HandleKeyReleased(*itv);
       return;
     }
@@ -199,39 +244,50 @@ static int GetModifierBitsFromSDL() {
   return result;
 }
 
-void Keyboard::HandleKeyEvent(const SDL_Event& event)
+bool Keyboard::IsModifier(int raw_key_code)
+{
+  return raw_key_code>=SDLK_NUMLOCK && raw_key_code<=SDLK_COMPOSE;
+}
+
+void Keyboard::HandleKeyEvent(const SDL_Event& evnt)
 {
   // Not a registred event
-  if(!IsRegistredEvent(event.type))
+  if (!IsRegistredEvent(evnt.type))
     return;
 
   Key_Event_t event_type;
-  switch(event.type)
-    {
-    case SDL_KEYDOWN:
-      event_type = KEY_PRESSED;
-      break;
-    case SDL_KEYUP:
-      event_type = KEY_RELEASED;
-      break;
-    default:
-      return;
-    }
+  switch(evnt.type) {
+  case SDL_KEYDOWN:
+    event_type = KEY_PRESSED;
+    break;
+  case SDL_KEYUP:
+    event_type = KEY_RELEASED;
+    break;
+  default:
+    return;
+  }
 
   //Handle input text for Chat session in Network game
   if (Game::GetInstance()->chatsession.CheckInput()) {
     if (event_type == KEY_PRESSED)
-      Game::GetInstance()->chatsession.HandleKeyPressed(event);
+      Game::GetInstance()->chatsession.HandleKeyPressed(evnt);
     else if (event_type == KEY_RELEASED)
-      Game::GetInstance()->chatsession.HandleKeyReleased(event);
+      Game::GetInstance()->chatsession.HandleKeyReleased(evnt);
     return;
   }
 
   int previous_modifier_bits = modifier_bits;
   modifier_bits = GetModifierBitsFromSDL();
-  SDLKey basic_key_code = event.key.keysym.sym;
-  if (basic_key_code >= MODIFIER_OFFSET)
+  SDLKey basic_key_code = evnt.key.keysym.sym;
+  // Also ignore real key code of a modifier, fix bug #15238
+  if (IsModifier(basic_key_code))
     return;
+#ifdef MAEMO
+  if (SDL_GetModState() & KMOD_MODE) {
+    if (basic_key_code == SDLK_LEFT) basic_key_code = SDLK_UP;
+    if (basic_key_code == SDLK_RIGHT) basic_key_code = SDLK_DOWN;
+  }
+#endif
   int key_code;
   if (modifier_bits != previous_modifier_bits) {
     std::set<SDLKey>::iterator it;
@@ -245,6 +301,7 @@ void Keyboard::HandleKeyEvent(const SDL_Event& event)
       }
     }
   }
+
   if (event_type == KEY_PRESSED) {
     key_code = basic_key_code + (MODIFIER_OFFSET * modifier_bits);
     HandleKeyComboEvent(key_code, KEY_PRESSED);

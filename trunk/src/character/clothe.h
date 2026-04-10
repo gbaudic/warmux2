@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,18 +28,19 @@ typedef struct _xmlNode xmlNode;
 
 class Clothe
 {
-private:
   std::string name;
   std::vector<Member*> layers;
+  std::vector<Member*> must_refresh;
 
 public:
-  ~Clothe();
+  ~Clothe() { layers.clear(); }
   Clothe(const xmlNode* xml, std::map<std::string, Member*>& members_lst);
   Clothe(Clothe* c, std::map<std::string, Member*>& members_lst);
 
-  const std::string & GetName() const;
+  const std::string & GetName() const { return name; }
 
-  const std::vector<Member*>& GetLayers() const;
+  const std::vector<Member*>& GetLayers() const { return layers; }
+  const std::vector<Member*>& MustRefreshMembers() const { return must_refresh; } 
 };
 
 #endif //CLOTHE_H

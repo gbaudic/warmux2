@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "character/character.h"
 #include "character/body.h"
 #include "team/teams_list.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "include/action_handler.h"
 
 const uint SUICIDE_SOUND_DURATION_IN_MS = 3600;
@@ -44,8 +44,7 @@ Suicide::Suicide() : Weapon(WEAPON_SUICIDE, "suicide", new ExplosiveWeaponConfig
 void Suicide::UpdateTranslationStrings()
 {
   m_name = _("Commit Suicide");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to commit suicide");
 }
 
 bool Suicide::p_Shoot()
@@ -59,11 +58,12 @@ void Suicide::Refresh()
   // The suicide sound may play at different speed for different players,
   // that's why the explosion should not depend on the fact if the sound has finished playing or not.
   uint time_since_last_fire = Time::GetInstance()->Read() - m_last_fire_time;
-  if (m_last_fire_time > 0 && time_since_last_fire > SUICIDE_SOUND_DURATION_IN_MS && !ActiveCharacter().IsDead()) {
-    ActiveCharacter().DisableDeathExplosion();
-    ActiveCharacter().body->MakeParticles(ActiveCharacter().GetPosition());
-    ActiveCharacter().SetEnergy(0); // Die!
-    ApplyExplosion(ActiveCharacter().GetCenter(),cfg());
+  Character *player = &ActiveCharacter();
+  if (m_last_fire_time > 0 && time_since_last_fire > SUICIDE_SOUND_DURATION_IN_MS && !player->IsDead()) {
+    player->DisableDeathExplosion();
+    player->body->MakeParticles(ActiveCharacter().GetPosition());
+    player->SetEnergy(0, player); // Die!
+    ApplyExplosion(player->GetCenter(), cfg());
   }
 }
 

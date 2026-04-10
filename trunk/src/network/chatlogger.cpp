@@ -1,9 +1,9 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
-#include "include/base.h"
+#include <WARMUX_base.h>
 #ifdef DEBUG
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
 #endif
 #include "network/chatlogger.h"
 #include "game/config.h"
@@ -11,9 +11,9 @@
 
 #define TIME_BASE_YEAR 1900
 
-ChatLogger::ChatLogger() :
-        logdir(Config::GetInstance()->GetChatLogDir()),
-        logfile(logdir + "chat.log")
+ChatLogger::ChatLogger()
+  : logdir(Config::GetInstance()->GetChatLogDir())
+  , logfile(logdir + "chat.log")
 {
   // FIXME: also add the game name to the filename
   //
@@ -24,24 +24,21 @@ ChatLogger::ChatLogger() :
   struct tm lt, *plt;
   std::string timestamp;
 
-  if ( ((time_t) -1) == time(&t) )
-  {
+  if (((time_t) -1) == time(&t)) {
     timestamp = std::string (_("(unknown time)")) ;
-  }
-  else
-  {
+  } else {
     // convert to local time
     plt = localtime(&t);
     memcpy(&lt, plt, sizeof(struct tm));
 
-    timestamp = Format ( "%4d-%02d-%02d-%02dH%02dm%02d" ,
-                         lt.tm_year + TIME_BASE_YEAR, lt.tm_mon+1, lt.tm_mday+1,
-                         lt.tm_hour, lt.tm_min, lt.tm_sec ) ;
+    timestamp = Format("%4d-%02d-%02d-%02dH%02dm%02d" ,
+                       lt.tm_year + TIME_BASE_YEAR, lt.tm_mon+1, lt.tm_mday+1,
+                       lt.tm_hour, lt.tm_min, lt.tm_sec ) ;
 
 #ifndef DEBUG
-    logfile = Format ( "%s.log" , timestamp.c_str() );
+    logfile = Format ("%s.log" , timestamp.c_str());
 #else // DEBUG
-    logfile = Format ( "%s-%c.log" , timestamp.c_str(), (char)(RandomLocal().GetInt(0,10)+'a') );
+    logfile = Format ("%s-%c.log" , timestamp.c_str(), (char)(RandomLocal().GetInt(0,10)+'a'));
 #endif // DEBUG
   }
 
@@ -51,15 +48,10 @@ ChatLogger::ChatLogger() :
   std::string fn = logdir + logfile ;
 
   m_logfilename.open(fn.c_str(), std::ios::out | std::ios::app);
-  if(m_logfilename.fail())
+  if (m_logfilename.fail())
     Error(Format(_("Couldn't open file %s"), fn.c_str()));
   else
     this->LogMessage(timestamp);
-}
-
-ChatLogger::~ChatLogger()
-{
-  m_logfilename.close();
 }
 
 void ChatLogger::LogMessage(const std::string &msg)
@@ -71,28 +63,15 @@ void ChatLogger::LogMessage(const std::string &msg)
   if (m_logfilename.fail())
     return;
 
-  if ( ((time_t) -1) == time(&t) )
-  {
-    timestamp = std::string (_("(unknown time)")) ;
-  }
-  else
-  {
+  if (((time_t) -1) == time(&t)) {
+    timestamp = std::string(_("(unknown time)"));
+  } else {
     // convert to local time
     plt = localtime(&t);
     memcpy(&lt, plt, sizeof(struct tm));
 
-    timestamp = Format( "(%02dH%02dm%02d) ", lt.tm_hour, lt.tm_min, lt.tm_sec );
+    timestamp = Format("(%02dH%02dm%02d) ", lt.tm_hour, lt.tm_min, lt.tm_sec);
   }
 
   m_logfilename << timestamp << msg << std::endl << std::flush;
-}
-
-void ChatLogger::LogMessageIfOpen(const std::string &msg)
-{
-  if ( singleton ) ChatLogger::GetInstance()->LogMessage(msg);
-}
-
-void ChatLogger::CloseIfOpen()
-{
-  if ( singleton ) ChatLogger::GetInstance()->CleanUp();
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,23 +22,22 @@
 #ifndef _MOVE_INTENTION_H
 #define _MOVE_INTENTION_H
 
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 
 template<typename T>
 class MoveIntention
 {
-  private:
-    T direction;
-    bool slowly;
-  public:
-    MoveIntention(T direction, bool slowly):
-      direction(direction),
-      slowly(slowly)
-    {
-      /* see initializer list */
-    }
-    T GetDirection() const { return direction; }
-    bool IsToDoItSlowly() const { return slowly; }
+  T direction;
+  bool slowly;
+public:
+  MoveIntention(T direction, bool slowly):
+    direction(direction),
+    slowly(slowly)
+  {
+    /* see initializer list */
+  }
+  T GetDirection() const { return direction; }
+  bool IsToDoItSlowly() const { return slowly; }
 };
 
 

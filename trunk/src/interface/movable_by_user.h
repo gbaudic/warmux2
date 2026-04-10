@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,22 +22,40 @@
 #ifndef MOVABLE_BY_USER_H
 #define MOVABLE_BY_USER_H
 
+#include <list>
 #include "interface/move_intention.h"
-#include <vector>
 
 class MovableByUser
 {
-  protected:
-    std::vector<const LRMoveIntention *> lr_move_intentions;
-    std::vector<const UDMoveIntention *> ud_move_intentions;
-  public:
-    const LRMoveIntention * GetLastLRMoveIntention();
-    void AddLRMoveIntention(const LRMoveIntention * intention);
-    void RemoveLRMoveIntention(const LRMoveIntention * intention);
+protected:
+  std::list<const LRMoveIntention *> lr_move_intentions;
+  std::list<const UDMoveIntention *> ud_move_intentions;
+public:
+  const LRMoveIntention * GetLastLRMoveIntention() const
+  {
+    return (lr_move_intentions.empty()) ? NULL : lr_move_intentions.back();
+  }
+  void AddLRMoveIntention(const LRMoveIntention * intention)
+  {
+    lr_move_intentions.push_back(intention);
+  }
+  void RemoveLRMoveIntention(const LRMoveIntention * intention)
+  {
+    lr_move_intentions.remove(intention);
+  }
 
-    const UDMoveIntention * GetLastUDMoveIntention();
-    void AddUDMoveIntention(const UDMoveIntention * intention);
-    void RemoveUDMoveIntention(const UDMoveIntention * intention);
+  const UDMoveIntention * GetLastUDMoveIntention() const
+  {
+    return (ud_move_intentions.empty()) ? NULL : ud_move_intentions.back();
+  }
+  void AddUDMoveIntention(const UDMoveIntention * intention)
+  {
+    ud_move_intentions.push_back(intention);
+  }
+  void RemoveUDMoveIntention(const UDMoveIntention * intention)
+  {
+    ud_move_intentions.remove(intention);
+  }
 };
 
 #endif

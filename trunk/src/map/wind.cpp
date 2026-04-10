@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,13 +22,14 @@
 #include "map/wind.h"
 #include "map/camera.h"
 #include "game/config.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
+#include "graphic/video.h"
 #include "map/map.h"
 #include "map/maps_list.h"
 #include "network/randomsync.h"
-#include <WORMUX_debug.h>
-#include <WORMUX_random.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_random.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
@@ -41,91 +42,75 @@
 const uint MAX_WIND_OBJECTS = 200;
 const uint bar_speed = 1;
 
-WindParticle::WindParticle(const std::string &xml_file, Double scale) :
-  PhysicalObj("wind", xml_file)
+static bool need_flip = false;
+
+WindParticle::WindParticle(const std::string &xml_file, Double scale)
+  : PhysicalObj("wind", xml_file)
 {
   SetCollisionModel(false, false, false);
-
   CanBeGhost(false);
+
   // Physic constants
-  Double mass, wind_factor ;
-  //Mass = mass_mean + or - 25%
-  mass = GetMass();
-  mass *= RandomLocal().GetDouble(0.75, 1.25);
-  SetMass (mass);
-  SetSize( Point2i(20,20) );
-  wind_factor = GetWindFactor() ;
+  Double mass = GetMass();
+  mass *= RandomLocal().GetDouble(0.75, 1.25); //Mass = mass_mean + or - 25%
+  SetMass(mass);
+
+  SetSize(Point2i(20,20));
+  Double wind_factor = GetWindFactor();
   wind_factor *= RandomLocal().GetDouble(0.75, 1.25);
   SetWindFactor(wind_factor);
+
   SetAirResistFactor(GetAirResistFactor() * RandomLocal().GetDouble(0.75, 1.25));
 
-  MSG_DEBUG("wind", "Create wind particle: %s, %s, %s", xml_file.c_str(), Double2str(mass).c_str(), Double2str(wind_factor).c_str());
+  MSG_DEBUG("wind", "Create wind particle: %s, %s, %s", xml_file.c_str(),
+            Double2str(mass).c_str(), Double2str(wind_factor).c_str());
 
   // Fixe test rectangle
-  int dx = 0 ;
-  int dy = 0 ;
-  SetTestRect (dx, dx, dy, dy);
+  int dx = 0;
+  int dy = 0;
+  SetTestRect(dx, dx, dy, dy);
 
   m_allow_negative_y = true;
 
   // Sprite loading
-  Double ONE_HALF = 0.5;
-  scale = ONE_HALF + scale / TWO;
+  scale = ONE_HALF * (1 + scale);
 
-  sprite = GetResourceManager().LoadSprite( ActiveMap()->ResProfile(), "wind_particle");
+  sprite = GetResourceManager().LoadSprite(ActiveMap()->ResProfile(), "wind_particle");
   sprite->Scale(scale, scale);
-  sprite->RefreshSurface();
   sprite->SetAlpha(scale);
-  sprite->SetCurrentFrame(RandomLocal().GetLong(0, sprite->GetFrameCount() - 1));
-  SetSize( Point2i(sprite->GetWidth(), sprite->GetHeight()) );
+  sprite->SetCurrentFrame(RandomLocal().GetInt(0, sprite->GetFrameCount() - 1));
+  SetSize(sprite->GetSize());
 
-  if (ActiveMap()->GetWind().need_flip) {
-    flipped = new Sprite(*sprite);
-    flipped->Scale(-scale, scale);
-    flipped->RefreshSurface();
-    flipped->SetAlpha(scale);
-    flipped->SetCurrentFrame(RandomLocal().GetLong(0, sprite->GetFrameCount()-1));
-  } else {
-    flipped = NULL;
+  bool not_fixed = GetAlignParticleState()|| ActiveMap()->GetWind().rotation_speed.IsNotZero();
+  sprite->FixParameters(!not_fixed);
+  need_flip = ActiveMap()->GetWind().need_flip;
+  sprite->EnableCaches(need_flip, not_fixed ? 64 : 0);
+  if (not_fixed) {
+    sprite->SetRotation_rad(RandomLocal().GetInt(0,628)/100.0); // 0 < angle < 2PI
   }
 
-  if (!GetAlignParticleState() && ActiveMap()->GetWind().rotation_speed != ZERO) {
-    sprite->EnableRotationCache(64);
-    sprite->SetRotation_rad(RandomLocal().GetLong(0,628)/100.0); // 0 < angle < 2PI
-
-    if (flipped) {
-      flipped->EnableRotationCache(64);
-      flipped->SetRotation_rad(RandomLocal().GetLong(0,628)/100.0); // 0 < angle < 2PI
-    }
-  }
-
+  // Now that caches have been set, refresh
+  sprite->RefreshSurface();
 }
 
 WindParticle::~WindParticle()
 {
   delete sprite;
-  if(flipped) delete flipped;
 }
 
 void WindParticle::Refresh()
 {
-  if (flipped && GetSpeed().x < 0)
-    flipped->Update();
-  else
-    sprite->Update();
+  if (need_flip)
+    sprite->SetFlipped(GetSpeed().x < 0);
+  sprite->Update();
 
+  const Double& rotation_speed = ActiveMap()->GetWind().rotation_speed;
   if (GetAlignParticleState()) {
-    sprite->SetRotation_rad(GetSpeedAngle() - (PI / 2));
-  } 
-  else if (ActiveMap()->GetWind().rotation_speed != ZERO) // Rotate the sprite if needed
-  {
-    if (flipped && GetSpeed().x < 0) {
-      Double new_angle = flipped->GetRotation_rad() + ActiveMap()->GetWind().rotation_speed;
-      flipped->SetRotation_rad(new_angle);
-    } else {
-      Double new_angle = sprite->GetRotation_rad() + ActiveMap()->GetWind().rotation_speed;
-      sprite->SetRotation_rad(new_angle);
-    }
+    sprite->SetRotation_rad(GetSpeedAngle() - HALF_PI);
+  }
+  else if (rotation_speed.IsNotZero()) {
+    // Rotate the sprite if needed
+    sprite->SetRotation_rad(sprite->GetRotation_rad() + rotation_speed);
   }
 
   // Put particles inside of the camera view
@@ -133,61 +118,46 @@ void WindParticle::Refresh()
   int x = GetX();
   int y = GetY();
 
-  if (GetX() > Camera::GetInstance()->GetPositionX() + Camera::GetInstance()->GetSizeX())
-    x -= Camera::GetInstance()->GetSizeX() + (int)sprite->GetWidth() - 1;
+  const Camera *cam = Camera::GetConstInstance();
+  if (GetX() > cam->GetPositionX() + cam->GetSizeX())
+    x -= cam->GetSizeX() + (int)sprite->GetWidth() - 1;
 
-  if (GetX() + (int)sprite->GetWidth() < Camera::GetInstance()->GetPositionX())  
-    x += Camera::GetInstance()->GetSizeX() + (int)sprite->GetWidth() - 1;
+  if (GetX() + (int)sprite->GetWidth() < cam->GetPositionX())
+    x += cam->GetSizeX() + (int)sprite->GetWidth() - 1;
 
-  if(GetY() > Camera::GetInstance()->GetPositionY() + Camera::GetInstance()->GetSizeY())
-    y -= Camera::GetInstance()->GetSizeY() + (int)sprite->GetHeight() - 1;
+  if (GetY() > cam->GetPositionY() + cam->GetSizeY())
+    y -= cam->GetSizeY() + (int)sprite->GetHeight() - 1;
 
-  if(GetY() + (int)sprite->GetHeight() < Camera::GetInstance()->GetPositionY() )
-    y += Camera::GetInstance()->GetSizeY() + (int)sprite->GetHeight() - 1;
+  if (GetY() + (int)sprite->GetHeight() < cam->GetPositionY())
+    y += cam->GetSizeY() + (int)sprite->GetHeight() - 1;
 
   if (m_alive != ALIVE || x != GetX() || y != GetY()) {
     m_alive = ALIVE;
     StartMoving();
-    SetXY( Point2i(x, y) );
-    MSG_DEBUG("wind", "new position %d, %d - mass %s, wind_factor %s", x, y, Double2str(GetMass()).c_str(), Double2str(GetWindFactor()).c_str());
-  } 
+    SetXY(Point2i(x, y));
+    MSG_DEBUG("wind", "new position %d, %d - mass %s, wind_factor %s", x, y,
+              Double2str(GetMass()).c_str(), Double2str(GetWindFactor()).c_str());
+  }
 
   UpdatePosition();
 }
 
 void WindParticle::Draw()
 {
-  // Use the flipped sprite if needed and if the direction of wind changed
-  if (flipped && GetSpeed().x < 0) {
-    flipped->Draw(GetPosition());
-  } else {
+  if (!IsInWater()) {
+    // Use the flipped sprite if needed and if the direction of wind changed
     sprite->Draw(GetPosition());
   }
 }
 
 //---------------------------------------------------
 
-Wind::Wind(): 
-  m_val(0), 
+Wind::Wind():
+  m_val(0),
   m_nv_val(0),
-  m_last_move(0), 
+  m_last_move(0),
   m_last_part_mvt(0)
 {
-}
-
-Wind::~Wind()
-{
-  RemoveAllParticles();
-}
-
-Double Wind::GetStrength() const
-{
-  return m_nv_val * WIND_STRENGTH / 100.0;
-}
-
-void Wind::SetVal(long val)
-{
-  m_nv_val = val;
 }
 
 void Wind::RemoveAllParticles()
@@ -207,13 +177,13 @@ void Wind::Reset()
   Interface::GetInstance()->UpdateWindIndicator(m_val);
 
   RemoveAllParticles();
+  uint nb = Config::GetConstInstance()->GetWindParticlesPercentage();
 
-  if (!Config::GetInstance()->GetDisplayWindParticles()) {
+  if (!nb) {
     return;
   }
 
-  uint nb = ActiveMap()->GetWind().nb_sprite;
-
+  nb = (ActiveMap()->GetWind().nb_sprite * nb) / 100;
   if (!nb) {
     return;
   }
@@ -221,16 +191,16 @@ void Wind::Reset()
   std::string config_file = ActiveMap()->GetConfigFilepath();
 
   for (uint i = 0; i < nb; ++i) {
-    WindParticle * tmp = new WindParticle(config_file, (Double)i / nb);
-    particles.push_back(tmp);
+    particles.push_back(new WindParticle(config_file, (Double)i / nb));
   }
+
   RandomizeParticlesPos();
 }
 
 void Wind::ChooseRandomVal()
 {
   MSG_DEBUG("random.get", "Wind::ChooseRandomVal()");
-  SetVal(RandomSync().GetLong(-100, 100));
+  SetVal(RandomSync().GetInt(-100, 100));
 }
 
 void Wind::DrawParticles()
@@ -264,15 +234,16 @@ void Wind::RandomizeParticlesPos()
 {
   iterator it = particles.begin(), end = particles.end();
 
-  MSG_DEBUG("wind", "camera position: %d, %d - %d, %d", Camera::GetInstance()->GetPositionX(),
-            Camera::GetInstance()->GetPositionX()+Camera::GetInstance()->GetSizeX(),
-	    Camera::GetInstance()->GetPositionY(), Camera::GetInstance()->GetPositionY()+Camera::GetInstance()->GetSizeY());
+  const Camera *cam = Camera::GetConstInstance();
+  int sx = cam->GetPositionX();
+  int sy = cam->GetPositionY();
+  int ex = sx + cam->GetSizeX();
+  int ey = sy + cam->GetSizeY();
+  MSG_DEBUG("wind", "camera position: %d, %d - %d, %d", sx, ex, sy, ey);
 
   for (; it != end; ++it) {
-    (*it)->SetXY(Point2i( RandomLocal().GetLong(Camera::GetInstance()->GetPositionX(),
-						Camera::GetInstance()->GetPositionX()+Camera::GetInstance()->GetSizeX()),
-                          RandomLocal().GetLong(Camera::GetInstance()->GetPositionY(),
-						Camera::GetInstance()->GetPositionY()+Camera::GetInstance()->GetSizeY())));
+    (*it)->SetXY(Point2i(RandomLocal().GetInt(sx, ex),
+                         RandomLocal().GetInt(sy, ey)));
     MSG_DEBUG("wind", "new particule position: %d, %d", (*it)->GetX(), (*it)->GetY());
   }
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include "weapon/cluster_bomb.h"
 #include "weapon/weapon_cfg.h"
 #include <sstream>
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include "weapon/explosion.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
@@ -33,7 +33,7 @@
 #include "team/teams_list.h"
 #include "tool/math_tools.h"
 #include "tool/xml_document.h"
-#include "game/time.h"
+#include "game/game_time.h"
 
 class ClusterBombConfig : public ExplosiveWeaponConfig
 {
@@ -142,7 +142,7 @@ void ClusterBomb::Refresh()
 
 void ClusterBomb::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The Cluster Bomb has left the battlefield before it could explode."));
+  Weapon::Message(_("The Cluster Bomb has left the battlefield before it could explode."));
   WeaponProjectile::SignalOutOfMap();
 }
 
@@ -155,7 +155,7 @@ void ClusterBomb::DoExplosion()
 
   const Double angle_range = HALF_PI;
   Point2i pos = GetPosition();
-  for (uint i = 0; i < fragments; ++i ) 
+  for (uint i = 0; i < fragments; ++i )
   {
     Double angle = -HALF_PI; // this angle is "upwards" here
     Double cluster_deviation = angle_range * i / ( Double )fragments - angle_range / TWO;
@@ -185,13 +185,12 @@ ClusterLauncher::ClusterLauncher() :
 void ClusterLauncher::UpdateTranslationStrings()
 {
   m_name = _("Cluster Bomb");
-  m_help = _("Timeout : Mouse wheel or Page Up/Down\nAngle : Up/Down\nFire : keep the space key pressed until the desired strength\nan ammo per turn");
+  m_help = _("Timeout: Mouse wheel or Page Up/Down\nAngle: Up/Down\nFire: Press space until desired strength is reached\nOne ammo per turn");
 }
 
 WeaponProjectile * ClusterLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new ClusterBomb(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new ClusterBomb(cfg(), this);
 }
 
 ClusterBombConfig& ClusterLauncher::cfg()

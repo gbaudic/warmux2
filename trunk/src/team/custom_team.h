@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,10 +27,8 @@
 
 //-----------------------------------------------------------------------------
 
-
 class CustomTeam
 {
-private:
   bool is_name_changed;
   uint nb_characters;
   std::string name;
@@ -39,20 +37,31 @@ private:
 
   bool SaveXml();
 
+protected:
+  CustomTeam(const std::string& team_name,
+             const std::string& directory,
+             const std::vector<std::string>& list);
+
 public:
+  static const uint MAX_CHARACTERS = 10;
+  static CustomTeam* LoadCustomTeam(const std::string &teams_dir,
+                                    const std::string &id,
+                                    std::string& error);
+
   CustomTeam(const std::string &team_name);
-  CustomTeam(const std::string &teams_dir, const std::string &id);
   ~CustomTeam();
-  std::string GetName();
-  std::vector<std::string> GetCharactersNameList();
-  void NewTeam();
+  std::string GetName() { return name; }
+  std::vector<std::string> GetCharactersNameList()
+  {
+    std::vector<std::string> list = characters_name_list;
+    return list;
+  }
   bool Save();
   void Delete();
 
   void SetName(const std::string &new_name);
-  void SetCharacterName(unsigned id, const std::string &new_name);
+  void SetCharacterName(uint id, const std::string &new_name);
 };
-
 
 //-----------------------------------------------------------------------------
 #endif

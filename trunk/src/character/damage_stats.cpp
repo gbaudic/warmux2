@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include "character/damage_stats.h"
 #include "character/character.h"
 #include "team/team.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 
 DamageStatistics::DamageStatistics(const Character& _owner) :
   owner(_owner),
@@ -58,8 +58,7 @@ void DamageStatistics::ResetDamage()
 
 void DamageStatistics::HandleMostDamage()
 {
-  if (current_total_damage > max_damage)
-  {
+  if (current_total_damage > max_damage) {
     max_damage = current_total_damage;
   }
   //MSG_DEBUG("damage", "%s most damage: %d\n", m_name, max_damage);
@@ -72,15 +71,12 @@ void DamageStatistics::MadeDamage(const int Dmg, const Character &other)
   if (Dmg < 0) // the character have win energy with a bonus box for instance
     return;
 
-  if (owner.GetTeam().IsSameAs(other.GetTeam()))
-  {
+  if (owner.GetTeam().IsSameAs(other.GetTeam())) {
     if (owner.IsSameAs(other))
       damage_itself += Dmg;
     else
       damage_friendly_fire += Dmg;
-  }
-  else
-  {
+  } else {
     //MSG_DEBUG("damage", "%s damaged other team with %d\n", m_name, Dmg);
     damage_other_teams += Dmg;
   }

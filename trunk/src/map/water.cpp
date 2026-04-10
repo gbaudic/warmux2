@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,10 +19,11 @@
  * Refresh water that may be placed in bottom of the ground.
  *****************************************************************************/
 
+#include "game/game_mode.h"
 #include <assert.h>
 #include <SDL.h>
-#include "game/game_mode.h"
-#include "game/time.h"
+#include "game/game_time.h"
+#include "graphic/video.h"
 #include "interface/interface.h"
 #include "map/camera.h"
 #include "map/map.h"
@@ -33,33 +34,29 @@
 #include "tool/resource_manager.h"
 #include "tool/string_tools.h"
 
-const uint GO_UP_TIME = 1; // min
-const uint GO_UP_STEP = 15; // pixels
-const uint GO_UP_OSCILLATION_TIME = 30; // seconds
-const uint GO_UP_OSCILLATION_NBR = 30; // amplitude
-const uint MS_BETWEEN_SHIFTS = 20;
-const uint PATTERN_WIDTH = 180;
-const Double WAVE_HEIGHT_A = 5;
-const Double WAVE_HEIGHT_B = 8;
-const Double DEGREE = TWO*PI/static_cast<Double>(360.0);
-const int WAVE_INC = 5;
-const int WAVE_COUNT = 3;
-const std::vector<int> EMPTY_WAVE_HEIGHT_VECTOR(PATTERN_WIDTH);
+#define GO_UP_TIME 1  // min
+#define GO_UP_STEP 15 // pixels
+#define GO_UP_OSCILLATION_TIME  30 // seconds
+#define GO_UP_OSCILLATION_NBR  30 // amplitude
+#define MS_BETWEEN_SHIFTS  20
+#define PATTERN_HEIGHT 64
+#define WAVE_INC   5
+#define WAVE_HEIGHT_A  5
+#define WAVE_HEIGHT_B  8
 
-int Water::pattern_height = 0;
+static const Double DEGREE = TWO_PI/360;
 
-Water::Water() :
-  type_color(NULL),
-  height_mvt(0),
-  shift1(0),
-  water_height(0),
-  time_raise(0),
-  height(PATTERN_WIDTH, 0),
-  wave_height(3, EMPTY_WAVE_HEIGHT_VECTOR),
-  water_type("no"),
-  m_last_preview_redraw(0),
-  next_wave_shift(0)
+Water::Water()
+  : type_color(NULL)
+  , height_mvt(0)
+  , shift1(0)
+  , water_height(0)
+  , time_raise(0)
+  , water_type("no")
+  , m_last_preview_redraw(0)
+  , next_wave_shift(0)
 {
+  memset(height, 0, sizeof(height));
 }
 
 Water::~Water()
@@ -76,9 +73,11 @@ Water::~Water()
  * The water consists of three waves, which are drawn using SIN functions in
  * different phases.
  *
- * The water is drawn in 180 x 128 blocks. The size 180 comes from SIN(2x)
- * cycle. The pattern surface is rendered using water.png (and SIN functions)
- * and water_bottom.png.
+ * The water is drawn in patterns of 180 x 128 block. The value 180 comes
+ * from SIN(2x) period.
+ *
+ * The pattern surface is rendered using water.png and SIN functions, while
+ * the bottom is just painted with a transparent color.
  */
 void Water::Init()
 {
@@ -89,33 +88,17 @@ void Water::Init()
 
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
 
-  surface = GetResourceManager().LoadImage(res, image);
-  surface.SetAlpha(0, 0);
-
-  image += "_bottom";
-
   type_color = new Color(GetResourceManager().LoadColor(res, "water_colors/" + water_type));
-  bottom = GetResourceManager().LoadImage(res, image);
-  bottom.SetAlpha(0, 0);
-
-  pattern_height = bottom.GetHeight();
-
-  pattern.NewSurface(Point2i(PATTERN_WIDTH, pattern_height),
-		     SDL_SWSURFACE|SDL_SRCALPHA, true);
-  /* Convert the pattern into the same format than surface. This allow not to
-   * need conversions on fly and thus saves CPU */
-  pattern.SetSurface(
-		     SDL_ConvertSurface(pattern.GetSurface(),
-					surface.GetSurface()->format,
-					SDL_SWSURFACE|SDL_SRCALPHA),
-		     true /* free old one */);
-
-  // Turn on transparency for water bottom texture
-  bottom.SetSurface(
-		    SDL_ConvertSurface(bottom.GetSurface(),
-				       bottom.GetSurface()->format,
-				       SDL_SWSURFACE|SDL_SRCALPHA),
-		    true);
+#ifdef HAVE_HANDHELD
+  surface = GetResourceManager().LoadImage(res, image, false);
+  pattern.NewSurface(Point2i(PATTERN_WIDTH, PATTERN_HEIGHT),
+                     SDL_SWSURFACE|SDL_SRCCOLORKEY, false);
+  pattern.SetColorKey(SDL_SRCCOLORKEY, 0);
+#else
+  surface = GetResourceManager().LoadImage(res, image, true);
+  pattern.NewSurface(Point2i(PATTERN_WIDTH, PATTERN_HEIGHT),
+                     SDL_SWSURFACE|SDL_SRCALPHA, true);
+#endif
 
   shift1 = 0;
   next_wave_shift = 0;
@@ -146,10 +129,8 @@ void Water::Free()
     return;
   }
 
-  bottom.Free();
   surface.Free();
   pattern.Free();
-  pattern_height = 0;
 }
 
 void Water::Refresh()
@@ -167,23 +148,21 @@ void Water::Refresh()
   }
 
   // Height Calculation:
-  const Double t = (GO_UP_OSCILLATION_TIME*1000.0);
-  const Double a = GO_UP_STEP/t;
-  const Double b = 1.0;
-
   if (time_raise < now) {
     m_last_preview_redraw = now;
     if (time_raise + GO_UP_OSCILLATION_TIME * 1000 > now) {
+      static const Double A = GO_UP_STEP/(GO_UP_OSCILLATION_TIME*(Double)1000.0);
       uint dt = now - time_raise;
-      height_mvt = GO_UP_STEP + (int)(((Double)GO_UP_STEP *
-               sin(((Double)(dt*(GO_UP_OSCILLATION_NBR-(Double)0.25))
-                   / GO_UP_OSCILLATION_TIME/(Double)1000.0)*TWO*PI)
-               )/(a*dt+b));
+      height_mvt = GO_UP_STEP + (int)((GO_UP_STEP *
+                 sin(((dt* (GO_UP_OSCILLATION_NBR-(Double)0.25))
+                      / (GO_UP_OSCILLATION_TIME*(Double)1000.0))*TWO_PI)
+                 )/(A*dt+ONE));
     } else {
       time_raise += GO_UP_TIME * 60 * 1000;
       water_height += GO_UP_STEP;
     }
   }
+
   CalculateWaveHeights();
 }
 
@@ -194,8 +173,7 @@ void Water::CalculateWaveHeights()
 
   for (uint x = 0; x < PATTERN_WIDTH; x++) {
     // TODO: delete the first dimension of wave_height (now unused)
-    wave_height[0][x] = static_cast<int>(sin(angle1)*WAVE_HEIGHT_A + sin(angle2)*WAVE_HEIGHT_B);
-    height[x] = wave_height[0][x];
+    height[x] = static_cast<int>(sin(angle1)*WAVE_HEIGHT_A + sin(angle2)*WAVE_HEIGHT_B);
 
     angle1 += 2*DEGREE;
     angle2 += 4*DEGREE;
@@ -205,38 +183,65 @@ void Water::CalculateWaveHeights()
 
 void Water::CalculateWavePattern()
 {
-  pattern.SetAlpha(0, 0);
   pattern.Fill(0x00000000);
 
   /* Locks on SDL_Surface must be taken when accessing pixel member */
-  SDL_LockSurface(surface.GetSurface());
-  SDL_LockSurface(pattern.GetSurface());
-  SDL_LockSurface(bottom.GetSurface());
+  surface.Lock();
+  pattern.Lock();
 
   /* Copy directly the surface image into the pattern image. This doesn't use
    * blit in order to save CPU but it makes this code not really easy to read...
    * The copy is done pixel per pixel */
-  uint bpp = surface.GetSurface()->format->BytesPerPixel;
+  uint         bpp        = surface.GetBytesPerPixel();
+  int          spitch     = surface.GetPitch();
+  int          dpitch     = pattern.GetPitch();
 
-  Uint32  pitch = pattern.GetSurface()->pitch;
-  Uint8 * dst;
-  Uint8 * src;
+  switch (bpp)
+  {
+  case 2:
+    {
+      spitch >>= 1;
+      dpitch >>= 1;
+      const Uint16 *src_origin = (Uint16 *)surface.GetPixels();
+      Uint16       *dst_origin = (Uint16 *)pattern.GetPixels()
+                               + (15 + WAVE_INC*(WAVE_COUNT-1)) * dpitch;
 
-  for (uint x = 0; x < PATTERN_WIDTH; x++) {
-    dst = (Uint8*)pattern.GetSurface()->pixels + x * bpp + (wave_height[0][x] + 15 + WAVE_INC * (WAVE_COUNT-1)) * pitch;
-    src = (Uint8*)surface.GetSurface()->pixels;
-    for (uint y=0; y < (uint)surface.GetHeight(); y++) {
-      memcpy(dst, src, bpp);
-      dst += pitch;
-      src += bpp;
+      for (uint x = 0; x < PATTERN_WIDTH; x++) {
+        const Uint16 *src = src_origin;
+        Uint16       *dst = dst_origin + x + height[x] * dpitch;
+        for (int y=0; y < surface.GetHeight(); y++) {
+          dst[0] = src[0];
+          dst += dpitch;
+          src += spitch;
+        }
+      }
+      break;
     }
+  case 4:
+    {
+      spitch >>= 2;
+      dpitch >>= 2;
+      const Uint32 *src_origin = (Uint32 *)surface.GetPixels();
+      Uint32       *dst_origin = (Uint32 *)pattern.GetPixels()
+                               + (15 + WAVE_INC*(WAVE_COUNT-1)) * dpitch;
+
+      for (uint x = 0; x < PATTERN_WIDTH; x++) {
+        const Uint32 *src = src_origin;
+        Uint32       *dst = dst_origin + x + height[x] * dpitch;
+        for (int y=0; y < surface.GetHeight(); y++) {
+          dst[0] = src[0];
+          dst += dpitch;
+          src += spitch;
+        }
+      }
+      break;
+    }
+  default:
+    Error("Unexpected surface format");
   }
 
-  SDL_UnlockSurface(bottom.GetSurface());
-  SDL_UnlockSurface(pattern.GetSurface());
-  SDL_UnlockSurface(surface.GetSurface());
-
-  pattern.SetAlpha(SDL_SRCALPHA, 0);
+  pattern.Unlock();
+  surface.Unlock();
 }
 
 void Water::Draw()
@@ -245,31 +250,30 @@ void Water::Draw()
     return;
   }
 
-  int screen_bottom = (int)Camera::GetInstance()->GetPosition().y + (int)Camera::GetInstance()->GetSize().y;
+  const Camera* cam = Camera::GetConstInstance();
+  int screen_bottom = (int)cam->GetPosition().y + (int)cam->GetSize().y;
   int water_top = GetWorld().GetHeight() - (water_height + height_mvt) - 20;
 
-  if ( screen_bottom < water_top ) {
+  if (screen_bottom < water_top) {
     return; // save precious CPU time
   }
 
-  CalculateWavePattern();
-
-  int x0 = Camera::GetInstance()->GetPosition().x % PATTERN_WIDTH;
-  int cameraRightPosition = Camera::GetInstance()->GetPosition().x + Camera::GetInstance()->GetSize().x;
- 
+  int x0 = cam->GetPosition().x % PATTERN_WIDTH;
+  int cameraRightPosition = cam->GetPosition().x + cam->GetSize().x;
   int y = water_top + (WAVE_HEIGHT_A + WAVE_HEIGHT_B) * 2 + WAVE_INC;
-  for (; y < screen_bottom;
-       y += pattern_height) {
-    for (int x = Camera::GetInstance()->GetPosition().x - x0;
-         x < cameraRightPosition;
-         x += PATTERN_WIDTH) {
-      AbsoluteDraw(bottom, Point2i(x, y));
-    }
+
+  int h = cam->GetSize().y - (y - cam->GetPosition().y);
+  if (h > 0) {
+    Rectanglei bottom(0, cam->GetSize().y-h, cam->GetSize().x, h);
+    GetMainWindow().BoxColor(bottom, *type_color);
+    bottom.SetPosition(bottom.GetPosition() + cam->GetPosition());
+    GetWorld().ToRedrawOnMap(bottom);
   }
- 
+
+  CalculateWavePattern();
   y = water_top;
   for (int wave = 0; wave < WAVE_COUNT; wave++) {
-    for (int x = Camera::GetInstance()->GetPosition().x - x0 - ((PATTERN_WIDTH/4) * wave);
+    for (int x = cam->GetPosition().x - x0 - ((PATTERN_WIDTH/4) * wave);
          x < cameraRightPosition;
          x += PATTERN_WIDTH) {
       AbsoluteDraw(pattern, Point2i(x, y));
@@ -278,30 +282,15 @@ void Water::Draw()
   }
 }
 
-bool Water::IsActive() const
-{
-  return water_type != "no";
-}
-
 int Water::GetHeight(int x) const
 {
   if (IsActive()) {
-    return height[x % PATTERN_WIDTH]
-           + GetWorld().GetHeight()
-           - (water_height + height_mvt);
+    //printf("Height would have been %i\n", height[x % PATTERN_WIDTH]);
+    int h = height[x % PATTERN_WIDTH];
+    return h + GetWorld().GetHeight() - int(water_height + height_mvt);
   } else {
     return GetWorld().GetHeight();
   }
-}
-
-uint Water::GetSelfHeight() const
-{
-  return water_height+(pattern_height/2);
-}
-
-const Color* Water::GetColor() const
-{
-  return type_color;
 }
 
 void Water::Splash(const Point2i& pos) const

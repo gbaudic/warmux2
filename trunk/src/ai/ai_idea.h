@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,56 +29,64 @@
 
 class AIIdea
 {
-  protected:
-    static bool CanUseWeapon(Weapon * weapon);
-    static bool CanUseCharacter(Character & character);
-    static LRDirection XDeltaToDirection(Double delta);
-    static Double GetDirectionRelativeAngle(LRDirection direction, Double angle);
-    static Double RateDamageDoneToEnemy(int damage, Character & enemy);
-    static Double RateDamageDoneToEnemy(int min_damage, int max_damage, Character & enemy);
-    static Double RateExplosion(Character & shooter, Point2i position, ExplosiveWeaponConfig & cfg, Double expected_additional_distance);
-  public:
-    virtual AIStrategy * CreateStrategy() = 0;
-    virtual ~AIIdea() {}
+protected:
+  static bool CanUseWeapon(const Weapon * weapon);
+  static bool CanUseCharacter(const Character & character);
+  static LRDirection XDeltaToDirection(int delta) { return (delta < 0) ? DIRECTION_LEFT : DIRECTION_RIGHT; }
+  static LRDirection XDeltaToDirection(float delta) { return (delta < 0) ? DIRECTION_LEFT : DIRECTION_RIGHT; }
+  static float GetDirectionRelativeAngle(LRDirection direction, float angle);
+  static float RateDamageDoneToEnemy(int damage, const Character & enemy);
+  static float RateDamageDoneToEnemy(int min_damage, int max_damage, const Character & enemy);
+  static float RateExplosion(const Character & shooter, const Point2i& position,
+                              const ExplosiveWeaponConfig & cfg,
+                              const float& expected_additional_distance);
+public:
+  virtual AIStrategy * CreateStrategy() const = 0;
+  virtual ~AIIdea() {}
 };
 
 class SkipTurnIdea : public AIIdea
 {
-  public:
-    virtual AIStrategy * CreateStrategy();
+public:
+  virtual AIStrategy * CreateStrategy() const;
 };
 
 class WasteAmmoUnitsIdea : public AIIdea
 {
-  public:
-    virtual AIStrategy * CreateStrategy();
+public:
+  virtual AIStrategy * CreateStrategy() const;
 };
 
 class ShootDirectlyAtEnemyIdea : public AIIdea
 {
-  private:
-    WeaponsWeighting & weapons_weighting;
-    Character & shooter;
-    Character & enemy;
-    Weapon::Weapon_type weapon_type;
-    Double max_distance;
-  public:
-    ShootDirectlyAtEnemyIdea(WeaponsWeighting & weapons_weighting, Character & shooter, Character & enemy, Weapon::Weapon_type weapon_type, Double max_distance);
-    virtual AIStrategy * CreateStrategy();
+private:
+  const WeaponsWeighting & weapons_weighting;
+  const Character & shooter;
+  const Character & enemy;
+  Weapon::Weapon_type weapon_type;
+  int max_sq_distance;
+public:
+  ShootDirectlyAtEnemyIdea(WeaponsWeighting & weapons_weighting,
+                           Character & shooter, Character & enemy,
+                           Weapon::Weapon_type weapon_type, int max_distance);
+  virtual AIStrategy * CreateStrategy() const;
 };
 
 class FireMissileWithFixedDurationIdea : public AIIdea
 {
-  private:
-    WeaponsWeighting & weapons_weighting;
-    Character & shooter;
-    Character & enemy;
-    Weapon::Weapon_type weapon_type;
-    Double duration;
-    int timeout; // if positive the character will set it to the specified value.
-  public:
-    FireMissileWithFixedDurationIdea(WeaponsWeighting & weapons_weighting, Character & shooter, Character & enemy, Weapon::Weapon_type weapon_type, Double duration, int timeout = -1);
-    virtual AIStrategy * CreateStrategy();
+private:
+  const WeaponsWeighting & weapons_weighting;
+  const Character & shooter;
+  const Character & enemy;
+  Weapon::Weapon_type weapon_type;
+  float duration;
+  int timeout; // if positive the character will set it to the specified value.
+public:
+  FireMissileWithFixedDurationIdea(const WeaponsWeighting & weapons_weighting,
+                                   const Character & shooter, const Character & enemy,
+                                   Weapon::Weapon_type weapon_type,
+                                   float duration, int timeout = -1);
+  virtual AIStrategy * CreateStrategy() const;
 };
 
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,154 +18,178 @@
  ******************************************************************************
  * A team
  *****************************************************************************/
+#include <sstream>
+#include <iostream>
+
+#include <WARMUX_action.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_file_tools.h>
+#include <WARMUX_point.h>
 
 #include "ai/ai_stupid_player.h"
-#include "team/team.h"
-#include "team/teams_list.h"
 #include "character/character.h"
 #include "character/body_list.h"
 #include "game/config.h"
 #include "game/game.h"
 #include "game/game_mode.h"
 #include "graphic/sprite.h"
-#include "interface/cursor.h"
-#include "include/base.h"
 #include "include/constant.h"
+#include "interface/cursor.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "network/network.h"
 #include "sound/jukebox.h"
-#include "team/custom_team.h"
-#include <WORMUX_debug.h>
-#include <WORMUX_file_tools.h>
-#include <WORMUX_point.h>
+#include "team/team.h"
+#include "team/teams_list.h"
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
 #include "weapon/weapons_list.h"
-#include <sstream>
-#include <iostream>
 
-
-Team::Team(const std::string & teams_dir, 
-           const std::string & id) : 
-  energy(this), 
-  m_teams_dir(teams_dir), 
-  m_id(id), 
-  ai(NULL), 
-  ai_name(NO_AI_NAME), 
-  remote(false), 
-  abandoned(false)
+Team* Team::LoadTeam(const std::string &teams_dir, const std::string &id, std::string& error)
 {
-  std::string nomfich;
+  std::string nomfich = teams_dir+id+ PATH_SEPARATOR "team.xml";
+  std::string name;
   XmlReader   doc;
 
   // Load XML
-  nomfich = teams_dir+id+ PATH_SEPARATOR "team.xml";
+  if (!doc.Load(nomfich)) {
+    error = "Unable to load file of team data";
+    return NULL;
+  }
 
-  if (!doc.Load(nomfich))
-    throw "unable to load file of team data";
+  if (!XmlReader::ReadString(doc.GetRoot(), "name", name)) {
+    error = "Invalid file structure: cannot find a name for team";
+    return NULL;
+  }
 
-  if (!XmlReader::ReadString(doc.GetRoot(), "name", m_name))
-    throw "Invalid file structure: cannot find a name for team ";
+  Profile *res = GetResourceManager().LoadXMLProfile(nomfich, true);
+  if (!res) {
+    error = "Invalid file structure: cannot load resources";
+    return NULL;
+  }
+
+  // The constructor will unload res
+  return new Team(doc, res, name, id);
+}
+
+Team::Team(XmlReader& doc, Profile* res,
+           const std::string& name, const std::string &id)
+  : m_id(id)
+  , m_name(name)
+  , m_player_name("")
+  , remote(false)
+  , ai(NULL)
+  , ai_name(NO_AI_NAME)
+  , active_weapon(NULL)
+  , abandoned(false)
+  , team_color(white_color)
+  , energy(this)
+{
+  // Load team color
+  team_color = LOAD_RES_COLOR("teamcolor");
 
   // Load flag
-  Profile *res = GetResourceManager().LoadXMLProfile(nomfich, true);
-  flag = GetResourceManager().LoadImage(res, "flag");
+  flag = LOAD_RES_IMAGE("flag");
   mini_flag = flag.RotoZoom(0.0, 0.5, 0.5, true);
-  death_flag = GetResourceManager().LoadImage(res, "death_flag");
-  big_flag = GetResourceManager().LoadImage(res, "big_flag");
+  death_flag = LOAD_RES_IMAGE("death_flag");
+  big_flag = LOAD_RES_IMAGE("big_flag");
   GetResourceManager().UnLoadXMLProfile(res);
 
   // Get sound profile
   if (!XmlReader::ReadString(doc.GetRoot(), "sound_profile", m_sound_profile))
     m_sound_profile = "default";
 
+  // read body id and default character name for each character
+  xmlNodeArray nodes = XmlReader::GetNamedChildren(XmlReader::GetMarker(doc.GetRoot(), "team"), "character");
+  xmlNodeArray::const_iterator it = nodes.begin();
+  do {
+    std::string character_name = "Unknown Soldier";
+    std::string body_id = "";
+    XmlReader::ReadStringAttr(*it, "name", character_name);
+    XmlReader::ReadStringAttr(*it, "body", body_id);
+
+    default_characters_names.push_back(character_name);
+    bodies_ids.push_back(body_id);
+    ++it;
+  } while (it != nodes.end());
+
   active_character = characters.end();
-
-  active_weapon = NULL;
-  attached_custom_team = NULL;
-
-  m_player_name = "";
-
   nb_characters = GameMode::GetInstance()->nb_characters;
+}
+
+// Do not call UnloadGamingData in here - these data are shared!
+Team::~Team() { }
+
+void Team::AddOnePlayingCharacter(const std::string& character_name, Body *body)
+{
+  // Valgrind reports a leak here of what seems to be containers for the
+  // temporaries created here (32B?). See more some lines below
+  Character new_char(*this, character_name, body);
+
+  if (!new_char.PutRandomly(false, GetWorld().GetDistanceBetweenCharacters())) {
+    // We haven't found any place to put the characters!!
+    if (!new_char.PutRandomly(false, GetWorld().GetDistanceBetweenCharacters() / 2)) {
+      std::cerr << std::endl;
+      std::cerr << "Error: player " << character_name.c_str() << " will be probably misplaced!" << std::endl;
+      std::cerr << std::endl;
+
+      // Put it with no space...
+      new_char.PutRandomly(false, 0);
+    }
+  }
+  new_char.Init();
+
+  // And one more leak for the actual element (created through copy, 64B)
+  // pushed to the std::list
+  // No idea why, it's eating num_games * num_chars * 2 * 32B
+  characters.push_back(new_char);
+
+  MSG_DEBUG("team", "Add %s in team %s", character_name.c_str(), m_name.c_str());
+}
+
+bool Team::AddPlayingCharacters(const std::vector<std::string> names)
+{
+  // Check that we have enough information
+  if (names.size() < nb_characters || bodies_ids.size() < nb_characters)
+    return false;
+
+  characters.clear();
+
+  // Time to effectively create the characters
+  for (uint i = 0; i < nb_characters; i++) {
+    Body *body = BodyList::GetRef().GetBody(bodies_ids[i]);
+    if (!body) {
+      std::cerr << Format(_("Error: can't find the body \"%s\" for the team \"%s\"."),
+                          bodies_ids[i].c_str(),
+                          m_name.c_str())
+                << std::endl;
+      return false;
+    }
+
+    // Create a new character and add him to the team
+    AddOnePlayingCharacter(names[i], body);
+  }
+  active_character = characters.begin();
+
+  return characters.size() == nb_characters;
 }
 
 bool Team::LoadCharacters()
 {
   ASSERT(characters.size() == 0);
+  ASSERT(bodies_ids.size() >= nb_characters);
   ASSERT(nb_characters <= 10);
 
-  std::string nomfich = m_teams_dir+m_id+ PATH_SEPARATOR "team.xml";
-  // Load XML
-  if (!DoesFileExist(nomfich))
-    return false;
+  // handle custom names for characters
+  std::vector<std::string> *characters_name = &default_characters_names;
+  if (custom_characters_names.size() >= nb_characters) {
+    characters_name = &custom_characters_names;
+  }
 
-  XmlReader doc;
-  if (!doc.Load(nomfich))
-    return false;
-
-  // Create the characters
-  xmlNodeArray nodes = XmlReader::GetNamedChildren(XmlReader::GetMarker(doc.GetRoot(), "team"), "character");
-  xmlNodeArray::const_iterator it = nodes.begin();
-
-  active_character = characters.end();
-  do
-  {
-    Body* body;
-    std::string character_name = "Unknown Soldier (it's all over)";
-    std::string body_name = "";
-    XmlReader::ReadStringAttr(*it, "name", character_name);
-    XmlReader::ReadStringAttr(*it, "body", body_name);
-
-    if (!(body = BodyList::GetRef().GetBody(body_name)) )
-    {
-      std::cerr
-          << Format(_("Error: can't find the body \"%s\" for the team \"%s\"."),
-                    body_name.c_str(),
-                    m_name.c_str())
-          << std::endl;
-      return false;
-    }
-
-    // Create a new character and add him to the team
-    Character new_character(*this, character_name, body);
-    if((attached_custom_team != NULL) && (IsLocalHuman()) && !Network::IsConnected())
-    {
-      new_character.SetCustomName(attached_custom_team->GetCharactersNameList().at(characters.size()));
-    }
-    characters.push_back(new_character);
-    active_character = characters.begin(); // we need active_character to be initialized here !!
-    if (!characters.back().PutRandomly(false, GetWorld().GetDistanceBetweenCharacters()))
-    {
-      // We haven't found any place to put the characters!!
-      if (!characters.back().PutRandomly(false, GetWorld().GetDistanceBetweenCharacters() / 2)) {
-        std::cerr << std::endl;
-        std::cerr << "Error: player " << character_name.c_str() << " will be probably misplaced!" << std::endl;
-        std::cerr << std::endl;
-
-        // Put it with no space...
-        characters.back().PutRandomly(false, 0);
-      }
-    }
-    characters.back().Init();
-
-    MSG_DEBUG("team", "Add %s in team %s", character_name.c_str(), m_name.c_str());
-
-    // Did we reach the end ?
-    ++it;
-  } while (it != nodes.end() && characters.size() < nb_characters );
-
-  active_character = characters.begin();
-
-  return (characters.size() == nb_characters);
+  return AddPlayingCharacters(*characters_name);
 }
 
-void Team::InitEnergy (uint max)
-{
-  energy.Config(ReadEnergy(), max);
-}
-
-uint Team::ReadEnergy () const
+uint Team::ReadEnergy() const
 {
   uint total_energy = 0;
 
@@ -177,11 +201,6 @@ uint Team::ReadEnergy () const
   }
 
   return total_energy;
-}
-
-void Team::UpdateEnergyBar ()
-{
-  energy.SetValue(ReadEnergy());
 }
 
 void Team::SelectCharacter(const Character * c)
@@ -205,7 +224,7 @@ void Team::SelectCharacter(const Character * c)
 
 void Team::NextCharacter(bool newturn)
 {
-  ASSERT (0 < NbAliveCharacter());
+  ASSERT(0 < NbAliveCharacter());
 
   ActiveCharacter().StopPlaying();
 
@@ -217,7 +236,7 @@ void Team::NextCharacter(bool newturn)
     do {
       ++active_character;
       if (active_character == characters.end())
-	active_character = characters.begin();
+        active_character = characters.begin();
     } while (ActiveCharacter().IsDead());
   }
   ActiveCharacter().StartPlaying();
@@ -232,10 +251,9 @@ void Team::NextCharacter(bool newturn)
 
 void Team::PreviousCharacter()
 {
-  ASSERT (0 < NbAliveCharacter());
+  ASSERT(0 < NbAliveCharacter());
   ActiveCharacter().StopPlaying();
-  do
-  {
+  do {
     if (active_character == characters.begin())
       active_character = characters.end();
     --active_character;
@@ -275,8 +293,8 @@ void Team::PrepareTurn()
   CharacterCursor::GetInstance()->FollowActiveCharacter();
 
   // Updating weapon ammos (some weapons are not available from the beginning)
-  std::list<Weapon *> l_weapons_list = weapons_list->GetList() ;
-  std::list<Weapon *>::iterator itw = l_weapons_list.begin(),
+  const std::list<Weapon *>& l_weapons_list = weapons_list->GetList() ;
+  std::list<Weapon *>::const_iterator itw = l_weapons_list.begin(),
   end = l_weapons_list.end();
   for (; itw != end ; ++itw) {
     if ((*itw)->AvailableAfterTurn() == (int)current_turn) {
@@ -301,69 +319,20 @@ void Team::PrepareTurn()
     ai->PrepareTurn();
 }
 
-Character& Team::ActiveCharacter() const
+void Team::SetWeapon(Weapon::Weapon_type type)
 {
-  return (*active_character);
-}
-
-void Team::SetWeapon (Weapon::Weapon_type type)
-{
-
   ASSERT (type >= Weapon::FIRST && type <= Weapon::LAST);
   AccessWeapon().Deselect();
   active_weapon = weapons_list->GetWeapon(type);
   AccessWeapon().Select();
 }
 
-int Team::ReadNbAmmos() const
-{
-  return ReadNbAmmos(active_weapon->GetType());
-}
-
-int Team::ReadNbUnits() const
-{
-  return ReadNbUnits( active_weapon->GetType());
-}
-
-int Team::ReadNbAmmos(const Weapon::Weapon_type &weapon_type) const
-{
-  ASSERT((unsigned int)weapon_type < m_nb_ammos.size());
-  return m_nb_ammos[weapon_type];
-}
-
-int Team::ReadNbUnits(const Weapon::Weapon_type &weapon_type) const
-{
-  ASSERT((unsigned int)weapon_type < m_nb_units.size());
-  return m_nb_units[weapon_type];
-}
-
-int& Team::AccessNbAmmos()
-{
-  // if value not initialized, it initialize to 0 and then return 0
-  return m_nb_ammos[ active_weapon->GetType() ] ;
-}
-
-int& Team::AccessNbUnits()
-{
-  // if value not initialized, it initialize to 0 and then return 0
-  return m_nb_units[ active_weapon->GetType() ] ;
-}
-
-void Team::ResetNbUnits()
-{
-  m_nb_units[ active_weapon->GetType() ] = active_weapon->ReadInitialNbUnit();
-}
-
-Team::iterator Team::begin() { return characters.begin(); }
-Team::iterator Team::end() { return characters.end(); }
-
 Character* Team::FindByIndex(uint index)
 {
   ASSERT(index < characters.size());
   iterator it= characters.begin(), end=characters.end();
 
-  while(index != 0 && it != end)
-  {
+  while (index != 0 && it != end) {
     index--;
     it++;
   }
@@ -378,9 +347,9 @@ void Team::LoadGamingData(WeaponsList * weapons)
   // Reset ammos
   m_nb_ammos.clear();
   m_nb_units.clear();
-  std::list<Weapon *> l_weapons_list = weapons_list->GetList() ;
-  std::list<Weapon *>::iterator itw = l_weapons_list.begin(),
-  end = l_weapons_list.end();
+  const std::list<Weapon *>& l_weapons_list = weapons_list->GetList() ;
+  std::list<Weapon *>::const_iterator itw = l_weapons_list.begin(),
+                                      end = l_weapons_list.end();
 
   m_nb_ammos.assign(l_weapons_list.size(), 0);
   m_nb_units.assign(l_weapons_list.size(), 0);
@@ -398,9 +367,8 @@ void Team::LoadGamingData(WeaponsList * weapons)
   }
 
   // Disable non-working weapons in network games
-  if(Network::GetInstance()->IsConnected())
-  {
-    //m_nb_ammos[ Weapon::WEAPON_GRAPPLE ] = 0;
+  if(Network::GetInstance()->IsConnected()) {
+    //m_nb_ammos[Weapon::WEAPON_GRAPPLE] = 0;
   }
 
   active_weapon = weapons_list->GetWeapon(Weapon::WEAPON_DYNAMITE);
@@ -413,6 +381,7 @@ void Team::UnloadGamingData()
 {
   // Clear list of characters
   characters.clear();
+
   if (ai) {
     delete ai;
     ai = NULL;
@@ -429,35 +398,10 @@ void Team::LoadAI()
   ai = new AIStupidPlayer(this);
 }
 
-void Team::SetNbCharacters(uint howmany)
-{
-  ASSERT(howmany >= 1 && howmany <= 10);
-  nb_characters = howmany;
-}
-
-void Team::DrawEnergy(const Point2i& pos)
-{
-  energy.Draw(pos);
-}
-
-void Team::Refresh()
-{
-  energy.Refresh();
-}
-
 void Team::RefreshAI()
 {
   if (ai != NULL)
     ai->Refresh();
-}
-
-Weapon& Team::AccessWeapon() const { return *active_weapon; }
-const Weapon& Team::GetWeapon() const { return *active_weapon; }
-Weapon::Weapon_type Team::GetWeaponType() const { return GetWeapon().GetType(); }
-
-bool Team::IsSameAs(const Team& other) const
-{
-  return (strcmp(m_id.c_str(), other.GetId().c_str()) == 0);
 }
 
 bool Team::IsActiveTeam() const
@@ -467,14 +411,33 @@ bool Team::IsActiveTeam() const
 
 void Team::SetDefaultPlayingConfig()
 {
-  SetRemote(false);
   SetPlayerName("");
+  ClearCustomCharactersNames();
   SetNbCharacters(GameMode::GetInstance()->nb_characters);
+  SetRemote(false);
   SetAIName(NO_AI_NAME);
 }
 
-void Team::AttachCustomTeam(CustomTeam *custom_team)
+void Team::SetCustomCharactersNamesFromAction(Action *a)
 {
- attached_custom_team = custom_team;
+  uint nb_custom_names = a->PopInt();
+  if (nb_custom_names == 0)
+    return;
+
+  std::vector<std::string> custom_names;
+  std::string name;
+  for (uint i = 0; i < nb_custom_names; i++) {
+    name = a->PopString();
+    custom_names.push_back(name);
+  }
+  SetCustomCharactersNames(custom_names);
 }
 
+void Team::PushCustomCharactersNamesIntoAction(Action *a) const
+{
+  uint nb_custom_names = custom_characters_names.size();
+  a->Push(nb_custom_names);
+  for (uint i = 0; i < nb_custom_names; i++) {
+    a->Push(custom_characters_names[i]);
+  }
+}

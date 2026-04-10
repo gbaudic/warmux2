@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,11 +20,13 @@
  *****************************************************************************/
 
 #include "ai/ai_stupid_player.h"
+#include "graphic/video.h"
 #include "gui/button.h"
 #include "gui/label.h"
 #include "gui/picture_widget.h"
-#include "gui/spin_button.h"
+#include "gui/spin_button_picture.h"
 #include "gui/text_box.h"
+#include "gui/vertical_box.h"
 #include "menu/team_box.h"
 #include "include/action_handler.h"
 #include "network/network.h"
@@ -34,17 +36,19 @@
 #include "tool/resource_manager.h"
 
 TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
-  HBox(W_UNDEF, false, false),
+  HBox(_size.y, false, false, false),
   ai_name(NO_AI_NAME)
 {
   associated_team = NULL;
 
   SetMargin(2);
   SetNoBorder();
+  Widget::SetBackgroundColor(transparent_color);
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
 
-  Box * tmp_logo_box = new VBox(W_UNDEF, false, false);
+  /********        Logos: team mascott, player type icon      ********/
+  Box * tmp_logo_box = new VBox(W_UNDEF, false, false, false);
   tmp_logo_box->SetMargin(1);
   tmp_logo_box->SetNoBorder();
 
@@ -62,56 +66,55 @@ TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
 
   AddWidget(tmp_logo_box);
 
-  Box * tmp_box = new VBox(W_UNDEF, false, false);
-  tmp_box->SetMargin(2);
-  tmp_box->SetNoBorder();
-  previous_player_name = "team";
-  team_name = new Label(previous_player_name, _size.x - 50,
-                        Font::FONT_MEDIUM, Font::FONT_BOLD,
-                        dark_gray_color, false, false);
-
-  Box * tmp_player_box = new HBox(W_UNDEF, false, false);
+  /********    Center box: team name, commander   *********/
+  int width = _size.x - (2*2+(38+2*2)+(110+2*2));
+  Box * tmp_player_box = new VBox(_size.y, false, false, false);
   tmp_player_box->SetMargin(0);
   tmp_player_box->SetNoBorder();
+
+  previous_player_name = "team";
+  team_name = new Label(previous_player_name, width,
+                        Font::FONT_MEDIUM, Font::FONT_BOLD);
+  tmp_player_box->AddWidget(team_name);
+
+  /********    Names: "Head commander" + text/custom team    *******/
+  tmp_player_box->AddWidget(new Label(_("Head commander"), width,
+                                      Font::FONT_SMALL, Font::FONT_BOLD));
 
   custom_team_list = GetCustomTeamsList().GetList();
   custom_team_current_id = 0;
 
-  player_name = new TextBox(_player_name, 100,
-                            Font::FONT_SMALL, Font::FONT_BOLD);
-
   if (custom_team_list.empty()) {
-    tmp_player_box->AddWidget(new Label(_("Head commander"), _size.GetX()-50-100,
-                                      Font::FONT_SMALL, Font::FONT_BOLD, dark_gray_color, false, false));
-
+    player_name = new TextBox(_player_name, width,
+                              Font::FONT_SMALL, Font::FONT_BOLD);
     tmp_player_box->AddWidget(player_name);
 
     next_custom_team = NULL;
     previous_custom_team = NULL;
 
   } else {
-    tmp_player_box->AddWidget(new Label(_("Head commander"), _size.GetX()-60-100,
-					Font::FONT_SMALL, Font::FONT_BOLD, dark_gray_color, false, false));
-
     next_custom_team = new Button(res, "menu/plus");
-
     previous_custom_team = new Button(res, "menu/minus");
 
-    tmp_player_box->AddWidget(previous_custom_team);
-    tmp_player_box->AddWidget(player_name);
-    tmp_player_box->AddWidget(next_custom_team);
+    player_name = new TextBox(_player_name, width - 2 * (next_custom_team->GetSizeY() + 2),
+                              Font::FONT_SMALL, Font::FONT_BOLD);
+
+    Box * tmp_name_box = new HBox(player_name->GetSizeY(), false, false, false);
+    tmp_name_box->SetNoBorder();
+    tmp_name_box->SetMargin(2);
+
+    tmp_name_box->AddWidget(previous_custom_team);
+    tmp_name_box->AddWidget(player_name);
+    tmp_name_box->AddWidget(next_custom_team);
+    tmp_player_box->AddWidget(tmp_name_box);
   }
-
-  nb_characters = new SpinButton(_("Number of characters"), _size.GetX()-50,
-                                 6,1,1,10,
-                                 dark_gray_color, false);
-
-  tmp_box->AddWidget(team_name);
-  tmp_box->AddWidget(tmp_player_box);
-  tmp_box->AddWidget(nb_characters);
+  AddWidget(tmp_player_box);
 
 
-  AddWidget(tmp_box);
+  /**********     Number of characters        **********/
+  nb_characters = new SpinButtonWithPicture(_("Number of characters"), "menu/ico_play",
+                                            Point2i(110, 120), 6, 1, 1, 10);
+  AddWidget(nb_characters);
 
   GetResourceManager().UnLoadXMLProfile(res);
 }
@@ -129,7 +132,7 @@ Team* TeamBox::GetTeam() const
   return associated_team;
 }
 
-CustomTeam* TeamBox::GetCustomTeam()
+CustomTeam* TeamBox::GetCustomTeam() const
 {
   if (custom_team_list.empty()) {
     return NULL;
@@ -138,42 +141,61 @@ CustomTeam* TeamBox::GetCustomTeam()
   return GetCustomTeamsList().GetByName(player_name->GetText());
 }
 
+void TeamBox::UpdatePlayerNameColor()
+{
+  if (associated_team) {
+    if (associated_team->IsLocal()) {
+      if (GetCustomTeam()) {
+        // player name is head commander of custom team
+        player_name->SetColor(c_yellow);
+      } else {
+        player_name->SetColor(c_white);
+      }
+    } else {
+      // remote team
+      player_name->SetColor(light_gray_color);
+    }
+  }
+}
+
 void TeamBox::Update(const Point2i &mousePosition,
                      const Point2i &lastMousePosition)
 {
+  UpdatePlayerNameColor();
+
   Box::Update(mousePosition, lastMousePosition);
   if (need_redrawing) {
     Draw(mousePosition);
   }
 
-  if (associated_team != NULL){
-    WidgetList::Update(mousePosition);
+  if (associated_team) {
+    WidgetList::Update(mousePosition, lastMousePosition);
+    if (previous_player_name != player_name->GetText()) {
+      previous_player_name = player_name->GetText();
+      if (Network::GetInstance()->IsConnected()) {
+        ValidOptions();
+      }
+    }
   } else {
     RedrawBackground(*this);
   }
 
-  if (associated_team != NULL && previous_player_name != player_name->GetText()) {
-    previous_player_name = player_name->GetText();
-    if (Network::GetInstance()->IsConnected()) {
-      ValidOptions();
-    }
-  }
-
+  //SwapWindowClip(r);
   need_redrawing = false;
 }
 
 Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
 {
-  if (associated_team != NULL) {
-
-    Widget* w = WidgetList::ClickUp(mousePosition, button);
+  if (associated_team) {
 
     if (!associated_team->IsLocal())
       return NULL; // it's not a local team, we can't configure it !!
 
+    Widget* w = WidgetList::ClickUp(mousePosition, button);
+
     if (w == nb_characters) {
       if (Network::GetInstance()->IsConnected()) {
-              ValidOptions();
+        ValidOptions();
       }
       return w;
     }
@@ -181,7 +203,7 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
       return w;
     }
 
-    if (w == NULL) {
+    if (!w) {
       return w;
     }
 
@@ -190,7 +212,7 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
       if (w == next_custom_team) {
         player_name->SetText(custom_team_list[custom_team_current_id]->GetName());
 
-        if(custom_team_current_id == custom_team_list.size()-1) {
+        if (custom_team_current_id == custom_team_list.size()-1) {
           custom_team_current_id = 0;
         } else {
           custom_team_current_id++;
@@ -201,7 +223,7 @@ Widget* TeamBox::ClickUp(const Point2i &mousePosition, uint button)
 
         player_name->SetText(custom_team_list[custom_team_current_id]->GetName());
 
-        if(custom_team_current_id == 0) {
+        if (custom_team_current_id == 0) {
           custom_team_current_id = custom_team_list.size()-1;
         } else {
           custom_team_current_id--;
@@ -293,6 +315,14 @@ void TeamBox::UpdateTeam(const std::string& old_team_id) const
 
   // change only for local teams...
   if (associated_team->IsLocal()) {
+
+    CustomTeam* custom = GetCustomTeam();
+    if (custom) {
+      associated_team->SetCustomCharactersNames(custom->GetCharactersNameList());
+    } else {
+      associated_team->ClearCustomCharactersNames();
+    }
+
     // send team configuration to the remote clients
     if (Network::GetInstance()->IsConnected()) {
       Action* a = new Action(Action::ACTION_GAME_UPDATE_TEAM);
@@ -302,6 +332,7 @@ void TeamBox::UpdateTeam(const std::string& old_team_id) const
       a->Push(associated_team->GetPlayerName());
       a->Push(int(associated_team->GetNbCharacters()));
       a->Push(associated_team->GetAIName());
+      associated_team->PushCustomCharactersNamesIntoAction(a);
       ActionHandler::GetInstance()->NewAction (a);
     }
   }

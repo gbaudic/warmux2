@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 #include "character/character.h"
 #include "game/config.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
@@ -66,6 +66,8 @@ Polecat::Polecat(ExplosiveWeaponConfig& cfg,
   explode_with_timeout = true;
   last_fart_time = 0;
   last_rebound_time = 0;
+  // Make sure the flip cache is set
+  image->EnableCaches(true, 0);
 }
 
 void Polecat::Shoot(Double strength)
@@ -77,7 +79,7 @@ void Polecat::Shoot(Double strength)
 
   Double angle = ActiveCharacter().GetFiringAngle();
 
-  if(angle<PI/2 && angle>-PI/2)
+  if (angle<HALF_PI && angle>-HALF_PI)
     m_sens = 1;
   else
     m_sens = -1;
@@ -86,8 +88,8 @@ void Polecat::Shoot(Double strength)
 void Polecat::Fart()
 {
   // particles must be exactly the same accross the network
-  Double norme = Double(RandomSync().GetLong(0, 500))/100;
-  Double angle = Double(RandomSync().GetLong(0, 3000))/100;
+  Double norme = Double(RandomSync().GetInt(0, 500))/100;
+  Double angle = Double(RandomSync().GetInt(0, 3000))/100;
   ParticleEngine::AddNow(GetPosition(), 3, particle_POLECAT_FART, true, angle, norme);
   last_fart_time = Time::GetInstance()->Read();
   JukeBox::GetInstance()->Play("default", "weapon/polecat_fart");
@@ -113,8 +115,8 @@ void Polecat::Refresh()
   if (cfg.timeout && tmp > 1000 * (GetTotalTimeout())) {
     if (!last_fart_time) {
       std::string txt = Format(_("%s has done something for the environment, he has not ordered the polecat to fart."),
-			       ActiveCharacter().GetName().c_str());
-      GameMessages::GetInstance()->Add (txt);
+             ActiveCharacter().GetName().c_str());
+      Weapon::Message(txt);
     }
     SignalTimeout();
   }
@@ -150,27 +152,24 @@ void Polecat::Refresh()
   //sometimes, angle==infinite (according to gdb) ??
   GetSpeed(norm, angle);
 
-  while(angle < -PI)
-    angle += PI;
-  while(angle > PI)
-    angle -= PI;
-
-  angle /= TWO;
-  if(m_sens == -1) {
-    if(angle > 0)
+  angle = RestrictAngle(angle) * ONE_HALF;
+  bool flipped = m_sens == -1;
+  if (flipped) {
+    if (angle > 0)
       angle -= HALF_PI;
     else
       angle += HALF_PI;
   }
 
   image->SetRotation_rad(angle);
-  image->Scale((Double)m_sens,1.0);
+  image->SetFlipped(flipped);
+  image->Scale(ONE, ONE);
   image->Update();
 }
 
 void Polecat::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The Polecat left the battlefield before exploding!"));
+  Weapon::Message(_("The Polecat left the battlefield before exploding!"));
   WeaponProjectile::SignalOutOfMap();
 }
 
@@ -188,14 +187,12 @@ PolecatLauncher::PolecatLauncher() :
 
   // unit will be used when the polecat disappears
   use_unit_on_first_shoot = false;
-
 }
 
 void PolecatLauncher::UpdateTranslationStrings()
 {
   m_name = _("Polecat Launcher");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Set timer 1-6 using +/- or 1-6 keys\nPress space to shoot\nOne shoot per turn");
 }
 
 bool PolecatLauncher::p_Shoot()
@@ -267,8 +264,7 @@ void PolecatLauncher::SignalEndOfProjectile()
 
 WeaponProjectile * PolecatLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-    (new Polecat(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new Polecat(cfg(), this);
 }
 
 std::string PolecatLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const

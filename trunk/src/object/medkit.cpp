@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,39 +21,45 @@
  *****************************************************************************/
 
 #include "object/medkit.h"
-#include <sstream>
-#include <iostream>
 #include "character/character.h"
 #include "game/game_mode.h"
-#include "game/time.h"
 #include "graphic/sprite.h"
-#include "include/app.h"
-#include "include/action.h"
 #include "interface/game_msg.h"
-#include "map/camera.h"
-#include "map/map.h"
-#include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "sound/jukebox.h"
-#include "team/macro.h"
 #include "team/team.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 #include "tool/resource_manager.h"
 #include "tool/xml_document.h"
-#include "weapon/explosion.h"
+
+Sprite* Medkit::icon = NULL;
+int Medkit::icon_ref = 0;
 
 Medkit::Medkit()
   : ObjBox("medkit") {
   SetTestRect (29, 29, 63, 6);
 
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  anim = GetResourceManager().LoadSprite( res, "object/medkit");
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  anim = GetResourceManager().LoadSprite(res, "object/medkit");
   GetResourceManager().UnLoadXMLProfile(res);
 
   SetSize(anim->GetSize());
   anim->animation.SetLoopMode(false);
   anim->SetCurrentFrame(0);
-  std::cout<<"anim set"<<std::endl;
+
+  if (!icon) {
+    icon = CreateIcon();
+  }
+  icon_ref++;
+}
+
+Medkit::~Medkit()
+{
+  icon_ref--;
+  if (!icon_ref) {
+    delete icon;
+    icon = NULL;
+  }
 }
 
 void Medkit::ApplyBonus(Character * c)
@@ -63,15 +69,14 @@ void Medkit::ApplyBonus(Character * c)
   Ghost();
 }
 
-void Medkit::ApplyMedkit(Team &/*equipe*/, Character &ver) const {
-  std::ostringstream txt;
- txt << Format(ngettext(
-                "%s has won %u point of energy!",
-                "%s has won %u points of energy!",
-                nbr_health),
-            ver.GetName().c_str(), nbr_health);
-  ver.SetEnergyDelta (nbr_health);
-  GameMessages::GetInstance()->Add (txt.str());
+void Medkit::ApplyMedkit(Team &team, Character &player) const
+{
+  std::string txt = Format(_("%s has won %u points of energy!"),
+                           player.GetName().c_str(), nbr_health);
+  player.SetEnergyDelta(nbr_health, &player);
+  if (player.IsDiseased())
+    player.Cure();
+  GameMessages::GetInstance()->Add(txt, team.GetColor());
 }
 
 //-----------------------------------------------------------------------------
@@ -82,11 +87,19 @@ int Medkit::nbr_health = 24;
 void Medkit::LoadXml(const xmlNode*  object)
 {
   bool r;
-  r = XmlReader::ReadInt(object,"life_points",start_life_points);
+  r = XmlReader::ReadInt(object, "life_points", start_life_points);
   if (!r)
     start_life_points = 41;
 
-  r = XmlReader::ReadInt(object,"energy_boost",nbr_health);
+  r = XmlReader::ReadInt(object, "energy_boost", nbr_health);
   if (!r)
     nbr_health = 24;
+}
+
+const Surface* Medkit::GetIcon() const
+{
+  ASSERT(icon);
+  icon->SetCurrentFrame(anim->GetCurrentFrame());
+  icon->RefreshSurface();
+  return &icon->GetSurface();
 }

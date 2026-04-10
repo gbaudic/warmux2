@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Wormux configuration : all main configuration variables have there default
+ * Warmux configuration : all main configuration variables have there default
  * value here. They should all be modifiable using the xml config file
  *****************************************************************************/
 
 #include <iostream>
 #include <cstdio>
-#include <WORMUX_file_tools.h>
+#include <WARMUX_file_tools.h>
 #include "game/config.h"
 #include "game/game.h"
 #include "game/game_mode.h"
@@ -43,7 +43,7 @@ void GameMode::LoadDefaultValues()
 {
   rules = "none";
   nb_characters = 6;
-  max_teams = 4;
+  max_teams = 8;
   duration_turn = 60;
   duration_move_player = 3;
   duration_exchange_player = 2;
@@ -201,13 +201,13 @@ bool GameMode::Load(void)
   LoadDefaultValues();
 
   // Game mode objects configuration file
-  if(!doc_objects->Load(GetObjectsFilename()))
+  if (!doc_objects->Load(GetObjectsFilename()))
     return false;
 
 
-  if(!doc.Load(GetFilename()))
+  if (!doc.Load(GetFilename()))
     return false;
-  if(!LoadXml(doc.GetRoot()))
+  if (!LoadXml(doc.GetRoot()))
     return false;
 
   return true;
@@ -221,12 +221,12 @@ bool GameMode::LoadFromString(const std::string& game_mode_name,
   m_current = game_mode_name;
   MSG_DEBUG("game_mode", "Loading %s from network: ", m_current.c_str());
 
-  if(!doc_objects->LoadFromString(game_mode_objects_contents))
+  if (!doc_objects->LoadFromString(game_mode_objects_contents))
     return false;
 
-  if(!doc.LoadFromString(game_mode_contents))
+  if (!doc.LoadFromString(game_mode_contents))
     return false;
-  if(!LoadXml(doc.GetRoot()))
+  if (!LoadXml(doc.GetRoot()))
     return false;
 
   MSG_DEBUG("game_mode", "OK\n");
@@ -291,10 +291,10 @@ std::string GameMode::GetFilename() const
 
   std::string fullname = config->GetPersonalDataDir() + filename;
 
-  if(!DoesFileExist(fullname))
+  if (!DoesFileExist(fullname))
     fullname = config->GetDataDir() + filename;
 
-  if(!DoesFileExist(fullname)) {
+  if (!DoesFileExist(fullname)) {
     Error(Format("Can not find file %s", fullname.c_str()));
   }
 
@@ -318,10 +318,10 @@ std::string GameMode::GetObjectsFilename() const
 
   std::string fullname = config->GetPersonalDataDir() + filename;
 
-  if(!DoesFileExist(fullname))
+  if (!DoesFileExist(fullname))
     fullname = config->GetDataDir() + filename;
 
-  if(!DoesFileExist(fullname)) {
+  if (!DoesFileExist(fullname)) {
     std::cerr << "Game mode: File " << fullname
       << " does not exist, use the default one instead." << std::endl;
   }
@@ -355,12 +355,12 @@ std::vector<std::pair<std::string, std::string> > GameMode::ListGameModes()
       std::string filename(name);
 
       if (filename.size() >= 5
-	  && filename.compare(filename.size()-4, 4, ".xml") == 0
-	  && (filename.size() < 12
-	      || filename.compare(filename.size()-12, 12, "_objects.xml") != 0)) {
+          && filename.compare(filename.size()-4, 4, ".xml") == 0
+          && (filename.size() < 12
+              || filename.compare(filename.size()-12, 12, "_objects.xml") != 0)) {
 
-	std::string game_mode_name = filename.substr(0, filename.size()-4);
-	game_modes.push_back(std::pair<std::string, std::string>(game_mode_name, game_mode_name));
+        std::string game_mode_name = filename.substr(0, filename.size()-4);
+        game_modes.push_back(std::pair<std::string, std::string>(game_mode_name, game_mode_name));
       }
     }
     CloseFolder(f);

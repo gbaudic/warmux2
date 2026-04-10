@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,174 +23,68 @@
  *****************************************************************************/
 
 #include "graphic/spritecache.h"
-#include "graphic/sprite.h"
 
-SpriteFrameCache::SpriteFrameCache()
+void SpriteSubframeCache::SetCache(uint rotation_num, const Double& mini, const Double& maxi)
 {
-  use_rotation = false;
-}
-
-void SpriteFrameCache::CreateRotationCache(Surface &surface, unsigned int cache_size, bool smooth)
-{
-  ASSERT (use_rotation == false);
-  use_rotation = true;
-
-  rotated_surface.push_back( surface );
-  for(unsigned int i=1 ; i< cache_size ; i++){
-    Double angle = TWO * PI * (1 /* to inverte rotation angle */ - static_cast<Double>(i) / static_cast<Double>(cache_size));
-    rotated_surface.push_back( surface.RotoZoom(angle, 1.0, 1.0, smooth) );
+  min = mini;
+  max = maxi;
+  rotated.clear();
+  if (rotation_num) {
+    rotated.resize(rotation_num);
+    rotated[0] = surface;
   }
 }
 
-Surface SpriteFrameCache::GetFlippedSurfaceForAngle(Double angle) const
+Surface SpriteSubframeCache::GetSurfaceForAngle(Double angle)
 {
-  Double angle_tmp = angle;
-  while(angle_tmp >= TWO * PI)
-    angle_tmp -= TWO * PI;
-  while(angle_tmp < ZERO)
-    angle_tmp += TWO * PI;
-  int index = static_cast<int>(angle_tmp*static_cast<Double>(rotated_flipped_surface.size()) / (TWO * PI));
-  return rotated_flipped_surface[index];
+  ASSERT(max - min > ZERO);
+  //Double fmin = PI-max;
+  angle = RestrictAngle(angle);
+  uint index = ((uint)rotated.size()*angle - min) / Double(max-min);
+  ASSERT(rotated.size()>index);
+
+  // On demand-cache
+  if (rotated[index].IsNull()) {
+    angle = min + (max-min)*(1-index/(Double)rotated.size());
+    rotated[index] = surface.RotoZoomC(angle, ONE, ONE, true);
+  }
+  return rotated[index];
 }
 
-Surface SpriteFrameCache::GetSurfaceForAngle(Double angle) const
+void SpriteFrameCache::SetCaches(bool flip, uint rotation_num, Double mini, Double maxi)
 {
-  Double angle_tmp = angle;
-  while(angle_tmp < ZERO)
-      angle_tmp += TWO * PI;
-  while(angle_tmp >= TWO * PI)
-    angle_tmp -= TWO * PI;
-
-  unsigned int index = static_cast<int>(angle_tmp*static_cast<Double>(rotated_surface.size()) / (TWO * PI));
-  ASSERT (rotated_surface.size()>index);
-  return rotated_surface[index];
-}
-
-void SpriteFrameCache::CreateFlippingCache(Surface &surface, bool smooth)
-{
-  ASSERT (flipped_surface.IsNull());
-  flipped_surface = surface.RotoZoom( 0.0, -1.0, 1.0, smooth);
-  if (use_rotation)
-  {
-    ASSERT (rotated_surface.size() != 0);
-    ASSERT (rotated_flipped_surface.size() == 0);
-    rotated_flipped_surface.push_back( flipped_surface );
-    const unsigned int n = rotated_surface.size();
-    for(unsigned int i=1 ; i<n; i++)
-    {
-      Double angle = TWO * PI * (1 - (Double) i / (Double) n);
-      rotated_flipped_surface.push_back( surface.RotoZoom(angle, -1.0, 1.0, smooth) );
-    }
+  ASSERT(!normal.surface.IsNull());
+  normal.SetCache(rotation_num, mini, maxi);
+  if (flip) {
+    flipped.surface = normal.surface.Mirror();
+    flipped.SetCache(rotation_num, mini, maxi);
   }
 }
 
-
-
-
-SpriteCache::SpriteCache(Sprite &p_sprite) :
-  sprite(p_sprite)
+void SpriteCache::EnableCaches(bool flipped, uint rotation_num, const Double& min, const Double& max)
 {
-  have_rotation_cache = false;
-  have_flipping_cache = false;
-  have_lastframe_cache = false;
-  rotation_cache_size = 0;
-}
-
-#if 0
-SpriteCache::SpriteCache(Sprite &p_sprite, const SpriteCache &other)  :
-  sprite(p_sprite),
-  frames(other.frames)
-{
-  have_rotation_cache = false;
-  have_flipping_cache = false;
-  have_lastframe_cache = false;
-  rotation_cache_size = 0;
-
-  for ( unsigned int f = 0 ; f < other.frames.size() ; f++)
-  {
-    Surface new_surf(frame_width_pix, frame_height_pix, SDL_SWSURFACE|SDL_SRCALPHA, true);
-
-        // Disable per pixel alpha on the source surface
-    // in order to properly copy the alpha chanel to the destination suface
-        // see the SDL_SetAlpha man page for more infos (RGBA->RGBA without SDL_SRCALPHA)
-        other.frames[f].surface.SetAlpha( 0, 0);
-        new_surf.Blit( other.frames[f].surface, NULL, NULL);
-
-        // re-enable the per pixel alpha in the
-        other.frames[f].surface.SetAlpha( SDL_SRCALPHA, 0);
-    frames.push_back( SpriteFrame(new_surf,other.frames[f].delay));
-  }
-
-  if(other.have_rotation_cache)
-    EnableRotationCache(other.rotation_cache_size);
-  if(other.have_flipping_cache)
-    EnableFlippingCache();
-  if(other.have_lastframe_cache)
-    EnableLastFrameCache();
-}
-#endif
-
-void SpriteCache::EnableRotationCache(std::vector<SpriteFrame> &sprite_frames, unsigned int cache_size)
-{
-  //For each frame, we pre-render 'cache_size' rotated surface
+  //For each frame, we pre-render 'rotation_num' rotated surface
   //At runtime the prerender Surface with the nearest angle to what is asked is displayed
-  ASSERT(1 < cache_size && cache_size <= 360);
-  ASSERT(!have_lastframe_cache);
-  ASSERT(!have_flipping_cache); //Always compute rotation cache before flipping cache!
-  ASSERT(!have_rotation_cache);
-  have_rotation_cache = true;
+  have_flipping_cache = flipped;
+  rotation_cache_size = rotation_num;
 
-  if (frames.empty())
-    frames.resize( sprite_frames.size() );
-  ASSERT( frames.size() == sprite_frames.size() );
-  rotation_cache_size = cache_size;
+  assert(!empty());
 
-  for ( unsigned int f = 0 ; f < frames.size() ; f++)
-  {
-    frames[f].CreateRotationCache(sprite_frames[f].surface, cache_size, sprite.IsAntialiased());
+  for (uint f=0; f<size(); f++) {
+    operator[](f).SetCaches(flipped, rotation_num, min, max);
   }
 }
 
-void SpriteCache::EnableFlippingCache(std::vector<SpriteFrame> &sprite_frames)
+void SpriteCache::FixParameters(const Double& rotation_rad,
+                                const Double& scale_x, const Double& scale_y,
+                                bool force_color_key)
 {
-  //For each frame, we pre-render the flipped frame
-  ASSERT(!have_flipping_cache);
-  ASSERT(!have_lastframe_cache);
-
-  if (frames.empty())
-    frames.resize( sprite_frames.size() );
-  ASSERT( frames.size() == sprite_frames.size() );
-
-  have_flipping_cache = true;
-
-  for ( unsigned int f = 0 ; f < frames.size() ; f++)
-    frames[f].CreateFlippingCache(sprite_frames[f].surface, sprite.IsAntialiased());
+  bool rotozoom = rotation_rad.IsNotZero() || scale_x!=ONE || scale_y!=ONE;
+  for (uint i=0; i<size(); i++) {
+    SpriteFrameCache& frame = operator[](i);
+    if (rotozoom)
+      frame.normal.surface = frame.normal.surface.RotoZoom(rotation_rad, scale_x, scale_y, true);
+    if (force_color_key)
+      frame.normal.surface = frame.normal.surface.DisplayFormatColorKey(128);
+  }
 }
-
-void SpriteCache::EnableLastFrameCache()
-{
-  //The result of the last call to SDLgfx is kept in memory
-  //to display it again if rotation / scale / alpha didn't changed
-  ASSERT(!have_rotation_cache);
-  ASSERT(!have_flipping_cache);
-  have_lastframe_cache = true;
-}
-
-void SpriteCache::DisableLastFrameCache()
-{
-  //The result of the last call to SDLgfx is kept in memory
-  //to display it again if rotation / scale / alpha didn't changed
-  ASSERT(!have_rotation_cache);
-  ASSERT(!have_flipping_cache);
-  have_lastframe_cache = false;
-}
-
-void SpriteCache::InvalidLastFrame()
-{
-  //Free lastframe_cache if the next frame to be displayed
-  //is not the same as the last one.
-  if(!have_lastframe_cache)
-    return;
-  last_frame.Free();
-}
-

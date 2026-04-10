@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,14 +23,7 @@
 #include <iostream>
 #include <SDL_stdinc.h>
 
-// a hack I need I have no clue why
-#ifndef SDL_static_cast
-#define SDL_reinterpret_cast(type, expression) ((type)(expression))
-#define SDL_static_cast(type, expression) ((type)(expression))
-#endif
-
 #include <SDL_video.h>
-#include <SDL_gfxPrimitives.h>
 #include <limits.h>
 #include "map/camera.h"
 #include "map/map.h"
@@ -38,45 +31,50 @@
 #include "graphic/surface.h"
 #include "graphic/video.h"
 #include "graphic/colors.h"
-#include "include/app.h"
 #include "include/constant.h"
 #include "tool/isnan.h"
-#include "tool/resource_manager.h"
 
 Ground::Ground()
 { //FIXME (to erase)
 }
 
-void Ground::Init(){
+void Ground::Init()
+{
   std::cout << "o " << _("Ground initialization...") << ' ';
   std::cout.flush();
 
   // Load ground data
-  Surface& m_image = ActiveMap()->ReadImgGround();
-  if(ActiveMap()->IsOpened()) {
-    LoadImage(m_image, ActiveMap()->GetUpperLeftPad(), ActiveMap()->GetLowerRightPad());
+  InfoMapAccessor *normal = ActiveMap()->LoadData();
+
+  //Load alpha threshold from XML
+  alpha_threshold = normal->GetAlphaThreshold();
+
+  // Check if the map is "opened"
+  open = normal->IsOpened();
+
+  const std::string& filename = normal->GetGroundFileName();
+  bool ret;
+  if (open) {
+    ret = LoadImage(filename, alpha_threshold,
+                    ActiveMap()->GetUpperLeftPad(),
+                    ActiveMap()->GetLowerRightPad());
   } else {
-    LoadImage(m_image, Point2i(), Point2i());
+    ret = LoadImage(filename, alpha_threshold, Point2i(), Point2i());
   }
+  if (!ret)
+    Error(_("Error loading ground"));
+
   // Check the size of the map
   ASSERT(Constants::MAP_MIN_SIZE <= GetSize());
   ASSERT(GetSizeX()*GetSizeY() <= Constants::MAP_MAX_SIZE);
 
-  // Check if the map is "opened"
-  open = ActiveMap()->IsOpened();
-
   std::cout << _("done") << std::endl;
 }
 
-void Ground::Reset(){
+void Ground::Reset()
+{
   Init();
   lastPos.SetValues(INT_MAX, INT_MAX);
-}
-
-// Read the alpha channel of the pixel
-bool Ground::IsEmpty(const Point2i & pos) const {
-  ASSERT( !GetWorld().IsOutsideWorldXY(pos.x, pos.y) );
-  return GetAlpha(pos) != 255; // IsTransparent
 }
 
 /*
@@ -86,7 +84,8 @@ bool Ground::IsEmpty(const Point2i & pos) const {
  * returns -1.0 if no tangent was found (pixel (x,y) does not touch any
  * other piece of ground
  */
-Double Ground::Tangent(int x,int y) const {
+Double Ground::Tangent(int x,int y) const
+{
   //Approximation : returns the chord instead of the tangent to the ground
 
   /* We try to find 2 points on the ground on each side of (x,y)
@@ -95,11 +94,10 @@ Double Ground::Tangent(int x,int y) const {
    * p2 =  point on the right
    */
   Point2i p1,p2;
-  if(!PointContigu(x,y, p1.x,p1.y, -1,-1))
+  if (!PointContigu(x,y, p1.x,p1.y, -1,-1))
     return getNaN();
 
-  if(!PointContigu(x,y, p2.x,p2.y, p1.x,p1.y))
-  {
+  if (!PointContigu(x,y, p2.x,p2.y, p1.x,p1.y)) {
     p2.x = x;
     p2.y = y;
   }
@@ -121,15 +119,15 @@ Double Ground::Tangent(int x,int y) const {
   return tangeante; */
 
   //calculated with a good old TI-83... using table[a][b] = atan( (a-2) / (b-2) )
-  const Double table[5][5] = {
+  static const Double table[5][5] = {
     {     QUARTER_PI,          .46364,      PI,    -.46364+M_PI, PI - QUARTER_PI},
     {         1.1071,      QUARTER_PI,      PI, PI - QUARTER_PI,     1.1071+M_PI},
     {        HALF_PI,         HALF_PI, HALF_PI,         HALF_PI,         HALF_PI},
     {   -1.1071+M_PI, PI - QUARTER_PI,      PI,      QUARTER_PI,          1.1071},
     {PI - QUARTER_PI,     -.46364+M_PI,     PI,          .46364,     QUARTER_PI}};
 
-  ASSERT(p2.x-p1.x >= -2 && p2.x-p1.x <= 2);
-  ASSERT(p2.y-p1.y >= -2 && p2.y-p1.y <= 2);
+  assert(p2.x-p1.x >= -2 && p2.x-p1.x <= 2);
+  assert(p2.y-p1.y >= -2 && p2.y-p1.y <= 2);
 
   return table[(p2.y-p1.y)+2][(p2.x-p1.x)+2];
 }
@@ -150,109 +148,107 @@ bool Ground::PointContigu(int x,int y,  int & p_x,int & p_y,
   // check adjacents pixels one by one:
   //upper right pixel
   if (x-1 != bad_x || y-1 != bad_y)
-  if (!IsEmpty(Point2i(x-1,y-1)) && 
-      (IsEmpty(Point2i(x-1,y)) || 
-      IsEmpty(Point2i(x,y-1)))) {
-    p_x=x-1;
-    p_y=y-1;
-    return true;
-  }
+    if (!IsEmpty(Point2i(x-1,y-1)) &&
+        (IsEmpty(Point2i(x-1,y)) ||
+        IsEmpty(Point2i(x,y-1)))) {
+      p_x=x-1;
+      p_y=y-1;
+      return true;
+    }
 
   //upper pixel
   if (x != bad_x || y-1 != bad_y)
-  if (!IsEmpty(Point2i(x,y-1)) &&
-      (IsEmpty(Point2i(x-1,y-1)) || 
-      IsEmpty(Point2i(x+1,y-1)))) {
-    p_x=x;
-    p_y=y-1;
-    return true;
-  }
+    if (!IsEmpty(Point2i(x,y-1)) &&
+        (IsEmpty(Point2i(x-1,y-1)) ||
+        IsEmpty(Point2i(x+1,y-1)))) {
+      p_x=x;
+      p_y=y-1;
+      return true;
+    }
 
   //upper right pixel
   if (x+1 != bad_x || y-1 != bad_y)
-  if (!IsEmpty(Point2i(x+1,y-1)) && 
-      (IsEmpty(Point2i(x,y-1)) || 
-      IsEmpty(Point2i(x+1,y)))) {
-    p_x=x+1;
-    p_y=y-1;
-    return true;
-  }
+    if (!IsEmpty(Point2i(x+1,y-1)) &&
+        (IsEmpty(Point2i(x,y-1)) ||
+        IsEmpty(Point2i(x+1,y)))) {
+      p_x=x+1;
+      p_y=y-1;
+      return true;
+    }
 
   //pixel at the right
   if (x+1 != bad_x || y != bad_y)
-  if (!IsEmpty(Point2i(x+1,y)) && 
-      (IsEmpty(Point2i(x+1,y-1)) || 
-      IsEmpty(Point2i(x,y+1)))) {
-    p_x=x+1;
-    p_y=y;
-    return true;
-  }
+    if (!IsEmpty(Point2i(x+1,y)) &&
+        (IsEmpty(Point2i(x+1,y-1)) ||
+        IsEmpty(Point2i(x,y+1)))) {
+      p_x=x+1;
+      p_y=y;
+      return true;
+    }
 
   //bottom right pixel
   if (x+1 != bad_x || y+1 != bad_y)
-  if (!IsEmpty(Point2i(x+1,y+1)) &&
-      (IsEmpty(Point2i(x+1,y)) || 
-      IsEmpty(Point2i(x,y+1)))) {
-    p_x=x+1;
-    p_y=y+1;
-    return true;
-  }
+    if (!IsEmpty(Point2i(x+1,y+1)) &&
+        (IsEmpty(Point2i(x+1,y)) ||
+        IsEmpty(Point2i(x,y+1)))) {
+      p_x=x+1;
+      p_y=y+1;
+      return true;
+    }
+
   //bottom pixel
-  if(x != bad_x
-  || y+1 != bad_y)
-  if(!IsEmpty(Point2i(x,y+1))
-  &&(IsEmpty(Point2i(x-1,y+1))
-  || IsEmpty(Point2i(x+1,y+1))))
-  {
-    p_x=x;
-    p_y=y+1;
-    return true;
-  }
+  if (x != bad_x || y+1 != bad_y)
+    if (!IsEmpty(Point2i(x,y+1))
+        &&(IsEmpty(Point2i(x-1,y+1))
+        || IsEmpty(Point2i(x+1,y+1)))) {
+      p_x=x;
+      p_y=y+1;
+      return true;
+    }
+
   //bottom left pixel
-  if(x-1 != bad_x
-  || y+1 != bad_y)
-  if(!IsEmpty(Point2i(x-1,y+1))
-  &&(IsEmpty(Point2i(x-1,y))
-  || IsEmpty(Point2i(x,y+1))))
-  {
-    p_x=x-1;
-    p_y=y+1;
-    return true;
-  }
+  if (x-1 != bad_x || y+1 != bad_y)
+    if (!IsEmpty(Point2i(x-1,y+1))
+        &&(IsEmpty(Point2i(x-1,y))
+        || IsEmpty(Point2i(x,y+1)))) {
+      p_x=x-1;
+      p_y=y+1;
+      return true;
+    }
+
   //pixel at left
-  if(x-1 == bad_x
-  && y == bad_y)
-  if(!IsEmpty(Point2i(x-1,y))
-  &&(IsEmpty(Point2i(x-1,y-1))
-  || IsEmpty(Point2i(x-1,y+1))))
-  {
-    p_x=x-1;
-    p_y=y;
-    return true;
-  }
+  if (x-1 == bad_x && y == bad_y)
+    if (!IsEmpty(Point2i(x-1,y))
+        &&(IsEmpty(Point2i(x-1,y-1))
+        || IsEmpty(Point2i(x-1,y+1)))) {
+      p_x=x-1;
+      p_y=y;
+      return true;
+    }
+
   return false;
 }
 
 void Ground::Draw(bool redraw_all)
 {
   CheckEmptyTiles();
-  AppWormux * app = AppWormux::GetInstance();
+  Surface& window = GetMainWindow();
 
   Point2i cPos = Camera::GetInstance()->GetPosition();
-  Point2i windowSize = app->video->window.GetSize();
+  Point2i windowSize = window.GetSize();
   Point2i margin = (windowSize - GetSize())/2;
 
-  if( Camera::GetInstance()->HasFixedX() ){// ground is less wide than screen !
-    app->video->window.BoxColor( Rectanglei(0, 0, margin.x, windowSize.y), black_color);
-    app->video->window.BoxColor( Rectanglei(windowSize.x - margin.x, 0, margin.x, windowSize.y), black_color);
+  if (Camera::GetInstance()->HasFixedX()) { // ground is less wide than screen !
+    window.BoxColor(Rectanglei(0, 0, margin.x, windowSize.y), black_color);
+    window.BoxColor(Rectanglei(windowSize.x - margin.x, 0, margin.x, windowSize.y), black_color);
   }
 
-  if( Camera::GetInstance()->HasFixedY() ){// ground is less wide than screen !
-    app->video->window.BoxColor( Rectanglei(0, 0, windowSize.x, margin.y), black_color);
-    app->video->window.BoxColor( Rectanglei(0, windowSize.y - margin.y, windowSize.x, margin.y), black_color);
+  if (Camera::GetInstance()->HasFixedY()) { // ground is less wide than screen !
+    window.BoxColor(Rectanglei(0, 0, windowSize.x, margin.y), black_color);
+    window.BoxColor(Rectanglei(0, windowSize.y - margin.y, windowSize.x, margin.y), black_color);
   }
 
-  if( lastPos != cPos || redraw_all){
+  if (lastPos != cPos || redraw_all) {
     lastPos = cPos;
     DrawTile();
     return;
@@ -269,9 +265,10 @@ void Ground::Draw(bool redraw_all)
   CheckPreview();
 }
 
-void Ground::RedrawParticleList(std::list<Rectanglei> &list) const {
-  std::list<Rectanglei>::iterator it;
+void Ground::RedrawParticleList(const std::list<Rectanglei>& list) const
+{
+  std::list<Rectanglei>::const_iterator it;
 
-  for( it = list.begin(); it != list.end(); ++it )
+  for(it = list.begin(); it != list.end(); ++it)
     DrawTile_Clipped(*it);
 }

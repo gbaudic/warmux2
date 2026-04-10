@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,17 +18,14 @@
  ******************************************************************************
  *****************************************************************************/
 
-#include <map>
 #include <iostream>
 #include <cstdio>
 #include "character/movement.h"
 #include "tool/xml_document.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 
 Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per_frame(15), always_moving(false)
 {
-  frames.clear();
-
   XmlReader::ReadStringAttr(xml, "name", type);
   ASSERT(type != "");
   MSG_DEBUG("body.movement", "  Loading movement %s", type.c_str());
@@ -40,7 +37,7 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
   test_left = test_right = test_top = test_bottom = 0;
   const xmlNode* collision_rect = XmlReader::GetMarker(xml, "collision_rect");
 
-  if (collision_rect == NULL) {
+  if (!collision_rect) {
     fprintf(stderr, "No collision rect for %s\n", type.c_str());
     return;
   }
@@ -57,23 +54,24 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
   MSG_DEBUG("body.movement", "  Found %i movement frames", nodes.size());
   MSG_DEBUG("body.movement", "  Nb loops: %i", nb_loops);
 
-  /* We know the number of member frame that are being read so we can resize
-   * thr array to be able to get all of them. */
-  frames.resize(nodes.size());
+  // We know the number of member frames that will be read,
+  // so we can set set the array size now
+  frames.reserve(nodes.size());
 
-  for (int frame_number=0; it != end; ++it, frame_number++) {
-
+  for (; it != end; ++it) {
     xmlNodeArray members = XmlReader::GetNamedChildren(*it, "member");
-    xmlNodeArray::const_iterator it2;
     MSG_DEBUG("body.movement", "    Found %i frame members", members.size());
 
-    for (it2 = members.begin(); it2 != members.end(); ++it2) {
+    member_def def;
+    def.reserve(members.size());
 
+    xmlNodeArray::const_iterator it2;
+    for (it2 = members.begin(); it2 != members.end(); ++it2) {
       const xmlNode *child = *it2;
       std::string member_type;
       XmlReader::ReadStringAttr(child, "type", member_type);
 
-      member_mvt mvt;
+      member_mvt mvt(member_type);
       int dx = 0, dy = 0, angle_deg = 0;
       Double scale_x = 1.0, scale_y = 1.0, tmp_alpha = 1.0;
 
@@ -89,17 +87,17 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
       XmlReader::ReadBoolAttr(child, "follow_direction", mvt.follow_direction);
 
       if (XmlReader::ReadBoolAttr(child, "follow_cursor", mvt.follow_cursor)
-	  && !XmlReader::ReadIntAttr(child, "follow_cursor_limit", mvt.follow_cursor_limit))
-	fprintf(stderr, "Warning ! \"follow_cursor\" flag used while \"follow_cursor_limit\" isn't defined, this won't do anything!\n");
+          && !XmlReader::ReadIntAttr(child, "follow_cursor_limit", mvt.follow_cursor_limit))
+        fprintf(stderr, "Warning ! \"follow_cursor\" flag used while \"follow_cursor_limit\" isn't defined, this won't do anything!\n");
 
       if (tmp_alpha < ZERO || tmp_alpha > ONE)
-	tmp_alpha = 1.0;
+        tmp_alpha = 1.0;
 
       mvt.SetAngle(angle_deg * PI / 180);
       mvt.pos.x = dx;
       mvt.pos.y = dy;
       mvt.alpha = tmp_alpha;
-      mvt.scale = Point2f(scale_x, scale_y);
+      mvt.scale = Point2d(scale_x, scale_y);
 
       always_moving |= mvt.follow_cursor;
       always_moving |= mvt.follow_crosshair;
@@ -107,77 +105,8 @@ Movement::Movement(const xmlNode* xml) : ref_count(1), nb_loops(0), duration_per
       always_moving |= mvt.follow_speed;
       always_moving |= mvt.follow_direction;
 
-      frames[frame_number][member_type] = mvt;
+      def.push_back(mvt);
     }
+    frames.push_back(def);
   }
-}
-
-Movement::~Movement()
-{
-}
-
-void Movement::SetType(const std::string& _type)
-{
-  type = _type;
-}
-
-const std::string& Movement::GetType() const
-{
-  return type;
-}
-
-uint Movement::GetFrameDuration() const
-{
-  return duration_per_frame;
-}
-
-uint Movement::GetNbLoops() const
-{
-  return nb_loops;
-}
-
-bool Movement::IsAlwaysMoving() const
-{
-  return always_moving;
-}
-
-const std::vector<Movement::member_def> & Movement::GetFrames() const
-{
-  return frames;
-}
-
-uint Movement::GetTestLeft() const
-{
-  return test_left;
-}
-
-uint Movement::GetTestRight() const
-{
-  return test_right;
-}
-
-uint Movement::GetTestTop() const
-{
-  return test_top;
-}
-
-uint Movement::GetTestBottom() const
-{
-  return test_bottom;
-}
-
-// ===============================================================
-
-void Movement::ShareMovement(Movement* mvt)
-{
-  ASSERT(mvt);
-  mvt->ref_count++;
-}
-
-void Movement::UnshareMovement(Movement* mvt)
-{
-  mvt->ref_count--;
-
-  if (mvt->ref_count == 0)
-    delete mvt;
 }

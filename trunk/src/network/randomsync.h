@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #ifndef RANDOMSYNC_H
 #define RANDOMSYNC_H
 
-#include <WORMUX_singleton.h>
-#include <WORMUX_random.h>
+#include <WARMUX_singleton.h>
+#include <WARMUX_random.h>
 
 class RandomSyncGen : public RandomGenerator, public Singleton<RandomSyncGen>
 {
@@ -39,6 +39,6 @@ public:
   void Verify();
 };
 
-RandomSyncGen& RandomSync();
+inline RandomSyncGen& RandomSync() { return RandomSyncGen::GetRef(); }
 
 #endif

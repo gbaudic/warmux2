@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,13 +30,13 @@ struct SDL_keysym;
 class TextBox : public Label
 {
 protected:
-  unsigned int max_nb_chars;
+  uint max_nb_chars;
   std::string::size_type cursor_pos;
   virtual void BasicSetText(std::string const & new_txt);
 
 public:
   TextBox(const std::string &label,
-          uint max_width,
+          uint width,
           Font::font_size_t fsize = Font::FONT_SMALL,
           Font::font_style_t fstyle = Font::FONT_BOLD);
   TextBox(Profile * profile,
@@ -46,31 +46,30 @@ public:
   virtual bool LoadXMLConfiguration();
 
   void SetText(std::string const & new_txt);
-  void SetMaxNbChars(unsigned int nb_chars);
+  void SetMaxNbChars(uint nb_chars) { max_nb_chars = nb_chars; }
 
   // From widget
   virtual bool SendKey(const SDL_keysym & key);
-  virtual void Draw(const Point2i & mousePosition) const;
-  virtual Widget *ClickUp(const Point2i &, 
+  virtual void Draw(const Point2i & mousePosition);
+  virtual Widget *ClickUp(const Point2i &,
                           uint);
 };
 
 class PasswordBox : public TextBox
 {
-  private:
-    std::string clear_text;
-    void BasicSetText(std::string const & new_txt);
+  std::string clear_text;
+  void BasicSetText(std::string const & new_txt);
 
-  public:
-    PasswordBox(const std::string & label,
-                uint max_width,
-                Font::font_size_t fsize = Font::FONT_SMALL,
-                Font::font_style_t fstyle = Font::FONT_BOLD);
-    PasswordBox(Profile * profile,
-                const xmlNode * passwordBoxNode);
+public:
+  PasswordBox(const std::string & label,
+              uint max_width,
+              Font::font_size_t fsize = Font::FONT_SMALL,
+              Font::font_style_t fstyle = Font::FONT_BOLD);
+  PasswordBox(Profile * profile,
+              const xmlNode * passwordBoxNode);
 
-    bool SendKey(const SDL_keysym & key);
-    const std::string & GetPassword() const { return clear_text; };
+  bool SendKey(const SDL_keysym & key);
+  const std::string & GetPassword() const { return clear_text; };
 };
 
 #endif

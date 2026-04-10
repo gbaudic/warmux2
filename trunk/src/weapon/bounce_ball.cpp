@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,18 +20,19 @@
  * bounce since it has not collide a character
  *****************************************************************************/
 
-#include "weapon/bounce_ball.h"
-#include "weapon/weapon_cfg.h"
-//-----------------------------------------------------------------------------
 #include <sstream>
+#include <WARMUX_debug.h>
+//-----------------------------------------------------------------------------
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
 #include "object/objects_list.h"
 #include "team/teams_list.h"
-#include <WORMUX_debug.h>
+#include "team/team.h"
 #include "tool/math_tools.h"
+#include "weapon/bounce_ball.h"
 #include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 //-----------------------------------------------------------------------------
 
 class BounceBall : public WeaponProjectile
@@ -69,7 +70,7 @@ void BounceBall::Refresh()
 
 void BounceBall::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The ball left the battlefield before exploding!"));
+  Weapon::Message(_("The ball left the battlefield before exploding!"));
   WeaponProjectile::SignalOutOfMap();
 }
 
@@ -87,13 +88,12 @@ BounceBallLauncher::BounceBallLauncher() :
 void BounceBallLauncher::UpdateTranslationStrings()
 {
   m_name = _("Bounce Ball");
-  m_help = _("Timeout : Mouse wheel or Page Up/Down\nAngle : Up/Down\nFire : space key\nan ammo per turn");
+  m_help = _("Timeout: Mouse wheel or Page Up/Down\nAngle: Up/Down\nFire: space key\nOne ammo per turn");
 }
 
 WeaponProjectile * BounceBallLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new BounceBall(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new BounceBall(cfg(), this);
 }
 
 bool BounceBallLauncher::p_Shoot ()

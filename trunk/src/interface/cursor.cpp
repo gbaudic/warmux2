@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,8 +22,7 @@
 #include "interface/cursor.h"
 #include "character/character.h"
 #include "game/game_mode.h"
-#include "game/time.h"
-#include "graphic/effects.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "map/camera.h"
 #include "team/teams_list.h" // ActiveCharacter()
@@ -51,14 +50,14 @@ CharacterCursor::~CharacterCursor()
 void CharacterCursor::Draw()
 {
   if (!arrow) return;
-  if (ActiveCharacter().IsGhost()) return;
+  const Character& active = ActiveCharacter();
+  if (active.IsGhost()) return;
 
   // Draw cursor arround character
-  Point2i center = ActiveCharacter().GetCenter();
-  uint x = center.x - arrow->GetWidth()/2;
-  uint y = ActiveCharacter().GetY() - arrow->GetHeight() - y_min;
+  uint x = active.GetCenterX() - (arrow->GetWidth()>>1);
+  uint y = active.GetY() - arrow->GetHeight() - y_min;
 
-  arrow->Draw( Point2i(x, y) );
+  arrow->Draw(Point2i(x, y));
 }
 
 void CharacterCursor::Refresh()

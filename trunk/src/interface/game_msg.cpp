@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,52 +21,52 @@
 
 #include "interface/game_msg.h"
 #include <iostream>
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/video.h"
 #include "include/app.h"
 
-// Hauteur de la police de caractere "mini"
-#define HAUT_POLICE_MINI 12 // pixels
-
 // Interligne police "mini" (pour les messages)
-#define INTERLIGNE_MINI 3 // pixels
+#define MIN_LINE_SPACING 3 // pixels
 
 // Lifespan of messages
 #define MSG_LIFESPAN 7000 // ms
 
-const uint NBR_MSG_MAX = 14;
+#define NBR_MSG_MAX  14
 
 // Clean up the message list
-void GameMessages::Reset(){
+void GameMessages::Reset()
+{
   std::list<Message *>::iterator it;
-  for( it=liste.begin(); it != liste.end(); it++){
+  for (it=list.begin(); it != list.end(); it++) {
     Message * msg = *it;
     ASSERT(msg); /* the message must be valid if nothing went wrong */
     delete (msg);
     msg = NULL;
   }
-  liste.clear();
+  list.clear();
 }
 
-void GameMessages::Draw(){
+void GameMessages::Draw()
+{
   // Display messages
   uint msgy = 50;
 
-  for( iterator i=liste.begin(); i != liste.end(); ++i ){
+  for (iterator i=list.begin(); i!=list.end(); ++i) {
     (*i)->DrawCenterTop(Point2i(GetMainWindow().GetWidth()/2, msgy));
-    msgy += HAUT_POLICE_MINI + INTERLIGNE_MINI;
+    msgy += (*i)->GetHeight() + MIN_LINE_SPACING;
   }
 }
 
 // Erase messages older than MSG_LIFESPAN
-void GameMessages::Refresh(){
+void GameMessages::Refresh()
+{
   iterator i;
-  for( i=liste.begin(); i != liste.end(); ){
+  for (i=list.begin(); i!=list.end();) {
     Message * msg = *i;
-    if( MSG_LIFESPAN < Time::GetInstance()->Read() - msg->get_time() ){
+    if (MSG_LIFESPAN < Time::GetInstance()->Read()-msg->get_time()) {
       delete (msg);
       /* erase method return the next element */
-      i = liste.erase (i);
+      i = list.erase(i);
     }
     else /* nothing was removed, take next */
       i++;
@@ -74,18 +74,21 @@ void GameMessages::Refresh(){
 }
 
 // Add a message to the end of a the list of messages
-void GameMessages::Add(const std::string &message){
+void GameMessages::Add(const std::string &message, const Color& color)
+{
   // Debug message
   std::cout << "o MSG: " << message << std::endl;
   // Add message at the end of the list
-  Message * newMessage = new Message(message, white_color, Font::FONT_SMALL, Font::FONT_BOLD, Time::GetInstance()->Read());
-  liste.push_back (newMessage);
+  Message * newMessage = new Message(message, color, Font::FONT_MEDIUM,
+                                     Font::FONT_BOLD, Time::GetInstance()->Read());
+  newMessage->SetMaxWidth(GetMainWindow().GetWidth()-8);
+  list.push_back(newMessage);
 
   /* if there are too many messages, remove some of them */
-  while( NBR_MSG_MAX < liste.size()) {
-    Message * msg = liste.front();
+  while (NBR_MSG_MAX < list.size()) {
+    Message * msg = list.front();
     ASSERT(msg); /* the message must be valid if nothing went wrong */
-    liste.pop_front();
+    list.pop_front();
     delete msg;
   }
 }

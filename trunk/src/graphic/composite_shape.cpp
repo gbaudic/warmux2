@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,27 +27,12 @@
 #include "map/map.h"
 #include "tool/affine_transform.h"
 
-CompositeShape::CompositeShape()
-{
-  layers.clear();
-}
-
-void CompositeShape::AddLayer(Polygon * poly)
-{
-  layers.push_back(poly);
-}
-
 void CompositeShape::ApplyTransformation(const AffineTransform2D & trans)
 {
   for(std::vector<Polygon *>::iterator poly = layers.begin();
       poly != layers.end(); poly++) {
     (*poly)->ApplyTransformation(trans);
   }
-}
-
-std::vector<Polygon *> CompositeShape::GetLayer() const
-{
-  return layers;
 }
 
 void CompositeShape::Draw(Surface * dest)
@@ -74,6 +59,6 @@ void CompositeShape::DrawOnScreen()
       max = max.max((*poly)->GetMax());
     }
   }
-  tmp = POINT2D_2_POINT2I(max) - POINT2D_2_POINT2I(min) + Point2i(1, 1);
-  GetWorld().ToRedrawOnScreen(Rectanglei(POINT2D_2_POINT2I(min), POINT2D_2_POINT2I(tmp) + Point2i(2, 2)));
+  tmp = Point2i(max) - Point2i(min) + 1;
+  GetWorld().ToRedrawOnScreen(Rectanglei(Point2i(min), Point2i(tmp) + 2));
 }

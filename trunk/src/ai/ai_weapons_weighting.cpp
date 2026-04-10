@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  * The RandomizeFactors gets called every turn so that the AI preferes different weapons each turn.
  *****************************************************************************/
 
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
 #include "ai/ai_weapons_weighting.h"
 
 WeaponsWeighting::WeaponsWeighting()
@@ -41,21 +41,6 @@ void WeaponsWeighting::RandomizeFactors()
 {
   for (int index = Weapon::FIRST; index < Weapon::LAST; index++) {
     Weapon::Weapon_type type = (Weapon::Weapon_type) index;
-    factor[type] = RandomLocal().GetDouble(min_factor[type], max_factor[type]);
+    factor[type] = RandomLocal().GetDouble(min_factor[type], max_factor[type]).tofloat();
   }
-}
-
-Double WeaponsWeighting::GetFactor(Weapon::Weapon_type type)
-{
-  return factor[type];
-}
-
-void WeaponsWeighting::SetMinFactor(Weapon::Weapon_type type, Double value)
-{
-  min_factor[type] = value;
-}
-
-void WeaponsWeighting::SetMaxFactor(Weapon::Weapon_type type, Double value)
-{
-  max_factor[type] = value;
 }

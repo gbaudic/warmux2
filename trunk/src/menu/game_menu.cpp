@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,9 +35,7 @@
 
 static const uint MARGIN_TOP    = 5;
 static const uint MARGIN_SIDE   = 5;
-static const uint MARGIN_BOTTOM = 50;
-
-static const uint TEAMS_BOX_H = 230;
+static const uint MARGIN_BOTTOM = 40;
 
 // ################################################
 // ##  GAME MENU CLASS
@@ -46,21 +44,24 @@ GameMenu::GameMenu() :
   Menu("menu/bg_play")
 {
   Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml",false);
-  Point2i stdSize(130, W_UNDEF);
 
   Surface& window = GetMainWindow();
 
   // Calculate main box size
+  int  team_box_height = 240;
   uint mainBoxWidth = window.GetWidth() - 2*MARGIN_SIDE;
   uint mainBoxHeight = window.GetHeight() - MARGIN_TOP - MARGIN_BOTTOM - 2*MARGIN_SIDE;
-  uint mapsHeight = mainBoxHeight - TEAMS_BOX_H - 80;
+  uint mapsHeight = mainBoxHeight - team_box_height - 60;
   uint multitabsWidth = mainBoxWidth;
   bool multitabs = false;
-  if (mapsHeight > 200) {
+  if (window.GetWidth() > 640 && mapsHeight > 200) {
     multitabs = true;
     multitabsWidth = mainBoxWidth - 20;
-  } else {
     mapsHeight = 200;
+    team_box_height = mainBoxHeight - 200 - 60;
+  } else {
+    mapsHeight = mainBoxHeight - 60;
+    team_box_height = mainBoxHeight - 60;
   }
 
   MultiTabs * tabs = new MultiTabs(Point2i(mainBoxWidth, mainBoxHeight));
@@ -69,15 +70,15 @@ GameMenu::GameMenu() :
   // ##  TEAM AND MAP SELECTION
   // ################################################
 
-  team_box = new TeamsSelectionBox(Point2i(multitabsWidth, TEAMS_BOX_H), false, multitabs);
+  team_box = new LocalTeamsSelectionBox(Point2i(multitabsWidth, team_box_height), multitabs);
 
-  map_box = new MapSelectionBox(Point2i(multitabsWidth, mapsHeight), multitabs);
+  map_box = new MapSelectionBox(Point2i(multitabsWidth-4, mapsHeight), multitabs);
 
   if (!multitabs) {
     tabs->AddNewTab("TAB_Team", _("Teams"), team_box);
     tabs->AddNewTab("TAB_Map", _("Map"), map_box);
   } else {
-    VBox *box = new VBox(mainBoxWidth, false, true);
+    VBox *box = new VBox(mainBoxWidth, false, false, true);
     std::string tabs_title = _("Teams") + std::string(" - ");
     tabs_title += _("Map");
 
@@ -89,7 +90,7 @@ GameMenu::GameMenu() :
   // ################################################
   // ##  GAME OPTIONS
   // ################################################
-  Point2i option_size(130, 130);
+  Point2i option_size(114, 114);
 
   game_options = new GameModeEditor(mainBoxWidth, option_size, false);
   tabs->AddNewTab("TAB_Game", _("Game"), game_options);
@@ -100,15 +101,6 @@ GameMenu::GameMenu() :
   widgets.Pack();
 
   GetResourceManager().UnLoadXMLProfile(res);
-}
-
-GameMenu::~GameMenu()
-{
-}
-
-void GameMenu::OnClick(const Point2i &mousePosition, int button)
-{
-  widgets.Click(mousePosition, button);
 }
 
 void GameMenu::OnClickUp(const Point2i &mousePosition, int button)
@@ -142,11 +134,6 @@ bool GameMenu::signal_ok()
   return true;
 }
 
-bool GameMenu::signal_cancel()
-{
-  return true;
-}
-
 void GameMenu::key_left()
 {
   map_box->ChangeMapDelta(-1);
@@ -156,9 +143,3 @@ void GameMenu::key_right()
 {
   map_box->ChangeMapDelta(1);
 }
-
-void GameMenu::Draw(const Point2i &/*mousePosition*/)
-{
-
-}
-

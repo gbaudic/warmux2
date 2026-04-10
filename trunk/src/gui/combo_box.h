@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef COMBO_BOX_H
 #define COMBO_BOX_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "graphic/surface.h"
 #include "widget.h"
 #include <string>
@@ -30,38 +30,32 @@
 
 class Text;
 class Button;
+class TorusCache;
 
 class ComboBox : public Widget
 {
- private:
-  /* If you need this, implement it (correctly)*/
-  ComboBox(const ComboBox&);
-  ComboBox operator=(const ComboBox&);
-  /*********************************************/
+  TorusCache *torus;
 
-  Surface m_image;
-  Surface m_annulus_background;
-  Surface m_annulus_foreground;
-  Color m_progress_color;
-
- protected:
+protected:
   Text *txt_label, *txt_value_white, *txt_value_black;
 
   std::vector<std::pair <std::string, std::string> > m_choices;
   std::vector<std::string>::size_type m_index;
 
- public:
+  void RecreateTorus();
+
+public:
 
   ComboBox(const std::string &label,
-	   const std::string &resource_id,
-	   const Point2i &size,
-	   const std::vector<std::pair <std::string, std::string> > &choices,
-	   const std::string choice);
+           const std::string &resource_id,
+           const Point2i &size,
+           const std::vector<std::pair <std::string, std::string> > &choices,
+           const std::string choice);
 
   virtual ~ComboBox();
 
   virtual void Pack();
-  virtual void Draw(const Point2i &mousePosition) const;
+  virtual void Draw(const Point2i &mousePosition);
   virtual Widget* Click(const Point2i&, uint) const { return NULL; };
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 

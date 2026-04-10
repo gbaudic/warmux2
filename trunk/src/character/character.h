@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,15 +24,14 @@
 
 #include <limits>
 #include <string>
-#include "character/body.h"
-#include "gui/energy_bar.h"
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "object/physical_obj.h"
-#include "character/body.h"
 #include "interface/movable_by_user.h"
 
+class Body;
 class Text;
 class Team;
+class EnergyBar;
 class ParticleEngine;
 class DamageStatistics;
 
@@ -42,11 +41,6 @@ class DamageStatistics;
 
 class Character : public PhysicalObj, public MovableByUser
 {
-private:
-  /* If you need this, implement it (correctly) */
-  Character operator=(const Character&);
-  /**********************************************/
-
   std::string character_name;
 
   Team &m_team;
@@ -56,8 +50,10 @@ private:
   bool death_explosion;
   Double firing_angle;
 
+  Character *disease_dealer;
   uint disease_damage_per_turn;
   uint disease_duration; // std::numeric_limits<uint>::max() means unlimited
+
   DamageStatistics *damage_stats;
   EnergyBar * energy_bar;
 
@@ -96,15 +92,18 @@ public:
   Body* body;
 
 private:
-  void DrawEnergyBar(int dy) const;
-  void DrawName(int dy) const;
+  bool MustDrawLostEnergy() const;
+  bool MustDrawEnergyBar() const;
+  bool MustDrawName() const;
+  void DrawEnergyBar() const;
+  void DrawLostEnergy() const;
 
   virtual void SignalDrowning();
   virtual void SignalGhostState(bool was_dead);
   virtual void SignalGroundCollision(const Point2d& speed_before);
   virtual void SignalObjectCollision(const Point2d& my_speed_before,
-				     PhysicalObj * obj,
-				     const Point2d& obj_speed);
+                                     PhysicalObj * obj,
+                                     const Point2d& obj_speed);
   void Collision(const Point2d& speed_vector);
   void SetBody(Body* char_body);
 
@@ -119,6 +118,7 @@ private:
   bool ComputeHeightMovement(int & height);
 public:
 
+  bool MustBeDrawn() const;
   Character (Team& my_team, const std::string &name, Body *char_body);
   Character (const Character& acharacter);
   ~Character();
@@ -128,19 +128,22 @@ public:
   void StartOrStopWalkingIfNecessary();
 
   // Energy related
-  void SetEnergyDelta(int delta, bool do_report = true);
-  void SetEnergy(int new_energy);
+  void SetEnergyDelta(int delta, Character* dealer);
+  void SetEnergy(int new_energy, Character* dealer);
   inline const int & GetEnergy() const { return m_energy; };
 
   bool GotInjured() const { return lost_energy < 0; };
-  void Die();
+  void Die(Character* killer);
   void DisableDeathExplosion() { death_explosion = false; };
   bool IsActiveCharacter() const;
   // Disease handling
-  bool IsDiseased() const { return (disease_duration > 0 && !IsDead()); };
+  bool IsDiseased() const { return disease_duration > 0 && !IsDead(); };
+  void Cure() { disease_dealer = NULL; disease_duration = 0; disease_damage_per_turn = 0; }
+  void ApplyDiseaseDamage();
 
-  void SetDiseaseDamage(const uint damage_per_turn, const uint duration)
+  void SetDiseaseDamage(Character *dealer, const uint damage_per_turn, const uint duration)
   {
+    disease_dealer = dealer;
     disease_damage_per_turn = damage_per_turn;
     disease_duration = duration;
   }
@@ -153,10 +156,14 @@ public:
     if (disease_duration == std::numeric_limits<uint>::max()) return; // infinite disease duration
 
     if (disease_duration > 0) disease_duration--;
-    else disease_damage_per_turn = 0;
+    else {
+      disease_damage_per_turn = 0;
+      disease_dealer = NULL;
+    }
   }
 
   void Draw();
+  void DrawName() const;
   void Refresh();
 
   void PrepareTurn();
@@ -178,7 +185,7 @@ public:
 
   void UpdateLastMovingTime();
 
-  bool HasGroundUnderFeets() const;
+  bool HasGroundUnderFeets() const { return IsImmobile() && !IsFalling(); }
   bool CanJump() const { return HasGroundUnderFeets(); };
 
   // Jumps
@@ -198,11 +205,15 @@ public:
   uint GetCharacterIndex() const;
 
   // Access to character info
-  const std::string& GetName() const;
-  bool IsSameAs(const Character& other) const { return (GetName() == other.GetName()); }
-  void SetCustomName(const std::string name);
+  const std::string& GetName() const { return character_name; }
+  bool IsSameAs(const Character& other) const { return GetName() == other.GetName(); }
+
    // Hand position
-  void GetHandPosition(Point2i & result) const;
+  void GetHandPosition(Point2i & result) const
+  {
+    GetRelativeHandPosition(result);
+    result += GetPosition();
+  }
   void GetRelativeHandPosition(Point2i & result) const;
 
   // Damage report
@@ -233,14 +244,13 @@ public:
   void HandleKeyReleased_Down(bool slowly);
 
   void HandleKeyPressed_Jump();
-  void HandleKeyReleased_Jump() const {};
+  void HandleKeyReleased_Jump() const { }
 
   void HandleKeyPressed_HighJump();
-  void HandleKeyReleased_HighJump() const { };
+  void HandleKeyReleased_HighJump() const { }
 
   void HandleKeyPressed_BackJump();
-  void HandleKeyReleased_BackJump() const {};
-
+  void HandleKeyReleased_BackJump() const { }
 };
 
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "graphic/text.h"
 #include "graphic/video.h"
 #include "include/app.h"
+#include "include/constant.h"
 #include "interface/interface.h"
 #include "map/map.h"
 
@@ -61,15 +62,11 @@ Text::Text() :
 {
 }
 
-Text::~Text()
-{
-}
-
 void Text::Init()
 {
   if (shadowed) {
     int width = Font::GetInstance(font_size, font_style)->GetWidth("x");
-    bg_offset = (unsigned int)width/8; // shadow offset = 0.125ex
+    bg_offset = (uint)(width>>3); // shadow offset = 0.125ex
     if (bg_offset < 1) {
       bg_offset = 1;
     }
@@ -82,13 +79,18 @@ void Text::LoadXMLConfiguration(XmlReader * xmlFile,
 {
   std::string xmlText("Text not found");
   xmlFile->ReadStringAttr(textNode, "text", xmlText);
+  if ("%VERSION%" == xmlText) {
+    xmlText = Constants::WARMUX_VERSION;
+  } else if ("%WEB_SITE%" == xmlText) {
+    xmlText = Constants::WEB_SITE;
+  }
 
-  Color textColor(0, 0, 0, 255);
+  Color textColor(0, 255);
   xmlFile->ReadHexColorAttr(textNode, "textColor", textColor);
 
   // Load the font size ... based on 72 DPI
   int fontSize = 12;
-  Double tmpValue;
+  float tmpValue;
 
   if (xmlFile->ReadPercentageAttr(textNode, "fontSize", tmpValue)) {
     fontSize = GetMainWindow().GetHeight() * tmpValue / 100;
@@ -101,7 +103,7 @@ void Text::LoadXMLConfiguration(XmlReader * xmlFile,
 
   bool activeShadow = false;
   xmlFile->ReadBoolAttr(textNode, "shadow", activeShadow);
-  Color shadowColor(255, 255, 255, 255);
+  Color shadowColor(255, 255);
   xmlFile->ReadHexColorAttr(textNode, "shadowColor", shadowColor);
 
   SetText(xmlText);
@@ -130,7 +132,7 @@ void Text::Render()
       return;
     }
 
-    if (max_width != 0) {
+    if (max_width != 0 || txt.find_first_of('\n', 0)!=std::string::npos) {
       RenderMultiLines();
       return;
     }
@@ -167,37 +169,41 @@ void Text::RenderMultiLines()
   }
 
   // Cut the text on space
-  std::vector<std::string> tokens;
-  std::string::size_type old_pos = 0, current_pos = 0;
+  std::vector<std::string> ret_lines;
+  uint line_width = 0;
+  uint max_line_width = 0;
+  std::string::size_type ret_old_pos = 0;
+  while (ret_old_pos < txt.size()) {
+    std::string::size_type ret_current_pos = txt.find_first_of('\n', ret_old_pos);
+    std::string line = (ret_current_pos==std::string::npos)
+                     ? txt.substr(ret_old_pos, std::string::npos)
+                     : txt.substr(ret_old_pos, ret_current_pos-ret_old_pos);
+    std::string::size_type old_pos = 0, current_pos = 0;
+    std::vector<std::string> tokens;
+    uint index_word = 0;
+    uint index_lines = 0;
 
-  while ( old_pos < txt.size() &&
-          (current_pos = txt.find_first_of(" ", old_pos)) != std::string::npos )
-    {
-      std::string tmp = txt.substr(old_pos, current_pos-old_pos);
+    while (old_pos < line.size() &&
+           (current_pos = line.find_first_of(' ', old_pos)) != std::string::npos) {
+      std::string tmp = line.substr(old_pos, current_pos-old_pos);
       if (tmp != " " && tmp != "") {
         tokens.push_back(tmp);
       }
       old_pos = current_pos+1;
     }
-  tokens.push_back(txt.substr(old_pos));
+    tokens.push_back(line.substr(old_pos));
 
-  // Compute size
-  std::vector<std::string> lines;
-  uint index_lines = 0;
-  uint index_word = 0;
-  uint line_width = 0;
-  uint max_line_width = 0;
-
-  while (index_word < tokens.size())
-    {
-      if ( lines.size() == index_lines ) {
+    // Compute size
+    std::vector<std::string> lines;
+    while (index_word < tokens.size()) {
+      if (lines.size() == index_lines) {
         // first word of a line
         lines.push_back(tokens.at(index_word));
 
         // compute current line size
         line_width = font->GetWidth(tokens.at(index_word));
         if (line_width > max_line_width) {
-            max_line_width = line_width;
+          max_line_width = line_width;
         }
 
       } else {
@@ -222,6 +228,16 @@ void Text::RenderMultiLines()
 
       index_word++;
     }
+    std::vector<std::string>::iterator it = lines.begin();
+    while (it != lines.end()) {
+      ret_lines.push_back(std::string(*it));
+      ++it;
+    }
+
+    if (ret_current_pos == std::string::npos)
+      break;
+    ret_old_pos = ret_current_pos+1;
+  }
 
   // really Render !
 
@@ -229,76 +245,76 @@ void Text::RenderMultiLines()
   if (max_line_width == 0) {
     max_line_width = max_width;
   }
-  Point2i size(max_line_width, (font->GetHeight()+2) * lines.size());
-  Surface tmp = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
-  surf = tmp.DisplayFormatAlpha();
 
-  // for each lines
-  for (uint i = 0; i < lines.size(); i++) {
-    tmp=(font->CreateSurface(lines.at(i), color)).DisplayFormatAlpha();
-    surf.MergeSurface(tmp, Point2i(0, (font->GetHeight() + 2) * i));
+  // We reduce interline space by using GetLineHeight,
+  // but we still want the last line to be properly displayed
+  Point2i size(max_line_width,
+               GetLineHeight(font)*(ret_lines.size()-1)+font->GetHeight());
+#ifdef HAVE_HANDHELD
+  Surface tmp = Surface(size, SDL_SWSURFACE, false);
+  surf = tmp.DisplayFormat();
+
+  tmp = font->CreateSurface(ret_lines[0], color);
+  Uint32 ckey = tmp.GetSurface()->format->colorkey;
+  surf.Fill(ckey);
+  surf.SetColorKey(SDL_SRCCOLORKEY, ckey);
+  surf.Blit(tmp);
+
+  // for all remaining lines
+  for (uint i = 1; i < ret_lines.size(); i++) {
+    tmp = font->CreateSurface(ret_lines[i], color);
+    surf.Blit(tmp, Point2i(0, GetLineHeight(font)*i));
   }
 
   // Render the shadow !
-  if (!shadowed) return;
+  if (!shadowed)
+    return;
 
-  tmp = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
-  background = tmp.DisplayFormatAlpha();
+  tmp = Surface(size, SDL_SWSURFACE, false);
+  background = tmp.DisplayFormat();
+
+  tmp = font->CreateSurface(ret_lines[0], black_color);
+  ckey = tmp.GetSurface()->format->colorkey;
+  background.Fill(ckey);
+  background.SetColorKey(SDL_SRCCOLORKEY, ckey);
+  background.Blit(tmp);
 
   // Putting pixels of each image in destination surface
   // for each lines
-  for (uint i = 0; i < lines.size(); i++) {
-    tmp=(font->CreateSurface(lines.at(i), black_color)).DisplayFormatAlpha();
-    background.MergeSurface(tmp, Point2i(0, (font->GetHeight() + 2) * i));
+  for (uint i = 1; i < ret_lines.size(); i++) {
+    tmp = font->CreateSurface(ret_lines[i], black_color);
+    background.Blit(tmp, Point2i(0, GetLineHeight(font)*i));
   }
-}
+#else
+  surf = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
 
-void Text::SetText(const std::string &new_txt)
-{
-  if(txt == new_txt)
+  // for each line
+  for (uint i = 0; i < ret_lines.size(); i++) {
+    Surface tmp = font->CreateSurface(ret_lines[i], color);
+    surf.MergeSurface(tmp, Point2i(0, GetLineHeight(font)*i));
+  }
+
+  // Render the shadow !
+  if (!shadowed)
     return;
 
-  txt = new_txt;
+  background = Surface(size, SDL_SWSURFACE|SDL_SRCALPHA, true);
 
-  Render();
+  // Putting pixels of each image in destination surface
+  // for each lines
+  for (uint i = 0; i < ret_lines.size(); i++) {
+    Surface tmp = font->CreateSurface(ret_lines[i], black_color);
+    background.MergeSurface(tmp, Point2i(0, GetLineHeight(font)*i));
+  }
+#endif
 }
 
-const std::string& Text::GetText() const
-{
-  return txt;
-}
-
-void Text::SetColor(const Color &new_color)
-{
-  if(color == new_color)
-    return;
-
-  color = new_color;
-
-  Render();
-}
-
-void Text::DrawCenter (const Point2i &position) const
-{
-  DrawTopLeft(position - surf.GetSize() / 2);
-}
-
-void Text::DrawTopRight (const Point2i &position) const
-{
-  DrawTopLeft(position - Point2i(surf.GetWidth(), 0));
-}
-
-void Text::DrawCenterTop (const Point2i &position) const
-{
-  DrawTopLeft(position - Point2i(surf.GetWidth()/2, 0));
-}
-
-void Text::DrawTopLeft(const Point2i &position) const
+void Text::DrawLeftTop(const Point2i &position) const
 {
   if(txt == "" && !dummy) return;
 
   Rectanglei dst_rect(position, surf.GetSize());
-  AppWormux * app = AppWormux::GetInstance();
+  Surface& window = GetMainWindow();
 
   if(shadowed){
     Rectanglei shad_rect;
@@ -306,13 +322,13 @@ void Text::DrawTopLeft(const Point2i &position) const
     shad_rect.SetPosition(dst_rect.GetPosition() + bg_offset);
     shad_rect.SetSize(background.GetWidth(), background.GetHeight() );
 
-    app->video->window.Blit(background, shad_rect.GetPosition());
-    app->video->window.Blit(surf, dst_rect.GetPosition());
+    window.Blit(background, shad_rect.GetPosition());
+    window.Blit(surf, dst_rect.GetPosition());
 
     GetWorld().ToRedrawOnScreen(Rectanglei(dst_rect.GetPosition(),
-                                      shad_rect.GetSize() + bg_offset));
+                                           shad_rect.GetSize() + bg_offset));
   }else{
-    app->video->window.Blit(surf, dst_rect.GetPosition());
+    window.Blit(surf, dst_rect.GetPosition());
     GetWorld().ToRedrawOnScreen(dst_rect);
   }
 }
@@ -338,24 +354,8 @@ void Text::DrawCursor(const Point2i &text_pos, std::string::size_type cursor_pos
     txt_width = txt_before_cursor.GetWidth();
   }
   GetMainWindow().VlineColor(text_pos.GetX()+txt_width,
-						     text_pos.GetY()+2,
-						     text_pos.GetY()+GetHeight()-4, c_white);
-}
-
-void Text::SetMaxWidth(uint max_w)
-{
-  if (max_width == max_w)
-    return;
-
-  max_width = max_w;
-
-  Render();
-}
-
-int Text::GetWidth() const
-{
-  if (txt=="" && !dummy) return 0;
-  return surf.GetWidth();
+                             text_pos.GetY(),
+                             text_pos.GetY()+GetHeight()-2, c_white);
 }
 
 int Text::GetHeight() const
@@ -375,7 +375,7 @@ void DrawTmpBoxText(Font& font, Point2i pos,
 
   Rectanglei rect( pos - size/2, size);
 
-  AppWormux * app = AppWormux::GetInstance();
+  AppWarmux * app = AppWarmux::GetInstance();
 
   app->video->window.BoxColor(rect, boxColor);
   app->video->window.RectangleColor(rect, rectColor);
@@ -403,4 +403,3 @@ void Text::SetFont(const Color &_font_color,
     Init();
   }
 }
-

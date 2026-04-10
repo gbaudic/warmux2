@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,33 +31,24 @@ class GameModeEditor;
 
 class GameMenu : public Menu
 {
-  /* If you need this, implement it (correctly)*/
-   GameMenu(const GameMenu&);
-   GameMenu operator=(const GameMenu&);
-   /********************************************/
+  /* Team controllers */
+  TeamsSelectionBox * team_box;
 
-   /* Team controllers */
-   TeamsSelectionBox * team_box;
+  /* Map controllers */
+  MapSelectionBox * map_box;
 
-   /* Map controllers */
-   MapSelectionBox * map_box;
+  /* Game options controllers */
+  GameModeEditor * game_options;
 
-   /* Game options controllers */
-   GameModeEditor * game_options;
+  void SaveOptions();
+  void OnClickUp(const Point2i &mousePosition, int button);
 
-   void SaveOptions();
-   void OnClick(const Point2i &mousePosition, int button);
-   void OnClickUp(const Point2i &mousePosition, int button);
-   void Draw(const Point2i &mousePosition);
-
-   bool signal_ok();
-   bool signal_cancel();
-   void key_left();
-   void key_right();
+  bool signal_ok();
+  void key_left();
+  void key_right();
 
 public:
-   GameMenu();
-   ~GameMenu();
+  GameMenu();
 };
 
 #endif

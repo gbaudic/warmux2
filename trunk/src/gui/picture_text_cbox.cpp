@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 
 PictureTextCBox::PictureTextCBox(const std::string & label,
                                  const std::string & resource_id,
-                                 const Point2i & _size, 
+                                 const Point2i & _size,
                                  bool value):
   CheckBox(label, _size.x, value),
   m_image(),
@@ -39,15 +39,16 @@ PictureTextCBox::PictureTextCBox(const std::string & label,
   m_disabled_back()
 {
   SetFont(dark_gray_color, Font::FONT_SMALL, Font::FONT_BOLD, false);
-  Profile *res = GetResourceManager().LoadXMLProfile( "graphism.xml", false);
-  m_image = GetResourceManager().LoadImage(res, resource_id);
-  m_enabled = GetResourceManager().LoadImage(res, "menu/enabled");
-  m_disabled_front = GetResourceManager().LoadImage(res, "menu/disabled_front");
-  m_disabled_back = GetResourceManager().LoadImage(res, "menu/disabled_back");
-  GetResourceManager().UnLoadXMLProfile( res);
+  Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
+  m_image = LOAD_RES_IMAGE(resource_id);
+  m_enabled = LOAD_RES_IMAGE("menu/enabled");
+  m_disabled_front = LOAD_RES_IMAGE("menu/disabled_front");
+  m_disabled_back = LOAD_RES_IMAGE("menu/disabled_back");
+  GetResourceManager().UnLoadXMLProfile(res);
   m_value = value;
 
   Text::SetMaxWidth(size.x);
+  SetSize(_size);
 }
 
 PictureTextCBox::PictureTextCBox(Profile * profile,
@@ -68,52 +69,56 @@ bool PictureTextCBox::LoadXMLConfiguration()
 
   XmlReader * xmlFile = profile->GetXMLDocument();
 
-  ParseXMLPosition();
-  ParseXMLSize();
+  ParseXMLGeometry();
   ParseXMLBorder();
   ParseXMLBackground();
 
   Text::LoadXMLConfiguration(xmlFile, widgetNode);
 
   std::string file;
+  Surface tmp;
 
   xmlFile->ReadStringAttr(widgetNode, "pictureEnabled", file);
   file = profile->relative_path + file;
-  if (!m_enabled.ImgLoad(file)) {
+  if (!tmp.ImgLoad(file)) {
     file = profile->relative_path + "menu/enabled.png";
-    if (!m_enabled.ImgLoad(file)) {
-      Error("XML Loading -> PictureTextCBox: can't load " + file); 
+    if (!tmp.ImgLoad(file)) {
+      Error("XML Loading -> PictureTextCBox: can't load " + file);
     }
   }
+  m_enabled = tmp.DisplayFormatAlpha();
 
   xmlFile->ReadStringAttr(widgetNode, "picture", file);
   file = profile->relative_path + file;
-  if (!m_image.ImgLoad(file)) {
+  if (!tmp.ImgLoad(file)) {
     Error("XML Loading -> PictureTextCBox: Node 'picture': can't load the file : " + file);
   }
+  m_image = tmp.DisplayFormatAlpha();
 
   xmlFile->ReadStringAttr(widgetNode, "pictureDisabledFront", file);
   file = profile->relative_path + file;
-  if (!m_disabled_front.ImgLoad(file)) {
+  if (!tmp.ImgLoad(file)) {
     file = profile->relative_path + "menu/disabled_front.png";
-    if (!m_disabled_front.ImgLoad(file)) {
+    if (!tmp.ImgLoad(file)) {
       Error("XML Loading -> PictureTextCBox: can't load " + file);
     }
   }
+  m_disabled_front = tmp.DisplayFormatAlpha();
 
   xmlFile->ReadStringAttr(widgetNode, "pictureDisabledBack", file);
   file = profile->relative_path + file;
-  if (!m_disabled_back.ImgLoad(file)) {
+  if (!tmp.ImgLoad(file)) {
     file = profile->relative_path + "menu/disabled_back.png";
-    if (!m_disabled_back.ImgLoad(file)) {
+    if (!tmp.ImgLoad(file)) {
       Error("XML Loading -> PictureTextCBox: can't load " + file);
     }
   }
+  m_disabled_back = tmp.DisplayFormatAlpha();
 
   return true;
 }
 
-void PictureTextCBox::Draw(const Point2i &/*mousePosition*/) const
+void PictureTextCBox::Draw(const Point2i &/*mousePosition*/)
 {
   Surface & video_window = GetMainWindow();
 
@@ -148,7 +153,7 @@ void PictureTextCBox::Draw(const Point2i &/*mousePosition*/) const
   video_window.Blit(m_image, Point2i(tmp_x, tmp_y));
 
   Text::DrawCenterTop(GetPosition() + Point2i(GetSizeX()/2,
-		      GetSizeY() - Text::GetHeight()));
+                      GetSizeY() - Text::GetHeight()));
 
   if (!m_value) {
     uint disabled_x = GetPositionX() + (GetSizeX() - m_disabled_front.GetWidth())/2 ;

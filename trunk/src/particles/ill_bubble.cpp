@@ -1,7 +1,7 @@
 
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,14 +22,14 @@
 
 #include "particles/ill_bubble.h"
 #include "particles/explosion_smoke.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "network/randomsync.h"
 
 // Vibration period of the bubble
-const uint vib_period = 250;
-const Double MAX_SCALE = 1.0f;
-const Double MIN_SCALE = 0.25f;
+static const uint vib_period = 250;
+static const Double MAX_SCALE = ONE;
+static const Double MIN_SCALE = 0.25f;
 
 IllBubble::IllBubble() : ExplosionSmoke(20)
 {
@@ -39,7 +39,7 @@ IllBubble::IllBubble() : ExplosionSmoke(20)
   SetAirResistFactor( GetAirResistFactor() * THREE );
 
   MSG_DEBUG("random.get", "IllBubble::IllBubble()");
-  vib_phi = RandomSync().GetLong(0, vib_period);
+  vib_phi = RandomSync().GetUint(0, vib_period);
   image->Scale(MIN_SCALE, MIN_SCALE);
 }
 
@@ -51,10 +51,12 @@ void IllBubble::Refresh()
   Double scale_x, scale_y;
   image->GetScaleFactors(scale_x, scale_y);
   Double scale_factor = 1.2;
-  scale_x *= scale_factor* sin(TWO * PI * time / (Double)vib_period);
-  scale_y *= scale_factor * cos(TWO * PI * time / (Double)vib_period);
+  Double dangle = time*TWO_PI / vib_period;
+  scale_x *= scale_factor * sin(dangle);
+  scale_y *= scale_factor * cos(dangle);
   scale_x = std::max(MIN_SCALE, std::min(scale_x, MAX_SCALE));
   scale_y = std::max(MIN_SCALE, std::min(scale_y, MAX_SCALE));
+  // scale_x and scale_y should be now >= 0.25f so no flipping to do.
   image->Scale(scale_x, scale_y);
 }
 
@@ -63,8 +65,9 @@ void IllBubble::Draw()
   if (m_left_time_to_live > m_initial_time_to_live - 3)
     image->SetAlpha( (Double)(m_initial_time_to_live - m_left_time_to_live) / THREE );
   else
-    image->SetAlpha(1.0);
+    image->SetAlpha(ONE);
 
   if (m_left_time_to_live > 0)
     image->Draw(GetPosition() - image->GetSize() / 2);
 }
+

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <sstream>
 
 #include "character/character.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "interface/game_msg.h"
@@ -42,38 +42,39 @@
 #include "flamethrower.h"
 #include "weapon_cfg.h"
 
-const uint    FLAMETHROWER_BULLET_SPEED       = 5;
-const uint    FLAMETHROWER_TIME_BETWEEN_SHOOT = 40;
-const Double  FLAMETHROWER_RANDOM_ANGLE       = 0.06;
+const uint    FLAMETHROWER_BULLET_SPEED       = 10;
+const uint    FLAMETHROWER_TIME_BETWEEN_SHOOT = 60;
+const Double  FLAMETHROWER_RANDOM_ANGLE       = 0.03;
 
 class FlameThrowerBullet : public WeaponBullet
 {
-  public:
-    FlameThrowerBullet(ExplosiveWeaponConfig& cfg,
-                       WeaponLauncher * p_launcher);
-    bool IsOverlapping(const PhysicalObj* obj) const;
-  protected:
-    ParticleEngine particle;
-    void ShootSound();
-    void RandomizeShoot(Double &angle, Double &strength);
-    void DoExplosion();
-    void SignalGroundCollision(const Point2d& speed_before);
-    void SignalDrowning();
+public:
+  FlameThrowerBullet(ExplosiveWeaponConfig& cfg,
+                     WeaponLauncher * p_launcher);
+  bool IsOverlapping(const PhysicalObj* obj) const;
+protected:
+  ParticleEngine particle;
+  void ShootSound();
+  void RandomizeShoot(Double &angle, Double &strength);
+  void DoExplosion();
+  void SignalGroundCollision(const Point2d& speed_before);
+  void SignalDrowning();
 };
 
 
 FlameThrowerBullet::FlameThrowerBullet(ExplosiveWeaponConfig& cfg,
                                        WeaponLauncher * p_launcher) :
-  WeaponBullet("flamethrower_bullet", cfg, p_launcher), particle(40)
+  WeaponBullet("flamethrower_bullet", cfg, p_launcher), particle(FLAMETHROWER_TIME_BETWEEN_SHOOT)
 {
   explode_colliding_character = true;
   m_is_fire = true;
   can_drown = false;
+  SetAirResistFactor(0.1);
 }
 
 bool FlameThrowerBullet::IsOverlapping(const PhysicalObj* obj) const
 {
-  if(GetName() == obj->GetName()) return true;
+  if (GetName() == obj->GetName()) return true;
   return m_overlapping_object == obj;
 }
 
@@ -123,7 +124,6 @@ FlameThrower::FlameThrower() : WeaponLauncher(WEAPON_FLAMETHROWER, "flamethrower
   m_time_between_each_shot = FLAMETHROWER_TIME_BETWEEN_SHOOT;
 
   m_weapon_fire = new Sprite(GetResourceManager().LoadImage(weapons_res_profile, m_id+"_fire"));
-  m_weapon_fire->EnableRotationCache(32);
   shooting = false;
 
   ReloadLauncher();
@@ -132,15 +132,13 @@ FlameThrower::FlameThrower() : WeaponLauncher(WEAPON_FLAMETHROWER, "flamethrower
 void FlameThrower::UpdateTranslationStrings()
 {
   m_name = _("Flame Thrower");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to shoot\nUse Up/Down to change initial angle\nChange angle while shooting");
 }
 
 // Return a projectile instance for the submachine gun
 WeaponProjectile * FlameThrower::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new FlameThrowerBullet(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new FlameThrowerBullet(cfg(), this);
 }
 
 void FlameThrower::IncMissedShots()
@@ -158,7 +156,7 @@ bool FlameThrower::p_Shoot()
 
   Point2i pos;
   ActiveCharacter().GetHandPosition(pos);
-  Double angle =  - HALF_PI - ActiveCharacter().GetDirection()
+  Double angle = - HALF_PI - ActiveCharacter().GetDirection()
                * (Double)(Time::GetInstance()->Read() % 100) * QUARTER_PI / (Double)100;
 
   particle.AddNow(pos, 1, particle_SMOKE, true, angle,
@@ -197,4 +195,3 @@ std::string FlameThrower::GetWeaponWinString(const char *TeamName, uint items_co
             "%s team has won %u flame-throwers!",
             items_count), TeamName, items_count);
 }
-

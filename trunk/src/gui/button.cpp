@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include "tool/resource_manager.h"
 
 Button::Button(const Profile * res_profile,
-               const std::string & resource_id, 
+               const std::string & resource_id,
                bool _img_scale):
   img_scale(_img_scale),
   image(GetResourceManager().LoadSprite(res_profile, resource_id))
@@ -36,9 +36,9 @@ Button::Button(const Profile * res_profile,
 }
 
 Button::Button(Profile * profile,
-               const xmlNode * baseListBoxNode) :
-  Widget(profile, baseListBoxNode),
-  img_scale(false),
+               const xmlNode * buttonNode) :
+  Widget(profile, buttonNode),
+  img_scale(true),
   image(NULL)
 {
 }
@@ -56,8 +56,7 @@ bool Button::LoadXMLConfiguration()
     return false;
   }
 
-  ParseXMLPosition();
-  ParseXMLSize();
+  ParseXMLGeometry();
   ParseXMLBorder();
   ParseXMLBackground();
 
@@ -86,17 +85,19 @@ bool Button::LoadXMLConfiguration()
   }
 
   image = new Sprite();
-  image->AddFrame(pictureUp);
-  image->AddFrame(pictureDown);
+  image->AddFrame(pictureUp.DisplayFormatAlpha());
+  image->AddFrame(pictureDown.DisplayFormatAlpha());
 
   return true;
 }
 
-void Button::Draw(const Point2i & mousePosition) const
+void Button::Draw(const Point2i & mousePosition)
 {
+  if (!IsVisible())
+    return;
   Surface& surf = GetMainWindow();
 
-  uint frame = (IsHighlighted() || Contains(mousePosition));
+  uint frame = (IsHighlighted() || Rectanglei::Contains(mousePosition));
 
   // Check that there are enough frames in the image...
   if (image->GetFrameCount() <= frame) {
@@ -110,12 +111,7 @@ void Button::Draw(const Point2i & mousePosition) const
     image->Blit(surf, position);
   } else {
     // centering image
-    Point2i pos = position;
-
-    pos.x += (GetSizeX()/2) - (image->GetWidth()/2);
-    pos.y += (GetSizeY()/2) - (image->GetHeight()/2);
-
-    image->Blit(surf, pos);
+    image->Blit(surf, position + (GetSize() - image->GetWidth())/2);
   }
 }
 

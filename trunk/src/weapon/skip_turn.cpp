@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 //-----------------------------------------------------------------------------
 #include "character/character.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "interface/game_msg.h"
 #include "sound/jukebox.h"
 #include "team/teams_list.h"
@@ -44,8 +44,7 @@ SkipTurn::SkipTurn() : Weapon(WEAPON_SKIP_TURN, "skip_turn", new WeaponConfig())
 void SkipTurn::UpdateTranslationStrings()
 {
   m_name = _("Skip turn");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to skip turn.\nPlease notice: No chance to undo!");
 }
 
 //-----------------------------------------------------------------------------
@@ -53,8 +52,7 @@ void SkipTurn::UpdateTranslationStrings()
 bool SkipTurn::p_Shoot()
 {
   // Show message
-  GameMessages::GetInstance()->Add (Format(_("%s team has skipped its turn."),
-                                           ActiveTeam().GetName().c_str()));
+  Weapon::Message(Format(_("%s team has skipped its turn."), ActiveTeam().GetName().c_str()));
   JukeBox::GetInstance()->Play(ActiveTeam().GetSoundProfile(), "skip_turn");
   return true;
 }

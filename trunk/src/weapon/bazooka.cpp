@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 
 class BazookaRocket : public WeaponProjectile
 {
-private:
   ParticleEngine smoke_engine;
   SoundSample flying_sound;
 public:
@@ -46,7 +45,7 @@ protected:
 };
 
 BazookaRocket::BazookaRocket(ExplosiveWeaponConfig& cfg,
-                                 WeaponLauncher * p_launcher) :
+                             WeaponLauncher * p_launcher) :
   WeaponProjectile ("rocket", cfg,p_launcher), smoke_engine(20)
 {
   explode_colliding_character = true;
@@ -55,11 +54,10 @@ BazookaRocket::BazookaRocket(ExplosiveWeaponConfig& cfg,
 void BazookaRocket::Refresh()
 {
   WeaponProjectile::Refresh();
-  if(!IsDrowned())
-  {
+  if (!IsDrowned()) {
     image->SetRotation_rad(GetSpeedAngle());
-    smoke_engine.AddPeriodic(Point2i(GetX() + GetWidth() / 2,
-                                     GetY() + GetHeight()/ 2), particle_DARK_SMOKE, false, -1, 2.0);
+    smoke_engine.AddPeriodic(GetPosition() + (GetSize()>>1),
+                             particle_DARK_SMOKE, false, -1, 2.0);
   }
   else
   {
@@ -79,7 +77,7 @@ void BazookaRocket::Shoot(Double strength)
 
 void BazookaRocket::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
+  Weapon::Message(_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
 
   flying_sound.Stop();
@@ -113,14 +111,13 @@ Bazooka::Bazooka() :
 
 WeaponProjectile * Bazooka::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new BazookaRocket(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new BazookaRocket(cfg(), this);
 }
 
 void Bazooka::UpdateTranslationStrings()
 {
   m_name = _("Bazooka");
-  m_help = _("Initial fire angle : Up/Down\nFire : keep the space key pressed until the desired strength\nan ammo per turn");
+  m_help = _("Initial fire angle: Up/Down\nFire: Press space until desired strength is reached\nOne ammo per turn");
 }
 
 std::string Bazooka::GetWeaponWinString(const char *TeamName, uint items_count ) const

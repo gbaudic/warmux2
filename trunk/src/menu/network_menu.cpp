@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
  ******************************************************************************
  * Game menu
  *****************************************************************************/
-#include <WORMUX_index_server.h>
-#include <WORMUX_team_config.h>
+#include <WARMUX_index_server.h>
+#include <WARMUX_team_config.h>
 
 #include "menu/network_menu.h"
 
@@ -31,6 +31,8 @@
 #include "graphic/video.h"
 #include "gui/button.h"
 #include "gui/check_box.h"
+#include "gui/combo_box.h"
+#include "gui/grid_box.h"
 #include "gui/label.h"
 #include "gui/msg_box.h"
 #include "gui/picture_widget.h"
@@ -51,10 +53,7 @@
 
 static const uint MARGIN_TOP    = 5;
 static const uint MARGIN_SIDE   = 5;
-static const uint MARGIN_BOTTOM = 70;
-
-static const uint TEAMS_BOX_H = 180;
-static const uint CHAT_BOX_H = 150;
+static const uint MARGIN_BOTTOM = 40;
 
 NetworkMenu::NetworkMenu() :
   Menu("menu/bg_network")
@@ -67,17 +66,22 @@ NetworkMenu::NetworkMenu() :
   Surface& window = GetMainWindow();
 
   // Calculate main box size
+  int chat_box_height = window.GetHeight()/4;
+  int team_box_height = 180;
   int mainBoxWidth = window.GetWidth() - 2*MARGIN_SIDE;
-  int mainBoxHeight = window.GetHeight() - MARGIN_TOP - MARGIN_BOTTOM - 2*MARGIN_SIDE - CHAT_BOX_H;
-  int mapsHeight = mainBoxHeight - TEAMS_BOX_H - 80;
+  int mainBoxHeight = window.GetHeight() - MARGIN_TOP - MARGIN_BOTTOM - 2*MARGIN_SIDE - chat_box_height;
+  int mapsHeight = mainBoxHeight - team_box_height - 60;
   int multitabsWidth = mainBoxWidth;
   bool multitabs = false;
 
-  if (mapsHeight > 200) {
+  if (window.GetWidth() > 640 && mapsHeight > 200) {
     multitabs = true;
     multitabsWidth = mainBoxWidth - 20;
-  } else {
     mapsHeight = 200;
+    team_box_height = mainBoxHeight - 200 - 60;
+  } else {
+    mapsHeight = mainBoxHeight - 60;
+    team_box_height = mainBoxHeight - 60;
   }
 
   MultiTabs * tabs = new MultiTabs(Point2i(mainBoxWidth, mainBoxHeight));
@@ -85,19 +89,16 @@ NetworkMenu::NetworkMenu() :
   // ################################################
   // ##  TEAM AND MAP SELECTION
   // ################################################
-  team_box = new NetworkTeamsSelectionBox(Point2i(multitabsWidth, TEAMS_BOX_H), multitabs);
+  team_box = new NetworkTeamsSelectionBox(Point2i(multitabsWidth-4, team_box_height), multitabs);
 
-  if (Network::GetInstance()->IsGameMaster()) {
-    map_box = new MapSelectionBox(Point2i(multitabsWidth, mapsHeight), multitabs, false);
-  } else {
-    map_box = new MapSelectionBox(Point2i(multitabsWidth, mapsHeight), multitabs, true);
-  }
+  map_box = new MapSelectionBox(Point2i(multitabsWidth, mapsHeight),
+				 multitabs, !Network::GetInstance()->IsGameMaster());
 
   if (!multitabs) {
     tabs->AddNewTab("TAB_Team", _("Teams"), team_box);
     tabs->AddNewTab("TAB_Map", _("Map"), map_box);
   } else {
-    VBox *box = new VBox(mainBoxWidth, false, true);
+    VBox *box = new VBox(mainBoxWidth, false, false, true);
     std::string tabs_title = _("Teams") + std::string(" - ");
     tabs_title += _("Map");
 
@@ -106,32 +107,50 @@ NetworkMenu::NetworkMenu() :
     tabs->AddNewTab("TAB_Team_Map", tabs_title, box);
   }
 
+  // ################################################
+  // ##  GAME OPTIONS
+  // ################################################
+
+  if (Network::GetInstance()->IsGameMaster()) {
+    // Using the game mode editor but currently we are not able to send
+    // custom parameters to client
+
+    Box *box = new GridBox(4, 4, 0, false);
+
+    Point2i option_size(114, 114);
+    std::string selected_gamemode = Config::GetInstance()->GetGameMode();
+
+    opt_game_mode = new ComboBox(_("Game mode"), "menu/game_mode", option_size,
+				 GameMode::ListGameModes(), selected_gamemode);
+    box->AddWidget(opt_game_mode);
+
+    tabs->AddNewTab("TAB_Game", _("Game"), box);
+  }
+
   tabs->SetPosition(MARGIN_SIDE, MARGIN_TOP);
 
   widgets.AddWidget(tabs);
   widgets.Pack();
 
-  // ################################################
-  // ##  GAME OPTIONS
-  // ################################################
 
-  Box* bottom_box = new HBox(CHAT_BOX_H, false, true);
+  Box* bottom_box = new HBox(chat_box_height, false, false, true);
   bottom_box->SetNoBorder();
 
-  Box* options_box = new VBox(200, true);
+  Box* options_box = new VBox(200, true, true);
 
-  mode_label = new Label("", 0, Font::FONT_MEDIUM, Font::FONT_BOLD, primary_red_color, false, true);
+  mode_label = new Label("", 0, Font::FONT_MEDIUM, Font::FONT_BOLD,
+                         primary_red_color, Text::ALIGN_LEFT_TOP, true);
   options_box->AddWidget(mode_label);
 
   play_in_loop = new CheckBox(_("Play several times"), W_UNDEF, true);
   options_box->AddWidget(play_in_loop);
 
   connected_players = new Label(Format(ngettext("%i player connected", "%i players connected", 0), 0),
-				0, Font::FONT_SMALL, Font::FONT_BOLD);
+                                0, Font::FONT_SMALL, Font::FONT_BOLD);
   options_box->AddWidget(connected_players);
 
   initialized_players = new Label(Format(ngettext("%i player ready", "%i players ready", 0), 0),
-				  0, Font::FONT_SMALL, Font::FONT_BOLD);
+                                  0, Font::FONT_SMALL, Font::FONT_BOLD);
   options_box->AddWidget(initialized_players);
 
   options_box->Pack();
@@ -141,7 +160,7 @@ NetworkMenu::NetworkMenu() :
   // ##  CHAT BOX
   // ################################################
 
-  msg_box = new TalkBox(Point2i(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, CHAT_BOX_H),
+  msg_box = new TalkBox(Point2i(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, chat_box_height),
                         Font::FONT_SMALL, Font::FONT_BOLD);
   msg_box->SetPosition(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
                        options_box->GetPositionY());
@@ -159,9 +178,9 @@ NetworkMenu::NetworkMenu() :
     // First %s will be replaced with the name of the network game,
     // second %s by the server hostname
     msg_box->NewMessage(Format(_("Welcome to %s on %s!"),
-			       Network::GetInstance()->GetGameName().c_str(),
-			       ((NetworkClient*)Network::GetInstance())->GetServerAddress().c_str())
-			, c_red);
+                               Network::GetInstance()->GetGameName().c_str(),
+                               ((NetworkClient*)Network::GetInstance())->GetServerAddress().c_str())
+                        , c_red);
   }
 
   if (!Network::GetInstance()->IsGameMaster()) {
@@ -177,10 +196,6 @@ NetworkMenu::NetworkMenu() :
     // The first player to connect to a headless server asumes the game master role
     SetGameMasterCallback();
   }
-}
-
-NetworkMenu::~NetworkMenu()
-{
 }
 
 void NetworkMenu::signal_begin_run()
@@ -203,16 +218,6 @@ void NetworkMenu::RequestSavedTeams()
   }
 }
 
-void NetworkMenu::OnClickUp(const Point2i &mousePosition, int button)
-{
-  widgets.ClickUp(mousePosition, button);
-}
-
-void NetworkMenu::OnClick(const Point2i &mousePosition, int button)
-{
-  widgets.Click(mousePosition, button);
-}
-
 void NetworkMenu::SaveOptions()
 {
   // map
@@ -223,6 +228,10 @@ void NetworkMenu::SaveOptions()
 
   //Save options in XML
 //  Config::GetInstance()->Save();
+
+  if (Network::GetInstance()->IsGameMaster()) {
+    Config::GetInstance()->SetGameMode(opt_game_mode->GetValue());
+  }
 }
 
 void NetworkMenu::PrepareForNewGame()
@@ -282,7 +291,7 @@ bool NetworkMenu::signal_ok()
     }
     if (Network::GetInstance()->GetNbPlayersConnected() == 0)
     {
-      msg_box->NewMessage(_("You are alone..."), c_red);
+      msg_box->NewMessage(_("You are alone. :-/"), c_red);
       goto error;
     }
     if (Network::GetInstance()->GetNbPlayersConnected() != Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED))
@@ -314,8 +323,8 @@ bool NetworkMenu::signal_ok()
     Game::GetInstance()->Start();
 
     if (Network::GetInstance()->IsConnected()
-	&& Network::GetInstance()->GetNbPlayersConnected() != 0
-	&& play_in_loop->GetValue()) {
+        && Network::GetInstance()->GetNbPlayersConnected() != 0
+        && play_in_loop->GetValue()) {
       PrepareForNewGame();
       return false;
     }
@@ -351,7 +360,7 @@ bool NetworkMenu::signal_cancel()
   return true;
 }
 
-void NetworkMenu::Draw(const Point2i &/*mousePosition*/)
+void NetworkMenu::Draw(const Point2i& /*mousePosition*/)
 {
   if (Network::GetInstance()->IsConnected())
   {
@@ -365,20 +374,20 @@ void NetworkMenu::Draw(const Point2i &/*mousePosition*/)
       //Refresh the number of players ready (does not work on client):
       nbr = Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED);
       if (Network::GetInstance()->GetState() == WNet::NETWORK_MENU_OK)
-	nbr++;
+        nbr++;
 
       pl = Format(ngettext("%i player ready", "%i players ready", nbr), nbr);
       if (initialized_players->GetText() != pl) {
-	initialized_players->SetText(pl);
-	msg_box->NewMessage(pl, c_red);
-	if (Network::GetInstance()->GetNbPlayersConnected() ==
-	    Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED)) {
-	  msg_box->NewMessage(_("The others are waiting for you! Wake up! :-)"), c_red);
-	  JukeBox::GetInstance()->Play("default", "menu/newcomer");
-	}
-	else if (Network::GetInstance()->GetNbPlayersConnected() == 0) {
-	  msg_box->NewMessage(_("You are alone. :-/"), c_red);
-	}
+        initialized_players->SetText(pl);
+        msg_box->NewMessage(pl, c_red);
+        if (Network::GetInstance()->GetNbPlayersConnected() ==
+            Network::GetInstance()->GetNbPlayersWithState(Player::STATE_INITIALIZED)) {
+          msg_box->NewMessage(_("The others are waiting for you! Wake up! :-)"), c_red);
+          JukeBox::GetInstance()->Play("default", "menu/newcomer");
+        }
+        else if (Network::GetInstance()->GetNbPlayersConnected() == 0) {
+          msg_box->NewMessage(_("You are alone. :-/"), c_red);
+        }
       }
     }
   }
@@ -425,9 +434,9 @@ void NetworkMenu::ChangeMapCallback()
 void NetworkMenu::SetGameMasterCallback()
 {
   // We are becoming game master, updating the menu...
-  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") +
-						     Constants::WORMUX_VERSION + " - " +
-						     _("Master mode"));
+  AppWarmux::GetInstance()->video->SetWindowCaption( std::string("Warmux ") +
+                                                     Constants::WARMUX_VERSION + " - " +
+                                                     _("Master mode"));
   mode_label->SetText(_("Master mode"));
   connected_players->SetVisible(true);
   initialized_players->SetVisible(true);
@@ -439,9 +448,9 @@ void NetworkMenu::SetGameMasterCallback()
 
 }
 
-void NetworkMenu::ReceiveMsgCallback(const std::string& msg)
+void NetworkMenu::ReceiveMsgCallback(const std::string& msg, const Color& color)
 {
-  msg_box->NewMessage(msg);
+  msg_box->NewMessage(msg, color);
 }
 
 Team * NetworkMenu::FindUnusedTeam(const std::string default_team_id)
@@ -455,33 +464,32 @@ bool NetworkMenu::HasOpenTeamSlot()
 }
 
 // to be call from NetworkMenu::WaitingForGameMaster()
-void NetworkMenu::HandleEvent(const SDL_Event& event)
+void NetworkMenu::HandleEvent(const SDL_Event& evnt)
 {
   if (!waiting_for_server) {
-    Menu::HandleEvent(event);
+    Menu::HandleEvent(evnt);
     return;
   }
 
-  if (event.type == SDL_QUIT) {
+  if (evnt.type == SDL_QUIT) {
     Menu::mouse_cancel();
-  } else if (event.type == SDL_KEYDOWN) {
-    switch (event.key.keysym.sym)
-      {
-      case SDLK_ESCAPE:
-	Menu::mouse_cancel();
-	break;
-      case SDLK_RETURN:
-      case SDLK_KP_ENTER:
-	msg_box->SendChatMsg();
-	break;
-      case SDLK_F10:
-	AppWormux::GetInstance()->video->ToggleFullscreen();
-	break;
-      default:
-	widgets.SendKey(event.key.keysym);
-	break;
-      }
-  } else if (event.type == SDL_MOUSEBUTTONUP) {
+  } else if (evnt.type == SDL_KEYDOWN) {
+    switch (evnt.key.keysym.sym) {
+    case SDLK_ESCAPE:
+      Menu::mouse_cancel();
+      break;
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER:
+      msg_box->SendChatMsg();
+      break;
+    case SDLK_F10:
+      AppWarmux::GetInstance()->video->ToggleFullscreen();
+      break;
+    default:
+      widgets.SendKey(evnt.key.keysym);
+      break;
+    }
+  } else if (evnt.type == SDL_MOUSEBUTTONUP) {
 
     int x=0, y=0;
     SDL_GetMouseState( &x, &y );
@@ -507,8 +515,7 @@ void NetworkMenu::WaitingForGameMaster()
 
   widgets.SetFocusOn(msg_box->GetTextBox());
 
-  do
-  {
+  do {
     HandleEvents();
 
     int x=0, y=0;
@@ -519,7 +526,7 @@ void NetworkMenu::WaitingForGameMaster()
     Menu::Display(mousePosition);
 
   } while (Network::GetInstance()->IsConnected() &&
-	   Network::GetInstance()->GetState() == WNet::NETWORK_MENU_OK);
+           Network::GetInstance()->GetState() == WNet::NETWORK_MENU_OK);
 
   waiting_for_server = false;
 }

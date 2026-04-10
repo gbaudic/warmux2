@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include <sstream>
 #include "weapon/explosion.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
@@ -42,7 +42,7 @@ private:
   SoundSample disco_sound;
 public:
   DiscoGrenade(ExplosiveWeaponConfig& cfg,
-	       WeaponLauncher * p_launcher);
+         WeaponLauncher * p_launcher);
   void Refresh();
   void Shoot(Double strength);
 protected:
@@ -81,7 +81,7 @@ void DiscoGrenade::Explosion()
 
   for(uint i=0;i < star_nbr;i++)
   {
-    Double angle = TWO*(Double)i*PI/(Double)star_nbr;
+    Double angle = i*TWO_PI/star_nbr;
     //  cos_angle[i] = cos(angle);
     //  sin_angle[i] = sin(angle);
     smoke_engine.AddNow(Point2i(GetX()+(int)(cos_angle[i]*(Double)cfg.explosion_range),
@@ -124,7 +124,7 @@ void DiscoGrenade::Refresh()
 
 void DiscoGrenade::SignalOutOfMap()
 {
-  GameMessages::GetInstance()->Add (_("The disco grenade has left the dance floor before exploding!"));
+  Weapon::Message(_("The disco grenade has left the dance floor before exploding!"));
   WeaponProjectile::SignalOutOfMap();
 
   disco_sound.Stop();
@@ -155,14 +155,12 @@ DiscoGrenadeLauncher::DiscoGrenadeLauncher() :
 void DiscoGrenadeLauncher::UpdateTranslationStrings()
 {
   m_name = _("Disco Grenade");
-  /* FILL IT */
-  /* m_help = _(" "); */
+  m_help = _("Up/Down: Set direction\nSet timer 1-6 using +/- or 1-6 keys\nPress space till desired strength");
 }
 
 WeaponProjectile * DiscoGrenadeLauncher::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new DiscoGrenade(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new DiscoGrenade(cfg(), this);
 }
 std::string DiscoGrenadeLauncher::GetWeaponWinString(const char *TeamName, uint items_count ) const
 {

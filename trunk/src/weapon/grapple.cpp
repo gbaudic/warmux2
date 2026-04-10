@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,12 +22,12 @@
 #include "weapon/grapple.h"
 #include "weapon/weapon_cfg.h"
 
-#include <WORMUX_types.h>
+#include <WARMUX_types.h>
 #include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
 #include "map/camera.h"
@@ -154,7 +154,7 @@ Grapple::Grapple() :
   use_unit_on_first_shoot = false;
 
   m_hook_sprite = GetResourceManager().LoadSprite(weapons_res_profile,"grapple_hook");
-  m_hook_sprite->EnableRotationCache(32);
+  m_hook_sprite->EnableCaches(false, 32);
   m_node_sprite = GetResourceManager().LoadSprite(weapons_res_profile,"grapple_node");
 
   attached = false;
@@ -170,8 +170,7 @@ Grapple::Grapple() :
 void Grapple::UpdateTranslationStrings()
 {
   m_name = _("Grapple");
-  /* TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Press space to shoot grapple\nUse left/right to swing\nPress space to release");
 }
 
 Grapple::~Grapple()
@@ -293,18 +292,16 @@ void Grapple::NotifyMove(bool collision)
     return;
 
   // Check if the character collide something.
-  if (collision)
-    {
+  if (collision) {
       // Yes there has been a collision.
-      if (delta_len != ZERO)
-        {
-          // The character tryed to change the rope size.
-          // There has been a collision, so we cancel the rope length change.
-          ActiveCharacter().ChangePhysRopeSize (-delta_len);
-          delta_len = 0;
-        }
-      return;
+    if (delta_len.IsNotZero()) {
+      // The character tryed to change the rope size.
+      // There has been a collision, so we cancel the rope length change.
+      ActiveCharacter().ChangePhysRopeSize (-delta_len);
+      delta_len = 0;
     }
+    return;
+  }
 
 
   // While there is nodes to add, we add !
@@ -382,8 +379,8 @@ void Grapple::Draw()
                 +(quad.y1-quad.y4) * (quad.y1-quad.y4);
       size -= m_node_sprite->GetHeight();
       while( (step*dx*step*dx)+(step*dy*step*dy) < size ) {
-	m_node_sprite->Draw(Point2i(quad.x4 + (int)((Double) step * dx),
-				    quad.y4 + (int)((Double) step * dy)));
+  m_node_sprite->Draw(Point2i(quad.x4 + (int)((Double) step * dx),
+            quad.y4 + (int)((Double) step * dy)));
         step++;
       }
       quad.x1 = quad.x4 ;
@@ -415,10 +412,10 @@ void Grapple::AttachRope(const Point2i& contact_point)
   ActiveCharacter().GetRelativeHandPosition(pos);
 
   ActiveCharacter().SetPhysFixationPointXY(
-                                           contact_point.x / PIXEL_PER_METER,
-                                           contact_point.y / PIXEL_PER_METER,
-                                           (Double)pos.x / PIXEL_PER_METER,
-                                           (Double)pos.y / PIXEL_PER_METER);
+                                           contact_point.x * METER_PER_PIXEL,
+                                           contact_point.y * METER_PER_PIXEL,
+                                           (Double)pos.x * METER_PER_PIXEL,
+                                           (Double)pos.y * METER_PER_PIXEL);
 
   m_fixation_point = contact_point;
 
@@ -427,7 +424,7 @@ void Grapple::AttachRope(const Point2i& contact_point)
   root_node.angle = 0;
   rope_nodes.push_back(root_node);
 
-  ActiveCharacter().ChangePhysRopeSize (((Double)(-10)) / PIXEL_PER_METER);
+  ActiveCharacter().ChangePhysRopeSize (((Double)(-10)) * METER_PER_PIXEL);
   ActiveCharacter().SetMovement("ninja-rope");
 
   ActiveCharacter().SetFiringAngle(-PI / 3);
@@ -452,10 +449,10 @@ void Grapple::AttachNode(const Point2i& contact_point, Double angle)
   Point2i pos;
   ActiveCharacter().GetRelativeHandPosition(pos);
 
-  ActiveCharacter().SetPhysFixationPointXY(contact_point.x / PIXEL_PER_METER,
-                                           contact_point.y / PIXEL_PER_METER,
-                                           (Double)pos.x / PIXEL_PER_METER,
-                                           (Double)pos.y / PIXEL_PER_METER);
+  ActiveCharacter().SetPhysFixationPointXY(contact_point.x * METER_PER_PIXEL,
+                                           contact_point.y * METER_PER_PIXEL,
+                                           (Double)pos.x * METER_PER_PIXEL,
+                                           (Double)pos.y * METER_PER_PIXEL);
 
   m_fixation_point = contact_point;
   rope_node_t node;
@@ -486,10 +483,10 @@ void Grapple::DetachNode()
   Point2i pos;
   ActiveCharacter().GetRelativeHandPosition(pos);
 
-  ActiveCharacter().SetPhysFixationPointXY(m_fixation_point.x / PIXEL_PER_METER,
-                                           m_fixation_point.y / PIXEL_PER_METER,
-                                           (Double)pos.x / PIXEL_PER_METER,
-                                           (Double)pos.y / PIXEL_PER_METER);
+  ActiveCharacter().SetPhysFixationPointXY(m_fixation_point.x * METER_PER_PIXEL,
+                                           m_fixation_point.y * METER_PER_PIXEL,
+                                           pos.x * METER_PER_PIXEL,
+                                           pos.y * METER_PER_PIXEL);
 }
 
 // =========================== Moves management
@@ -523,7 +520,7 @@ void Grapple::GoDown()
     return;
   last_mvt = Time::GetInstance()->Read();
 
-  if (ActiveCharacter().GetRopeLength() >= cfg().max_rope_length / PIXEL_PER_METER)
+  if (ActiveCharacter().GetRopeLength()*PIXEL_PER_METER >= (int)cfg().max_rope_length)
     return;
 
   delta_len = 0.1 ;

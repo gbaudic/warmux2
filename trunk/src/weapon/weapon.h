@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,17 +16,17 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Virtual class to handle weapon in wormux.
+ * Virtual class to handle weapon in warmux.
  * Weapon projectile are handled in WeaponLauncher (see launcher.cpp and launcher.h).
  *****************************************************************************/
 
 #ifndef WEAPON_H
 #define WEAPON_H
 #include <string>
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "sound/sound_sample.h"
-#include <WORMUX_debug.h>
-#include <WORMUX_point.h>
+#include <WARMUX_debug.h>
+#include <WARMUX_point.h>
 
 class Character;
 class Sprite;
@@ -62,7 +62,7 @@ public:
 
     WEAPON_TELEPORTATION, WEAPON_GRAPPLE,  WEAPON_LOWGRAV,   WEAPON_SUICIDE,
     WEAPON_SKIP_TURN,     WEAPON_JETPACK,     WEAPON_PARACHUTE, WEAPON_AIR_HAMMER,
-    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_BLOWTORCH, WEAPON_SYRINGE,
+    WEAPON_CONSTRUCT,     WEAPON_SNIPE_RIFLE, WEAPON_RAIL_GUN, WEAPON_BLOWTORCH, WEAPON_SYRINGE,
     LAST = WEAPON_SYRINGE
   } Weapon_type;
   typedef enum {
@@ -75,6 +75,12 @@ public:
     MOVE,
     TOOL
   } category_t;
+
+private:
+  // Angle in radian between -PI to PI
+  Double min_angle, max_angle;
+  // display crosshair ?
+  bool m_display_crosshair;
 
 protected:
   Weapon::Weapon_type m_type;
@@ -169,6 +175,7 @@ protected:
 
   void StartMovingDownForAllPlayers();
   void StopMovingDownForAllPlayers();
+
 public:
   Weapon(Weapon_type type,
          const std::string &id,
@@ -306,9 +313,9 @@ public:
   Double ReadStrength() const { return m_strength; };
 
   // Data access
-  const std::string& GetName() const;
-  const std::string& GetID() const;
-  const std::string& GetHelp() const;
+  const std::string& GetName() const { return m_name; }
+  const std::string& GetID() const { return m_id; }
+  const std::string& GetHelp() const { return m_help; }
   Weapon_type GetType() const { return m_type; };
 
   // For localization purposes, called when changing language
@@ -327,7 +334,7 @@ public:
   inline const Double &GetMinAngle() const {return min_angle;}
   inline void SetMaxAngle(Double max) {max_angle = max;}
   inline const Double &GetMaxAngle() const {return max_angle;}
-  bool IsAngleValid(Double angle);
+  bool IsAngleValid(Double angle) const;
 
   virtual void StartMovingLeft() {};
   virtual void StopMovingLeft() {};
@@ -343,16 +350,12 @@ public:
 
   virtual void StartShooting();
   virtual void StopShooting();
-private:
-  // Angle in radian between -PI to PI
-  Double min_angle, max_angle;
-  // display crosshair ?
-  bool m_display_crosshair;
 
-  /* If you need this, implement it (correctly)*/
-  Weapon(const Weapon&);
-  const Weapon& operator=(const Weapon&);
-  /*********************************************/
+  // Functions to avoid dynamic_cast
+  virtual void SetProjectileTimeOut(int) { };
+  virtual void SetAngle(Double) { }
+
+  static void Message(const std::string& msg);
 };
 
 //-----------------------------------------------------------------------------

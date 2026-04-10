@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #include "graphic/sprite.h"
 #include "team/teams_list.h"
 #include "tool/resource_manager.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 
 class DynamiteStick : public WeaponProjectile
 {
@@ -57,16 +57,18 @@ DynamiteStick::DynamiteStick(ExplosiveWeaponConfig& cfg,
   explode_with_timeout = true;
 
   image->animation.SetLoopMode(false);
+  image->EnableCaches(true, 0);
   SetSize(image->GetSize());
   SetTestRect (0, 0, 2, 3);
 }
 
 void DynamiteStick::Shoot(Double strength)
 {
-  unsigned int delay = (1000 * WeaponProjectile::GetTotalTimeout())/image->GetFrameCount();
+  uint delay = (1000 * WeaponProjectile::GetTotalTimeout())/image->GetFrameCount();
   image->SetFrameSpeed(delay);
 
-  image->Scale(ActiveCharacter().GetDirection(), 1);
+  image->SetFlipped(ActiveCharacter().GetDirection() == DIRECTION_LEFT);
+  image->Scale(ONE, ONE);
   image->SetCurrentFrame(0);
   image->Start();
 
@@ -114,14 +116,12 @@ Dynamite::Dynamite() :
 void Dynamite::UpdateTranslationStrings()
 {
   m_name = _("Dynamite");
-  /*TODO: FILL IT */
-  /* m_help = _(""); */
+  m_help = _("Set timer 1-6 using +/- or 1-6 keys\nSpace to place dynamite");
 }
 
 WeaponProjectile * Dynamite::GetProjectileInstance()
 {
-  return dynamic_cast<WeaponProjectile *>
-      (new DynamiteStick(cfg(),dynamic_cast<WeaponLauncher *>(this)));
+  return new DynamiteStick(cfg(), this);
 }
 
 // drop a dynamite

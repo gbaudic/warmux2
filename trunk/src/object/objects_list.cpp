@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,9 +26,9 @@
 #include "map/map.h"
 #include "map/maps_list.h"
 #include "map/camera.h"
-#include <WORMUX_debug.h>
-#include <WORMUX_rectangle.h>
-#include "game/time.h"
+#include <WARMUX_debug.h>
+#include <WARMUX_rectangle.h>
+#include "game/game_time.h"
 #include "weapon/mine.h"
 #include <vector>
 #include <iostream>
@@ -44,7 +44,7 @@ ObjectsList::~ObjectsList()
 void ObjectsList::PlaceMines()
 {
   MSG_DEBUG("lst_objects","Placing mines");
-  for (uint i=0; i<ActiveMap()->GetNbMine(); ++i)
+  for (uint i=0; i<ActiveMap()->LoadedData()->GetNbMine(); ++i)
   {
     ObjMine *obj = new ObjMine(*MineConfig::GetInstance());
     Double detection_range_factor = 1.5;
@@ -59,7 +59,7 @@ void ObjectsList::PlaceMines()
 void ObjectsList::PlaceBarrels()
 {
   MSG_DEBUG("lst_objects","Placing barrels");
-  for (uint i= 0; i<ActiveMap()->GetNbBarrel(); ++i)
+  for (uint i= 0; i<ActiveMap()->LoadedData()->GetNbBarrel(); ++i)
   {
     PetrolBarrel *obj = new PetrolBarrel();
 
@@ -86,7 +86,7 @@ void ObjectsList::Refresh()
       (*object)->Refresh();
     }
 
-    if((*object)->IsGhost()) {
+    if ((*object)->IsGhost()) {
       // Stop following this object, remove from overlapse reference then delete it.
       Camera::GetInstance()->StopFollowingObj(*object);
       RemoveOverlappedObjectReference(*object);
@@ -119,7 +119,8 @@ bool ObjectsList::AllReady() const
   {
     if (!(*object)->IsImmobile())
     {
-      MSG_DEBUG("lst_objects", "\"%s\" is not ready ( IsImmobile()==false )", (*object)->GetName().c_str());
+      MSG_DEBUG("lst_objects", "\"%s\" is not ready ( IsImmobile()==false )",
+                (*object)->GetName().c_str());
       return false;
     }
   }
@@ -131,11 +132,9 @@ bool ObjectsList::AllReady() const
 void ObjectsList::FreeMem()
 {
   ObjectsList::iterator object;
-  for (object = begin();
-       object != end();
-       ++object) {
-    if((*object))
-      delete (*object);
+  for (object = begin(); object != end(); ++object) {
+    if ((*object))
+      delete(*object);
   }
   clear();
 }
@@ -144,7 +143,7 @@ void ObjectsList::FreeMem()
 
 void ObjectsList::RemoveOverlappedObjectReference(const PhysicalObj * obj)
 {
-  for(iterator it = overlapped_objects.begin(); it != overlapped_objects.end(); it ++) {
+  for (iterator it = overlapped_objects.begin(); it != overlapped_objects.end();) {
 
     if ((*it)->GetOverlappingObject() == obj) {
       MSG_DEBUG("lst_objects", "removing overlapse reference of \"%s\" (%p) in \"%s\"",
@@ -156,6 +155,8 @@ void ObjectsList::RemoveOverlappedObjectReference(const PhysicalObj * obj)
       MSG_DEBUG("lst_objects", "removing overlapse object of \"%s\" (%p)",
                 obj->GetName().c_str(), obj);
       it = overlapped_objects.erase(it);
+    } else {
+      ++it;
     }
   }
 }
@@ -163,7 +164,7 @@ void ObjectsList::RemoveOverlappedObjectReference(const PhysicalObj * obj)
 void ObjectsList::AddOverlappedObject(PhysicalObj * obj)
 {
   MSG_DEBUG("lst_objects", "adding overlapsed object \"%s\" %p",
-	    obj->GetName().c_str(), obj);
+            obj->GetName().c_str(), obj);
 
   overlapped_objects.push_back(obj);
 }
@@ -171,7 +172,7 @@ void ObjectsList::AddOverlappedObject(PhysicalObj * obj)
 void ObjectsList::RemoveOverlappedObject(PhysicalObj * obj)
 {
   MSG_DEBUG("lst_objects", "removing overlapsed object \"%s\" %p",
-	    obj->GetName().c_str(), obj);
+            obj->GetName().c_str(), obj);
 
   overlapped_objects.remove(obj);
 }

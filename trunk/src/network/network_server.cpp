@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Network server layer for Wormux.
+ * Network server layer for Warmux.
  *****************************************************************************/
 
+#include <WARMUX_socket.h>
 #include <SDL_thread.h>
-#include <WORMUX_socket.h>
 #include "include/action_handler.h"
 #include "network/network_server.h"
 #include "tool/string_tools.h"
@@ -72,7 +72,7 @@ uint NetworkServer::NextPlayerId() const
 
     for (player = players.begin(); player != players.end(); player++) {
       if (player_id <= player->GetId()) {
-	player_id = player->GetId() + 1;
+        player_id = player->GetId() + 1;
       }
     }
   }
@@ -81,9 +81,12 @@ uint NetworkServer::NextPlayerId() const
   return player_id;
 }
 
-bool NetworkServer::HandShake(WSocket& client_socket, std::string& nickname, uint player_id) const
+bool NetworkServer::HandShake(WSocket& client_socket,
+                              std::string& nickname,
+                              uint player_id) const
 {
-  return WNet::Server_HandShake(client_socket, GetGameName(), GetPassword(), nickname, player_id, false);
+  return WNet::Server_HandShake(client_socket, GetGameName(), GetPassword(),
+                                nickname, player_id, false);
 }
 
 void NetworkServer::WaitActionSleep()
@@ -97,7 +100,7 @@ void NetworkServer::WaitActionSleep()
       uint player_id = NextPlayerId();
 
       if (!HandShake(*incoming, nickname, player_id))
- 	return;
+        return;
 
       socket_set->AddSocket(incoming);
 

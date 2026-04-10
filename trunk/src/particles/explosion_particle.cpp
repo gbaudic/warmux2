@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 #include "particles/explosion_particle.h"
 #include "particles/particle.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "graphic/sprite.h"
 #include "sound/jukebox.h"
 #include "network/randomsync.h"
@@ -37,7 +37,7 @@ ExplosionParticle::ExplosionParticle() :
   image = ParticleEngine::GetSprite(EXPLOSION_spr);
   m_initial_time_to_live = image->GetFrameCount();
   m_left_time_to_live = m_initial_time_to_live;
-  m_time_between_scale = image->GetCurrentFrameObject().delay;
+  m_time_between_scale = image->GetCurrentDelay();
 
   image->SetCurrentFrame(0);
   image->Start();

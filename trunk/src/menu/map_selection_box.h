@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,10 +23,10 @@
 #define MAP_SELECTION_BOX_H
 
 #include "graphic/surface.h"
-#include "gui/box.h"
-#include "include/base.h"
-#include <WORMUX_point.h>
-#include <WORMUX_rectangle.h>
+#include "gui/vertical_box.h"
+#include <WARMUX_base.h>
+#include <WARMUX_point.h>
+#include <WARMUX_rectangle.h>
 
 // Forward declarations
 class Button;

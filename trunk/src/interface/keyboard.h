@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #define KEYBOARD_H
 //-----------------------------------------------------------------------------
 #include "interface/man_machine_interface.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_singleton.h>
 #include <set>
 #include "SDL_keyboard.h"
 #include "tool/xml_document.h"
@@ -41,9 +41,19 @@ protected:
   void SetDefaultConfig();
 
 public:
-  void HandleKeyEvent(const SDL_Event& event);
+  void HandleKeyEvent(const SDL_Event& evnt);
   void SetConfig(const xmlNode *node);
-  void SaveConfig( xmlNode *node) const;
+  void SaveConfig(xmlNode *node) const;
+
+  int  GetRawKeyCode(int keycode) const;
+  bool HasControlModifier(int key_code) const;
+  bool HasAltModifier(int key_code) const;
+  bool HasShiftModifier(int key_code) const;
+  ManMachineInterface::Key_t
+    GetRegisteredAction(int raw_key_code, bool control, bool alt, bool shift) const;
+  bool SaveKeyEvent(Key_t at, int raw_key_code,
+                    bool control, bool alt, bool shift);
+  static bool IsModifier(int raw_key_code);
 };
 
 //-----------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,21 +22,11 @@
 #include "game/config.h"
 #include "team/custom_teams_list.h"
 #include "team/custom_team.h"
-#include <WORMUX_file_tools.h>
+#include <WARMUX_file_tools.h>
 
 #include <iostream>
 #include <cstdio>
 #include <algorithm>
-
-CustomTeamsList::CustomTeamsList()
-{
-  LoadList();
-}
-
-CustomTeamsList::~CustomTeamsList()
-{
-  Clear();
-}
 
 void CustomTeamsList::Clear()
 {
@@ -56,23 +46,13 @@ CustomTeam *CustomTeamsList::GetByName(std::string name)
   return NULL;
 }
 
-std::vector<CustomTeam *> CustomTeamsList::GetList()
-{
-  return full_list;
-}
-
-unsigned CustomTeamsList::GetNumCustomTeam()
-{
-  return full_list.size();
-}
-
 void CustomTeamsList::LoadList()
 {
   Clear();
   const Config *config = Config::GetInstance();
 
   // Load personal custom teams
-  std::string dirname = config->GetPersonalConfigDir() + "custom_team" PATH_SEPARATOR;
+  std::string dirname = config->GetPersonalConfigDir() + "custom_team";
   FolderSearch *f = OpenFolder(dirname);
 
   if (f) {
@@ -81,42 +61,44 @@ void CustomTeamsList::LoadList()
     CloseFolder(f);
   } else {
     std::cerr << std::endl
-	      << Format(_("Cannot open the custom teams directory (%s)!"), dirname.c_str())
-	      << std::endl;
+              << Format(_("Cannot open the custom teams directory (%s)!"), dirname.c_str())
+              << std::endl;
   }
 
   Sort();
 }
 
 
-void CustomTeamsList::LoadOneTeam(const std::string &dir, const std::string &custom_team_name)
+bool CustomTeamsList::LoadOneTeam(const std::string &dir, const std::string &custom_team_name)
 {
   // Skip '.', '..' and hidden files
-  if (custom_team_name[0] == '.') return;
+  if (custom_team_name[0] == '.')
+    return true;
 
   // Is it a directory ?
-  if (!DoesFolderExist(dir + custom_team_name)) return;
+  if (!DoesFolderExist(dir + PATH_SEPARATOR + custom_team_name))
+    return false;
 
   // Add the team
-  try {
-    full_list.push_back(new CustomTeam(dir, custom_team_name));
+  std::string error;
+  CustomTeam *team = CustomTeam::LoadCustomTeam(dir, custom_team_name, error);
+  if (team) {
+    full_list.push_back(team);
+    return true;
+  }
 
-  } catch (char const *error) {
     std::cerr << std::endl
               << Format(_("Error loading team :")) << custom_team_name <<":"<< error
               << std::endl;
-    return;
-  }
+  return false;
 }
 
 void CustomTeamsList::Sort()
 {
-  std::sort( full_list.begin(), full_list.end(), CustomTeamsList::CompareItems );
+  std::sort(full_list.begin(), full_list.end(), CustomTeamsList::CompareItems);
 }
 
-bool CustomTeamsList::CompareItems( CustomTeam* p1, CustomTeam* p2 )
+bool CustomTeamsList::CompareItems(CustomTeam* p1, CustomTeam* p2)
 {
-  return  (p1->GetName().compare(p2->GetName()) < 0);
+  return (p1->GetName().compare(p2->GetName()) < 0);
 }
-
-

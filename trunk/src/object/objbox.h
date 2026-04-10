@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,47 +28,48 @@
 class Team;
 class Character;
 class Sprite;
+class Surface;
 typedef struct _xmlNode xmlNode;
 class Action;
 
 class ObjBox : public PhysicalObj //it would be nice to name this "Box", but that was already taken...
 {
-    /* If you need this, implement it (correctly)*/
-    ObjBox(const ObjBox&);
-    const ObjBox& operator=(const ObjBox&);
-    /*********************************************/
+  SoundSample hit;
 
-    SoundSample hit;
+  virtual void ApplyBox(Team &/*team*/, Character &/*character*/){}
+  void CloseParachute();
 
-    virtual void ApplyBox (Team &/*team*/, Character &/*character*/){}
-    void CloseParachute();
+public:
+  ObjBox(const std::string &name);
+  ~ObjBox();
 
-  public:
-    ObjBox(const std::string &name);
-    ~ObjBox();
+  void DropBox();
+  static void LoadXml(const xmlNode*  /*object*/){};
 
-    void DropBox();
-    static void LoadXml(const xmlNode*  /*object*/){};
+  void Draw();
+  virtual void Refresh();
+  virtual void Randomize() {};
+  virtual void ApplyBonus(Character *) {};
 
-    void Draw();
-    virtual void Refresh();
-    virtual void Randomize() {};
-    virtual void ApplyBonus(Character *) {};
+  // You must implement this, ideally using a static Sprite*
+  virtual const Surface* GetIcon() const = 0;
 
-  protected:
-    bool parachute;
-    Sprite *anim;
-    static int start_life_points;
-    void Explode();
+protected:
+  bool parachute;
+  Sprite *anim;
+  static int start_life_points;
+  void Explode();
 
-    virtual void SignalGroundCollision(const Point2d& my_speed_before);
-    virtual void SignalObjectCollision(const Point2d& my_speed_before,
-				       PhysicalObj *object,
-				       const Point2d& object_speed);
-    virtual void SignalDrowning();
-    virtual void SignalGhostState(bool was_already_dead);
+  virtual void SignalGroundCollision(const Point2d& my_speed_before);
+  virtual void SignalObjectCollision(const Point2d& my_speed_before,
+                                     PhysicalObj *object,
+                                     const Point2d& object_speed);
+  virtual void SignalDrowning();
+  virtual void SignalGhostState(bool was_already_dead);
+
+  // This returns you a scaled version of your anim Sprite*
+  Sprite *CreateIcon();
 };
 
 //-----------------------------------------------------------------------------
 #endif /* OBJBOX_H */
-

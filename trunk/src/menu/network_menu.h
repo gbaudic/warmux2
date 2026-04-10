@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,12 +30,10 @@ class NetworkTeamsSelectionBox;
 class TalkBox;
 class MapSelectionBox;
 class CheckBox;
+class ComboBox;
 
 class NetworkMenu : public Menu
 {
-  NetworkMenu(const NetworkMenu&);
-  const NetworkMenu& operator=(const NetworkMenu&);
-
   bool waiting_for_server;
 
   /* Options controllers */
@@ -43,6 +41,7 @@ class NetworkMenu : public Menu
   Label* connected_players;
   Label* initialized_players;
   CheckBox* play_in_loop;
+  ComboBox *opt_game_mode;
 
   /* Chat controller */
   TalkBox* msg_box;
@@ -57,21 +56,20 @@ class NetworkMenu : public Menu
   void SaveOptions();
   void WaitingForGameMaster();
 
-  virtual void OnClick(const Point2i &mousePosition, int button);
-  virtual void OnClickUp(const Point2i &mousePosition, int button);
+  void ChangeGameMode();
+
   virtual void Draw(const Point2i &mousePosition);
-  virtual void HandleEvent(const SDL_Event& event);
+  virtual void HandleEvent(const SDL_Event& evnt);
 
   virtual void key_ok();
   virtual bool signal_ok();
   virtual bool signal_cancel();
   virtual void signal_begin_run();
 
- void RequestSavedTeams();
+  void RequestSavedTeams();
 
 public:
   NetworkMenu();
-  ~NetworkMenu();
 
   void AddTeamCallback(const std::string& team_id);
   void UpdateTeamCallback(const std::string& old_team_id, const std::string& team_id);
@@ -81,7 +79,7 @@ public:
   Team * FindUnusedTeam(const std::string default_team_id);
   bool HasOpenTeamSlot();
 
-  void ReceiveMsgCallback(const std::string& msg);
+  void ReceiveMsgCallback(const std::string& msg, const Color& color);
 };
 
 #endif

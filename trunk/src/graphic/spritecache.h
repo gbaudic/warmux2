@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,49 +26,109 @@
 #define _SPRITE_CACHE_H
 
 #include <vector>
-#include "include/base.h"
-#include "graphic/spriteframe.h"
+#include <assert.h>
+#include <WARMUX_base.h>
 #include "graphic/surface.h"
 
 class Sprite;
 
-class SpriteFrameCache
+#if 0 //def ANDROID
+#  define RotoZoomC(a, x, y, s) RotoZoom(a, x, y, s).DisplayFormatColorKey(128)
+#else
+#  define RotoZoomC(a, x, y, s) RotoZoom(a, x, y, s)
+#endif
+
+class SpriteSubframeCache
 {
-  bool use_rotation;
-  std::vector<Surface> rotated_surface;
-  std::vector<Surface> rotated_flipped_surface;
+  std::vector<Surface> rotated;
+  Double min, max;
+
+  Double RestrictAngle(Double angle) const
+  {
+    while (angle < min)
+      angle += TWO_PI;
+    while (angle >= max)
+      angle -= TWO_PI;
+    ASSERT(angle>=min && angle<max);
+    return angle;
+  }
 
 public:
-  Surface flipped_surface;
-  Surface GetFlippedSurfaceForAngle(Double angle) const;
-  Surface GetSurfaceForAngle(Double angle) const;
+  Surface              surface;
 
-  SpriteFrameCache();
-  void CreateRotationCache(Surface &surface, unsigned int cache_size, bool smooth);
-  void CreateFlippingCache(Surface &surface, bool smooth);
+  SpriteSubframeCache() { };
+  SpriteSubframeCache(const Surface& surf) : surface(surf) { };
+  SpriteSubframeCache(const SpriteSubframeCache& other)
+    : rotated(other.rotated)
+    , min(other.min)
+    , max(other.max)
+    , surface(other.surface)
+  { }
+  ~SpriteSubframeCache() { rotated.clear(); surface.Free(); }
+
+  Surface GetSurfaceForAngle(Double angle);
+  void SetCache(uint num, const Double& mini, const Double& maxi);
 };
 
-class SpriteCache
+class SpriteFrameCache
+{
+public:
+  uint delay;
+
+  SpriteSubframeCache normal;
+  SpriteSubframeCache flipped;
+
+  SpriteFrameCache(uint d = 100) { delay = d; }
+  SpriteFrameCache(const Surface& surf, uint d = 100)
+    : delay(d)
+    , normal(surf)
+  { }
+  SpriteFrameCache(const SpriteFrameCache& other)
+    : delay(other.delay)
+    , normal(other.normal)
+    , flipped(other.flipped)
+  { }
+
+  void SetCaches(bool flipped, uint rotation_num, Double min, Double max);
+};
+
+class SpriteCache : public std::vector<SpriteFrameCache>
 {
   Sprite &sprite;
 
-// TODO: Remove "public:" :-)
-public:
-  bool have_rotation_cache;
-  unsigned int rotation_cache_size;
+  uint rotation_cache_size;
   bool have_flipping_cache;
-  bool have_lastframe_cache;
-  Surface last_frame;
-  std::vector<SpriteFrameCache> frames;
 
 public:
-  explicit SpriteCache(Sprite &sprite);
+  explicit SpriteCache(Sprite &spr)
+    : sprite(spr)
+    , rotation_cache_size(0)
+    , have_flipping_cache(false)
+  { }
 
-  void EnableRotationCache(std::vector<SpriteFrame> &frames, unsigned int cache_size);
-  void EnableFlippingCache(std::vector<SpriteFrame> &frames);
-  void EnableLastFrameCache();
-  void DisableLastFrameCache();
-  void InvalidLastFrame();
+  void SetFrames(const SpriteCache &other)
+  {
+    clear();
+    rotation_cache_size = other.rotation_cache_size;
+    have_flipping_cache = other.have_flipping_cache;
+    for (uint i=0; i<other.size(); i++)
+      push_back(SpriteFrameCache(other[i]));
+  }
+  void AddFrame(const Surface& surf, uint delay=100) { push_back(SpriteFrameCache(surf, delay)); }
+  void EnableCaches(bool flipped, uint rotation_num, const Double& min, const Double& max);
+
+  //operator SpriteFrameCache& [](uint index) { return frames.at(index); }
+  void SetDelay(uint delay)
+  {
+    for (uint i=0; i<size(); i++)
+      operator[](i).delay = delay;
+  }
+
+  void FixParameters(const Double& rotation_rad,
+                     const Double& scale_x, const Double& scale_y,
+                     bool force_color_key);
+  bool HasRotationCache() const { return rotation_cache_size; }
+  bool HasFlippedCache() const { return have_flipping_cache; }
 };
 
 #endif /* _SPRITE_CACHE_H */

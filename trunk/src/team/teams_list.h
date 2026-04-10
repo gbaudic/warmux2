@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 //-----------------------------------------------------------------------------
 #include <list>
 #include <vector>
-#include <WORMUX_singleton.h>
+#include <WARMUX_singleton.h>
 //-----------------------------------------------------------------------------
 
 // Forward declarations
@@ -46,7 +46,7 @@ private:
   std::list<uint> selection;
   std::vector<Team*>::iterator active_team;
 
-  void LoadOneTeam (const std::string &dir, const std::string &file);
+  bool LoadOneTeam(const std::string &dir, const std::string &file);
   void LoadList();
 
   void AddTeam(Team* the_team, int pos, const ConfigTeam& the_team_cfg, bool is_local);
@@ -66,20 +66,20 @@ public:
   Team& ActiveTeam();
   void LoadGamingData(WeaponsList * weapons_list);
   void UnloadGamingData();
-  void Clear();
+  void Clear() { selection.clear(); playing_list.clear(); }
   void RandomizeFirstPlayer();
 
   // Add a new team to playing, and change active team
   void AddTeam(const ConfigTeam& the_team_cfg, bool is_local, bool generate_error = true);
-  void UpdateTeam(const std::string &old_team_id, const ConfigTeam& the_team_cfg);
+  Team* UpdateTeam(const std::string &old_team_id, const ConfigTeam& the_team_cfg);
   void DelTeam(const std::string &id);
   void SetActive(const std::string &id);
   void InitList(const std::list<ConfigTeam> &lst);
-  void InitEnergy ();
-  void RefreshEnergy (); //Refresh energy bar
-  void RefreshSort (); //Refresh energy bar position
-  void ChangeSelection (const std::list<uint>& liste);
-  bool IsSelected (uint index);
+  void InitEnergy();
+  void RefreshEnergy(); //Refresh energy bar
+  void RefreshSort(); //Refresh energy bar position
+  void ChangeSelection(const std::list<uint>& liste);
+  bool IsSelected(uint index);
   static bool IsLoaded() { return singleton != NULL; }
 
   // Find a team by its id or index (in full_list)
@@ -87,22 +87,28 @@ public:
   Team* FindByIndex (uint index);
   // Find a team by its id or index (in playing full_list)
   Team* FindPlayingById(const std::string &id, int &index);
-  Team* FindPlayingByIndex(uint index);
+  Team* FindPlayingByIndex(uint index)
+  {
+    ASSERT(index < playing_list.size());
+    return playing_list[index];
+  }
+
+  std::vector<Team*>& GetPlayingList() { return playing_list; }
+  void SetPlayingList(const std::vector<Team*>& list)
+  {
+    playing_list = list;
+    active_team = playing_list.begin();
+  }
 };
 
-//-----------------------------------------------------------------------------
+inline TeamsList &GetTeamsList(void) { return TeamsList::GetRef(); };
 
 // current active team
-Team& ActiveTeam();
+inline Team& ActiveTeam() { return GetTeamsList().ActiveTeam(); }
 
 // current active character
 Character& ActiveCharacter();
 
-//-----------------------------------------------------------------------------
-
 bool compareTeams(const Team *a, const Team *b);
 
-inline TeamsList &GetTeamsList(void) { return TeamsList::GetRef(); };
-
-//-----------------------------------------------------------------------------
 #endif

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <SDL_image.h>
+#include <WARMUX_file_tools.h>
 
 #include "game/config.h"
 #include "graphic/video.h"
@@ -29,51 +30,67 @@
 
 
 Video::Video()
+  :SDLReady(false)
+  , fullscreen(false)
+  , icon(NULL)
 {
-  SetMaxFps (50);
-  fullscreen = false;
-  SDLReady = false;
-  hardware = false;
-  icon = NULL;
+  SetMaxFps(50);
+
+  Config * config = Config::GetInstance();
+  SetMaxFps(config->GetMaxFps());
 
   InitSDL();
 
-  window.SetSurface( NULL , false );
-  window.SetAutoFree( false );
+#ifdef WIN32
+  // The SDL manual of SDL_WM_SetIcon states that "Win32 icons must be 32x32.":
+  icon = IMG_Load((config->GetDataDir() + "icon\\warmux.xpm").c_str());
+#elif !defined(ANDROID)
+  // The icon must be larger then 32x32 pixels as some desktops display
+  // larger icons. For example on a mac system, the icon is displayed
+  // in a resolution of 64x64 pixels.
+  // The even higher resolution allows the system to scale the icon down
+  // to an anti-aliased version.
+  icon = IMG_Load((config->GetDataDir() + "icon/warmux_128x128.xpm").c_str());
+#endif
+  // SDL_WM_SetIcon must be called before the first call to SDL_SetVideoMode
+#ifndef MAEMO
+  SDL_WM_SetIcon(icon, NULL);
+#endif
 
-  Config * config = Config::GetInstance();
-  SetConfig((int)(config->GetVideoWidth()),
-            (int)(config->GetVideoHeight()),
-            config->IsVideoFullScreen());
+  window.SetSurface(NULL, false);
+  window.SetAutoFree(false);
 
-  SetMaxFps(config->GetMaxFps());
+  ComputeAvailableConfigs();
 
-  if( window.IsNull() ) {
+  // See if we can add the current config resolution
+  int w = config->GetVideoWidth();
+  int h = config->GetVideoHeight();
+  if (!w || !h) {
+    w = available_configs.begin()->GetX();
+    h = available_configs.begin()->GetY();
+  }
+
+  SetConfig(w, h, config->IsVideoFullScreen());
+
+  if (window.IsNull()) {
     Error(Format("Unable to initialize SDL window: %s", SDL_GetError()));
     exit (1);
   }
+  AddUniqueConfigSorted(window.GetWidth(), window.GetHeight());
 
-  SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION );
-  // The icon must be larger then 32x32 pixels as some desktops display larger icons.
-  // For example on a mac system the icon got displayed in a resolution of 64x64 pixels.
-  // The even higher resolution allows the system to scale the icon down to an anti-aliased version.
-  #ifndef WIN32
-    SetWindowIcon( config->GetDataDir() + "wormux_128x128.xpm" );
-  #else
-    // The SDL manual of SDL_WM_SetIcon states that "Win32 icons must be 32x32.":
-    SetWindowIcon( config->GetDataDir() + "wormux_32x32.xpm" );
-  #endif
-
-  ComputeAvailableConfigs();
+  SetWindowCaption(std::string("Warmux ") + Constants::WARMUX_VERSION);
 }
 
 Video::~Video()
 {
-  if (icon)
+  if (icon) {
     SDL_FreeSurface(icon);
-  if( SDLReady )
-    SDL_Quit();
-  SDLReady = false;
+    icon = NULL;
+  }
+  if (SDLReady) {
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+    SDLReady = false;
+  }
 }
 
 void Video::SetMaxFps(uint max_fps)
@@ -87,16 +104,30 @@ void Video::SetMaxFps(uint max_fps)
 
 static bool CompareConfigs(const Point2i& a, const Point2i& b)
 {
-  return  (a.x < b.x) || ((a.x == b.x) && (a.y < b.y));
+  return (a.x < b.x) || ((a.x == b.x) && (a.y < b.y));
 }
 
-void Video::AddConfigIfAbsent(int w, int h)
+void Video::AddUniqueConfigSorted(int w, int h)
 {
   Point2i p(w, h);
 
-  if ( !CompareConfigs((*available_configs.begin()), p) &&
-       find(available_configs.begin(), available_configs.end(), p) == available_configs.end() )
-    available_configs.push_back(p);
+  std::list<Point2i>::iterator res  = available_configs.begin(),
+                               end  = available_configs.end();
+
+  for (std::list<Point2i>::iterator res = available_configs.begin();
+       res != available_configs.end();
+       res++) {
+    // Are they identical ?
+    if (p == *res)
+      return;
+
+    // Is it bigger?
+    if (!CompareConfigs(*res, p)) {
+      available_configs.insert(res, p);
+      return;
+    }
+  }
+  available_configs.push_back(p);
 }
 
 void Video::ComputeAvailableConfigs()
@@ -104,71 +135,53 @@ void Video::ComputeAvailableConfigs()
   //Generate video mode list
   SDL_Rect **modes;
 
-  // Get available fullscreen/hardware modes
-  modes=SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_HWSURFACE);
+  // Get available fullscreen modes
+  modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
 
   // Check is there are any modes available
-  if(modes != NULL){
+  if (modes != NULL){
     // We also had the current window resolution if it is not already in the list!
-    for(int i=0;modes[i];++i) {
-      // We accept only modes that are bigger than 640x480
-      if (modes[i]->w < 640 || modes[i]->h < 480) break;
-      available_configs.push_back(Point2i(modes[i]->w, modes[i]->h));
+    for (int i=0;modes[i];++i) {
+      if (modes[i]->w>=480 && modes[i]->h>=320) {
+        AddUniqueConfigSorted(modes[i]->w, modes[i]->h);
+      }
     }
   }
 
-  // Add the current resolution
-  AddConfigIfAbsent(window.GetWidth(), window.GetHeight());
-
   // If biggest resolution is big enough, we propose standard resolutions
   // such as 1600x1200, 1280x1024, 1024x768, 800x600.
-  for(std::list<Point2i>::iterator res = Config::GetInstance()->GetResolutionAvailable().begin();
-      res != Config::GetInstance()->GetResolutionAvailable().end();
-      res++) {
-    AddConfigIfAbsent((*res).GetX(), (*res).GetY());
-  }
-
-  // Sort the list
-  available_configs.sort(CompareConfigs);
-
-  // Remove Double items
-  std::list<Point2i>::iterator prev = available_configs.begin(),
-    it = available_configs.begin() ,
-    end = available_configs.end();
-
-  for (++it; it != end ; ++it) {
-    if ((*prev)==(*it)) // the two items are equals
-      prev = available_configs.erase(prev);
-    else
-      prev++;
+  for (std::list<Point2i>::iterator res = Config::GetInstance()->GetResolutionAvailable().begin();
+       res != Config::GetInstance()->GetResolutionAvailable().end();
+       res++) {
+    AddUniqueConfigSorted((*res).GetX(), (*res).GetY());
   }
 }
 
-bool Video::__SetConfig(const int width, const int height, const bool _fullscreen, const bool _hardware)
+bool Video::__SetConfig(const int width, const int height, const bool _fullscreen)
 {
-  bool __fullscreen = _fullscreen;
-#ifdef __APPLE__
-  __fullscreen = false; // Never set fullscreen with OSX, as it's buggy
+  int flags = SDL_SWSURFACE;
+#ifdef HAVE_HANDHELD
+  int bpp   = 16;
+#else
+  int bpp   = 32;
 #endif
 
-  int flags = (__fullscreen) ? SDL_FULLSCREEN : 0;
+#ifdef HAVE_TOUCHSCREEN
+  bool __fullscreen = true;
+#else
+  bool __fullscreen = _fullscreen;
+#endif
 
-  if (_hardware) {
-    flags |= SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF;
-  } else {
-    flags |= SDL_SWSURFACE;
-  }
+  flags |= (__fullscreen) ? SDL_FULLSCREEN : 0;
+#ifdef __SYMBIAN32__
+  flags = 0;
+#endif
 
-  window.SetSurface( SDL_SetVideoMode(width, height, 32, flags) );
-
+  window.SetSurface(SDL_SetVideoMode(width, height, bpp, flags));
   if (window.IsNull())
     return false;
 
-  if (!_hardware)
-      std::cerr << "WARNING: Video not using hardware acceleration!" << std::endl;
-
   fullscreen = __fullscreen;
-  hardware = _hardware;
 
   return true;
 }
@@ -185,37 +198,33 @@ bool Video::SetConfig(const int width, const int height, const bool _fullscreen)
     return true; // nothing to change :-)
 
   int old_width, old_height;
-  bool old_fullscreen, old_hw;
+  bool old_fullscreen;
   if (window_was_null) {
-    old_width = 640;
-    old_height = 480;
-    old_hw = true;
+    old_width = available_configs.begin()->GetX();
+    old_height = available_configs.begin()->GetY();
   } else {
     old_width = window.GetWidth();
     old_height = window.GetHeight();
-    old_hw = hardware;
   }
   old_fullscreen = fullscreen;
 
   // Trying with hardware acceleration
-  r = __SetConfig(width, height, _fullscreen, true);
+  r = __SetConfig(width, height, _fullscreen);
   if (!r) {
-	fprintf(stderr, 
-		"WARNING: Fail to initialize main window with the following configuration: %dx%d, "
-		"fullscreen: %d, WITH hardware acceleration\n",
-		old_width, old_height, _fullscreen);
+    fprintf(stderr,
+            "WARNING: Fail to initialize main window with the following configuration:\n"
+            " %dx%d, fullscreen: %d\n", old_width, old_height, _fullscreen);
 
     // Trying previous configuration
-    if (! __SetConfig(old_width, old_height, old_fullscreen, old_hw)) {
+    if (! __SetConfig(old_width, old_height, old_fullscreen)) {
 
       // previous configuration fails !?!
-      
-      // let's have another try without hw acceleration and without fullscreen
-      if (! __SetConfig(old_width, old_height, false, false)) {
-	Error(Format("ERROR: Fail to initialize main window with the following configuration: %dx%d, "
-		     "no fullscreen, no hardware acceleration\n",
-		     old_width, old_height));
-	exit(EXIT_FAILURE);
+
+      // let's have another try without fullscreen
+      if (! __SetConfig(old_width, old_height, false)) {
+        Error(Format("ERROR: Fail to initialize main window with the following configuration:\n"
+                     " %dx%d, no fullscreen,\n", old_width, old_height));
+        exit(EXIT_FAILURE);
       }
     }
   }
@@ -224,7 +233,7 @@ bool Video::SetConfig(const int width, const int height, const bool _fullscreen)
 
   // refresh all the map when switching to higher resolution
   if (!window_was_null)
-    AppWormux::GetInstance()->RefreshDisplay();
+    AppWarmux::GetInstance()->RefreshDisplay();
 
   return r;
 }
@@ -232,35 +241,27 @@ bool Video::SetConfig(const int width, const int height, const bool _fullscreen)
 void Video::ToggleFullscreen()
 {
 #ifndef WIN32
-#  ifndef __APPLE__ // Prevent buggy fullscreen under OSX
-  SDL_WM_ToggleFullScreen( window.GetSurface() );
+  SDL_WM_ToggleFullScreen(window.GetSurface());
   fullscreen = !fullscreen;
-#  endif
 #else
   SetConfig(window.GetWidth(), window.GetHeight(), !fullscreen);
-  AppWormux::GetInstance()->RefreshDisplay();
+  AppWarmux::GetInstance()->RefreshDisplay();
 #endif
 }
 
 void Video::SetWindowCaption(const std::string& caption) const
 {
-  SDL_WM_SetCaption( caption.c_str(), NULL );
-}
-
-void Video::SetWindowIcon(const std::string& filename)
-{
-  icon = IMG_Load(filename.c_str());
-  SDL_WM_SetIcon( icon, NULL );
+  SDL_WM_SetCaption(caption.c_str(), NULL);
 }
 
 void Video::InitSDL()
 {
-  if( SDLReady )
+  if (SDLReady)
     return;
 
-  if( SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO) < 0 ) {
+  if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
     Error(Format("Unable to initialize SDL library: %s", SDL_GetError()));
-    exit (EXIT_FAILURE);
+    exit(EXIT_FAILURE);
   }
 
   SDL_EnableUNICODE(1);
@@ -272,7 +273,37 @@ void Video::Flip()
   window.Flip();
 }
 
+bool Video::SaveScreenshot()
+{
+  int u = 0;
+  char name[19];
+  std::string path = Config::GetConstInstance()->GetPersonalDataDir();
+  std::string filename;
+
+  // Generate and try names
+  do {
+    snprintf(name, sizeof(name), "screenshot%04u.bmp", u);
+    filename = path + name;
+    u++;
+  } while (DoesFileExist(filename) && u<10000);
+
+  if (u == 10000)
+    return false;
+  if (window.ImgSave(filename, true)) {
+    printf("Saved screenshot %s\n", filename.c_str());
+    return true;
+  }
+  printf("Failed saving screenshot %s: %s\n", filename.c_str(), SDL_GetError());
+  return false;
+}
+
+
 Surface& GetMainWindow()
 {
-  return AppWormux::GetInstance()->video->window;
+  return AppWarmux::GetInstance()->video->window;
+}
+
+void SwapWindowClip(Rectanglei& r)
+{
+  AppWarmux::GetInstance()->video->window.SwapClipRect(r);
 }

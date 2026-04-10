@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,12 +23,12 @@
 #define JOYSTICK_H
 //-----------------------------------------------------------------------------
 #include "interface/man_machine_interface.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_singleton.h>
 //-----------------------------------------------------------------------------
 
 class Joystick : public ManMachineInterface, public Singleton<Joystick>
 {
-private:
+  bool init;
   int previous_x_value;
   int previous_y_value;
   Key_t previous_x_axis;
@@ -38,6 +38,7 @@ private:
 protected:
   friend class Singleton<Joystick>;
   Joystick();
+  ~Joystick();
 
 public:
   int GetNumberOfJoystick() const;

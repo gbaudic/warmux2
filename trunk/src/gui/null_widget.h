@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,10 +28,10 @@ class Surface;
 
 class NullWidget : public Widget
 {
- public:
+public:
   NullWidget(const Point2i& size) : Widget(size) {};
   virtual ~NullWidget() {};
-  virtual void Draw(const Point2i&) const {};
+  virtual void Draw(const Point2i&) {};
   virtual void Pack() {};
 };
 

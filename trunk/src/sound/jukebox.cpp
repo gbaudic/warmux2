@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,10 +26,10 @@
 
 #include "game/config.h"
 #include "sound/sound_sample.h"
-#include <WORMUX_debug.h>
+#include <WARMUX_debug.h>
 
-#include <WORMUX_random.h>
-#include <WORMUX_file_tools.h>
+#include <WARMUX_random.h>
+#include <WARMUX_file_tools.h>
 #include "tool/xml_document.h"
 #include "tool/string_tools.h"
 
@@ -40,60 +40,45 @@ JukeBox::JukeBox()
 {
   m_config.music = true;
   m_config.effects = true;
+#ifdef HAVE_HANDHELD
+  // reduce memory usage
+  m_config.frequency = 22050; //MIX_DEFAULT_FREQUENCY;
+  m_config.channels = 1; // mono
+#else
   m_config.frequency = 44100; //MIX_DEFAULT_FREQUENCY;
   m_config.channels = 2; // stereo
+#endif
 }
 
-void JukeBox::Pause() const
+void JukeBox::Pause(bool all) const
 {
   if (m_config.music || m_config.effects)
     Mix_Pause(-1);
+  if (all)
+    Mix_PauseMusic();
 }
 
-void JukeBox::Resume() const
+void JukeBox::Resume(bool all) const
 {
   if (m_config.music || m_config.effects)
     Mix_Resume(-1);
+  if (all)
+    Mix_ResumeMusic();
 }
 
 void JukeBox::Init()
 {
-  JukeBox::GetInstance()->ActiveMusic(Config::GetInstance()->GetSoundMusic());
-  JukeBox::GetInstance()->ActiveEffects(Config::GetInstance()->GetSoundEffects());
-  JukeBox::GetInstance()->SetFrequency(Config::GetInstance()->GetSoundFrequency());
+  ActiveMusic(Config::GetInstance()->GetSoundMusic());
+  ActiveEffects(Config::GetInstance()->GetSoundEffects());
+  SetFrequency(Config::GetInstance()->GetSoundFrequency());
 
-  if (m_init) return;
-  if (!m_config.music && !m_config.effects) {
+  if (!OpenDevice()) {
     End();
     return;
   }
 
-  Uint16 audio_format = MIX_DEFAULT_FORMAT;
-
-  /* Initialize the SDL library */
-  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
-    std::cerr << "* Couldn't initialize SDL: "<< SDL_GetError() << std::endl;
-    return;
-  }
-
-  int audio_buffer = 1024;
-
-  /* Open the audio device */
-  if (Mix_OpenAudio(m_config.frequency, audio_format, m_config.channels, audio_buffer) < 0)
-  {
-    std::cerr << "* Couldn't open audio: " <<  SDL_GetError() << std::endl;
-    return;
-  }
-  else
-  {
-    Mix_QuerySpec(&m_config.frequency, &audio_format, &m_config.channels);
-    std::cout << Format(_("o Opened audio at %d Hz %d bit"),
-                        m_config.frequency, (audio_format&0xFF)) << std::endl;
-  }
   Mix_ChannelFinished(JukeBox::EndChunk);
   Mix_HookMusicFinished(JukeBox::EndMusic);
-
-  m_init = true;
 
   LoadXML("default");
   LoadMusicXML();
@@ -101,7 +86,8 @@ void JukeBox::Init()
 
 void JukeBox::End()
 {
-  if (!m_init) return;
+  if (!m_init)
+    return;
 
   StopAll();
   StopMusic();
@@ -112,13 +98,59 @@ void JukeBox::End()
   m_profiles_loaded.clear();
   playlist.clear();
 
+  CloseDevice();
+}
+
+bool JukeBox::OpenDevice()
+{
+  if (m_init)
+    return true;
+  if (!m_config.music && !m_config.effects) {
+    End();
+    return false;
+  }
+
+  /* Initialize the SDL library */
+  if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+    std::cerr << "* Couldn't initialize SDL: "<< SDL_GetError() << std::endl;
+    return false;
+  }
+  m_init = true;
+
+  Uint16 audio_format = MIX_DEFAULT_FORMAT;
+  int audio_buffer = 1024;
+
+  /* Open the audio device */
+  if (Mix_OpenAudio(m_config.frequency, audio_format, m_config.channels, audio_buffer) < 0) {
+    std::cerr << "* Couldn't open audio: " <<  SDL_GetError() << std::endl;
+    End();
+    return false;
+  } else {
+    Mix_QuerySpec(&m_config.frequency, &audio_format, &m_config.channels);
+    std::cout << Format(_("o Opened audio at %d Hz %d bit"),
+                        m_config.frequency, (audio_format&0xFF)) << std::endl;
+  }
+  Mix_ChannelFinished(JukeBox::EndChunk);
+  Mix_HookMusicFinished(JukeBox::EndMusic);
+  return true;
+}
+
+void JukeBox::CloseDevice()
+{
+  if (!m_init)
+    return;
+
   Mix_CloseAudio();
 
+  if (SDL_WasInit(SDL_INIT_AUDIO))
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
   m_init = false;
 }
 
-void JukeBox::SetFrequency (int frequency)
+void JukeBox::SetFrequency(int frequency)
 {
+  // We ignore frequency changes requests
+#ifndef HAVE_HANDHELD
   if ((frequency != 11025)
       && (frequency != 22050)
       && (frequency != 44100)) frequency = 44100;
@@ -130,25 +162,12 @@ void JukeBox::SetFrequency (int frequency)
   // Close and reopen audio device
   End();
   Init();
-}
-
-// Code not used
-#if 0
-void JukeBox::SetNumbersOfChannel(int channels)
-{
-  if (m_config.channels == channels) return;
-
-  m_config.channels = channels;
-
-  // Close and reopen audio device
-  End();
-  Init();
-}
 #endif
+}
 
-void JukeBox::ActiveMusic (bool on)
+void JukeBox::ActiveMusic(bool on)
 {
-   if(IsPlayingMusic() && !on)
+   if (IsPlayingMusic() && !on)
       StopMusic();
    m_config.music = on;
 }
@@ -160,8 +179,7 @@ void JukeBox::LoadMusicXML()
 
   // is xml_file already loaded ?
   std::set<std::string>::iterator it_profile = m_profiles_loaded.find("music") ;
-  if (it_profile !=  m_profiles_loaded.end())
-  {
+  if (it_profile !=  m_profiles_loaded.end()) {
     MSG_DEBUG("jukebox", "Music is already loaded !");
     return;
   }
@@ -172,13 +190,12 @@ void JukeBox::LoadMusicXML()
   // Load the XML
   std::string folder = Config::GetInstance()->GetDataDir() + "music" PATH_SEPARATOR;
   std::string xml_filename = folder + "profile.xml";
-  if( !DoesFileExist(xml_filename) )
-  {
+  if (!DoesFileExist(xml_filename)) {
     std::cerr << "[Music] Error : file " << xml_filename
               << " not found" << std::endl;
     return;
   }
-  if(!doc.Load(xml_filename))
+  if (!doc.Load(xml_filename))
     return;
 
   xmlNodeArray nodes = XmlReader::GetNamedChildren(doc.GetRoot(), "music");
@@ -186,8 +203,7 @@ void JukeBox::LoadMusicXML()
     it = nodes.begin(),
     end = nodes.end();
 
-  for (; it != end; ++it)
-  {
+  for (; it != end; ++it) {
     // loading XML ...
     std::string sample="no_sample";
     std::string file="no_file";
@@ -198,7 +214,7 @@ void JukeBox::LoadMusicXML()
 
     // Load sound
     std::string filename = folder + file;
-    if( !DoesFileExist(filename) ){
+    if (!DoesFileExist(filename)) {
       std::cerr << "Music error: File " << filename.c_str()
                 << " does not exist !" << std::endl;
       continue;
@@ -214,16 +230,13 @@ void JukeBox::LoadMusicXML()
 
     std::string line;
 
-    while(std::getline(fp, line))
-    {
-      if(line[0] == '#') continue;
+    while (std::getline(fp, line)) {
+      if (line[0] == '#') continue;
 
-      if(!DoesFileExist(line))
-      {
+      if (!DoesFileExist(line)) {
         // This line comes from an XML file, thus path separator here is "/"
         line = filename.substr(0, filename.find_last_of("/")) + PATH_SEPARATOR + line;
-        if(!DoesFileExist(line))
-        {
+        if (!DoesFileExist(line)) {
           std::cerr << "[Music] Unable to find " << line << " music file." << std::endl;
           continue;
         }
@@ -240,16 +253,16 @@ void JukeBox::LoadMusicXML()
 void JukeBox::EndMusic()
 {
   JukeBox *jukebox = JukeBox::GetInstance();
-  if(!jukebox->music)
+  if (!jukebox->music)
     return;
 
   Mix_FreeMusic(jukebox->music);
   jukebox->music = 0;
 
-  if(!jukebox->UseMusic() || !jukebox->IsPlayingMusic())
+  if (!jukebox->UseMusic() || !jukebox->IsPlayingMusic())
     return;
 
-  if((jukebox->playing_music+1) == jukebox->playing_pl->second.end())
+  if (jukebox->playing_music+1 == jukebox->playing_pl->second.end())
     jukebox->playing_music = jukebox->playing_pl->second.begin();
   else
     ++jukebox->playing_music;
@@ -261,7 +274,7 @@ void JukeBox::EndMusic()
 
 void JukeBox::StopMusic()
 {
-  if(!IsPlayingMusicSample())
+  if (!IsPlayingMusicSample())
     return;
   playing_music = playing_pl->second.end();
   playing_pl = playlist.end();
@@ -271,9 +284,9 @@ void JukeBox::StopMusic()
 
 void JukeBox::NextMusic()
 {
-  if(!IsPlayingMusic())
+  if (!IsPlayingMusic())
     return;
-  else if(!IsPlayingMusicSample())
+  else if (!IsPlayingMusicSample())
     PlayMusic(playing_pl->first);
   else
     EndMusic(); // next music but before, we stop the current one.
@@ -281,14 +294,14 @@ void JukeBox::NextMusic()
 
 bool JukeBox::PlayMusic(const std::string& type)
 {
-  if(m_init == false || !UseMusic()) return false;
+  if (m_init == false || !UseMusic())
+    return false;
 
   PlayListMap::iterator it = playlist.find(type);
 
-  if(it == playlist.end())
-  {
+  if (it == playlist.end()) {
     std::cerr << "[Music] Unable to find " << type << " profile" << std::endl;
-    if (type == "ingame"){
+    if (type == "ingame") {
       return false;
     } else {
       return PlayMusic("ingame");
@@ -300,18 +313,18 @@ bool JukeBox::PlayMusic(const std::string& type)
 
   StopMusic();
 
-  if(it->second.empty() || !UseMusic()) return false;
+  if (it->second.empty() || !UseMusic())
+    return false;
 
   playing_pl = it;
 
   int i, j = 0;
-  do
-  {
+  do {
     i = RandomLocal().GetInt(0,it->second.size()-1);
     j++;
   } while(!PlayMusicSample(it->second.begin()+i) && j < 10); // After 10 times, we think there is a problem.
 
-  if(j >= 10)
+  if (j >= 10)
     playing_pl = playlist.end();
 
   return (j < 10);
@@ -319,19 +332,19 @@ bool JukeBox::PlayMusic(const std::string& type)
 
 bool JukeBox::PlayMusicSample(const std::vector<std::string>::const_iterator& file_it)
 {
-  if(!UseMusic() || !m_init) return false;
+  if (!m_init || !UseMusic())
+    return false;
 
   std::string file = *file_it;
 
-  if(music)
+  if (music)
     Mix_FreeMusic(music);
 
   music = Mix_LoadMUS(file.c_str());
   SetMusicVolume(Config::GetInstance()->GetVolumeMusic());
   MSG_DEBUG("jukebox", "We trying to load music %s", file.c_str());
 
-  if(!music || Mix_PlayMusic(music, 0) < 0)
-  {
+  if (!music || Mix_PlayMusic(music, 0) < 0) {
     std::cerr << "[Music] Error : Unable to load music " << file << std::endl;
      playing_music = playing_pl->second.end();
      return false;
@@ -348,8 +361,7 @@ void JukeBox::LoadXML(const std::string& profile)
 
   // is xml_file already loaded ?
   std::set<std::string>::iterator it_profile = m_profiles_loaded.find(profile);
-  if (it_profile !=  m_profiles_loaded.end())
-  {
+  if (it_profile !=  m_profiles_loaded.end()) {
     MSG_DEBUG("jukebox", "Profile %s is already loaded !", profile.c_str());
     return;
   }
@@ -361,13 +373,12 @@ void JukeBox::LoadXML(const std::string& profile)
   std::string folder = Config::GetInstance()->GetDataDir()
                      + "sound" PATH_SEPARATOR + profile + PATH_SEPARATOR;
   std::string xml_filename = folder + "profile.xml";
-  if( !DoesFileExist(xml_filename) )
-  {
+  if (!DoesFileExist(xml_filename)) {
     std::cerr << "[Sound] Error : file " << xml_filename
               << " not found" << std::endl;
     return;
   }
-  if(!doc.Load(xml_filename))
+  if (!doc.Load(xml_filename))
     return;
 
   xmlNodeArray nodes = XmlReader::GetNamedChildren(doc.GetRoot(), "sound");
@@ -375,24 +386,22 @@ void JukeBox::LoadXML(const std::string& profile)
     it = nodes.begin(),
     end = nodes.end();
 
-  for (; it != end; ++it)
-  {
+  for (; it != end; ++it) {
     // reads XML
     std::string sample = "no_sample";
     std::string file   = "no_file";
-    Double      level  = 1.0;
+    float       level  = 1.0f;
 
     XmlReader::ReadStringAttr(*it, "sample", sample);
     XmlReader::ReadStringAttr(*it, "file", file);
-    XmlReader::ReadDoubleAttr(*it, "level", level);
+    XmlReader::ReadfloatAttr(*it, "level", level);
 
-    MSG_DEBUG("jukebox", "Load sound sample %s/%s: %s (%s)",
-              profile.c_str(), sample.c_str(), file.c_str(), Double2str(level,3).c_str());
+    MSG_DEBUG("jukebox", "Load sound sample %s/%s: %s (%.3f)",
+              profile.c_str(), sample.c_str(), file.c_str(), level);
 
     // Load sound
     std::string sample_filename = folder + file;
-    if( !DoesFileExist(sample_filename) )
-    {
+    if (!DoesFileExist(sample_filename)) {
       std::cerr << "Sound warning: File " << sample_filename.c_str()
                 << " does not exist! (probably not yet recorded)" << std::endl;
       continue;
@@ -403,45 +412,41 @@ void JukeBox::LoadXML(const std::string& profile)
     m_soundsamples.insert(sound_sample(profile+"/"+sample, inf));
 
     // Precache
-    m_cache.Precache( sample_filename.c_str() );
+    m_cache.Precache(sample_filename.c_str());
   }
 
   // The profile is loaded
   m_profiles_loaded.insert(profile);
 }
 
-int JukeBox::Play (const std::string& category, const std::string& sample,
-                   const int loop)
+int JukeBox::Play(const std::string& category, const std::string& sample,
+                  const int loop)
 {
   if (!UseEffects() || !m_init) return -1;
 
   uint nb_sons= m_soundsamples.count(category+ "/" +sample);
-  if (nb_sons)
-  {
+  if (nb_sons) {
     std::pair<sample_iterator, sample_iterator> p =
       m_soundsamples.equal_range(category+ "/" +sample);
     sample_iterator it = p.first;
 
     // Choose a random sound sample
-    if (nb_sons > 1)
-    {
-      uint selection = uint(RandomLocal().GetLong(0, nb_sons));
+    if (nb_sons > 1) {
+      uint selection = RandomLocal().GetUint(0, nb_sons);
       if (selection == nb_sons) --selection ;
 
       it = p.first ;
 
-      for ( uint i=0 ; i<selection && it!=p.second ; ++i ) it++ ;
+      for (uint i=0; i<selection && it!=p.second; ++i) it++ ;
     }
 
     // Play the sound
-    Mix_Chunk * sampleChunk = m_cache.LoadSound( it->second.filename.c_str() );
+    Mix_Chunk * sampleChunk = m_cache.LoadSound(it->second.filename.c_str());
     MSG_DEBUG("jukebox.play", "Playing sample %s/%s",
               category.c_str(), sample.c_str());
 
     return PlaySample(sampleChunk, it->second.level, loop);
-  }
-  else if (category != "default")
-  {
+  } else if (category != "default") {
     return Play("default", sample, loop) ; // try with default profile
   }
 
@@ -450,7 +455,7 @@ int JukeBox::Play (const std::string& category, const std::string& sample,
   return -1;
 }
 
-int JukeBox::Stop (int channel) const
+int JukeBox::Stop(int channel) const
 {
   if (!m_init) return 0;
   if (!m_config.music && !m_config.effects) return 0;
@@ -460,24 +465,23 @@ int JukeBox::Stop (int channel) const
 
 int JukeBox::StopAll() const
 {
-  if (!m_init) return 0;
+  if (!m_init)
+    return 0;
   if (!m_config.music && !m_config.effects) return 0;
 
   // halt playback on all channels
   return Mix_HaltChannel(-1);
 }
 
-int JukeBox::PlaySample (Mix_Chunk * sample, Double level, int loop)
+int JukeBox::PlaySample(Mix_Chunk * sample, float level, int loop)
 {
   if (loop != -1) loop--;
-  Double one_half = 0.5;
-  Mix_VolumeChunk(sample, int(one_half+level*Config::GetInstance()->GetVolumeEffects()));
+  Mix_VolumeChunk(sample, int(0.5f+level*Config::GetInstance()->GetVolumeEffects()));
   int channel = Mix_PlayChannel(-1, sample, loop);
 
-  if (channel == -1)
-  {
+  if (channel == -1) {
     MSG_DEBUG("jukebox", "Error: Jukebox::PlaySample: %s", Mix_GetError());
-    m_cache.FreeChunk( sample );
+    m_cache.FreeChunk(sample);
   }
   else
     chunks[channel] = sample;
@@ -490,9 +494,9 @@ void JukeBox::EndChunk(int channel)
   Mix_Chunk* chk = jukebox->chunks[channel];
   SoundSample::ChannelFinished(channel);
 
-  if(!chk) return;
+  if (!chk) return;
 
   //Mix_FreeChunk(chk);
-  jukebox->m_cache.FreeChunk( chk );
+  jukebox->m_cache.FreeChunk(chk);
   jukebox->chunks[channel] = 0;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #ifndef QUESTION_H
 #define QUESTION_H
 //-----------------------------------------------------------------------------
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include <string>
 #include <list>
 
@@ -37,32 +37,26 @@ union SDL_Event;
 
 class Question
 {
- public:
+public:
   typedef enum {
     WARNING,
     NO_TYPE
   } type;
 
- private:
-  /* If you need this, implement it (correctly)*/
-  Question(const Question&);
-  Question operator=(const Question&);
-  /*********************************************/
-
+private:
   Sprite* background;
   Sprite* icon;
 
   // A choice = a key return a value
   class choice_t
   {
-    private:
-      int m_key;
-      int m_val;
-    public:
-      choice_t (int key, int value):
-        m_key(key), m_val(value) { };
-      inline const int & key() const { return m_key; };
-      inline const int & val() const { return m_val; };
+    int m_key;
+    int m_val;
+  public:
+    choice_t (int key, int value):
+      m_key(key), m_val(value) { };
+    const int & key() const { return m_key; };
+    const int & val() const { return m_val; };
   };
 
   // Choices list
@@ -75,7 +69,7 @@ class Question
     int value;
   } default_choice;
 
-  int TreatsKey (const SDL_Event &event);
+  int TreatsKey(const SDL_Event &evnt);
 
   // Message to display
   Text * text;
@@ -87,14 +81,11 @@ public:
   void Set(const std::string &message,
            bool default_active,
            int default_value,
-      const std::string &bg_sprite="");
-  int Ask();
+           const std::string &bg_sprite="");
+  int Ask(bool onKeyUp = true);
   void Draw() const;
 
-  inline void add_choice(int key, int value)
-  {
-    return this->choices.push_back(choice_t(key,value));
-  }
+  void add_choice(int key, int value) { return this->choices.push_back(choice_t(key,value)); }
 
 };
 

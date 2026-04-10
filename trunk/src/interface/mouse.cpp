@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,10 +35,13 @@
 #include "map/map.h"
 #include "team/macro.h"
 #include "team/team.h"
-#include <WORMUX_point.h>
+#include <WARMUX_point.h>
 #include "tool/resource_manager.h"
 #include "weapon/weapon.h"
-#include "game/time.h"
+#include "game/game_time.h"
+
+#define MOUSE_CLICK_SQUARE_DISTANCE 5*5
+#define LONG_CLICK_DURATION 600
 
 std::string __pointers[] = {
   "mouse/pointer_standard",
@@ -58,9 +61,13 @@ std::string __pointers[] = {
 };
 std::map<Mouse::pointer_t, MouseCursor> Mouse::cursors;
 
-Mouse::Mouse():
-  lastpos(-1,-1),
-  last_hide_time(0)
+Mouse::Mouse()
+  : lastpos(-1,-1)
+  , last_hide_time(0)
+  , long_click_timer(0)
+  , click_pos(-1,-1)
+  , is_long_click(false)
+  , was_long_click(false)
 {
   visible = MOUSE_VISIBLE;
 
@@ -69,12 +76,26 @@ Mouse::Mouse():
 
   for (int i=POINTER_SELECT; i < POINTER_ATTACK; i++) {
     cursors.insert(std::make_pair(Mouse::pointer_t(i),
-				  GetResourceManager().LoadMouseCursor(res, __pointers[i],
-								   Mouse::pointer_t(i))));
+                                  GetResourceManager().LoadMouseCursor(res, __pointers[i],
+                                                                       Mouse::pointer_t(i))));
   }
 
   current_pointer = POINTER_STANDARD;
   GetResourceManager().UnLoadXMLProfile(res);
+
+#ifdef HAVE_TOUCHSCREEN
+  SDL_ShowCursor(false);
+#endif
+}
+
+void Mouse::EndLongClickTimer()
+{
+  if (long_click_timer) {
+    SDL_RemoveTimer(long_click_timer);
+    long_click_timer = 0;
+  }
+  is_long_click = false;
+  was_long_click = false;
 }
 
 bool Mouse::HasFocus() const
@@ -90,27 +111,23 @@ bool Mouse::HasFocus() const
   return false;
 }
 
-void Mouse::ActionLeftClic(bool) const
+void Mouse::ActionLeftClick(bool /*shift*/) const
 {
   const Point2i pos_monde = GetWorldPosition();
 
-  // Action in weapon menu ?
-  if( Interface::GetInstance()->weapons_menu.ActionClic( GetPosition() ) )
-    return;
-
   //Change character by mouse click only if the choosen weapon allows it
-  if( GameMode::GetInstance()->AllowCharacterSelection() &&
+  if (GameMode::GetConstInstance()->AllowCharacterSelection() &&
       ActiveTeam().GetWeapon().mouse_character_selection) {
 
     // Choose a character of our own team
-    bool character_found=false;
-    Team::iterator it = ActiveTeam().begin(),
-                         end = ActiveTeam().end();
+    bool character_found = false;
+    Team::iterator it    = ActiveTeam().begin(),
+                   end   = ActiveTeam().end();
 
-    for( ; it != end; ++it) {
-      if( &(*it) != &ActiveCharacter()
-        && !it -> IsDead()
-        && it->GetRect().Contains( pos_monde ) ){
+    for (; it != end; ++it) {
+      if (&(*it) != &ActiveCharacter()
+          && !it -> IsDead()
+          && it->GetRect().Contains(pos_monde)) {
 
         character_found = true;
         break;
@@ -118,18 +135,13 @@ void Mouse::ActionLeftClic(bool) const
     }
 
     if (character_found) {
-      while ( &(*it) != &ActiveCharacter() )
-        ActiveTeam().NextCharacter ();
-
-      Action * next_character = new Action(Action::ACTION_PLAYER_CHANGE_CHARACTER);
-      uint next_character_index = (*it).GetCharacterIndex();
-      next_character->Push((int)next_character_index);
-      ActionHandler::GetInstance()->NewAction(next_character);
+      ActiveTeam().SelectCharacter(&(*it));
+      ActionHandler::GetInstance()->NewActionActiveCharacter();
 
       return;
     }
 
-    if( ActiveCharacter().GetRect().Contains( pos_monde ) ){
+    if (ActiveCharacter().GetRect().Contains(pos_monde)) {
       CharacterCursor::GetInstance()->FollowActiveCharacter();
       return;
     }
@@ -145,9 +157,9 @@ void Mouse::ActionLeftClic(bool) const
 }
 
 
-void Mouse::ActionRightClic(bool) const
+void Mouse::ActionRightClick(bool /*shift*/) const
 {
-  Interface::GetInstance()->weapons_menu.SwitchDisplay();
+  Interface::GetInstance()->weapons_menu.SwitchDisplay(GetPosition());
 }
 
 void Mouse::ActionWheelUp(bool shift) const
@@ -160,51 +172,94 @@ void Mouse::ActionWheelDown(bool shift) const
   ActiveTeam().AccessWeapon().HandleMouseWheelDown(shift);
 }
 
+bool Mouse::IS_CLICK_BUTTON(uint button)
+{
+  return (button==SDL_BUTTON_LEFT || button==SDL_BUTTON_RIGHT || button==SDL_BUTTON_MIDDLE);
+}
+
 Uint8 Mouse::BUTTON_RIGHT() // static method
 {
-  if (Config::GetRef().GetLeftHandedMouse())
-    return SDL_BUTTON_LEFT;
-
-  return SDL_BUTTON_RIGHT;
+  return Config::GetConstRef().GetLeftHandedMouse() ? SDL_BUTTON_LEFT : SDL_BUTTON_RIGHT;
 }
 
 Uint8 Mouse::BUTTON_LEFT() // static method
 {
-  if (Config::GetRef().GetLeftHandedMouse())
-    return SDL_BUTTON_RIGHT;
-
-  return SDL_BUTTON_LEFT;
+  return Config::GetConstRef().GetLeftHandedMouse() ? SDL_BUTTON_RIGHT : SDL_BUTTON_LEFT;
 }
 
-bool Mouse::HandleClic (const SDL_Event& event) const
+static Uint32 HandleLongClick(Uint32 /*interval*/, void *param)
+{
+  ((Mouse*)param)->SetLongClick();
+  return 0;
+}
+
+bool Mouse::HandleEvent(const SDL_Event& evnt)
 {
   if (!HasFocus()) {
     return false;
   }
 
-  if ( event.type != SDL_MOUSEBUTTONDOWN &&
-       event.type != SDL_MOUSEBUTTONUP ) {
+  Point2i pos = GetPosition();
+
+  if (click_pos.SquareDistance(pos) > MOUSE_CLICK_SQUARE_DISTANCE) {
+    // We have moved too much, consider we are not long-clicking
+    EndLongClickTimer();
+  }
+
+  if (is_long_click) {
+    is_long_click = false;
+    was_long_click = true;
+    if (Interface::GetInstance()->ActionLongClick(pos, click_pos))
+      return true;
     return false;
+  }
+
+  if (evnt.type != SDL_MOUSEBUTTONDOWN && evnt.type != SDL_MOUSEBUTTONUP) {
+    return false;
+  }
+
+  if (evnt.type==SDL_MOUSEBUTTONDOWN && evnt.button.button==BUTTON_LEFT()) {
+    click_pos = pos;
+    if (Interface::GetInstance()->ActionClickDown(pos))
+      return true;
+
+    // Either it's out of the menu, or we want to know how long the click was
+    long_click_timer = SDL_AddTimer(LONG_CLICK_DURATION, HandleLongClick, this);
+    return true;
+  }
+
+  if (evnt.type==SDL_MOUSEBUTTONUP && evnt.button.button==BUTTON_LEFT()) {
+    // Ignore click-ups from long clicks
+    if (was_long_click) {
+      was_long_click = false;
+      return true;
+    } else {
+      EndLongClickTimer();
+      if (Interface::GetInstance()->ActionClickUp(pos, click_pos))
+        return true;
+      if (click_pos.SquareDistance(pos) > MOUSE_CLICK_SQUARE_DISTANCE)
+        return true;
+    }
   }
 
   if (Game::GetInstance()->ReadState() != Game::PLAYING)
     return true;
 
-  if(!ActiveTeam().IsLocalHuman())
+  if (!ActiveTeam().IsLocalHuman())
     return true;
 
-  if( event.type == SDL_MOUSEBUTTONDOWN ){
-    bool shift = !!(SDL_GetModState() & KMOD_SHIFT);
-
-    if (event.button.button == Mouse::BUTTON_RIGHT())
-      ActionRightClic(shift);
-    else if (event.button.button == Mouse::BUTTON_LEFT())
-      ActionLeftClic(shift);
-    else if (event.button.button == SDL_BUTTON_WHEELDOWN)
+  bool shift = !!(SDL_GetModState() & KMOD_SHIFT);
+  if (evnt.type == SDL_MOUSEBUTTONUP) {
+    if (evnt.button.button == Mouse::BUTTON_RIGHT())
+      ActionRightClick(shift);
+    else if (evnt.button.button == Mouse::BUTTON_LEFT())
+      ActionLeftClick(shift);
+    else if (evnt.button.button == SDL_BUTTON_WHEELDOWN)
       ActionWheelDown(shift);
-    else if (event.button.button == SDL_BUTTON_WHEELUP)
+    else if (evnt.button.button == SDL_BUTTON_WHEELUP)
       ActionWheelUp(shift);
   }
+
   return true;
 }
 
@@ -217,17 +272,17 @@ void Mouse::GetDesignatedCharacter() const
 
   // Which character is pointed by the mouse ? (appart from the active one)
   Interface::GetInstance()->character_under_cursor = NULL;
-  FOR_ALL_LIVING_CHARACTERS(team, character){
-    if ((&(*character) != &ActiveCharacter())
-       && character->GetRect().Contains(pos_monde) ){
+  FOR_ALL_LIVING_CHARACTERS(team, character) {
+    if (&(*character) != &ActiveCharacter()
+        && character->GetRect().Contains(pos_monde)) {
       Interface::GetInstance()->character_under_cursor = &(*character);
     }
   }
 
   // No character is pointed... what about the active one ?
-  if ((Interface::GetInstance()->character_under_cursor == NULL)
-      && ActiveCharacter().GetRect().Contains( pos_monde)){
-      Interface::GetInstance()->character_under_cursor = &ActiveCharacter();
+  if (Interface::GetConstInstance()->character_under_cursor
+      && ActiveCharacter().GetRect().Contains(pos_monde)) {
+    Interface::GetInstance()->character_under_cursor = &ActiveCharacter();
   }
 
 }
@@ -242,31 +297,29 @@ void Mouse::Refresh()
 
   Point2i pos = GetPosition();
 
-  if (lastpos != pos)
-    {
-      Show();
-      lastpos = pos;
-      counter = NB_LOOP_BEFORE_HIDE;
-      ShowGameInterface();
-    }
-  else
-    if (visible == MOUSE_VISIBLE)
-      /* The mouse is hidden after a while when not moving */
-      if (--counter <= 0)
-        Hide();
+  if (lastpos != pos) {
+    Show();
+    lastpos = pos;
+    counter = NB_LOOP_BEFORE_HIDE;
+    ShowGameInterface();
+  } else if (visible == MOUSE_VISIBLE) {
+    /* The mouse is hidden after a while when not moving */
+    if (--counter <= 0)
+      Hide();
+  }
 }
 
 Point2i Mouse::GetPosition() const
 {
   int x, y;
 
-  SDL_GetMouseState( &x, &y);
+  SDL_GetMouseState(&x, &y);
   return Point2i(x, y);
 }
 
 Point2i Mouse::GetWorldPosition() const
 {
-  return GetPosition() + Camera::GetInstance()->GetPosition();
+  return GetPosition() + Camera::GetConstInstance()->GetPosition();
 }
 
 MouseCursor& Mouse::GetCursor(pointer_t pointer) const
@@ -282,15 +335,10 @@ MouseCursor& Mouse::GetCursor(pointer_t pointer) const
   return (*cursors.find(pointer)).second;
 }
 
-Mouse::pointer_t Mouse::GetPointer() const
-{
-  return current_pointer;
-}
-
 // set the new pointer type and return the previous one
 Mouse::pointer_t Mouse::SetPointer(pointer_t pointer)
 {
-  if (Config::GetInstance()->GetDefaultMouseCursor()) {
+  if (Config::GetConstInstance()->GetDefaultMouseCursor()) {
     Show(); // be sure cursor is visible
     return Mouse::POINTER_STANDARD;
   }
@@ -298,7 +346,11 @@ Mouse::pointer_t Mouse::SetPointer(pointer_t pointer)
   if (current_pointer == pointer) return pointer;
 
   if (pointer == POINTER_STANDARD)
+#ifndef HAVE_TOUCHSCREEN
     SDL_ShowCursor(true);
+#else
+    SDL_ShowCursor(false);
+#endif
   else
     SDL_ShowCursor(false);
 
@@ -318,21 +370,21 @@ void Mouse::Draw() const
 
   const MouseCursor& cursor = GetCursor(current_pointer);
   const Surface& surf = cursor.GetSurface();
-  GetMainWindow().Blit(surf, GetPosition() - cursor.GetClicPos());
-  GetWorld().ToRedrawOnScreen(Rectanglei(GetPosition().x - cursor.GetClicPos().x,
-                                    GetPosition().y - cursor.GetClicPos().y,
-				    surf.GetWidth(), surf.GetHeight()));
+  Point2i pos = GetPosition() - cursor.GetClicPos();
+  GetMainWindow().Blit(surf, pos);
+  GetWorld().ToRedrawOnScreen(Rectanglei(pos, surf.GetSize()));
 }
 
 void Mouse::Show()
 {
-  if(((Time::GetInstance()->Read()-last_hide_time) > 10000) && (visible == MOUSE_HIDDEN))
-  {
-      CenterPointer();
+#ifndef HAVE_TOUCHSCREEN
+  if (Time::GetConstInstance()->Read()-last_hide_time > 10000 && visible == MOUSE_HIDDEN) {
+    CenterPointer();
   }
+#endif
   visible = MOUSE_VISIBLE;
 
-  if (Config::GetInstance()->GetDefaultMouseCursor()) {
+  if (Config::GetConstInstance()->GetDefaultMouseCursor()) {
     SDL_ShowCursor(true); // be sure cursor is visible
   }
 
@@ -340,9 +392,9 @@ void Mouse::Show()
 
 void Mouse::Hide()
 {
-  if(visible == MOUSE_VISIBLE)
+  if (visible == MOUSE_VISIBLE)
   {
-    last_hide_time = Time::GetInstance()->Read();
+    last_hide_time = Time::GetConstInstance()->Read();
   }
   visible = MOUSE_HIDDEN;
   SDL_ShowCursor(false); // be sure cursor is invisible
@@ -352,8 +404,7 @@ void Mouse::Hide()
 // Center the pointer on the screen
 void Mouse::CenterPointer()
 {
-  SetPosition(Point2i(GetMainWindow().GetWidth() / 2,
-		      GetMainWindow().GetHeight() / 2));
+  SetPosition(GetMainWindow().GetSize() / 2);
 }
 
 void Mouse::SetPosition(Point2i pos)

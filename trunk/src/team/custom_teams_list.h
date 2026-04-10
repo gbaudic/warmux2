@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 
 #include <string>
 #include <vector>
-#include <WORMUX_singleton.h>
+#include <WARMUX_singleton.h>
 
 //-----------------------------------------------------------------------------
 
@@ -35,19 +35,19 @@ class CustomTeam;
 class CustomTeamsList : public Singleton<CustomTeamsList>
 {
 public:
-  CustomTeamsList();
-  ~CustomTeamsList();
+  CustomTeamsList() { LoadList(); }
+  ~CustomTeamsList() { Clear(); }
   void LoadList();
-  std::vector<CustomTeam *> GetList();
+  std::vector<CustomTeam *> GetList() { return full_list; }
   CustomTeam* GetByName(std::string name);
-  unsigned GetNumCustomTeam();
+  uint GetNumCustomTeam() { return full_list.size(); }
 
 private:
   std::vector<CustomTeam *> full_list;
 
   void Clear();
   void Sort();
-  void LoadOneTeam (const std::string &dir, const std::string &file);
+  bool LoadOneTeam(const std::string &dir, const std::string &file);
   static bool CompareItems( CustomTeam* p1, CustomTeam* p2 );
 };
 

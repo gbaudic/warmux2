@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,15 +16,18 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Network layer for Wormux.
+ * Network layer for Warmux.
  *****************************************************************************/
 
+#ifdef _WIN32
+#  define NOMINMAX // Avoid Windows headers to define max()
+#endif
+#include <WARMUX_debug.h>
 #include <SDL_thread.h>
 #include <SDL_timer.h>
-#include <WORMUX_debug.h>
-#include <WORMUX_distant_cpu.h>
-#include <WORMUX_player.h>
-#include <WORMUX_index_server.h>
+#include <WARMUX_distant_cpu.h>
+#include <WARMUX_player.h>
+#include <WARMUX_index_server.h>
 #include "network/network.h"
 #include "network/network_local.h"
 #include "network/network_client.h"
@@ -53,11 +56,20 @@
 #ifdef WIN32
 #  include <winsock2.h>
 #else
-#  include <sys/socket.h>
-#  include <netdb.h>
-#  include <netinet/in.h>
-#  include <arpa/nameser.h>
-#  include <resolv.h>
+#  ifdef GEKKO
+#    include <ogcsys.h>
+#    include <network.h>
+#    define socket  net_socket
+#    define bind    net_bind
+#    define connect net_connect
+#    define setsockopt net_setsockopt
+#  else
+#    include <sys/socket.h>
+#    include <netdb.h>
+#    include <netinet/in.h>
+#    include <arpa/nameser.h>
+#    include <resolv.h>
+#  endif
 #  include <errno.h>
 #  include <unistd.h>
 #endif
@@ -84,16 +96,6 @@ void NetworkThread::Start()
   stop_thread = false;
 }
 
-void NetworkThread::Stop()
-{
-  stop_thread = true;
-}
-
-bool NetworkThread::Continue()
-{
-  return !stop_thread;
-}
-
 void NetworkThread::Wait()
 {
   if (thread != NULL && SDL_ThreadID() != SDL_GetThreadID(thread)) {
@@ -112,36 +114,34 @@ void NetworkThread::ReceiveActions()
   std::list<DistantComputer*>::iterator dst_cpu;
   std::list<DistantComputer*>& cpu = net->GetRemoteHosts();
 
-  while (Continue()) // While the connection is up
-  {
-    if (net->GetState() == WNet::NETWORK_PLAYING && cpu.empty())
-    {
+  // While the connection is up
+  while (Continue()) {
+    if (net->GetState() == WNet::NETWORK_PLAYING && cpu.empty()) {
       // If while playing everybody disconnected, just quit
       break;
     }
 
     //Loop while nothing is received
-    while (Continue())
-    {
+    while (Continue()) {
       IndexServer::GetInstance()->Refresh();
 
       // Check forced disconnections
       dst_cpu = cpu.begin();
       while (Continue() && dst_cpu != cpu.end()) {
-	// Disconnection is in 2 phases to be handled by one thread
+        // Disconnection is in 2 phases to be handled by one thread
         if ((*dst_cpu)->MustBeDisconnected()) {
           net->CloseConnection(dst_cpu);
-	  dst_cpu = cpu.begin();
-	}
-	else
-	  dst_cpu++;
+          dst_cpu = cpu.begin();
+        }
+        else
+          dst_cpu++;
       }
 
       // List is now maybe empty
       if (cpu.empty() && net->IsClient()) {
-	fprintf(stderr, "you are alone!\n");
-	Stop();
-	return; // We really don't need to go through the loops
+        fprintf(stderr, "you are alone!\n");
+        Stop();
+        return; // We really don't need to go through the loops
       }
 
       net->WaitActionSleep();
@@ -151,8 +151,7 @@ void NetworkThread::ReceiveActions()
       if (num_ready>0)
         break;
       // Means an error
-      else if (num_ready == -1)
-      {
+      else if (num_ready == -1) {
         //Spams a lot under windows without the errno check...
         if (errno<0)
           std::cerr << "SDLNet_CheckSockets: " << SDLNet_GetError() << std::endl;
@@ -162,20 +161,19 @@ void NetworkThread::ReceiveActions()
 
     for (dst_cpu = cpu.begin();
          Continue() && dst_cpu != cpu.end();
-         dst_cpu++)
-    {
+         dst_cpu++) {
       if((*dst_cpu)->SocketReady()) {// Check if this socket contains data to receive
 
-	if (!(*dst_cpu)->ReceiveData(&buffer, &packet_size)) {
-	  // An error occured during the reception
+        if (!(*dst_cpu)->ReceiveData(&buffer, &packet_size)) {
+          // An error occured during the reception
           (*dst_cpu)->ForceDisconnection();
           continue;
         }
 
-	if (!buffer && !packet_size) {
-	  // Client is valid but there is not yet enough data to read an action
-	  continue;
-	}
+        if (!buffer && !packet_size) {
+          // Client is valid but there is not yet enough data to read an action
+          continue;
+        }
 
 #ifdef LOG_NETWORK
         if (fin != 0) {
@@ -189,9 +187,9 @@ void NetworkThread::ReceiveActions()
         Action* a = new Action(buffer, (*dst_cpu));
         free(buffer);
 
-	MSG_DEBUG("network.traffic", "Received action %s",
-		  ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
-	net->HandleAction(a, *dst_cpu);
+        MSG_DEBUG("network.traffic", "Received action %s",
+                  ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+        net->HandleAction(a, *dst_cpu);
       }
     }
   }
@@ -203,7 +201,7 @@ int  Network::num_objects = 0;
 
 Network * Network::GetInstance()
 {
-  if (singleton == NULL) {
+  if (!singleton) {
     singleton = new NetworkLocal();
     MSG_DEBUG("singleton", "Created singleton %p of type 'NetworkLocal'\n", singleton);
   }
@@ -212,7 +210,7 @@ Network * Network::GetInstance()
 
 NetworkServer * Network::GetInstanceServer()
 {
-  if (singleton == NULL || !singleton->IsServer()) {
+  if (!singleton || !singleton->IsServer()) {
     return NULL;
   }
   return (NetworkServer*)singleton;
@@ -250,15 +248,12 @@ Network::~Network()
   SDL_DestroyMutex(cpus_lock);
   if (num_objects == 0) {
     WNet::Quit();
+    if (socket_set)
+      fprintf(stderr, "Forgot to disconnect network at some point?");
   }
 }
 
 //-----------------------------------------------------------------------------
-
-std::list<DistantComputer*>& Network::GetRemoteHosts()
-{
-  return cpu;
-}
 
 std::list<DistantComputer*>& Network::LockRemoteHosts()
 {
@@ -287,8 +282,11 @@ void Network::AddRemoteHost(DistantComputer *host)
 void Network::RemoveRemoteHost(std::list<DistantComputer*>::iterator host_it)
 {
   SDL_LockMutex(cpus_lock);
+  // A proper deference of the iterator must be obtained *before*
+  // the iterator is removed from the list and has become invalid!
+  DistantComputer *host =  *host_it;
   cpu.erase(host_it);
-  delete *host_it;
+  delete host;
   SDL_UnlockMutex(cpus_lock);
 }
 
@@ -302,7 +300,7 @@ Player * Network::LockRemoteHostsAndGetPlayer(uint player_id)
     player = &(GetPlayer());
 
   std::list<DistantComputer*>::const_iterator it = cpu.begin();
-  while ((player == NULL) && (it != cpu.end())) {
+  while (!player && (it != cpu.end())) {
     player = (*it)->GetPlayer(player_id);
     it++;
   }
@@ -316,12 +314,12 @@ Player * Network::LockRemoteHostsAndGetPlayer(uint player_id)
 void Network::Disconnect()
 {
   // restore Windows title
-  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") + Constants::WORMUX_VERSION);
+  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("Warmux ") + Constants::WARMUX_VERSION);
 
   // Flush all actions
   ActionHandler::GetInstance()->Flush();
 
-  if (singleton != NULL) {
+  if (singleton) {
     NetworkThread::Stop();
     singleton->DisconnectNetwork();
     delete singleton;
@@ -337,20 +335,21 @@ void Network::DisconnectNetwork()
 {
   NetworkThread::Wait();
 
-  DistantComputer* tmp;
-
   SDL_LockMutex(cpus_lock);
   std::list<DistantComputer*>::iterator client = cpu.begin();
 
   while (client != cpu.end()) {
-    tmp = (*client);
+    DistantComputer* tmp = (*client);
+    // A proper deference of the iterator must be obtained *before*
+    // the iterator is removed from the list and has become invalid!
     client = cpu.erase(client);
     delete tmp;
   }
   SDL_UnlockMutex(cpus_lock);
 
-  if (socket_set != NULL) {
+  if (socket_set) {
     delete socket_set;
+    socket_set = NULL;
   }
 }
 
@@ -380,7 +379,7 @@ void Network::SendActionToAllExceptOne(const Action& a, DistantComputer* client)
 {
   MSG_DEBUG("network.traffic","Send action %s to all EXCEPT %s",
             ActionHandler::GetInstance()->GetActionName(a.GetType()).c_str(),
-	    client->ToString().c_str());
+            client->ToString().c_str());
 
   SendAction(a, client, false);
 }
@@ -412,10 +411,10 @@ void Network::SendAction(const Action& a, DistantComputer* client, bool clt_as_r
 
     SDL_LockMutex(cpus_lock);
     for (std::list<DistantComputer*>::const_iterator it = cpu.begin();
-	 it != cpu.end(); it++) {
+         it != cpu.end(); it++) {
 
       if ((*it) != client) {
-	(*it)->SendData(packet, size);
+        (*it)->SendData(packet, size);
       }
     }
     SDL_UnlockMutex(cpus_lock);
@@ -424,20 +423,10 @@ void Network::SendAction(const Action& a, DistantComputer* client, bool clt_as_r
   free(packet);
 }
 
-//-----------------------------------------------------------------------------
-
-// Static method
-bool Network::IsConnected()
-{
-  return (!GetInstance()->IsLocal() && NetworkThread::Continue());
-}
-
-//-----------------------------------------------------------------------------
-
 // Static method
 connection_state_t Network::ClientStart(const std::string& host,
                                         const std::string& port,
-					const std::string& password)
+                                        const std::string& password)
 {
   NetworkClient* net = new NetworkClient(password);
   MSG_DEBUG("singleton", "Created singleton %p of type 'NetworkClient'\n", net);
@@ -456,9 +445,9 @@ connection_state_t Network::ClientStart(const std::string& host,
   } else if (prev != NULL) {
     delete prev;
   }
-  AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") +
-						     Constants::WORMUX_VERSION + " - " +
-						     _("Client mode"));
+  AppWarmux::GetInstance()->video->SetWindowCaption(std::string("Warmux ") +
+                                                    Constants::WARMUX_VERSION + " - " +
+                                                    _("Client mode"));
   return error;
 }
 
@@ -486,9 +475,9 @@ connection_state_t Network::ServerStart(const std::string& port, const std::stri
   }
 
   if (error == CONNECTED) {
-    AppWormux::GetInstance()->video->SetWindowCaption( std::string("Wormux ") +
-						       Constants::WORMUX_VERSION + " - " +
-						       _("Server mode"));
+    AppWarmux::GetInstance()->video->SetWindowCaption(std::string("Warmux ") +
+                                                      Constants::WARMUX_VERSION + " - " +
+                                                      _("Server mode"));
   }
 
   return error;
@@ -500,11 +489,6 @@ void Network::SetState(WNet::net_game_state_t _state)
 {
   MSG_DEBUG("network.state", "%d -> %d", state, _state);
   state = _state;
-}
-
-WNet::net_game_state_t Network::GetState() const
-{
-  return state;
 }
 
 void Network::SendNetworkState()
@@ -533,36 +517,6 @@ void Network::SetGameMaster()
 {
   MSG_DEBUG("network.game_master", "we are the new game master");
   game_master_player = true;
-}
-
-bool Network::IsGameMaster() const
-{
-  return game_master_player;
-}
-
-Player& Network::GetPlayer()
-{
-  return player;
-}
-
-const Player& Network::GetPlayer() const
-{
-  return player;
-}
-
-void Network::SetGameName(const std::string& _game_name)
-{
-  game_name = _game_name;
-}
-
-const std::string& Network::GetGameName() const
-{
-  return game_name;
-}
-
-const std::string& Network::GetPassword() const
-{
-  return password;
 }
 
 int Network::CheckActivity(int timeout)

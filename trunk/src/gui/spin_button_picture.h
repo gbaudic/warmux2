@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #ifndef SPIN_BUTTON_PICTURE_H
 #define SPIN_BUTTON_PICTURE_H
 
-#include "include/base.h"
+#include <WARMUX_base.h>
 #include "graphic/surface.h"
 #include "widget.h"
 #include "abstract_spin_button.h"
@@ -30,22 +30,17 @@
 
 class Text;
 class Button;
+class TorusCache;
+
 
 class SpinButtonWithPicture : public AbstractSpinButton
 {
- private:
-  /* If you need this, implement it (correctly)*/
-  SpinButtonWithPicture(const SpinButtonWithPicture&);
-  SpinButtonWithPicture operator=(const SpinButtonWithPicture&);
-  /*********************************************/
-
-  Surface m_image;
-  Surface m_annulus_background;
-  Surface m_annulus_foreground;
-  Color m_progress_color;
+  TorusCache *torus;
 
  protected:
   Text *txt_label, *txt_value_white, *txt_value_black;
+
+  void RecreateTorus();
 
  public:
   SpinButtonWithPicture(const std::string &label,
@@ -57,7 +52,7 @@ class SpinButtonWithPicture : public AbstractSpinButton
 
   // From Widget
   virtual void Pack();
-  virtual void Draw(const Point2i &mousePosition) const;
+  virtual void Draw(const Point2i &mousePosition);
   virtual Widget* Click(const Point2i &/*mousePosition*/, uint /*button*/) const { return NULL; };
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 

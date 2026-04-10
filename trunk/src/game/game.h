@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "include/base.h"
-#include <WORMUX_singleton.h>
+#include <WARMUX_base.h>
+#include <WARMUX_singleton.h>
 #include "network/chat.h"
 #include "sound/sound_sample.h"
 #include "graphic/text.h"
@@ -35,6 +35,7 @@ class ObjBox;
 class FramePerSecond;
 class PhysicalObj;
 class WeaponsList;
+class Menu;
 
 class Game : public Singleton<Game>
 {
@@ -52,12 +53,15 @@ protected:
   void MainLoop();
   void ApplyDiseaseDamage() const;
   int  NbrRemainingTeams() const;
-  bool MenuQuitPause() const;
+  bool MenuQuitPause();
+  void MenuHelpPause();
 
   SoundSample         countdown_sample;
   game_loop_state_t   state;
   bool                give_objbox;
   uint                last_clock_update;
+  bool                benching;
+  std::vector< std::pair<float, float> > bench_res;
 
   friend class Singleton<Game>;
   Game();
@@ -65,11 +69,14 @@ protected:
 
 private:
   static std::string  current_rules;
+  std::string         current_mode;
 
   bool                isGameLaunched;
   ObjBox              *current_ObjBox;
   // Set that the user requested a pause/end of the game
   bool                ask_for_menu;
+  bool                ask_for_help_menu;
+  bool                ask_for_end;
 
   FramePerSecond      *fps;
 
@@ -95,6 +102,7 @@ private:
   void EndInitGameData_NetGameMaster();
   void EndInitGameData_NetClient();
   void InitMap();
+  //void InitWeapons();
   void InitTeams();
   void InitSounds();
   void InitData();
@@ -128,16 +136,20 @@ private:
   virtual void __SetState_HAS_PLAYED() = 0;
   virtual void __SetState_END_TURN() = 0;
 
-  bool IsGameLaunched() const;
+  bool IsGameLaunched() const { return isGameLaunched; }
+
+  // Menus might be launched while a game is running
+  static Menu *menu;
 
 public:
   static Game * GetInstance();
   static std::string GetUniqueId();
-  static void ResetUniqueIds();
-  static bool IsRunning();
+  static void ResetUniqueIds() { last_unique_id = 0; }
+  static bool IsRunning() { return (singleton) ? singleton->IsGameLaunched() : false; }
   uint GetCurrentTurn();
-  WeaponsList * GetWeaponsList() { return weapons_list; }
+  WeaponsList * GetWeaponsList() const { return weapons_list; }
   void UpdateTranslation();
+  void InitWeapons();
 
   Chat                chatsession;
 
@@ -146,9 +158,9 @@ public:
   // Set mode
   static Game * UpdateGameRules();
 
-  void Start();
+  uint Start(bool bench = false);
 
-  bool IsCharacterAlreadyChosen() const;
+  bool IsCharacterAlreadyChosen() const { return character_already_chosen; }
   void SetCharacterChosen(bool chosen);
 
   // Get remaining time to play
@@ -161,9 +173,10 @@ public:
   void SetState(game_loop_state_t new_state, bool begin_game=false);
 
   void UserAsksForMenu() { ask_for_menu = true; };
+  void UserAsksForHelpMenu() { ask_for_help_menu = true; };
 
   // Signal death of a player
-  void SignalCharacterDeath (const Character *character);
+  void SignalCharacterDeath(const Character *character, const Character* killer = NULL);
 
   // Signal character damage
   void SignalCharacterDamage(const Character *character);
@@ -173,5 +186,10 @@ public:
   void SetCurrentBox(ObjBox * current_box) { current_ObjBox = current_box; };
   ObjBox * GetCurrentBox() { return current_ObjBox; };
   void RequestBonusBoxDrop();
+
+  static Menu* GetCurrentMenu() { return menu; }
+  const std::vector< std::pair<float,float> >& GetBenchResults() const { return bench_res; }
+
+  float GetLastFrameRate() const;
 };
 #endif // GAME_H

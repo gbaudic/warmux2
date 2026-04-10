@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,42 +19,118 @@
  * An AI player for a team.
  *****************************************************************************/
 
-#include <WORMUX_random.h>
+#include <WARMUX_random.h>
+#include "ai/ai_command.h"
+#include "ai/ai_idea.h"
+#include "ai/ai_strategy.h"
 #include "ai/ai_stupid_player.h"
 #include "character/character.h"
 #include "game/game.h"
 #include "game/stopwatch.h"
-#include "game/time.h"
+#include "game/game_time.h"
 #include "team/macro.h"
 
 const uint MAX_GAME_TIME_USED_THINKING_IN_MS = 10000;
 const uint REAL_THINK_TIME_PER_REFRESH_IN_MS = 1;
-const Double MAX_GUN_DISTANCE = 600;
-const Double MAX_SHOTGUN_DISTANCE = 250;
-const Double MAX_SNIPER_RIFILE_DISTANCE = 10E10;
-const Double MAX_SUBMACHINE_GUN_DISTANCE = 500;
+#define  MAX_GUN_DISTANCE               600
+#define  MAX_SHOTGUN_DISTANCE           250
+#define  MAX_SNIPER_RIFILE_DISTANCE   46000 // squared to int at some point => overflow!
+#define  MAX_SUBMACHINE_GUN_DISTANCE    500
 
-AIStupidPlayer::AIStupidPlayer(Team * team):
-  team(team),
-  idea_iterator(ideas.begin()),
-  command(NULL),
-  best_strategy(NULL)
+//#define DBG_AI_TIME
+
+class AIStats {
+  const char *name;
+  uint64_t time;
+  uint64_t sq_time;
+  uint     calls;
+  uint     min;
+  uint     max;
+
+public:
+  AIStats(const char *n) : name(n), time(0), sq_time(0), calls(0), min(0xFFFFFFFFU), max(0) { };
+  ~AIStats()
+  {
+#ifdef DBG_AI_TIME
+    if (calls) {
+      float avg = time/(float)calls;
+      printf("Strategy '%s': calls=%u  total=%llums  min=%ums  max=%ums  avg=%.2fms  stddev=%.3fms\n",
+             name, calls, time, min, max, avg, sqrt( (sq_time/(float)calls) - avg*avg ));
+    } else {
+      printf("Strategy '%s': not called\n", name);
+    }
+#endif
+  }
+
+#ifdef DBG_AI_TIME
+  void AddTiming(uint t)
+  {
+    if (t < min)
+      min = t;
+    if (t > max)
+      max = t;
+    time += t;
+    sq_time += t*t;
+    calls++;
+  }
+#else
+  void AddTiming(uint) { };
+#endif
+};
+
+class AllStats : public Singleton<AllStats>
 {
-  ideas.push_back(new SkipTurnIdea());
-  ideas.push_back(new WasteAmmoUnitsIdea());
+public:
+  AIStats SkipTurn, WasteAmmo, ShootDirectly, WeaponLauncher;
+
+
+  friend class Singleton<AllStats>;
+  AllStats()
+    : SkipTurn("SkipTurn")
+    , WasteAmmo("WasteAmmo")
+    , ShootDirectly("ShootDirectly")
+    , WeaponLauncher("WeaponLauncher")
+  { }
+};
+
+AIStupidPlayer::AIStupidPlayer(Team * team)
+  : team(team)
+  , item_iterator(items.begin())
+  , command(NULL)
+  , best_strategy(NULL)
+{
+  AllStats *stats = AllStats::GetInstance();
+  items.push_back(std::make_pair(new SkipTurnIdea(), &stats->SkipTurn));
+  items.push_back(std::make_pair(new WasteAmmoUnitsIdea(), &stats->WasteAmmo));
   FOR_EACH_LIVING_AND_DEAD_CHARACTER(team, character) {
     FOR_EACH_TEAM(other_team) {
       bool is_enemy = !team->IsSameAs(**other_team);
       if (is_enemy) {
         FOR_EACH_LIVING_AND_DEAD_CHARACTER(*other_team, other_character) {
-          ideas.push_back(new ShootDirectlyAtEnemyIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_GUN, MAX_GUN_DISTANCE));
-          ideas.push_back(new ShootDirectlyAtEnemyIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_SHOTGUN, MAX_SHOTGUN_DISTANCE));
-          ideas.push_back(new ShootDirectlyAtEnemyIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_SNIPE_RIFLE, MAX_SNIPER_RIFILE_DISTANCE));
-          ideas.push_back(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_BAZOOKA, 0.9));
-          ideas.push_back(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_BAZOOKA, 1.8));
-          ideas.push_back(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_GRENADE, 2.01, 2));
-          ideas.push_back(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_DISCO_GRENADE, 2.01, 2));
-          ideas.push_back(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character, Weapon::WEAPON_BAZOOKA, 3.0));
+          items.push_back(std::make_pair(new ShootDirectlyAtEnemyIdea(weapons_weighting, *character, *other_character,
+                                                                      Weapon::WEAPON_GUN, MAX_GUN_DISTANCE),
+                                         &stats->ShootDirectly));
+          items.push_back(std::make_pair(new ShootDirectlyAtEnemyIdea(weapons_weighting, *character, *other_character,
+                                                                      Weapon::WEAPON_SHOTGUN, MAX_SHOTGUN_DISTANCE),
+                                         &stats->ShootDirectly));
+          items.push_back(std::make_pair(new ShootDirectlyAtEnemyIdea(weapons_weighting, *character, *other_character,
+                                                                      Weapon::WEAPON_SNIPE_RIFLE, MAX_SNIPER_RIFILE_DISTANCE),
+                                         &stats->ShootDirectly));
+          items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
+                                                                              Weapon::WEAPON_BAZOOKA, 0.9),
+                                         &stats->WeaponLauncher));
+          items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
+                                                                              Weapon::WEAPON_BAZOOKA, 1.8),
+                                         &stats->WeaponLauncher));
+          items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
+                                                                              Weapon::WEAPON_GRENADE, 2.01, 2),
+                                         &stats->WeaponLauncher));
+          items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
+                                                                              Weapon::WEAPON_DISCO_GRENADE, 2.01, 2),
+                                         &stats->WeaponLauncher));
+          items.push_back(std::make_pair(new FireMissileWithFixedDurationIdea(weapons_weighting, *character, *other_character,
+                                                                              Weapon::WEAPON_BAZOOKA, 3.0),
+                                         &stats->WeaponLauncher));
         }
       }
     }
@@ -67,8 +143,8 @@ AIStupidPlayer::~AIStupidPlayer()
     delete command;
   if (best_strategy)
     delete best_strategy;
-  for (idea_iterator = ideas.begin(); idea_iterator != ideas.end(); idea_iterator++)
-    delete (*idea_iterator);
+  for (item_iterator = items.begin(); item_iterator != items.end(); item_iterator++)
+    delete (*item_iterator).first;
 }
 
 void AIStupidPlayer::PrepareTurn()
@@ -88,7 +164,7 @@ void AIStupidPlayer::Reset()
     delete best_strategy;
   best_strategy = new DoNothingStrategy();
   best_strategy_counter = 1;
-  idea_iterator = ideas.begin();
+  item_iterator = items.begin();
   game_time_at_turn_start = Time::GetInstance()->Read();
 }
 
@@ -108,12 +184,12 @@ void AIStupidPlayer::Refresh()
     bool think_time_over = now >= game_time_at_turn_start + MAX_GAME_TIME_USED_THINKING_IN_MS;
     if (!think_time_over) {
       Stopwatch stopwatch;
-      while(stopwatch.GetValue() < REAL_THINK_TIME_PER_REFRESH_IN_MS && idea_iterator != ideas.end()) {
+      while(stopwatch.GetValue() < REAL_THINK_TIME_PER_REFRESH_IN_MS && item_iterator != items.end()) {
         CheckNextIdea();
       }
     }
-    bool no_more_ideas = (idea_iterator == ideas.end());
-    if (think_time_over || no_more_ideas) {
+    bool no_more_items = (item_iterator == items.end());
+    if (think_time_over || no_more_items) {
       command = best_strategy->CreateCommand();
     }
   }
@@ -125,7 +201,9 @@ void AIStupidPlayer::Refresh()
 
 void AIStupidPlayer::CheckNextIdea()
 {
-  AIStrategy * strategy = (*idea_iterator)->CreateStrategy();
+  Stopwatch stopwatch;
+  AIStrategy * strategy = (*item_iterator).first->CreateStrategy();
+  (*item_iterator).second->AddTiming(stopwatch.GetValue());
   if (strategy) {
     AIStrategy::CompareResult compare_result = strategy->CompareRatingWith(best_strategy);
     bool replace_best;
@@ -157,5 +235,5 @@ void AIStupidPlayer::CheckNextIdea()
       delete strategy;
     }
   }
-  idea_iterator++;
+  item_iterator++;
 }

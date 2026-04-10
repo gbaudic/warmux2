@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include "graphic/surface.h"
 #include "interface/mouse.h"
-#include <WORMUX_point.h>
+#include <WARMUX_point.h>
 
 class MouseCursor
 {
@@ -35,12 +35,12 @@ private:
   Point2i clic_pos;
 
 public:
-  MouseCursor(Mouse::pointer_t pointer_id, 
-	      std::string filename, Point2i clic_pos);
+  MouseCursor(Mouse::pointer_t pointer_id,
+              std::string filename, Point2i clic_pos);
 
-  Mouse::pointer_t GetPointerId() const;
-  const Surface& GetSurface() const;
-  const Point2i& GetClicPos() const;
+  Mouse::pointer_t GetPointerId() const { return pointer_id; }
+  const Surface& GetSurface() const { return surf; }
+  const Point2i& GetClicPos() const { return clic_pos; }
 };
 
 #endif

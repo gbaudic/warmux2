@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,42 +26,50 @@
 
 class Color
 {
-  private:
-    Uint8 red;
-    Uint8 green;
-    Uint8 blue;
-    Uint8 alpha;
-
-  public:
-    Color(Uint8 r = 200, Uint8 g = 50, Uint8 b = 50, Uint8 a = 130)
-      { SetColor(r, g, b, a); }
-
-    bool operator==(const Color &c) const
-      { return red==c.red && green==c.green && blue==c.blue && alpha==c.alpha; }
-    bool operator!=(const Color &c) const
-      { return red!=c.red || green!=c.green || blue!=c.blue || alpha!=c.alpha; }
-    Color operator*(const Color &fact) const;
-
-    void SetColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+  union
+  {
+    struct
     {
-      red   = r;
-      green = g;
-      blue  = b;
-      alpha = a;
-    }
+      Uint8 red   : 8;
+      Uint8 green : 8;
+      Uint8 blue  : 8;
+      Uint8 alpha : 8;
+    } components;
+    Uint32 color;
+  } value;
 
-    void SetRed(Uint8 r)   { this->red   = r; }
-    void SetGreen(Uint8 g) { this->green = g; }
-    void SetBlue(Uint8 b)  { this->blue  = b; }
-    void SetAlpha(Uint8 a) { this->alpha = a; }
+public:
+  Color()
+    { SetColor(200, 50, 50, 130); }
+  Color(Uint8 r, Uint8 g, Uint8 b, Uint8 a = 130)
+    { SetColor(r, g, b, a); }
+  Color(Uint8 grey, Uint8 a = SDL_ALPHA_OPAQUE)
+    { SetColor(grey, grey, grey, a); }
+  Color(const Color& other) { value.color = other.value.color; }
 
-    Uint8 GetRed() const   { return red;   }
-    Uint8 GetGreen() const { return green; }
-    Uint8 GetBlue() const  { return blue;  }
-    Uint8 GetAlpha() const { return alpha; }
-    Uint32 GetColor() const;
+  bool operator==(const Color &c) const { return value.color == c.value.color; }
+  bool operator!=(const Color &c) const { return value.color != c.value.color; }
 
-    SDL_Color GetSDLColor() const;
+  void SetColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+  {
+    value.components.red   = r;
+    value.components.green = g;
+    value.components.blue  = b;
+    value.components.alpha = a;
+  }
+
+  void SetRed(Uint8 r)   { value.components.red   = r; }
+  void SetGreen(Uint8 g) { value.components.green = g; }
+  void SetBlue(Uint8 b)  { value.components.blue  = b; }
+  void SetAlpha(Uint8 a) { value.components.alpha = a; }
+
+  Uint8 GetRed() const   { return value.components.red;   }
+  Uint8 GetGreen() const { return value.components.green; }
+  Uint8 GetBlue() const  { return value.components.blue;  }
+  Uint8 GetAlpha() const { return value.components.alpha; }
+  Uint32 GetColor() const;
+
+  SDL_Color GetSDLColor() const;
 };
 
 #endif

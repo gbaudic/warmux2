@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,20 +32,33 @@ class Surface;
 
 class PictureWidget : public Widget
 {
- private:
-  /* If you need this, implement it (correctly)*/
-  PictureWidget(const PictureWidget&);
-  PictureWidget operator=(const PictureWidget&);
-  /*********************************************/
+public:
+  typedef enum
+  {
+    NO_SCALING,
+    X_SCALING,
+    Y_SCALING,
+    STRETCH_SCALING,
+    FIT_SCALING
+  } ScalingType;
 
+private:
   bool disabled;
+  bool loaded;
+  std::string name;
+  ScalingType type;
+  Point2i picture_size;
   Sprite * spr;
 
- public:
+  void ApplyScaling(ScalingType t);
+
+public:
   PictureWidget(const Point2i & size);
-  PictureWidget(const Point2i & size, 
-                const std::string & resource_id, 
-                bool scale = false);
+  PictureWidget(const Surface& surface,
+                ScalingType type = NO_SCALING);
+  PictureWidget(const Point2i & size,
+                const std::string & resource_id,
+                ScalingType type = NO_SCALING);
   PictureWidget(Profile * profile,
                 const xmlNode * pictureNode);
   virtual ~PictureWidget();
@@ -53,16 +66,18 @@ class PictureWidget : public Widget
   // Load all attributs from a "Picture" node.
   virtual bool LoadXMLConfiguration(void);
 
-  void SetSurface(const Surface & s, 
-                  bool enable_scaling = false, 
-                  bool antialiasing = false);
+  void SetSurface(const Surface & s,
+                  ScalingType type = NO_SCALING);
   void SetNoSurface();
-  virtual void Draw(const Point2i & mousePosition) const;
-  virtual void Pack() {};
+
+  virtual void Draw(const Point2i & mousePosition);
+  virtual void Pack() { ApplyScaling(type); }
 
   // Apply a transparency color mask
   void Disable() { disabled = true; };
   void Enable() { disabled = false; };
+  Point2i GetPicturePosition() const;
+  Point2f GetScale() const;
 };
 
 #endif

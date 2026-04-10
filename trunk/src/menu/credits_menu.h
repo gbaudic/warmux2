@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,25 +23,23 @@
 #define CREDITS_MENU_H
 
 #include "menu/menu.h"
+#include "graphic/font.h"
 
 // Forward declarations
-class ListBox;
+class ScrollBox;
 
 class CreditsMenu : public Menu
 {
- private:
-  void PrepareAuthorsList(ListBox *lbox_authors) const;
+  ScrollBox *lbox_authors;
 
-  bool signal_ok();
-  bool signal_cancel();
+  void PrepareAuthorsList();
 
-  void Draw(const Point2i &mousePosition);
-
-  void OnClick(const Point2i &mousePosition, int button);
-  void OnClickUp(const Point2i &mousePosition, int button);
- public:
+  void AddItem(const std::string & label,
+               Font::font_size_t fsize = Font::FONT_SMALL,
+               Font::font_style_t fstyle = Font::FONT_BOLD,
+               const Color & color = white_color);
+public:
   CreditsMenu();
-  ~CreditsMenu();
 };
 
 #endif

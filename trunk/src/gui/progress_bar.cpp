@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,15 +27,9 @@
 #include "tool/math_tools.h"
 
 ProgressBar::ProgressBar() :
-  border_color(0, 0, 0, 255),
-  value_color(255, 255, 255, 255),
-  background_color(100, 100, 100, 255),
-  image(),
-  coefRed(),
-  coefGreen(),
-  coefBlue(),
-  coefAlpha(),
-  divisor(),
+  border_color(0, SDL_ALPHA_OPAQUE),
+  value_color(255, SDL_ALPHA_OPAQUE),
+  background_color(100, SDL_ALPHA_OPAQUE),
   gradientMode(false),
   x(0),
   y(0),
@@ -46,11 +40,8 @@ ProgressBar::ProgressBar() :
   max(0),
   m_use_ref_val(false),
   m_ref_val(0),
-  val_barre(0),
-  orientation(),
-  colorMin(),
-  colorMax(),
-  marqueur()
+  bar_value(0),
+  orientation(PROG_BAR_HORIZONTAL)
 {
 }
 
@@ -58,19 +49,13 @@ ProgressBar::ProgressBar(uint _x,
                          uint _y,
                          uint _width,
                          uint _height,
-                         long _value, 
-                         long minValue, 
-                         long maxValue, 
+                         int _value,
+                         int minValue,
+                         int maxValue,
                          enum orientation _orientation) :
-  border_color(0, 0, 0, 255),
-  value_color(255, 255, 255, 255),
-  background_color(100, 100, 100, 255),
-  image(),
-  coefRed(),
-  coefGreen(),
-  coefBlue(),
-  coefAlpha(),
-  divisor(),
+  border_color(0, SDL_ALPHA_OPAQUE),
+  value_color(255, SDL_ALPHA_OPAQUE),
+  background_color(100, SDL_ALPHA_OPAQUE),
   gradientMode(false),
   x(_x),
   y(_y),
@@ -81,35 +66,32 @@ ProgressBar::ProgressBar(uint _x,
   max(maxValue),
   m_use_ref_val(false),
   m_ref_val(0),
-  val_barre(0),
-  orientation(_orientation),
-  colorMin(),
-  colorMax(),
-  marqueur()
+  bar_value(0),
+  orientation(_orientation)
 {
-  image.NewSurface(Point2i(width, height), SDL_SWSURFACE | SDL_SRCALPHA, true);
+  image.NewSurface(Point2i(width, height), SDL_SWSURFACE, false);
+  image.SetColorKey(SDL_SRCCOLORKEY, 0);
 }
 
-void ProgressBar::SetMinMaxValueColor(const Color & min, 
-                                      const Color & max) 
+void ProgressBar::SetMinMaxValueColor(const Color & min,
+                                      const Color & max)
 {
-  this->gradientMode = true;
-  this->colorMin     = min;
-  this->colorMax     = max;
+  gradientMode = true;
+  colorMin     = min;
+  colorMax     = max;
 }
 
-void ProgressBar::InitPos(uint px, 
-                          uint py, 
-			  uint pwidth, 
-			  uint pheight)
+void ProgressBar::InitPos(uint px, uint py,
+                          uint pwidth, uint pheight)
 {
-  ASSERT (3 <= pwidth);
-  ASSERT (3 <= pheight);
+  assert(3 <= pwidth);
+  assert(3 <= pheight);
   x    = px;
   y    = py;
   width = pwidth;
   height = pheight;
-  image.NewSurface(Point2i(width, height), SDL_SWSURFACE | SDL_SRCALPHA, true);
+  image.NewSurface(Point2i(width, height), SDL_SWSURFACE, false);
+  image.SetColorKey(SDL_SRCCOLORKEY, 0);
 }
 
 /*
@@ -118,47 +100,45 @@ void ProgressBar::InitPos(uint px,
  *                         ProgressBar::PROG_BAR_HORIZONTAL
  * default orientation is ProgressBar::PROG_BAR_HORIZONTAL
  */
-void ProgressBar::InitVal (long pval, 
-                           long pmin, 
-			   long pmax, 
-			   enum orientation porientation)
+void ProgressBar::InitVal(int pval, int pmin, int pmax,
+                          enum orientation porientation)
 {
   ASSERT (pmin < pmax);
   val         = pval;
   min         = pmin;
   max         = pmax;
   orientation = porientation;
-  val_barre   = ComputeBarValue(val);
+  bar_value   = ComputeBarValue(val);
 
   if (gradientMode) {
-    coefRed   = (colorMax.GetRed()   - colorMin.GetRed())   / static_cast<Double>(max);
-    coefGreen = (colorMax.GetGreen() - colorMin.GetGreen()) / static_cast<Double>(max);
-    coefBlue  = (colorMax.GetBlue()  - colorMin.GetBlue())  / static_cast<Double>(max);
-    coefAlpha = (colorMax.GetAlpha() - colorMin.GetAlpha()) / static_cast<Double>(max);
+    float inv_fmax = 1.0f / max;
+    coefRed   = (colorMax.GetRed()   - colorMin.GetRed())   * inv_fmax;
+    coefGreen = (colorMax.GetGreen() - colorMin.GetGreen()) * inv_fmax;
+    coefBlue  = (colorMax.GetBlue()  - colorMin.GetBlue())  * inv_fmax;
   }
 }
 
-void ProgressBar::UpdateValue(long pval)
+void ProgressBar::UpdateValue(int pval)
 {
   val       = ComputeValue(pval);
-  val_barre = ComputeBarValue(val);
+  bar_value = ComputeBarValue(val);
 
-  if (gradientMode) {    
-    long absVal = abs(val);
-    value_color.SetColor((Uint8) (colorMin.GetRed()   + (int)(coefRed   * (Double)absVal)),
-                         (Uint8) (colorMin.GetGreen() + (int)(coefGreen * (Double)absVal)),
-                         (Uint8) (colorMin.GetBlue()  + (int)(coefBlue  * (Double)absVal)),
-                         (Uint8) (colorMin.GetAlpha() + (int)(coefAlpha * (Double)absVal)));
+  if (gradientMode) {
+    float absVal = abs(val);
+    value_color.SetColor((Uint8) (colorMin.GetRed()   + (int)(coefRed   * absVal)),
+                         (Uint8) (colorMin.GetGreen() + (int)(coefGreen * absVal)),
+                         (Uint8) (colorMin.GetBlue()  + (int)(coefBlue  * absVal)),
+                         SDL_ALPHA_OPAQUE);
   }
-		       
+
 }
 
-long ProgressBar::ComputeValue(long pval) const 
+int ProgressBar::ComputeValue(int pval) const
 {
-  return InRange_Long(pval, min, max);
+  return BorneTpl<int>(pval, min, max);
 }
 
-uint ProgressBar::ComputeBarValue(long val) const
+uint ProgressBar::ComputeBarValue(int val) const
 {
   if (PROG_BAR_HORIZONTAL == orientation) {
     return (ComputeValue(val) -min)*(width - 2)/(max-min);
@@ -168,7 +148,7 @@ uint ProgressBar::ComputeBarValue(long val) const
 }
 
 // TODO pass a Surface as parameter
-void ProgressBar::DrawXY(const Point2i & pos) const 
+void ProgressBar::DrawXY(const Point2i & pos) const
 {
   int begin, end;
 
@@ -183,15 +163,15 @@ void ProgressBar::DrawXY(const Point2i & pos) const
   if (m_use_ref_val) {
     int ref = ComputeBarValue (m_ref_val);
     if (val < m_ref_val) { // FIXME hum, this seems buggy
-      begin = 1+val_barre;
+      begin = 1+bar_value;
       end = 1+ref;
     } else {
       begin = 1+ref;
-      end = 1+val_barre;
+      end = 1+bar_value;
     }
   } else {
     begin = 1;
-    end = 1+val_barre;
+    end = 1+bar_value;
   }
 
   Rectanglei r_value;
@@ -214,8 +194,8 @@ void ProgressBar::DrawXY(const Point2i & pos) const
     image.FillRect(r_ref, border_color);
   }
 
-  // Marqueurs
-  marqueur_it_const it = marqueur.begin(), it_end = marqueur.end();
+  // marks
+  mark_it_const it = mark.begin(), it_end = mark.end();
 
   for (; it != it_end; ++it) {
     Rectanglei r_marq;
@@ -232,22 +212,19 @@ void ProgressBar::DrawXY(const Point2i & pos) const
   GetWorld().ToRedrawOnScreen(dst);
 }
 
-// Ajoute/supprime un marqueur
-ProgressBar::marqueur_it ProgressBar::AddTag(long val, 
-                                             const Color & color)
+// Ajoute/supprime un mark
+ProgressBar::mark_it ProgressBar::AddTag(int val, const Color & color)
 {
-  marqueur_t m;
+  mark_t m;
   m.val   = ComputeBarValue(val);
   m.color = color;
-  marqueur.push_back(m);
+  mark.push_back(m);
 
-  return --marqueur.end();
+  return --mark.end();
 }
 
-void ProgressBar::SetReferenceValue(bool use, 
-                                    long value)
+void ProgressBar::SetReferenceValue(bool use, int value)
 {
   m_use_ref_val = use;
   m_ref_val     = ComputeValue(value);
 }
-

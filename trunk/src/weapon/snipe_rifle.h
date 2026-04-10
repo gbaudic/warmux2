@@ -1,6 +1,6 @@
 /******************************************************************************
- *  Wormux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Wormux Team.
+ *  Warmux is a convivial mass murder game.
+ *  Copyright (C) 2001-2010 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,33 +25,51 @@
 #include <vector>
 #include "weapon/weapon_launcher.h"
 #include "graphic/color.h"
-#include "include/base.h"
+#include <WARMUX_base.h>
 
-class SnipeRifle : public WeaponLauncher
+class BaseSnipeRifle : public WeaponLauncher
 {
-  private:
-    Double last_angle;
-    Point2i last_rifle_pos;
-    Point2i laser_beam_start;
-    Point2i targeted_point;
-    bool targeting_something;
-    Sprite * m_laser_image;
-    Color laser_beam_color;
-    void ComputeCrossPoint(bool force);
+private:
+  float last_angle;
+  bool targeting_something;
+  Point2i last_rifle_pos;
+  Point2i laser_beam_start;
+  Point2i targeted_point;
 
-  protected:
-    bool p_Shoot();
-    void p_Deselect();
-    WeaponProjectile * GetProjectileInstance();
-  public:
-    SnipeRifle();
-    ~SnipeRifle();
-    void SignalProjectileGhostState();
-    void DrawBeam();
-    void Draw();  // In order to draw the laser beam / and the contact point.
+  Sprite * m_laser_image;
+  Color laser_beam_color;
 
-    void UpdateTranslationStrings();
-    std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
+  void ComputeCrossPoint(bool force);
+
+protected:
+  virtual bool p_Shoot();
+  void p_Deselect();
+
+  // Implement this!
+  virtual WeaponProjectile * GetProjectileInstance() = 0;
+
+public:
+  BaseSnipeRifle(Weapon_type type,
+                 const std::string &id);
+  ~BaseSnipeRifle();
+  void SignalProjectileGhostState();
+  void DrawBeam();
+  void Draw();  // In order to draw the laser beam / and the contact point.
+
+  // Implement those!
+  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count ) const = 0;
+};
+
+class SnipeRifle : public BaseSnipeRifle
+{
+protected:
+  virtual WeaponProjectile * GetProjectileInstance();
+
+public:
+  SnipeRifle();
+
+  virtual std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;
+  virtual void UpdateTranslationStrings();
 };
 
 #endif /* SNIPE_RIFLE_H */
