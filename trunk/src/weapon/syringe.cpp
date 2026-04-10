@@ -19,12 +19,11 @@
  * Weapon Syringe
  *****************************************************************************/
 
-#include "explosion.h"
-#include "syringe.h"
-#include "weapon_cfg.h"
+#include "weapon/explosion.h"
+#include "weapon/syringe.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
-#include "game/game_loop.h"
 #include "sound/jukebox.h"
 #include "team/macro.h"
 #include "team/team.h"
@@ -90,7 +89,7 @@ bool Syringe::p_Shoot (){
     if (&(*character) != &ActiveCharacter())
     {
       // Did we touch somebody ?
-      if( character->ObjTouche(pos_to_check) )
+      if( character->Contain(pos_to_check) )
       {
         // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
         character->SetDiseaseDamage(cfg().damage, cfg().turns);

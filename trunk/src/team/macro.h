@@ -16,19 +16,19 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Macros pour la gestion des différentes équipes.
+ * Macros to manage teams.
  *****************************************************************************/
 
 #ifndef TEAM_MACRO_H
 #define TEAM_MACRO_H
 //-----------------------------------------------------------------------------
-#include "teams_list.h"
+#include "team/teams_list.h"
 //-----------------------------------------------------------------------------
 
 // Boucle pour chaque team
 #define FOR_EACH_TEAM(team) \
-  for (TeamsList::iterator team=teams_list.playing_list.begin(), \
-       fin_pour_chaque_team=teams_list.playing_list.end(); \
+  for (TeamsList::iterator team=GetTeamsList().playing_list.begin(), \
+       fin_pour_chaque_team=GetTeamsList().playing_list.end(); \
        team != fin_pour_chaque_team; \
        ++team)
 

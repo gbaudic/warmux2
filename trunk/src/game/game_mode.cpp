@@ -20,10 +20,10 @@
  * value here. They should all be modifiable using the xml config file
  *****************************************************************************/
 
-#include "game_mode.h"
+#include "game/game_mode.h"
 #include <iostream>
-#include "config.h"
-#include "game_loop.h"
+#include "game/config.h"
+#include "game/game.h"
 #include "object/medkit.h"
 #include "object/bonus_box.h"
 #include "tool/file_tools.h"
@@ -324,7 +324,7 @@ bool GameMode::AllowCharacterSelection() const
 
   case GameMode::BEFORE_FIRST_ACTION:
   case GameMode::BEFORE_FIRST_ACTION_AND_END_TURN:
-          return (GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING) && !GameLoop::GetInstance()->character_already_chosen;
+          return (Game::GetInstance()->ReadState() == Game::PLAYING) && !Game::GetInstance()->character_already_chosen;
 
   case GameMode::CHANGE_ON_END_TURN:
   case GameMode::NEVER:

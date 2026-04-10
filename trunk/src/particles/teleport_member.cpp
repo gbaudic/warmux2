@@ -19,8 +19,8 @@
  * Particle Engine
  *****************************************************************************/
 
-#include "teleport_member.h"
-#include "particle.h"
+#include "particles/teleport_member.h"
+#include "particles/particle.h"
 #include "tool/random.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
@@ -48,12 +48,12 @@ TeleportMemberParticle::TeleportMemberParticle(const Sprite* spr, const Point2i&
 
   sin_x_max = randomObj.GetDouble(M_PI_4, 3.0 * M_PI_4);
   sin_y_max = randomObj.GetDouble(M_PI_4, 3.0 * M_PI_4);
-  Camera::GetInstance()->GetInstance()->FollowObject(this, true, true);
+  Camera::GetInstance()->FollowObject(this, true);
 }
 
 TeleportMemberParticle::~TeleportMemberParticle()
 {
-  Camera::GetInstance()->GetInstance()->StopFollowingObj(this);
+  Camera::GetInstance()->StopFollowingObj(this);
 }
 
 void TeleportMemberParticle::Refresh()

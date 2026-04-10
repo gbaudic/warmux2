@@ -16,14 +16,14 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Weapon grenade : lance une grenade avec un angle et une force donn�. Explose
- * au bout de quelques secondes
+ * Weapon grenade: throw a grenade with given engle and strength. Explode
+ *                 after a small while.
  *****************************************************************************/
 
 #ifndef GRENADE_H
 #define GRENADE_H
 
-#include "weapon_launcher.h"
+#include "weapon/weapon_launcher.h"
 
 // La Grenade
 class Grenade : public WeaponProjectile

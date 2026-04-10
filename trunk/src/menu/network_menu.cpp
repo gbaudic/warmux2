@@ -19,10 +19,10 @@
  * Game menu
  *****************************************************************************/
 
-#include "network_menu.h"
+#include "menu/network_menu.h"
 
-#include "network_teams_selection_box.h"
-#include "map_selection_box.h"
+#include "menu/network_teams_selection_box.h"
+#include "menu/map_selection_box.h"
 #include "game/game.h"
 #include "game/game_mode.h"
 #include "graphic/video.h"
@@ -58,8 +58,7 @@ NetworkMenu::NetworkMenu() :
   waiting_for_server = false;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml",false);
-  Rectanglei rectZero(0, 0, 0, 0);
-  Rectanglei stdRect (0, 0, 130, 30);
+  Point2i pointZero(-1, -1);
 
   Surface window = AppWormux::GetInstance()->video->window;
 
@@ -71,34 +70,31 @@ NetworkMenu::NetworkMenu() :
   // ################################################
   // ##  TEAM SELECTION
   // ################################################
-  team_box = new NetworkTeamsSelectionBox(Rectanglei(MARGIN_SIDE, MARGIN_TOP,
-                                              mainBoxWidth, TEAMS_BOX_H));
+  team_box = new NetworkTeamsSelectionBox(Point2i(mainBoxWidth, TEAMS_BOX_H));
+  team_box->SetXY(MARGIN_SIDE, MARGIN_TOP);
   widgets.AddWidget(team_box);
 
   // ################################################
   // ##  MAP SELECTION
   // ################################################
   if(Network::GetInstance()->IsServer()) {
-    map_box = new MapSelectionBox( Rectanglei(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE,
-                                              mainBoxWidth, mapBoxHeight));
+    map_box = new MapSelectionBox(Point2i(mainBoxWidth, mapBoxHeight));
   } else {
-    map_box = new MapSelectionBox( Rectanglei(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE,
-                                              mainBoxWidth, mapBoxHeight),
-                                   true);
+    map_box = new MapSelectionBox(Point2i(mainBoxWidth, mapBoxHeight), true);
   }
+  map_box->SetXY(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE);
   widgets.AddWidget(map_box);
 
   // ################################################
   // ##  GAME OPTIONS
   // ################################################
 
-  options_box = new HBox( Rectanglei(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE,
-                                     mainBoxWidth, OPTIONS_BOX_H), true);
-  options_box->AddWidget(new PictureWidget(Rectanglei(0,0,39,128), "menu/mode_label"));
+  options_box = new HBox(OPTIONS_BOX_H, true);
+  options_box->AddWidget(new PictureWidget(Point2i(39, 128), "menu/mode_label"));
 
-  Box* tmp_box = new VBox( Rectanglei(0,0, 200,0), false);
+  Box* tmp_box = new VBox(200, false);
 
-  mode = new Label("", rectZero, Font::FONT_MEDIUM, Font::FONT_NORMAL);
+  mode = new Label("", pointZero, Font::FONT_MEDIUM, Font::FONT_NORMAL);
 
   if (Network::GetInstance()->IsClient()) {
     // Client Mode
@@ -114,47 +110,47 @@ NetworkMenu::NetworkMenu() :
     mode->SetText(_("Server mode"));
     tmp_box->AddWidget(mode);
 
-    player_number = new SpinButton(_("Max number of players:"), rectZero,
+    player_number = new SpinButton(_("Max number of players:"), -1,
                                    GameMode::GetInstance()->max_teams, 1, 2,
                                    GameMode::GetInstance()->max_teams);
-
+    team_box->SetMaxNbLocalPlayers(GameMode::GetInstance()->max_teams - 1);
     tmp_box->AddWidget(player_number);
 
     connected_players = new Label(Format(ngettext("%i player connected", "%i players connected", 0), 0),
-                                rectZero, Font::FONT_SMALL, Font::FONT_NORMAL);
+                                pointZero, Font::FONT_SMALL, Font::FONT_NORMAL);
     tmp_box->AddWidget(connected_players);
 
     initialized_players = new Label(Format(ngettext("%i player ready", "%i players ready", 0), 0),
-                                    rectZero, Font::FONT_SMALL, Font::FONT_NORMAL);
+                                    pointZero, Font::FONT_SMALL, Font::FONT_NORMAL);
     tmp_box->AddWidget(initialized_players);
   }
 
   options_box->AddWidget(tmp_box);
+  options_box->SetXY(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE);
   widgets.AddWidget(options_box);
 
   // ################################################
   // ##  CHAT BOX
   // ################################################
-  VBox* chat_box = new VBox(Rectanglei(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
-                                       options_box->GetPositionY(),
-                                       mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE,
-                                       OPTIONS_BOX_H), false);
+  VBox* chat_box = new VBox(mainBoxWidth - options_box->GetSizeX() - MARGIN_SIDE, false);
   chat_box->SetBorder(Point2i(0,0));
 
-  msg_box = new MsgBox(Rectanglei( 0, 0, 400, OPTIONS_BOX_H - 20), Font::FONT_SMALL, Font::FONT_NORMAL);
+  msg_box = new MsgBox(Rectanglei(-1, -1, 400, OPTIONS_BOX_H - 20), Font::FONT_SMALL, Font::FONT_NORMAL);
   msg_box->NewMessage(_("Join #wormux on irc.freenode.net to find some opponents."));
 
+  chat_box->SetXY(options_box->GetPositionX() + options_box->GetSizeX() + MARGIN_SIDE,
+		  options_box->GetPositionY());
   chat_box->AddWidget(msg_box);
 
-  HBox* tmp2_box = new HBox(Rectanglei(0,0,chat_box->GetSizeX(),16), false);
+  HBox* tmp2_box = new HBox(16, false);
   tmp2_box->SetMargin(4);
   tmp2_box->SetBorder(Point2i(0,0));
   line_to_send_tbox = new TextBox(" ",
-                                  Rectanglei(0, 0, chat_box->GetSizeX()-20, 0),
+                                  Point2i(chat_box->GetSizeX()-20, 0),
                                   Font::FONT_SMALL, Font::FONT_NORMAL);
   tmp2_box->AddWidget(line_to_send_tbox);
 
-  send_txt_bt = new Button(Point2i(0,0), res, "menu/send_txt", true);
+  send_txt_bt = new Button(res, "menu/send_txt", true);
   tmp2_box->AddWidget(send_txt_bt);
 
   chat_box->AddWidget(tmp2_box);
@@ -175,6 +171,7 @@ void NetworkMenu::OnClickUp(const Point2i &mousePosition, int button)
   if (player_number != NULL && w == player_number)
   {
     Network::GetInstanceServer()->SetMaxNumberOfPlayers(player_number->GetValue());
+    team_box->SetMaxNbLocalPlayers(player_number->GetValue()-1);
   }
   else if (w == send_txt_bt)
   {
@@ -212,8 +209,8 @@ bool NetworkMenu::signal_ok()
   {
     // Check the user have selected a team:
     bool found = false;
-    for(std::vector<Team*>::iterator team = teams_list.playing_list.begin();
-                    team != teams_list.playing_list.end();
+    for(std::vector<Team*>::iterator team = GetTeamsList().playing_list.begin();
+                    team != GetTeamsList().playing_list.end();
                     team++)
     {
       if((*team)->IsLocal())
@@ -234,12 +231,12 @@ bool NetworkMenu::signal_ok()
   }
   else if (Network::GetInstance()->IsServer())
   {
-    if (teams_list.playing_list.size() <= 1)
+    if (GetTeamsList().playing_list.size() <= 1)
     {
       msg_box->NewMessage(Format(ngettext("There is only %i team.",
                                           "There are only %i teams.",
-                                          teams_list.playing_list.size()),
-                                 teams_list.playing_list.size()), c_red);
+                                          GetTeamsList().playing_list.size()),
+                                 GetTeamsList().playing_list.size()), c_red);
       goto error;
     }
     if (Network::GetInstanceServer()->GetNbConnectedPlayers() <= 1)
@@ -249,7 +246,7 @@ bool NetworkMenu::signal_ok()
     }
     if (Network::GetInstanceServer()->GetNbConnectedPlayers() != Network::GetInstanceServer()->GetNbInitializedPlayers()+1)
     {
-      int nbr = Network::GetInstanceServer()->GetNbConnectedPlayers() - Network::GetInstanceServer()->GetNbInitializedPlayers();
+      int nbr = Network::GetInstanceServer()->GetNbConnectedPlayers() - Network::GetInstanceServer()->GetNbInitializedPlayers() - 1;
       std::string pl = Format(ngettext("Wait! %i player is not ready yet!", "Wait! %i players are not ready yet!", nbr), nbr);
       msg_box->NewMessage(pl, c_red);
       goto error;
@@ -287,6 +284,8 @@ void NetworkMenu::key_ok()
     return;
   }
 
+  index_server.Disconnect();
+
   Menu::key_ok();
 }
 
@@ -304,7 +303,7 @@ void NetworkMenu::Draw(const Point2i &/*mousePosition*/)
       //Refresh the number of connected players:
       int nbr = Network::GetInstanceServer()->GetNbConnectedPlayers();
       std::string pl = Format(ngettext("%i player connected", "%i players connected", nbr), nbr);
-      if(connected_players->GetText() != pl)
+      if (connected_players->GetText() != pl)
         connected_players->SetText(pl);
     }
 

@@ -19,11 +19,11 @@
  * Refresh des armes.
  *****************************************************************************/
 
-#include "weapons_list.h"
+#include "weapon/weapons_list.h"
 //-----------------------------------------------------------------------------
 #include <algorithm>
-#include "all.h"
-#include "explosion.h"
+#include "weapon/all.h"
+#include "weapon/explosion.h"
 #include "interface/interface.h"
 #include "map/camera.h"
 #include "map/maps_list.h"
@@ -80,6 +80,7 @@ WeaponsList::WeaponsList():
   m_weapons_list.push_back(new GrenadeLauncher);
   m_weapons_list.push_back(new DiscoGrenadeLauncher);
   m_weapons_list.push_back(new ClusterLauncher);
+  m_weapons_list.push_back(new FlameThrower);
   m_weapons_list.push_back(new Baseball);
   m_weapons_list.push_back(new Mine);
   m_weapons_list.push_back(new AirAttack);

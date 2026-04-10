@@ -33,7 +33,6 @@ class WeaponProjectile : public PhysicalObj
 {
   protected:
     Sprite *image;
-    bool camera_follow_closely;
     bool explode_colliding_character; // before timeout.
     bool explode_with_timeout;
     bool explode_with_collision;
@@ -73,7 +72,8 @@ class WeaponProjectile : public PhysicalObj
     virtual void SignalOutOfMap();
     virtual void SignalTimeout();
     virtual void SignalExplosion();
-    void SignalDrowning();
+    virtual void SignalDrowning();
+    virtual void SignalGoingOutOfWater();
     void SignalGhostState (bool was_dead);
 
     virtual void ShootSound();
@@ -107,6 +107,7 @@ class WeaponLauncher : public Weapon
     bool ignore_explosion_signal;
     bool ignore_ghost_state_signal;
     bool ignore_drowning_signal;
+    bool ignore_going_out_of_water_signal;
   protected:
     WeaponProjectile * projectile;
     uint nb_active_projectile;
@@ -132,7 +133,7 @@ class WeaponLauncher : public Weapon
     virtual void Draw();
 
     std::string GetWeaponWinString(const char *TeamName, uint items_count)const = 0;
-	    
+
     // Handle of projectile events
     // Signal the end of a projectile for any reason possible
     virtual void SignalEndOfProjectile() { DecActiveProjectile(); };
@@ -142,6 +143,8 @@ class WeaponLauncher : public Weapon
     virtual void SignalProjectileCollision() { SignalEndOfProjectile(); };
     // Signal a projectile is drowning
     virtual void SignalProjectileDrowning() { SignalEndOfProjectile(); };
+    // Signal a projectile is fishing out of water (supertux)
+    virtual void SignalProjectileGoingOutOfWater() {};
     // Signal a ghost state
     virtual void SignalProjectileGhostState() { SignalEndOfProjectile(); };
     // Signal a projectile timeout (for exemple: grenade, disco grenade ... etc.)

@@ -20,14 +20,14 @@
  *****************************************************************************/
 
 #include <iostream>
-#include "map.h"
+#include "map/map.h"
 #include "object/physical_obj.h"
 #include "graphic/surface.h"
 #include "graphic/sprite.h"
 #include "graphic/text.h"
-#include "camera.h"
-#include "maps_list.h"
-#include "wind.h"
+#include "map/camera.h"
+#include "map/maps_list.h"
+#include "map/wind.h"
 #include "game/time.h"
 #include "object/objbox.h"
 #include "tool/i18n.h"
@@ -64,10 +64,6 @@ void Map::Reset()
   ground.Reset();
   water.Reset();
   wind.Reset();
-
-  // Configure game about open or closed world
-  bool open = ground.IsOpen();
-  ObjBox::Enable(open);
 
   delete author_info1; author_info1 = NULL;
   delete author_info2; author_info2 = NULL;
@@ -120,27 +116,27 @@ void Map::SwitchDrawingCacheParticles()
 
 void Map::Dig(const Point2i& position, const Surface& surface)
 {
-   ground.Dig (position, surface);
+   ground.Dig(position, surface);
    to_redraw->push_back(Rectanglei(position, surface.GetSize()));
 }
 
 void Map::Dig(const Point2i& center, const uint radius)
 {
-   ground.Dig (center, radius);
+   ground.Dig(center, radius);
    to_redraw->push_back(Rectanglei(center - Point2i(radius+EXPLOSION_BORDER_SIZE,radius+EXPLOSION_BORDER_SIZE),
                                    Point2i(2*(radius+EXPLOSION_BORDER_SIZE),2*(radius+EXPLOSION_BORDER_SIZE))));
 }
 
 void Map::PutSprite(const Point2i& pos, const Sprite* spr)
 {
-   ground.PutSprite (pos, spr);
+   ground.PutSprite(pos, spr);
    to_redraw->push_back(Rectanglei(pos, spr->GetSizeMax()));
 }
 
 void Map::MergeSprite(const Point2i& pos, const Sprite * spr)
 {
   Surface tmp = spr->GetSurface();
-  ground.MergeSprite (pos, tmp);
+  ground.MergeSprite(pos, tmp);
   to_redraw->push_back(Rectanglei(pos, spr->GetSizeMax()));
 }
 

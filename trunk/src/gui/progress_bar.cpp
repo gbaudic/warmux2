@@ -19,7 +19,7 @@
  * Progress bar for GUI.
  *****************************************************************************/
 
-#include "progress_bar.h"
+#include "gui/progress_bar.h"
 #include <SDL.h>
 #include "graphic/video.h"
 #include "include/app.h"
@@ -69,7 +69,7 @@ void ProgressBar::UpdateValue (long pval){
 }
 
 uint ProgressBar::CalculeVal (long pval) const{
-  return BorneLong(pval, min, max);
+  return InRange_Long(pval, min, max);
 }
 
 uint ProgressBar::CalculeValBarre (long val) const{

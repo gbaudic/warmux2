@@ -19,15 +19,13 @@
  * Loading screen
  *****************************************************************************/
 
-#include "loading_screen.h"
+#include "interface/loading_screen.h"
 #include "include/app.h"
 #include "game/config.h"
 #include "graphic/font.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
 #include "tool/resource_manager.h"
-
-LoadingScreen * LoadingScreen::singleton = NULL;
 
 LoadingScreen::LoadingScreen()
 {
@@ -44,21 +42,13 @@ LoadingScreen::LoadingScreen()
 
   // Get profile from resource manager
   res = resource_manager.LoadXMLProfile( "graphism.xml", false);
+  DrawBackground();
 }
 
 LoadingScreen::~LoadingScreen()
 {
   delete loading_bg;
   resource_manager.UnLoadXMLProfile(res);
-}
-
-// to manage singleton
-LoadingScreen * LoadingScreen::GetInstance()
-{
-  if (singleton == NULL) {
-    singleton = new LoadingScreen();
-  }
-  return singleton;
 }
 
 void LoadingScreen::DrawBackground()

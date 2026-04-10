@@ -22,6 +22,7 @@
 #ifndef MAP_SELECTION_BOX_H
 #define MAP_SELECTION_BOX_H
 
+#include "graphic/surface.h"
 #include "gui/box.h"
 #include "include/base.h"
 #include "tool/point.h"
@@ -50,13 +51,15 @@ class MapSelectionBox : public HBox
   Label *map_name_label;
   Label *map_author_label;
   Button *bt_map_plus, *bt_map_minus;
+  Surface random_map_preview;
+
+  void ChangeMap(uint index);
+  void UpdateMapInfo(PictureWidget * widget, uint index, bool selected);
+  void UpdateRandomMapInfo(PictureWidget * widget, bool selected);
 
  public:
   void ChangeMapDelta(int delta_index);
-  void ChangeMap(int index);
-  void UpdateMapInfo(PictureWidget * widget, int index, bool selected);
-
-  MapSelectionBox(const Rectanglei &rect, bool _display_only = false);
+  MapSelectionBox(const Point2i &size, bool _display_only = false);
 
   void ValidMapSelection();
   void ChangeMapCallback();

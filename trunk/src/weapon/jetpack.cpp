@@ -19,11 +19,10 @@
  * Jet Pack :-)
  *****************************************************************************/
 
-#include "jetpack.h"
-#include "explosion.h"
+#include "weapon/jetpack.h"
+#include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/game.h"
-#include "game/game_loop.h"
 #include "game/game_mode.h"
 #include "game/time.h"
 #include "include/action_handler.h"
@@ -106,14 +105,12 @@ void JetPack::p_Select()
 
 void JetPack::p_Deselect()
 {
-  m_is_active = false;
   m_x_force = 0;
   m_y_force = 0;
   ActiveCharacter().SetExternForce(0,0);
   StopUse();
-  Camera::GetInstance()->GetInstance()->SetCloseFollowing(false);
   ActiveCharacter().SetClothe("normal");
-  ActiveCharacter().SetMovement("walk");
+  ActiveCharacter().SetMovement("breathe");
 }
 
 void JetPack::StartUse()
@@ -124,10 +121,7 @@ void JetPack::StartUse()
       m_last_fuel_down = Time::GetInstance()->Read();
       flying_sound.Play(ActiveTeam().GetSoundProfile(),"weapon/jetpack", -1);
 
-      Camera::GetInstance()->GetInstance()->FollowObject (&ActiveCharacter(),true, true, true);
-      Camera::GetInstance()->GetInstance()->SetCloseFollowing(true);
-//                           bool suit, bool recentre,
-//                           bool force_recentrage=false);
+      Camera::GetInstance()->FollowObject (&ActiveCharacter(), true);
     }
 }
 
@@ -220,7 +214,6 @@ void JetPack::HandleKeyPressed_Shoot(bool)
 
 bool JetPack::p_Shoot()
 {
-  m_is_active = true;
   ActiveCharacter().SetClothe("jetpack-fire");
 
   return true;

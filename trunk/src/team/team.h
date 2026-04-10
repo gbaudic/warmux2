@@ -25,7 +25,7 @@
 #include <list>
 #include <vector>
 #include <string>
-#include "team_energy.h"
+#include "team/team_energy.h"
 #include "graphic/surface.h"
 #include "weapon/crosshair.h"
 #include "weapon/weapon.h"
@@ -115,7 +115,7 @@ class Team
 
   // Access to the active weapon.
     Weapon& AccessWeapon() const;
-    Weapon& GetWeapon() const;
+    const Weapon& GetWeapon() const;
     Weapon::Weapon_type GetWeaponType() const;
 
   // Init the energy bar of the team.

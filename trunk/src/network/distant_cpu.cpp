@@ -22,11 +22,11 @@
 #ifdef _MSC_VER
 #  include <algorithm>  //std::find
 #endif
-#include "distant_cpu.h"
+#include "network/distant_cpu.h"
 //-----------------------------------------------------------------------------
 #include <SDL_mutex.h>
 #include <SDL_thread.h>
-#include "network.h"
+#include "network/network.h"
 #include "include/action.h"
 #include "include/action_handler.h"
 #include "map/maps_list.h"
@@ -61,14 +61,15 @@ DistantComputer::DistantComputer(TCPsocket new_sock) :
     SendDatas(pack, size);
     free(pack);
 
-    Action a(Action::ACTION_MENU_SET_MAP, ActiveMap().GetRawName());
+    Action a(Action::ACTION_MENU_SET_MAP);
+    MapsList::GetInstance()->FillActionMenuSetMap(a);
     a.WritePacket(pack, size);
     SendDatas(pack, size);
     free(pack);
 
     // Teams infos of already connected computers
-    for(TeamsList::iterator team = teams_list.playing_list.begin();
-      team != teams_list.playing_list.end();
+    for(TeamsList::iterator team = GetTeamsList().playing_list.begin();
+      team != GetTeamsList().playing_list.end();
       ++team)
     {
       Action b(Action::ACTION_MENU_ADD_TEAM, (*team)->GetId());
@@ -210,7 +211,7 @@ void DistantComputer::ManageTeam(Action* team)
     owned_teams.push_back(name);
 
     int index = 0;
-    Team * tmp = teams_list.FindById(name, index);
+    Team * tmp = GetTeamsList().FindById(name, index);
     tmp->SetRemote();
 
     Action* copy = new Action(Action::ACTION_MENU_ADD_TEAM, name);

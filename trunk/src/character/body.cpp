@@ -21,11 +21,11 @@
 #include <sstream>
 #include <iostream>
 #include <map>
-#include "body.h"
-#include "character.h"
-#include "clothe.h"
-#include "member.h"
-#include "movement.h"
+#include "character/body.h"
+#include "character/character.h"
+#include "character/clothe.h"
+#include "character/member.h"
+#include "character/movement.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "interface/mouse.h"
@@ -131,6 +131,7 @@ Body::Body(xmlpp::Element* xml, const Profile* res):
     else
       mvt_lst[name] = mvt;
 
+
     for(std::map<std::string, std::string>::iterator it = mvt_alias.begin();
         it != mvt_alias.end();  ++it)
     if(it->second == name)
@@ -141,6 +142,14 @@ Body::Body(xmlpp::Element* xml, const Profile* res):
     }
     it3++;
   }
+
+  if((mvt_lst.find("black") == mvt_lst.end() && clothes_lst.find("black") != clothes_lst.end())
+  || (mvt_lst.find("black") != mvt_lst.end() && clothes_lst.find("black") == clothes_lst.end()))
+  {
+    std::cerr << "Error: The movement \"black\" or the clothe \"black\" is not defined!" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
 }
 
 Body::Body(const Body& _body):
@@ -620,12 +629,15 @@ void Body::StopWalk()
   if(walk_events > 0)
     walk_events--;
   if(current_mvt->type == "walk")
+  {
+    SetMovement("breathe");
     SetFrame(0);
+  }
 }
 
 bool Body::IsWalking() const
 {
-  return walk_events > 0 && current_mvt->type == "walk";
+  return walk_events > 0 /* && current_mvt->type == "walk" */;
 }
 
 uint Body::GetMovementDuration() const

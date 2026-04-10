@@ -19,13 +19,13 @@
  * Weapon Supertux : Look ! it's the famous flying magic pinguin !
  *****************************************************************************/
 
-#include "supertux.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/supertux.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "game/config.h"
-#include "game/game_loop.h"
+#include "game/game.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
@@ -54,6 +54,7 @@ class SuperTuxWeaponConfig : public ExplosiveWeaponConfig
 class SuperTux : public WeaponProjectile
 {
   private:
+    bool swimming; // Supertux is not in the air, it is swimming!
     ParticleEngine particle_engine;
     double angle_rad;
     SoundSample flying_sound;
@@ -73,6 +74,8 @@ class SuperTux : public WeaponProjectile
     void turn_right();
     void Shoot(double strength);
     virtual void Explosion();
+    virtual void SignalDrowning();
+    virtual void SignalGoingOutOfWater();
   protected:
     void SignalOutOfMap();
 };
@@ -84,13 +87,20 @@ SuperTux::SuperTux(SuperTuxWeaponConfig& cfg,
   WeaponProjectile ("supertux", cfg, p_launcher),
   particle_engine(40)
 {
+  swimming = false;
   explode_colliding_character = true;
   SetSize(image->GetSize());
   SetTestRect(1, 1, 2, 2);
 }
 
 void SuperTux::Shoot(double strength)
-{
+{    
+  // Sound must be launched before WeaponProjectile::Shoot
+  // in case that the projectile leave the battlefield
+  // during WeaponProjectile::Shoot (#bug 10241)
+  swimming = false;
+  flying_sound.Play("share","weapon/supertux_flying", -1);
+  
   WeaponProjectile::Shoot(strength);
   angle_rad = ActiveCharacter().GetFiringAngle();
 
@@ -98,8 +108,6 @@ void SuperTux::Shoot(double strength)
   time_next_action = global_time->Read();
   last_move = global_time->Read();
   begin_time = global_time->Read();
-
-  flying_sound.Play("share","weapon/supertux_flying", -1);
 }
 
 void SuperTux::Refresh()
@@ -121,7 +129,11 @@ void SuperTux::Refresh()
     a.Push(GetPos());
     Network::GetInstance()->SendAction(&a);
   }
-  particle_engine.AddPeriodic(GetPosition(), particle_STAR, false, angle_rad, 0);
+
+  if (!swimming)
+    particle_engine.AddPeriodic(GetPosition(), particle_STAR, false, angle_rad, 0);
+  // else
+  // particle_engine.AddPeriodic(GetPosition(), particle_WATERBUBBLE, false, angle_rad, 0);
 }
 
 void SuperTux::turn_left()
@@ -142,6 +154,22 @@ void SuperTux::turn_right()
       time_next_action=time_now + time_delta;
       angle_rad = angle_rad + M_PI / 12;
     }
+}
+
+void SuperTux::SignalDrowning()
+{
+  swimming = true;
+  WeaponProjectile::SignalDrowning();
+  flying_sound.Stop();
+  flying_sound.Play("share","weapon/supertux_swimming", -1);
+}
+
+void SuperTux::SignalGoingOutOfWater()
+{
+  swimming = false;
+  WeaponProjectile::SignalGoingOutOfWater();
+  flying_sound.Stop();
+  flying_sound.Play("share","weapon/supertux_flying", -1);
 }
 
 void SuperTux::SignalOutOfMap()
@@ -190,6 +218,9 @@ TuxLauncher::TuxLauncher() :
 
   // unit will be used when the supertux disappears
   use_unit_on_first_shoot = false;
+
+  // Supertux doesn't drown! it swims!
+  ignore_drowning_signal = true;
 }
 
 WeaponProjectile * TuxLauncher::GetProjectileInstance()
@@ -209,7 +240,7 @@ bool TuxLauncher::p_Shoot ()
 void TuxLauncher::EndOfTurn() const
 {
   // To go further in the game loop
-  GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
+  Game::GetInstance()->SetState(Game::HAS_PLAYED);
 }
 
 bool TuxLauncher::IsInUse() const

@@ -21,7 +21,7 @@
  *****************************************************************************/
 
 
-#include "internet_menu.h"
+#include "menu/internet_menu.h"
 
 #include "include/app.h"
 #include "gui/button.h"
@@ -33,6 +33,7 @@
 #include "graphic/video.h"
 #include "network/net_error_msg.h"
 #include "network/index_server.h"
+#include "network/irc.h"
 #include "tool/i18n.h"
 #include "tool/resource_manager.h"
 
@@ -44,17 +45,13 @@ InternetMenu::InternetMenu() :
   
   Rectanglei stdRect(0, 0, 405, 64);
 
-  uint x_button = AppWormux::GetInstance()->video->window.GetWidth()/2 - stdRect.GetSizeX()/2;
-  uint y_box = AppWormux::GetInstance()->video->window.GetHeight()/2 - 200;
-
-  connection_box = new VBox(Rectanglei( x_button, y_box, stdRect.GetSizeX(), 1), false);
+  connection_box = new VBox(stdRect.GetSizeX(), false);
   connection_box->SetBorder(Point2i(0,0));
 
-  connect_lst = new ListBox( Rectanglei(0, 0, stdRect.GetSizeX(), 300), false);
+  connect_lst = new ListBox( Point2i(stdRect.GetSizeX(), 300), false);
   connection_box->AddWidget(connect_lst);
 
-  refresh = new ButtonText( Point2i(0,0),
-                            res, "main_menu/button",
+  refresh = new ButtonText( res, "main_menu/button",
                             _("Refresh"), // Refresh the list of available hosts
                             Font::FONT_BIG, 
                             Font::FONT_NORMAL);
@@ -62,8 +59,7 @@ InternetMenu::InternetMenu() :
   refresh->SetSizePosition( stdRect );
   connection_box->AddWidget(refresh);
 
-  connect = new ButtonText( Point2i(0,0),
-                            res, "main_menu/button",
+  connect = new ButtonText( res, "main_menu/button",
                             _("Connect !"),
                             Font::FONT_BIG, 
                             Font::FONT_NORMAL);
@@ -71,10 +67,18 @@ InternetMenu::InternetMenu() :
   connect->SetSizePosition( stdRect );
   connection_box->AddWidget(connect);
 
+  connection_box->SetXY(AppWormux::GetInstance()->video->window.GetWidth()/2 - stdRect.GetSizeX()/2,
+			AppWormux::GetInstance()->video->window.GetHeight()/2 - 200);
   widgets.AddWidget(connection_box);
 
   resource_manager.UnLoadXMLProfile(res);
   RefreshList(false);
+
+  //if there is a running server, preselect it
+  if (connect_lst->Size() > 0)
+    connect_lst->Select(0);
+
+  irc.Connect();
 }
 
 InternetMenu::~InternetMenu()
@@ -90,8 +94,8 @@ void InternetMenu::OnClickUp(const Point2i &mousePosition, int button)
   else
   if (w == connect && connect_lst->GetSelectedItem() != -1)
   {
-    Network::connection_state_t conn = Network::ClientStart(connect_lst->ReadLabel(), connect_lst->ReadValue());
-    if ( Network::IsConnected() && conn == Network::CONNECTED )
+    connection_state_t conn = Network::ClientStart(connect_lst->ReadLabel(), connect_lst->ReadValue());
+    if ( Network::IsConnected() && conn == CONNECTED )
     {
       close_menu = true;
       Menu::mouse_ok();

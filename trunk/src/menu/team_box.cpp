@@ -23,40 +23,40 @@
 #include "gui/picture_widget.h"
 #include "gui/spin_button.h"
 #include "gui/text_box.h"
-#include "team_box.h"
+#include "menu/team_box.h"
 #include "include/action_handler.h"
 #include "network/network.h"
 #include "team/team.h"
 #include "tool/i18n.h"
 
-TeamBox::TeamBox(const std::string& _player_name, const Rectanglei& rect) :
-  HBox(rect, false)
+TeamBox::TeamBox(const std::string& _player_name, const Point2i& _size) :
+  HBox(_size.GetY(), false)
 {
   associated_team=NULL;
 
   SetMargin(2);
 
-  team_logo = new PictureWidget( Rectanglei(0,0,48,48) );
+  team_logo = new PictureWidget(Point2i(48, 48));
   AddWidget(team_logo);
 
-  Box * tmp_box = new VBox(Rectanglei(0, 0, rect.GetSizeX()-80, 80), false);
+  Box * tmp_box = new VBox(_size.GetX()-80, false);
   tmp_box->SetMargin(2);
   tmp_box->SetBorder(Point2i(0,0));
-  team_name = new Label(" ", Rectanglei(0,0,rect.GetSizeX()-80,0),
+  team_name = new Label(" ", Point2i(_size.GetX()-80, -1),
                         Font::FONT_MEDIUM, Font::FONT_BOLD,
                         dark_gray_color, false, false);
 
-  Box * tmp_player_box = new HBox(Rectanglei(0,0,0,Font::GetInstance(Font::FONT_SMALL)->GetHeight()), false);
+  Box * tmp_player_box = new HBox(Font::GetInstance(Font::FONT_SMALL)->GetHeight(), false);
   tmp_player_box->SetMargin(0);
   tmp_player_box->SetBorder(Point2i(0,0));
-  tmp_player_box->AddWidget(new Label(_("Head commander"), Rectanglei(0,0,(rect.GetSizeX()-80)-100,0),
+  tmp_player_box->AddWidget(new Label(_("Head commander"), Point2i((_size.GetX()-80)-100, -1),
                                       Font::FONT_SMALL, Font::FONT_NORMAL, dark_gray_color, false, false));
-  player_name = new TextBox(_player_name, Rectanglei(0,0,100,0),
+  player_name = new TextBox(_player_name, Point2i(100, -1),
                             Font::FONT_SMALL, Font::FONT_NORMAL);
   tmp_player_box->AddWidget(player_name);
   previous_name = " ";
 
-  nb_characters = new SpinButton(_("Number of characters"), Rectanglei(0,0,0,0),
+  nb_characters = new SpinButton(_("Number of characters"), -1,
                                  6,1,1,10,
                                  dark_gray_color, false);
 

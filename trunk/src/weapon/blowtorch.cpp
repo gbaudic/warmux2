@@ -19,15 +19,14 @@
  * Blowtorch - burns holes into walls
  *****************************************************************************/
 
-#include "blowtorch.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/blowtorch.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "include/action_handler.h"
 #include "tool/i18n.h"
 #include "map/map.h"
-#include "game/game_loop.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "character/move.h"
@@ -72,7 +71,6 @@ bool Blowtorch::IsInUse() const
 void Blowtorch::ActionStopUse()
 {
   SignalTurnEnd();
-  GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
 }
 
 bool Blowtorch::p_Shoot()

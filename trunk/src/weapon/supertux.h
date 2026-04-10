@@ -22,7 +22,7 @@
 #ifndef SUPERTUX_H
 #define SUPERTUX_H
 
-#include "weapon_launcher.h"
+#include "weapon/weapon_launcher.h"
 #include "particles/particle.h"
 
 class SuperTux;
@@ -33,9 +33,11 @@ class TuxLauncher : public WeaponLauncher
 {
   private:
     SuperTux * current_tux;
+
+    friend class SuperTux;
+    void EndOfTurn() const; // should be called only by SuperTux
   public:
     TuxLauncher();
-    void EndOfTurn() const; // should be called only by SuperTux
     bool IsInUse() const;
 
     std::string GetWeaponWinString(const char *TeamName, uint items_count ) const;

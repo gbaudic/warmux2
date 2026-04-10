@@ -19,14 +19,13 @@
  * A team
  *****************************************************************************/
 
-#include "team.h"
-#include "teams_list.h"
+#include "team/team.h"
+#include "team/teams_list.h"
 #include "character/character.h"
 #include "character/body_list.h"
 #include "game/config.h"
 #include "game/game.h"
 #include "game/game_mode.h"
-#include "game/game_loop.h"
 #include "graphic/sprite.h"
 #include "interface/cursor.h"
 #include "include/base.h"
@@ -212,10 +211,9 @@ void Team::NextCharacter()
   } while (ActiveCharacter().IsDead());
   ActiveCharacter().StartPlaying();
 
-  if (is_camera_saved) Camera::GetInstance()->GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
-  Camera::GetInstance()->GetInstance()->FollowObject (&ActiveCharacter(),
-                          !is_camera_saved, !is_camera_saved,
-                          true);
+  if (is_camera_saved) Camera::GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
+  Camera::GetInstance()->FollowObject (&ActiveCharacter(),
+                          !is_camera_saved);
   MSG_DEBUG("team", "%s (%d, %d)is now the active character",
             ActiveCharacter().GetName().c_str(),
             ActiveCharacter().GetX(),
@@ -234,10 +232,9 @@ void Team::PreviousCharacter()
   } while (ActiveCharacter().IsDead());
   ActiveCharacter().StartPlaying();
 
-  if (is_camera_saved) Camera::GetInstance()->GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
-  Camera::GetInstance()->GetInstance()->FollowObject (&ActiveCharacter(),
-                          !is_camera_saved, !is_camera_saved,
-                          true);
+  if (is_camera_saved) Camera::GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
+  Camera::GetInstance()->FollowObject (&ActiveCharacter(),
+                          !is_camera_saved);
   MSG_DEBUG("team", "%s (%d, %d)is now the active character",
             ActiveCharacter().GetName().c_str(),
             ActiveCharacter().GetX(),
@@ -265,10 +262,9 @@ void Team::PrepareTurn()
     NextCharacter();
   }
 
-  if (is_camera_saved) Camera::GetInstance()->GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
-  Camera::GetInstance()->GetInstance()->FollowObject (&ActiveCharacter(),
-                          !is_camera_saved, !is_camera_saved,
-                          true);
+  if (is_camera_saved) Camera::GetInstance()->SetXYabs (sauve_camera.x, sauve_camera.y);
+  Camera::GetInstance()->FollowObject (&ActiveCharacter(),
+                          !is_camera_saved);
   CharacterCursor::GetInstance()->FollowActiveCharacter();
 
   // Active last weapon use if EnoughAmmo
@@ -407,7 +403,7 @@ void Team::Refresh()
 }
 
 Weapon& Team::AccessWeapon() const { return *active_weapon; }
-Weapon& Team::GetWeapon() const { return *active_weapon; }
+const Weapon& Team::GetWeapon() const { return *active_weapon; }
 Weapon::Weapon_type Team::GetWeaponType() const { return GetWeapon().GetType(); }
 
 bool Team::IsSameAs(const Team& other) const

@@ -26,7 +26,7 @@
 #include "gui/box.h"
 
 class TeamBox;
-class SpinButtonBig;
+class SpinButtonWithPicture;
 class Team;
 
 const uint NMAX_NB_TEAMS=4;
@@ -39,7 +39,7 @@ class NetworkTeamsSelectionBox : public HBox
   NetworkTeamsSelectionBox operator=(const NetworkTeamsSelectionBox&);
   /**********************************************/
 
-  SpinButtonBig *local_teams_nb;
+  SpinButtonWithPicture *local_teams_nb;
   std::vector<TeamBox*> teams_selections;
   void SetNbLocalTeams(uint nb_teams, uint previous_nb);
   void AddLocalTeam(uint i);
@@ -49,7 +49,7 @@ class NetworkTeamsSelectionBox : public HBox
   void NextTeam(uint i, bool check_null_prev_team = true);
 
  public:
-  NetworkTeamsSelectionBox(const Rectanglei &rect);
+  NetworkTeamsSelectionBox(const Point2i &size);
 
   void ValidTeamsSelection();
   Widget* Click(const Point2i &mousePosition, uint button);
@@ -58,5 +58,7 @@ class NetworkTeamsSelectionBox : public HBox
   void AddTeamCallback(const std::string& team_id);
   void UpdateTeamCallback(const std::string& team_id);
   void DelTeamCallback(const std::string& team_id);
+
+  void SetMaxNbLocalPlayers(uint nb);
 };
 #endif

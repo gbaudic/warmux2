@@ -19,17 +19,16 @@
  * Label in GUI.
  *****************************************************************************/
 
-#include "label.h"
+#include "gui/label.h"
 #include "graphic/text.h"
 
 Label::Label (const std::string &label,
-              const Rectanglei &rect,
+              const Point2i &_size,
               Font::font_size_t fsize,
               Font::font_style_t fstyle,
               const Color& color,
               bool _center,
               bool _shadowed):
-  txt_label(new Text(label, color, fsize, fstyle, _shadowed)),
   hidden(false),
   font_size(fsize),
   font_style(fstyle),
@@ -37,10 +36,12 @@ Label::Label (const std::string &label,
   center(_center),
   shadowed(_shadowed)
 {
-  position = rect.GetPosition();
-  size = rect.GetSize();
-  txt_label->SetMaxWidth(GetSizeX());
+  position = Point2i(-1, -1);
+  size = _size;
+
+  txt_label = new Text(label, color, fsize, fstyle, _shadowed, label.empty());
   size.y = txt_label->GetHeight();
+  txt_label->SetMaxWidth(GetSizeX());
 }
 
 Label::~Label()
@@ -70,7 +71,7 @@ void Label::SetText(const std::string &new_txt)
 {
   need_redrawing = true;
   delete txt_label;
-  txt_label = new Text(new_txt, font_color, font_size, font_style, shadowed);
+  txt_label = new Text(new_txt, font_color, font_size, font_style, shadowed, new_txt.empty());
   txt_label->SetMaxWidth(GetSizeX());
 }
 

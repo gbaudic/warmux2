@@ -17,45 +17,39 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#include "spin_button_big.h"
-#include "button.h"
+#include "gui/spin_button_big.h"
+#include "gui/button.h"
 #include <sstream>
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
 #include "graphic/text.h"
 
-SpinButtonBig::SpinButtonBig (const std::string &label, const Rectanglei &rect,
-                              int value, int step, int min_value, int max_value)
+SpinButtonBig::SpinButtonBig (const std::string &label, const Point2i &_size,
+                              int value, int step, int min_value, int max_value) :
+  AbstractSpinButton(value, step, min_value, max_value)
 {
-  position =  rect.GetPosition();
-  size = rect.GetSize();
+  position = Point2i(-1, -1);
+  size = _size;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
 
   txt_label = new Text(label, dark_gray_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false);
   txt_label->SetMaxWidth(GetSizeX());
 
-  if ( min_value != -1 && min_value <= value)
-    m_min_value = min_value;
-  else m_min_value = value/2;
-
-  if ( max_value != -1 && max_value >= value)
-    m_max_value = max_value;
-  else m_max_value = value*2;
-
   txt_value = new Text("", dark_gray_color, Font::FONT_HUGE, Font::FONT_NORMAL, false);
-  SetValue(value);
 
   std::ostringstream max_value_s;
-  max_value_s << m_max_value ;
+  max_value_s << GetMaxValue();
   uint max_value_w = (*Font::GetInstance(Font::FONT_HUGE)).GetWidth(max_value_s.str());
 
   uint margin = 5;
-
-  m_plus = new Button( Point2i(position.x + size.x - 5, position.y), res, "menu/big_plus");
-  m_minus = new Button( Point2i(position.x + size.x - max_value_w - 5 - 2 * margin, position.y), res, "menu/big_minus");
+  m_plus = new Button(res, "menu/big_plus");
+  m_plus->SetXY(position.x + size.x - margin, position.y);
+  m_minus = new Button(res, "menu/big_minus");
+  m_minus->SetXY(position.x + size.x - max_value_w - margin - 2 * margin, position.y);
   resource_manager.UnLoadXMLProfile( res);
-  m_step = step;
+
+  ValueHasChanged();
 }
 
 SpinButtonBig::~SpinButtonBig ()
@@ -74,7 +68,7 @@ void SpinButtonBig::SetSizePosition(const Rectanglei &rect)
   txt_label->SetMaxWidth(GetSizeX());
 
   std::ostringstream max_value_s;
-  max_value_s << m_max_value ;
+  max_value_s << GetMaxValue();
   uint max_value_w = Font::GetInstance(Font::FONT_HUGE)->GetWidth(max_value_s.str());
 
   // center the value
@@ -91,10 +85,10 @@ void SpinButtonBig::SetSizePosition(const Rectanglei &rect)
 
 void SpinButtonBig::Draw(const Point2i &mousePosition, Surface& surf) const
 {
-  if (GetValue() != m_min_value) {
+  if (GetValue() != GetMinValue()) {
     m_minus->Draw(mousePosition, surf);
   }
-  if (GetValue() != m_max_value) {
+  if (GetValue() != GetMaxValue()) {
     m_plus->Draw(mousePosition, surf);
   }
 
@@ -114,22 +108,20 @@ Widget* SpinButtonBig::ClickUp(const Point2i &mousePosition, uint button)
 
   if( (button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition)) ||
       (button == SDL_BUTTON_LEFT && m_minus->Contains(mousePosition)) ){
-    SetValue(m_value - m_step);
+    DecValue();
     return this;
   } else if( (button == SDL_BUTTON_WHEELUP && Contains(mousePosition)) ||
              (button == SDL_BUTTON_LEFT && m_plus->Contains(mousePosition)) ){
-    SetValue(m_value + m_step);
+    IncValue();
     return this;
   }
   return NULL;
 }
 
-void SpinButtonBig::SetValue(int value)
+void SpinButtonBig::ValueHasChanged()
 {
-  m_value = BorneLong(value, m_min_value, m_max_value);
-
   std::ostringstream value_s;
-  value_s << m_value ;
+  value_s << GetValue();
 
   std::string s(value_s.str());
   txt_value->Set(s);

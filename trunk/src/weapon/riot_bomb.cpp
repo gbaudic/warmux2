@@ -20,9 +20,9 @@
  * hole with angle and force
  *****************************************************************************/
 
-#include "riot_bomb.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/riot_bomb.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "game/config.h"
 #include "graphic/sprite.h"
@@ -37,10 +37,13 @@
 class RiotBombRocket : public WeaponProjectile
 {
   ParticleEngine smoke_engine;
+  SoundSample flying_sound;
 public:
   RiotBombRocket(ExplosiveWeaponConfig& cfg,
                    WeaponLauncher * p_launcher);
   void Refresh();
+  void Explosion();
+  void Shoot(double strength);
 protected:
   void SignalOutOfMap();
   void SignalDrowning();
@@ -51,6 +54,16 @@ RiotBombRocket::RiotBombRocket(ExplosiveWeaponConfig& cfg,
   WeaponProjectile ("riot_rocket", cfg, p_launcher)
 {
   explode_colliding_character = true;
+}
+
+void RiotBombRocket::Shoot(double strength)
+{
+  // Sound must be launched before WeaponProjectile::Shoot
+  // in case that the projectile leave the battlefield
+  // during WeaponProjectile::Shoot (#bug 10241)
+  flying_sound.Play("share","weapon/riotbomb_rocket_flying", -1);
+
+  WeaponProjectile::Shoot(strength);
 }
 
 void RiotBombRocket::Refresh()
@@ -72,13 +85,25 @@ void RiotBombRocket::SignalOutOfMap()
 {
   GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
+
+  flying_sound.Stop();
 }
 
 void RiotBombRocket::SignalDrowning()
 {
   smoke_engine.Stop();
   WeaponProjectile::SignalDrowning();
+
+  flying_sound.Stop();
 }
+
+void RiotBombRocket::Explosion()
+{
+  WeaponProjectile::Explosion();
+
+  flying_sound.Stop();
+}
+
 //-----------------------------------------------------------------------------
 
 RiotBomb::RiotBomb() :

@@ -19,10 +19,10 @@
  * Mouvement right/left for a character.
  *****************************************************************************/
 
-#include "move.h"
+#include "character/move.h"
 //#include <math.h>
-#include "character.h"
-#include "game/game_loop.h"
+#include "character/character.h"
+#include "game/game.h"
 #include "include/action_handler.h"
 #include "network/network.h"
 #include "team/team.h"
@@ -88,7 +88,7 @@ void MoveCharacter(Character &character)
   bool ghost;
 
   // If character moves out of the world, no need to go further: it is dead
-  if (character.GetDirection() == -1)
+  if (character.GetDirection() == DIRECTION_LEFT)
     ghost = character.IsOutsideWorld ( Point2i(-1, 0) );
   else
     ghost = character.IsOutsideWorld ( Point2i(1, 0) );
@@ -104,7 +104,7 @@ void MoveCharacter(Character &character)
   do
   {
     // Move !
-    GameLoop::GetInstance()->character_already_chosen = true;
+    Game::GetInstance()->character_already_chosen = true;
     // Eventually moves the character
 
     character.SetXY( Point2i(character.GetX() +character.GetDirection(),

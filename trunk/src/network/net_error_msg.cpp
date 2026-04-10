@@ -19,33 +19,33 @@
  *  Displays network related error messages in a pop-up
  *****************************************************************************/
 
-#include "net_error_msg.h"
-#include "network.h"
+#include "network/net_error_msg.h"
+#include "network/network.h"
 #include "tool/i18n.h"
 #include "gui/question.h"
 
-void DispNetworkError(Network::connection_state_t err)
+void DispNetworkError(connection_state_t err)
 {
   Question question;
   std::string msg;
   switch(err)
   {
-  case Network::CONNECTED:
+  case CONNECTED:
     msg = _("Connected !");
     break;
-  case Network::CONN_BAD_HOST:
+  case CONN_BAD_HOST:
     msg = _("Unable to contact host.");
     break;
-  case Network::CONN_BAD_PORT:
+  case CONN_BAD_PORT:
     msg = _("Unable to use this port!");
     break;
-  case Network::CONN_BAD_SOCKET:
+  case CONN_BAD_SOCKET:
     msg = _("Bad socket ...");
     break;
-  case Network::CONN_REJECTED:
+  case CONN_REJECTED:
     msg = _("The server rejected the connection.");
     break;
-  case Network::CONN_TIMEOUT:
+  case CONN_TIMEOUT:
     msg = _("The connection timed out. Check there is no firewall in the way!");
     break;
   default: ASSERT(false);

@@ -19,15 +19,14 @@
  * AirHammer - Use it to dig
  *****************************************************************************/
 
-#include "airhammer.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/airhammer.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 //-----------------------------------------------------------------------------
 #include <sstream>
 #include "character/character.h"
 #include "game/game.h"
-#include "game/game_loop.h"
 #include "game/time.h"
 #include "include/action_handler.h"
 #include "interface/game_msg.h"
@@ -73,6 +72,7 @@ Airhammer::Airhammer() : Weapon(WEAPON_AIR_HAMMER,"airhammer",new AirhammerConfi
 bool Airhammer::p_Shoot()
 {
   //if the sound isn't already playing, play it again.
+   select_sound.Stop();
    if(!drill_sound.IsPlaying()) {
     drill_sound.Play("share","weapon/airhammer", -1);
   }
@@ -85,7 +85,7 @@ bool Airhammer::p_Shoot()
 
   Point2i pos = Point2i(ActiveCharacter().GetX() + ActiveCharacter().GetWidth()/2 - impact.GetWidth()/2,
                         ActiveCharacter().GetTestRect().GetPositionY() +
-                        ActiveCharacter().GetHeight()  -15);
+                        ActiveCharacter().GetHeight()  -16);
 
   ParticleEngine::AddNow(pos + Point2i(impact.GetWidth()/4,9), 1, particle_AIR_HAMMER,
                          true, -3.0 * M_PI_4, 5.0 + Time::GetInstance()->Read() % 5);
@@ -114,7 +114,7 @@ bool Airhammer::p_Shoot()
     if (&(*character) != &ActiveCharacter())
     {
       // Did we touch somebody ?
-      if( character->ObjTouche(Point2i(x, y)) )
+      if( character->Contain(Point2i(x, y)) )
       {
         // Apply damage (*ver).SetEnergyDelta (-cfg().damage);
         character->SetEnergyDelta(-(int)cfg().damage);
@@ -142,13 +142,14 @@ void Airhammer::RepeatShoot() const
 void Airhammer::ActionStopUse()
 {
   ActiveTeam().AccessNbUnits() = 0; // ammo units are lost
-  GameLoop::GetInstance()->SetState(GameLoop::HAS_PLAYED);
+  Game::GetInstance()->SetState(Game::HAS_PLAYED);
   p_Deselect();
 }
 
 void Airhammer::p_Deselect()
 {
   drill_sound.Stop();
+  select_sound.Stop();
 }
 
 //-----------------------------------------------------------------------------
@@ -167,7 +168,7 @@ bool Airhammer::IsInUse() const
 
 void Airhammer::p_Select()
 {
-  jukebox.Play("share","weapon/airhammer_select");
+  select_sound.Play("share","weapon/airhammer_select",-1);
 }
 
 std::string Airhammer::GetWeaponWinString(const char *TeamName, uint items_count ) const

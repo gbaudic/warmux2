@@ -19,14 +19,13 @@
  * Parachute !
  *****************************************************************************/
 
-#include "parachute.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/parachute.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "game/game.h"
 #include "game/game_mode.h"
-#include "game/game_loop.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
@@ -74,8 +73,8 @@ void Parachute::p_Deselect()
 
 bool Parachute::IsInUse() const
 {
-  return GameLoop::GetInstance()->GetRemainingTime() > 0 &&
-         GameLoop::GetInstance()->ReadState() == GameLoop::PLAYING;
+  return Game::GetInstance()->GetRemainingTime() > 0 &&
+         Game::GetInstance()->ReadState() == Game::PLAYING;
 }
 
 bool Parachute::p_Shoot()
@@ -110,11 +109,11 @@ void Parachute::Refresh()
         image->Start();
         ActiveCharacter().SetSpeedXY(Point2d(0,0));
         ActiveCharacter().SetMovement("parachute");
-        Camera::GetInstance()->GetInstance()->SetCloseFollowing(true);
-        Camera::GetInstance()->GetInstance()->FollowObject(&ActiveCharacter(), true, true, true);
+        Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
       }
     }
   } else { // We are on the ground
+    ActiveCharacter().SetMovement("walk");
     if(open) { // The parachute is opened
       if (!closing) { // We have just hit the ground. Start closing animation
         image->animation.SetPlayBackward(true);
@@ -159,6 +158,10 @@ void Parachute::HandleKeyPressed_Shoot(bool shift)
 
 void Parachute::HandleKeyPressed_MoveRight(bool shift)
 {
+  if (closing) {
+    ActiveCharacter().BeginMovementRL(0);
+  }
+
   if(open) {
     ActiveCharacter().SetDirection(DIRECTION_RIGHT);
     m_x_extern = cfg().force_side_displacement;
@@ -177,6 +180,10 @@ void Parachute::HandleKeyReleased_MoveRight(bool shift)
 
 void Parachute::HandleKeyPressed_MoveLeft(bool shift)
 {
+  if (closing) {
+    ActiveCharacter().BeginMovementRL(0);
+  }
+
   if(open) {
     ActiveCharacter().SetDirection(DIRECTION_LEFT);
     m_x_extern = -cfg().force_side_displacement;

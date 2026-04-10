@@ -29,6 +29,11 @@ class NetworkServer : public Network
 {
   uint max_nb_players;
   TCPsocket server_socket; // Wait for incoming connections on this socket
+
+protected:
+  virtual void HandleAction(Action* a, DistantComputer* sender);
+  virtual void WaitActionSleep();
+
 public:
   NetworkServer();
   ~NetworkServer();
@@ -37,10 +42,9 @@ public:
   virtual const bool IsServer() const { return true; }
 
   virtual void SendChatMessage(const std::string& txt);
-  virtual void ReceiveActions();
 
   // Serveur specific methods
-  Network::connection_state_t ServerStart(const std::string &port);
+  connection_state_t ServerStart(const std::string &port);
 
   bool AcceptIncoming();
   void RejectIncoming();

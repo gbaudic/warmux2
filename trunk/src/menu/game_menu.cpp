@@ -19,9 +19,9 @@
  * Game menu
  *****************************************************************************/
 
-#include "game_menu.h"
-#include "map_selection_box.h"
-#include "teams_selection_box.h"
+#include "menu/game_menu.h"
+#include "menu/map_selection_box.h"
+#include "menu/teams_selection_box.h"
 
 #include "game/game.h"
 #include "game/config.h"
@@ -58,8 +58,7 @@ GameMenu::GameMenu() :
   Menu("menu/bg_play")
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml",false);
-  Rectanglei rectZero(0, 0, 0, 0);
-  Rectanglei stdRect (0, 0, 130, 30);
+  Point2i stdSize(130, -1);
 
   Surface window = AppWormux::GetInstance()->video->window;
 
@@ -71,44 +70,43 @@ GameMenu::GameMenu() :
   // ################################################
   // ##  TEAM SELECTION
   // ################################################
-  team_box = new TeamsSelectionBox(Rectanglei(MARGIN_SIDE, MARGIN_TOP,
-                                              mainBoxWidth, TEAMS_BOX_H));
-
+  team_box = new TeamsSelectionBox(Point2i(mainBoxWidth, TEAMS_BOX_H));
+  team_box->SetXY(MARGIN_SIDE, MARGIN_TOP);
   widgets.AddWidget(team_box);
 
   // ################################################
   // ##  MAP SELECTION
   // ################################################
-  map_box = new MapSelectionBox( Rectanglei(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_SIDE,
-                                            mainBoxWidth, mapBoxHeight));
+  map_box = new MapSelectionBox(Point2i(mainBoxWidth, mapBoxHeight));
 
+  map_box->SetXY(MARGIN_SIDE, team_box->GetPositionY()+team_box->GetSizeY()+ MARGIN_TOP);
   widgets.AddWidget(map_box);
 
   // ################################################
   // ##  GAME OPTIONS
   // ################################################
-  game_options = new HBox( Rectanglei(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_SIDE,
-                                      mainBoxWidth/2, OPTIONS_BOX_H), true);
-  game_options->AddWidget(new PictureWidget(Rectanglei(0,0,39,128), "menu/mode_label"));
+  game_options = new HBox(OPTIONS_BOX_H, true);
+  game_options->SetXY(MARGIN_SIDE, map_box->GetPositionY()+map_box->GetSizeY()+ MARGIN_TOP);
+  game_options->AddWidget(new PictureWidget(Point2i(39, 128), "menu/mode_label"));
 
   game_options->SetMargin(50);
 
   opt_duration_turn = new SpinButtonWithPicture(_("Duration of a turn"), "menu/timing_turn",
-                                                stdRect,
+                                                stdSize,
                                                 TPS_TOUR_MIN, 5,
                                                 TPS_TOUR_MIN, TPS_TOUR_MAX);
   game_options->AddWidget(opt_duration_turn);
 
   opt_energy_ini = new SpinButtonWithPicture(_("Initial energy"), "menu/energy",
-                                             stdRect,
+                                             stdSize,
                                              100, 5,
                                              5, 200);
   game_options->AddWidget(opt_energy_ini);
 
-  opt_scroll_on_border = new PictureTextCBox(_("Scroll on border"), "menu/scroll_on_border", stdRect);
+  opt_scroll_on_border = new PictureTextCBox(_("Scroll on border"), "menu/scroll_on_border", stdSize);
   game_options->AddWidget(opt_scroll_on_border);
 
-  game_options->AddWidget(new NullWidget(Rectanglei(0,0,50,10)));
+  game_options->AddWidget(new NullWidget(Rectanglei(-1, -1, 50, 10)));
 
   widgets.AddWidget(game_options);
 

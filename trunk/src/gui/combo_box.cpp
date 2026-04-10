@@ -20,10 +20,10 @@
 #include <vector>
 #include <sstream>
 
-#include "combo_box.h"
+#include "gui/combo_box.h"
 #include "graphic/text.h"
 #include "graphic/video.h"
-#include "button.h"
+#include "gui/button.h"
 #include "include/app.h"
 #include "tool/math_tools.h"
 #include "tool/resource_manager.h"
@@ -32,13 +32,13 @@
 
 ComboBox::ComboBox (const std::string &label,
 		    const std::string &resource_id,
-		    const Rectanglei &rect,
+		    const Point2i &_size,
 		    const std::vector<std::pair<std::string, std::string> > &choices,
 		    const std::string choice):
   m_choices(choices), m_index(0)
 {
-  position =  rect.GetPosition();
-  size = rect.GetSize();
+  position = Point2i(-1, -1);
+  size = _size;
 
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   m_image = resource_manager.LoadImage(res, resource_id);
@@ -139,10 +139,12 @@ Widget* ComboBox::ClickUp(const Point2i &mousePosition, uint button)
   if (button == SDL_BUTTON_LEFT && Contains(mousePosition)) {
 
     SetChoice(m_index + 1);
+    return this;
 
   } else if (button == SDL_BUTTON_RIGHT && Contains(mousePosition)) {
 
     SetChoice(m_index - 1);
+    return this;
 
   } else if( button == SDL_BUTTON_WHEELDOWN && Contains(mousePosition) ) {
 
@@ -170,4 +172,11 @@ void ComboBox::SetChoice (std::vector<std::string>::size_type index)
   txt_value_white->Set(m_choices[m_index].second);
 
   ForceRedraw();
+}
+
+const int ComboBox::GetIntValue() const
+{
+  int tmp = 0;
+  sscanf(GetValue().c_str(),"%d", &tmp);
+  return tmp;
 }

@@ -19,13 +19,12 @@
  * Air attack.
  *****************************************************************************/
 
-#include "air_attack.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/air_attack.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include <sstream>
 #include "character/character.h"
-#include "game/game_loop.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
@@ -126,10 +125,9 @@ void Plane::Shoot(double speed, const Point2i& target)
 
   SetSpeedXY (speed_vector);
 
-  Camera::GetInstance()->GetInstance()->FollowObject(this, true, true);
+  Camera::GetInstance()->FollowObject(this, true);
 
   lst_objects.AddObject(this);
-  Camera::GetInstance()->GetInstance()->SetCloseFollowing(true);
 }
 
 void Plane::DropBomb()
@@ -152,7 +150,7 @@ void Plane::DropBomb()
   nb_dropped_bombs++;
 
   if (nb_dropped_bombs == 1)
-    Camera::GetInstance()->GetInstance()->FollowObject(instance, true, true);
+    Camera::GetInstance()->FollowObject(instance, true);
 
 }
 
@@ -162,7 +160,6 @@ void Plane::Refresh()
   image->Update();
   // First shoot !!
   if ( OnTopOfTarget() && nb_dropped_bombs == 0) {
-  //  Camera::GetInstance()->GetInstance()->StopFollowingObj(this);
     DropBomb();
     m_ignore_movements = true;
   } else if (nb_dropped_bombs > 0 &&  nb_dropped_bombs < cfg.nbr_obus) {

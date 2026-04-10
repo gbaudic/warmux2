@@ -19,14 +19,14 @@
  * Terrain de jeu.
  *****************************************************************************/
 
-#include "ground.h"
+#include "map/ground.h"
 #include <iostream>
 #include <SDL_video.h>
 #include <SDL_gfxPrimitives.h>
 #include <limits.h>
-#include "camera.h"
-#include "map.h"
-#include "maps_list.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "map/maps_list.h"
 #include "graphic/surface.h"
 #include "graphic/video.h"
 #include "graphic/colors.h"
@@ -45,8 +45,11 @@ void Ground::Init(){
 
   // Load ground data
   Surface m_image = ActiveMap().ReadImgGround();
-  LoadImage ( m_image );
-
+  if(ActiveMap().IsOpened()) {
+    LoadImage(m_image, ActiveMap().GetUpperLeftPad(), ActiveMap().GetLowerRightPad());
+  } else {
+    LoadImage(m_image, Point2i(), Point2i());
+  }
   // Check the size of the map
   ASSERT(Constants::MAP_MIN_SIZE <= GetSize());
   ASSERT(GetSizeX()*GetSizeY() <= Constants::MAP_MAX_SIZE);
@@ -244,12 +247,12 @@ void Ground::Draw(bool redraw_all)
   Point2i windowSize = app->video->window.GetSize();
   Point2i margin = (windowSize - GetSize())/2;
 
-  if( Camera::GetInstance()->GetInstance()->HasFixedX() ){// ground is less wide than screen !
+  if( Camera::GetInstance()->HasFixedX() ){// ground is less wide than screen !
     app->video->window.BoxColor( Rectanglei(0, 0, margin.x, windowSize.y), black_color);
     app->video->window.BoxColor( Rectanglei(windowSize.x - margin.x, 0, margin.x, windowSize.y), black_color);
   }
 
-  if( Camera::GetInstance()->GetInstance()->HasFixedY() ){// ground is less wide than screen !
+  if( Camera::GetInstance()->HasFixedY() ){// ground is less wide than screen !
     app->video->window.BoxColor( Rectanglei(0, 0, windowSize.x, margin.y), black_color);
     app->video->window.BoxColor( Rectanglei(0, windowSize.y - margin.y, windowSize.x, margin.y), black_color);
   }

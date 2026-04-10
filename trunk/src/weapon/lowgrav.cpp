@@ -19,13 +19,12 @@
  * Low gravity weapon
  *****************************************************************************/
 
-#include "lowgrav.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/lowgrav.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "game/game.h"
-#include "game/game_loop.h"
 #include "object/physical_obj.h"
 #include "sound/jukebox.h"
 #include "interface/game_msg.h"
@@ -48,7 +47,6 @@ void LowGrav::p_Deselect()
 {
   ActiveCharacter().ResetConstants();
   ActiveCharacter().SetClothe("normal");
-  m_is_active = false;
 }
 
 bool LowGrav::p_Shoot()

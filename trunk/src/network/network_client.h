@@ -27,6 +27,10 @@
 
 class NetworkClient : public Network
 {
+protected:
+  virtual void HandleAction(Action* a, DistantComputer* sender);
+  virtual void WaitActionSleep() {};
+
 public:
   NetworkClient();
   ~NetworkClient();
@@ -35,12 +39,11 @@ public:
   virtual const bool IsClient() const { return true; }
 
   virtual void SendChatMessage(const std::string& txt);
-  virtual void ReceiveActions();
 
   std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator);
 
   // Client specific methods
-  const Network::connection_state_t ClientConnect(const std::string &host,
+  const connection_state_t ClientConnect(const std::string &host,
                                                   const std::string& port);
 };
 

@@ -19,9 +19,9 @@
  * Anvil : appear in top of an enemy and crush down his head
  *****************************************************************************/
 
-#include "weapon_cfg.h"
-#include "anvil.h"
-#include "explosion.h"
+#include "weapon/weapon_cfg.h"
+#include "weapon/anvil.h"
+#include "weapon/explosion.h"
 //-----------------------------------------------------------------------------
 #include <sstream>
 #include "character/character.h"
@@ -56,7 +56,6 @@ class Anvil : public WeaponProjectile
     virtual void SignalObjectCollision(PhysicalObj * obj);
     virtual void SignalGroundCollision();
     virtual void SignalOutOfMap();
-    virtual void SignalDrowning();
 };
 
 Anvil::Anvil(ExplosiveWeaponConfig& cfg,
@@ -89,11 +88,6 @@ void Anvil::SignalGroundCollision()
 void Anvil::SignalOutOfMap()
 {
   falling_sound.Stop();
-}
-
-void Anvil::SignalDrowning()
-{
-  jukebox.Play("share", "sink");
 }
 
 void Anvil::Refresh()
@@ -147,7 +141,7 @@ bool AnvilLauncher::p_Shoot ()
   projectile->SetXY(target);
   ((Anvil*)projectile)->PlayFallSound();
   lst_objects.AddObject(projectile);
-  Camera::GetInstance()->GetInstance()->FollowObject(projectile,true,true);
+  Camera::GetInstance()->FollowObject(projectile,true);
   projectile = NULL;
   ReloadLauncher();
 

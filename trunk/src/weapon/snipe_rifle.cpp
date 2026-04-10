@@ -19,13 +19,13 @@
  * Snipe Rifle. Overide the Draw method in order to draw the laser beam.
  *****************************************************************************/
 
-#include "snipe_rifle.h"
-#include "weapon_cfg.h"
+#include "weapon/snipe_rifle.h"
+#include "weapon/weapon_cfg.h"
 
 #include <sstream>
-#include "explosion.h"
+#include "weapon/explosion.h"
 #include "character/character.h"
-#include "game/game_loop.h"
+#include "game/game.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
 #include "include/app.h"
@@ -42,6 +42,7 @@
 const uint SNIPE_RIFLE_BEAM_START = 5;
 const uint SNIPE_RIFLE_BULLET_SPEED = 20;
 const uint SNIPE_RIFLE_MAX_BEAM_SIZE = 500;
+const uint SNIPE_RIFLE_FADE_BEAM_SIZE = 400;
 
 class SnipeBullet : public WeaponBullet
 {
@@ -105,13 +106,15 @@ void SnipeRifle::SignalProjectileGhostState()
   ComputeCrossPoint(true);
 }
 
-bool SnipeRifle::ComputeCrossPoint(bool force = false)
+void SnipeRifle::ComputeCrossPoint(bool force = false)
 {
   // Did the current character is moving ?
   Point2i pos = GetGunHolePosition();
   double angle = ActiveCharacter().GetFiringAngle();
-  if ( !force && last_rifle_pos == pos && last_angle == angle ) return targeting_something;
-  else {
+  if ( !force && last_rifle_pos == pos && last_angle == angle )
+    return;
+  else
+  {
     last_rifle_pos=pos;
     last_angle=angle;
   }
@@ -154,7 +157,7 @@ bool SnipeRifle::ComputeCrossPoint(bool force = false)
     distance = (int) start_point.Distance(pos);
   }
   targeted_point=pos;
-  return targeting_something;
+  return;
 }
 
 // Reset crosshair when switching from a weapon to another to avoid misused
@@ -167,12 +170,16 @@ void SnipeRifle::DrawBeam()
 {
   Point2i pos1 = laser_beam_start - Camera::GetInstance()->GetPosition();
   Point2i pos2 = targeted_point - Camera::GetInstance()->GetPosition();
-  AppWormux::GetInstance()->video->window.AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color);
+  float dst = laser_beam_start.Distance(targeted_point);
+
+  AppWormux::GetInstance()->video->window.
+    AAFadingLineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color, Color(255, 0, 0, 0));
+
+  // AppWormux::GetInstance()->video->window.AALineColor(pos1.x, pos2.x, pos1.y, pos2.y, laser_beam_color);
 
   // Set area of the screen to be redrawn:
   // Splited into little rectangles to avoid too large area of redraw
   float redraw_size = 20.0;
-  float dst = laser_beam_start.Distance(targeted_point);
   Point2f pos = Point2f((float)laser_beam_start.x, (float)laser_beam_start.y);
   Point2f delta = ( Point2f((float)targeted_point.x, (float)targeted_point.y) - pos ) * redraw_size / dst;
   Point2i delta_i((int)delta.x, (int)delta.y);
@@ -212,11 +219,12 @@ void SnipeRifle::DrawBeam()
 void SnipeRifle::Draw()
 {
   WeaponLauncher::Draw();
-  if( GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING || IsInUse() ) return;
+  if( Game::GetInstance()->ReadState() != Game::PLAYING || IsInUse() ) return;
   ComputeCrossPoint();
   DrawBeam();
   // Draw the laser impact
-  if( targeting_something ) m_laser_image->Draw(targeted_point - (m_laser_image->GetSize()/2));
+  if( targeting_something )
+    m_laser_image->Draw(targeted_point - (m_laser_image->GetSize()/2));
 }
 
 std::string SnipeRifle::GetWeaponWinString(const char *TeamName, uint items_count ) const

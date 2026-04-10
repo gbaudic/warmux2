@@ -21,11 +21,11 @@
 
 #include <SDL_thread.h>
 #include <SDL_timer.h>
-#include "network.h"
-#include "network_local.h"
-#include "network_client.h"
-#include "network_server.h"
-#include "distant_cpu.h"
+#include "network/network.h"
+#include "network/network_local.h"
+#include "network/network_client.h"
+#include "network/network_server.h"
+#include "network/distant_cpu.h"
 //-----------------------------------------------------------------------------
 #include "game/game_mode.h"
 #include "game/game.h"
@@ -95,13 +95,18 @@ Network::Network():
 #endif
   network_menu(NULL),
   cpu(),
-  sync_lock(false),
-#ifdef WIN32
-  nickname(getenv("USERNAME"))
-#else
-  nickname(getenv("USER"))
-#endif
+  sync_lock(false)
 {
+  const char *nick = NULL;
+#ifdef WIN32
+  char  buffer[32];
+  DWORD size = 32;
+  if (GetUserName(buffer, &size))
+    nick = buffer;
+#else
+  nick = getenv("USER");
+#endif
+  nickname = (nick) ? nick : _("Unnamed");
   sdlnet_initialized = false;
   num_objects++;
 }
@@ -121,7 +126,6 @@ Network::~Network()
   {
     if (sdlnet_initialized)
     {
-      //printf("###  SDL_net end\n");
       SDLNet_Quit();
       sdlnet_initialized = false;
     }
@@ -146,6 +150,92 @@ int Network::ThreadRun(void*/*no_param*/)
   return 1;
 }
 
+void Network::ReceiveActions()
+{
+  char* packet;
+  std::list<DistantComputer*>::iterator dst_cpu;
+
+  while (ThreadToContinue()) // While the connection is up
+  {
+    if (state == NETWORK_PLAYING && cpu.size() == 0)
+    {
+      // If while playing everybody disconnected, just quit
+      break;
+    }
+
+    //Loop while nothing is received
+    while (ThreadToContinue())
+    {
+      WaitActionSleep();
+
+      if (IsClient() && cpu.size() == 0) {
+	fprintf(stderr, "you are alone!\n");
+	stop_thread = true;
+	continue;
+      }
+
+      // Check forced disconnections
+      for (dst_cpu = cpu.begin();
+           dst_cpu != cpu.end() && ThreadToContinue();
+           dst_cpu++)
+      {
+        if((*dst_cpu)->force_disconnect)
+        {
+          dst_cpu = CloseConnection(dst_cpu);
+          continue;
+        }
+      }
+
+      int num_ready = SDLNet_CheckSockets(socket_set, 100);
+      // Means something is available
+      if (num_ready>0)
+        break;
+      // Means an error
+#ifndef WIN32
+      // XXX Under windows (and MSVC build?), SDLNet_CheckSockets returns -1
+      //     until first client is connected, but there is no actual error.
+      //     So we keep on looping even on error.
+      else if (num_ready == -1)
+      {
+        fprintf(stderr, "SDLNet_CheckSockets: %s\n", SDLNet_GetError());
+      }
+#endif
+    }
+
+    for (dst_cpu = cpu.begin();
+         dst_cpu != cpu.end() && ThreadToContinue();
+         dst_cpu++)
+    {
+      if((*dst_cpu)->SocketReady()) // Check if this socket contains data to receive
+      {
+        // Read the size of the packet
+        int packet_size = (*dst_cpu)->ReceiveDatas(packet);
+        if( packet_size == -1) { // An error occured during the reception
+          dst_cpu = CloseConnection(dst_cpu);
+          continue;
+        } else
+        if (packet_size == 0) // We didn't receive the full packet yet
+          continue;
+
+#ifdef LOG_NETWORK
+        if (fin != 0) {
+          int tmp = 0xFFFFFFFF;
+          write(fin, &packet_size, 4);
+          write(fin, packet, packet_size);
+          write(fin, &tmp, 4);
+        }
+#endif
+
+        Action* a = new Action(packet, (*dst_cpu));
+        MSG_DEBUG("network.traffic","Received action %s",
+                        ActionHandler::GetInstance()->GetActionName(a->GetType()).c_str());
+
+	HandleAction(a, *dst_cpu);
+        free(packet);
+      }
+    }
+  }
+}
 //-----------------------------------------------------------------------------
 
 void Network::Init()
@@ -221,44 +311,44 @@ typedef int SOCKET;
 # define closesocket(fd) close(fd)
 #endif
 
-const Network::connection_state_t Network::GetError() const
+const connection_state_t Network::GetError() const
 {
 #ifdef WIN32
   int code = WSAGetLastError();
   switch (code)
   {
-  case WSAECONNREFUSED: return Network::CONN_REJECTED;
+  case WSAECONNREFUSED: return CONN_REJECTED;
   case WSAEINPROGRESS:
-  case WSAETIMEDOUT: return Network::CONN_TIMEOUT;
+  case WSAETIMEDOUT: return CONN_TIMEOUT;
   default:
     fprintf(stderr, "Generic network error of code %i\n", code);
-    return Network::CONN_BAD_SOCKET;
+    return CONN_BAD_SOCKET;
   }
 #else
   switch(errno)
   {
-  case ECONNREFUSED: return Network::CONN_REJECTED;
+  case ECONNREFUSED: return CONN_REJECTED;
   case EINPROGRESS:
-  case ETIMEDOUT: return Network::CONN_TIMEOUT;
+  case ETIMEDOUT: return CONN_TIMEOUT;
   default:
     fprintf(stderr, "Generic network error of code %i\n", errno);
-    return Network::CONN_BAD_SOCKET;
+    return CONN_BAD_SOCKET;
   }
 #endif
 }
 
-const Network::connection_state_t Network::CheckHost(const std::string &host, int prt) const
+const connection_state_t Network::CheckHost(const std::string &host, int prt) const
 {
   MSG_DEBUG("network", "Checking connection to %s:%i", host.c_str(), prt);
 
   struct hostent* hostinfo;
   hostinfo = gethostbyname(host.c_str());
   if( ! hostinfo )
-    return Network::CONN_BAD_HOST;
+    return CONN_BAD_HOST;
 
   SOCKET fd = socket(AF_INET, SOCK_STREAM, 0);
   if( fd == INVALID_SOCKET )
-    return Network::CONN_BAD_SOCKET;
+    return CONN_BAD_SOCKET;
 
   // Set the timeout
 #ifdef WIN32
@@ -271,13 +361,13 @@ const Network::connection_state_t Network::CheckHost(const std::string &host, in
   if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
   {
     fprintf(stderr, "Setting receive timeout on socket failed\n");
-    return Network::CONN_BAD_SOCKET;
+    return CONN_BAD_SOCKET;
   }
 
   if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (SOCKET_PARAM*)&timeout, sizeof(timeout)) == SOCKET_ERROR)
   {
     fprintf(stderr, "Setting send timeout on socket failed\n");
-    return Network::CONN_BAD_SOCKET;
+    return CONN_BAD_SOCKET;
   }
 
   struct sockaddr_in addr;
@@ -292,10 +382,10 @@ const Network::connection_state_t Network::CheckHost(const std::string &host, in
 
   if( connect(fd, (struct sockaddr*) &addr, sizeof(addr)) == SOCKET_ERROR )
   {
-    return Network::GetError();
+    return GetError();
   }
   closesocket(fd);
-  return Network::CONNECTED;
+  return CONNECTED;
 }
 
 //-----------------------------------------------------------------------------
@@ -355,7 +445,7 @@ const uint Network::GetPort() const
 //-----------------------------------------------------------------------------
 
 // Static method
-Network::connection_state_t Network::ClientStart(const std::string &host,
+connection_state_t Network::ClientStart(const std::string &host,
                                                  const std::string& port)
 {
   NetworkClient* net = new NetworkClient();
@@ -366,9 +456,9 @@ Network::connection_state_t Network::ClientStart(const std::string &host,
 
   // try to connect
   stop_thread = false;
-  const Network::connection_state_t error = net->ClientConnect(host, port);
+  const connection_state_t error = net->ClientConnect(host, port);
 
-  if (error != Network::CONNECTED) {
+  if (error != CONNECTED) {
     // revert change if connection failed
     stop_thread = true;
     singleton = prev;
@@ -383,7 +473,7 @@ Network::connection_state_t Network::ClientStart(const std::string &host,
 //-----------------------------------------------------------------------------
 
 // Static method
-Network::connection_state_t Network::ServerStart(const std::string& port)
+connection_state_t Network::ServerStart(const std::string& port)
 {
   NetworkServer* net = new NetworkServer();
 
@@ -393,9 +483,9 @@ Network::connection_state_t Network::ServerStart(const std::string& port)
 
   // try to connect
   stop_thread = false;
-  const Network::connection_state_t error = net->ServerStart(port);
+  const connection_state_t error = net->ServerStart(port);
 
-  if (error != Network::CONNECTED) {
+  if (error != CONNECTED) {
     // revert change
     stop_thread = true;
     singleton = prev;

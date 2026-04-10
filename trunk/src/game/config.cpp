@@ -21,7 +21,7 @@
  * the configuration file.
  *****************************************************************************/
 
-#include "config.h"
+#include "game/config.h"
 
 #include <sstream>
 #include <string>
@@ -30,6 +30,9 @@
 #include <errno.h>
 #ifdef WIN32
 #  include <direct.h>
+#endif
+#ifdef OSX_BUNDLE
+#  include <CoreFoundation/CoreFoundation.h>
 #endif
 #include "graphic/video.h"
 #include "include/app.h"
@@ -102,6 +105,8 @@ Config::Config():
   display_wind_particles(true),
   default_mouse_cursor(false),
   scroll_on_border(true),
+  disable_joystick(true),
+  disable_mouse(false),
   video_width(800),
   video_height(600),
   video_fullscreen(false),
@@ -134,12 +139,26 @@ Config::Config():
   locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, br_find_locale_dir(INSTALL_LOCALEDIR));
   filename     = data_dir + PATH_SEPARATOR + "font" + PATH_SEPARATOR + "DejaVuSans.ttf";
   ttf_filename = GetEnv(Constants::ENV_FONT_PATH, br_find_locale_dir(filename.c_str()));
+#elif defined(OSX_BUNDLE)
+  // the following code will enable wormux to find its data when placed in an app bundle on mac OS X.
+  // configure with './configure ... CPPFLAGS=-DOSX_BUNDLE' to enable
+  char path[1024];
+  CFBundleRef mainBundle = CFBundleGetMainBundle(); assert(mainBundle);
+  CFURLRef mainBundleURL = CFBundleCopyBundleURL(mainBundle); assert(mainBundleURL);
+  CFStringRef cfStringRef = CFURLCopyFileSystemPath( mainBundleURL, kCFURLPOSIXPathStyle); assert(cfStringRef);
+  CFStringGetCString(cfStringRef, path, 1024, kCFStringEncodingASCII);
+  CFRelease(mainBundleURL);
+  CFRelease(cfStringRef);
+  std::string contents = std::string(path) + std::string("/Contents");
+  data_dir = contents + std::string("/Resources/data");
+  ttf_filename = contents + std::string("/Resources/data/font/DejaVuSans.ttf");
+  locale_dir = contents + std::string("/Resources/locale");
 #else
 #  ifdef _WIN32
   std::string basepath = GetWormuxPath();
   data_dir     = basepath + "\\data";
   locale_dir   = basepath + "\\locale";
-  ttf_filename     = basepath + "\\data\\font\\DejaVuSans.ttf";
+  ttf_filename = basepath + "\\data\\font\\DejaVuSans.ttf";
 #  else
   data_dir     = GetEnv(Constants::ENV_DATADIR, INSTALL_DATADIR);
   locale_dir   = GetEnv(Constants::ENV_LOCALEDIR, INSTALL_LOCALEDIR);
@@ -238,7 +257,7 @@ void Config::LoadDefaultValue()
 {
   try { // Load default XML conf
     m_default_config = GetDataDir() + PATH_SEPARATOR + "wormux_default_config.xml";
-    Profile *res = resource_manager.LoadXMLProfile(m_default_config, false);
+    Profile *res = resource_manager.LoadXMLProfile(m_default_config, true);
 
     std::cout << "o " << _("Reading default config file") << std::endl;
     std::ostringstream section;
@@ -253,6 +272,15 @@ void Config::LoadDefaultValue()
       if(tmp.GetX() > 0 && tmp.GetY() > 0)
         resolution_available.push_back(tmp);
     }
+    //== Team Color
+    /*int number_of_team_color = resource_manager.LoadInt(res, "team_colors/number_of_team_color");
+    for(int i = 1; i <= number_of_team_color; i++) {
+      tmp = Point2i(0, 0);
+      std::ostringstream section; section << "team_colors/" << i;
+      tmp = resource_manager.LoadPoint2i(res, section.str());
+      if(tmp.GetX() > 0 && tmp.GetY() > 0)
+        resolution_available.push_back(tmp);
+    }*/
   } catch (const xmlpp::exception &e) {
     std::cout << "o "
         << _("Error while loading default configuration file: %s") << std::endl
@@ -303,6 +331,8 @@ void Config::LoadXml(const xmlpp::Element *xml)
     XmlReader::ReadBool(elem, "display_name_character", display_name_character);
     XmlReader::ReadBool(elem, "default_mouse_cursor", default_mouse_cursor);
     XmlReader::ReadBool(elem, "scroll_on_border", scroll_on_border);
+    XmlReader::ReadBool(elem, "disable_mouse", disable_mouse);
+    XmlReader::ReadBool(elem, "disable_joystick", disable_joystick);
     XmlReader::ReadUint(elem, "width", video_width);
     XmlReader::ReadUint(elem, "height", video_height);
     XmlReader::ReadBool(elem, "full_screen", video_fullscreen);
@@ -369,14 +399,17 @@ bool Config::SaveXml()
   xmlpp::Element *team_elements = root->add_child("teams");
 
   TeamsList::iterator
-    it=teams_list.playing_list.begin(),
-    fin=teams_list.playing_list.end();
+    it=GetTeamsList().playing_list.begin(),
+    fin=GetTeamsList().playing_list.end();
+
   for (int i=0; it != fin; ++it, i++)
   {
-    xmlpp::Element *a_team = team_elements->add_child("team_"+ulong2str(i));
-    doc.WriteElement(a_team, "id", (**it).GetId());
-    doc.WriteElement(a_team, "player_name", (**it).GetPlayerName());
-    doc.WriteElement(a_team, "nb_characters", ulong2str((**it).GetNbCharacters()));
+    if ((**it).IsLocal() || (**it).IsLocalAI()) { 
+      xmlpp::Element *a_team = team_elements->add_child("team_"+ulong2str(i));
+      doc.WriteElement(a_team, "id", (**it).GetId());
+      doc.WriteElement(a_team, "player_name", (**it).GetPlayerName());
+      doc.WriteElement(a_team, "nb_characters", ulong2str((**it).GetNbCharacters()));
+    }
   }
 
   //=== Video ===
@@ -388,6 +421,8 @@ bool Config::SaveXml()
   doc.WriteElement(video_node, "bling_bling_interface", ulong2str(bling_bling_interface));
   doc.WriteElement(video_node, "default_mouse_cursor", ulong2str(default_mouse_cursor));
   doc.WriteElement(video_node, "scroll_on_border", ulong2str(scroll_on_border));
+  doc.WriteElement(video_node, "disable_mouse", ulong2str(disable_mouse));
+  doc.WriteElement(video_node, "disable_joystick", ulong2str(disable_joystick));
   doc.WriteElement(video_node, "width", ulong2str(video->window.GetWidth()));
   doc.WriteElement(video_node, "height", ulong2str(video->window.GetHeight()));
   doc.WriteElement(video_node, "full_screen",
@@ -429,169 +464,4 @@ std::string Config::GetEnv(const std::string & name, const std::string &default_
   } else {
     return default_value;
   }
-}
-
-std::string Config::GetDataDir() const
-{
-  return data_dir;
-}
-
-std::string Config::GetLocaleDir() const
-{
-  return locale_dir;
-}
-
-std::string Config::GetPersonalDir() const
-{
-  return personal_dir;
-}
-
-std::list<ConfigTeam> & Config::AccessTeamList()
-{
-  return teams;
-}
-
-const std::string & Config::GetMapName() const
-{
-  return map_name;
-}
-
-bool Config::GetDisplayEnergyCharacter() const
-{
-  return display_energy_character;
-}
-
-bool Config::GetDisplayNameCharacter() const
-{
-  return display_name_character;
-}
-
-bool Config::GetDisplayWindParticles() const
-{
-  return display_wind_particles;
-}
-
-bool Config::GetDefaultMouseCursor() const
-{
-  return default_mouse_cursor;
-}
-
-bool Config::GetScrollOnBorder() const
-{
-  return scroll_on_border;
-}
-
-std::string Config::GetTtfFilename() const
-{
-  return ttf_filename;
-}
-
-bool Config::IsNetworkActivated() const
-{
-  return enable_network;
-}
-
-bool Config::IsVideoFullScreen() const
-{
-  return video_fullscreen;
-}
-
-void Config::SetNetworkActivated(const bool set_net)
-{
-  enable_network = set_net;
-}
-
-void Config::SetVideoFullScreen(const bool set_fullscreen)
-{
-  video_fullscreen = set_fullscreen;
-}
-
-uint Config::GetVideoWidth() const
-{
-  return video_width;
-}
-
-void Config::SetVideoWidth(const uint width)
-{
-  video_width = width;
-}
-
-uint Config::GetVideoHeight() const
-{
-  return video_height;
-}
-
-void Config::SetVideoHeight(const uint height)
-{
-  video_height = height;
-}
-
-bool Config::IsBlingBlingInterface() const
-{
-  return bling_bling_interface;
-}
-
-void Config::SetBlingBlingInterface(bool bling_bling)
-{
-  bling_bling_interface = bling_bling;
-}
-
-bool Config::GetSoundMusic() const
-{
-  return sound_music;
-}
-
-void Config::SetSoundMusic(const bool music)
-{
-  sound_music = music;
-}
-
-bool Config::GetSoundEffects() const
-{
-  return sound_effects;
-}
-
-void Config::SetSoundEffects(const bool effects)
-{
-  sound_effects = effects;
-}
-
-uint Config::GetSoundFrequency() const
-{
-  return sound_frequency;
-}
-
-void Config::SetSoundFrequency(const uint freq)
-{
-  sound_frequency = freq;
-}
-
-void Config::SetDisplayEnergyCharacter(const bool dec)
-{
-  display_energy_character = dec;
-}
-
-void Config::SetDisplayNameCharacter(const bool dnc)
-{
-  display_name_character = dnc;
-}
-
-void Config::SetDisplayWindParticles(const bool dwp)
-{
-  display_wind_particles = dwp;
-}
-
-void Config::SetDefaultMouseCursor(const bool dmc)
-{
-  default_mouse_cursor = dmc;
-}
-
-void Config::SetScrollOnBorder(const bool sob)
-{
-  scroll_on_border = sob;
-}
-
-int Config::GetTransparency() const
-{
-  return transparency;
 }

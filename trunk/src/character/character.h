@@ -26,14 +26,13 @@
 #include "gui/energy_bar.h"
 #include "include/base.h"
 #include "object/physical_obj.h"
-#include "body.h"
+#include "character/body.h"
 
 class Text;
 class Team;
 class ParticleEngine;
 class DamageStatistics;
 class Body;
-typedef enum BodyDirection BodyDirection_t;
 
 #ifdef DEBUG
 //#define DEBUG_SKIN
@@ -110,7 +109,7 @@ public:
   // Energy related
   void SetEnergyDelta(int delta, bool do_report = true);
   void SetEnergy(int new_energy);
-  inline const int & GetEnergy() const { return life_points;}
+  inline const int & GetEnergy() const { return energy; };
 
   bool GotInjured() const { return lost_energy < 0; };
   void Die();
@@ -180,6 +179,7 @@ public:
 
   // Team owner
   const Team& GetTeam() const { return m_team; };
+  Team& AccessTeam() const { return m_team; };
   uint GetTeamIndex() const;
   uint GetCharacterIndex() const;
 

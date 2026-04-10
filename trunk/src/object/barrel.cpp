@@ -19,9 +19,9 @@
  * Petrol barrels
  *****************************************************************************/
 
-#include "barrel.h"
-#include "objects_list.h"
-#include "physical_obj.h"
+#include "object/barrel.h"
+#include "object/objects_list.h"
+#include "object/physical_obj.h"
 #include "game/game_mode.h"
 #include "graphic/sprite.h"
 #include "particles/particle.h"
@@ -34,7 +34,7 @@ PetrolBarrel::PetrolBarrel() : PhysicalObj("barrel")
   img= resource_manager.LoadSprite( res, "object/barrel");
   resource_manager.UnLoadXMLProfile(res);
 
-  life_points = 40;
+  energy = 40;
 
   SetCollisionModel(false, true, true);
   SetSize(img->GetSize());

@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ(2.52)
 
-AC_INIT([Wormux], [0.8beta2], [wormux-dev@gna.org], [wormux])
+AC_INIT([Wormux], [0.8beta3], [wormux-dev@gna.org], [wormux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -242,7 +242,6 @@ AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
 AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
 AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
 AC_CHECK_LIB([SDL_net], [SDLNet_Init],,check_sdl_net="no")
-LIBS="$LIBS -lSDL_image -lSDL_mixer -lSDL_ttf -lSDL_net -lSDL_gfx"
 if test "${WIN32}" = "yes"; then LIBS="$LIBS -lwsock32 -lws2_32"; fi
 
 AC_MSG_CHECKING(for libxml++)
@@ -324,7 +323,7 @@ dnl ========================================================================
 dnl === Data file substitution.                                          ===
 dnl ========================================================================
 
-DATA_FILES=`cd data ; find . -name CVS -prune -o -name ".svn*" -prune -o -name "Makefile*" -o -name ".#*" -o -type d -o -print`
+DATA_FILES=`cd data ; find . \( -name CVS -o -name ".svn*" -o -name "Makefile*" -o -name wormux.desktop \) -prune -o -name ".#*" -o -type d -o -print`
 DATA_FILES=`echo $DATA_FILES`
 
 AC_SUBST([DATA_FILES])

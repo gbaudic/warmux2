@@ -19,9 +19,9 @@
  * Bazooka, a simple rocket launcher
  *****************************************************************************/
 
-#include "bazooka.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/bazooka.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 #include "game/config.h"
 #include "graphic/sprite.h"
 #include "interface/game_msg.h"
@@ -33,10 +33,14 @@
 
 class BazookaRocket : public WeaponProjectile
 {
+private:
   ParticleEngine smoke_engine;
+  SoundSample flying_sound;
 public:
   BazookaRocket(ExplosiveWeaponConfig& cfg, WeaponLauncher * p_launcher);
   void Refresh();
+  void Explosion();
+  void Shoot(double strength);
 protected:
   void SignalOutOfMap();
   void SignalDrowning();
@@ -64,16 +68,37 @@ void BazookaRocket::Refresh()
   }
 }
 
+void BazookaRocket::Shoot(double strength)
+{
+  // Sound must be launched before WeaponProjectile::Shoot
+  // in case that the projectile leave the battlefield
+  // during WeaponProjectile::Shoot (#bug 10241)
+  flying_sound.Play("share","weapon/rocket_flying", -1);
+
+  WeaponProjectile::Shoot(strength);
+}
+
 void BazookaRocket::SignalOutOfMap()
 {
   GameMessages::GetInstance()->Add (_("The rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
+
+  flying_sound.Stop();
 }
 
 void BazookaRocket::SignalDrowning()
 {
   smoke_engine.Stop();
   WeaponProjectile::SignalDrowning();
+
+  flying_sound.Stop();
+}
+
+void BazookaRocket::Explosion()
+{
+  WeaponProjectile::Explosion();
+
+  flying_sound.Stop();
 }
 
 //-----------------------------------------------------------------------------

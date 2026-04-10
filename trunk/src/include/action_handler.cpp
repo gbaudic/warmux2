@@ -27,7 +27,6 @@
 #include "character/body.h"
 #include "character/move.h"
 #include "game/game_mode.h"
-#include "game/game_loop.h"
 #include "game/game.h"
 #include "game/time.h"
 #include "include/constant.h"
@@ -43,6 +42,9 @@
 #include "network/randomsync.h"
 #include "network/network.h"
 #include "network/network_server.h"
+#include "object/bonus_box.h"
+#include "object/medkit.h"
+#include "object/objbox.h"
 #include "team/macro.h"
 #include "team/team.h"
 #include "team/team_config.h"
@@ -145,8 +147,8 @@ void Action_Network_Check_Phase1 (Action */*a*/)
   Action b(Action::ACTION_NETWORK_CHECK_PHASE2);
   b.Push(ActiveMap().GetRawName());
 
-  TeamsList::iterator it = teams_list.playing_list.begin();
-  for (; it != teams_list.playing_list.end() ; ++it) {
+  TeamsList::iterator it = GetTeamsList().playing_list.begin();
+  for (; it != GetTeamsList().playing_list.end() ; ++it) {
     b.Push((*it)->GetId());
   }
 
@@ -174,14 +176,15 @@ void Action_Network_Check_Phase2 (Action *a)
   // Check the map
   std::string map = a->PopString();
   if (map != ActiveMap().GetRawName()) {
+    std::cerr << map << " != " << ActiveMap().GetRawName() << std::endl;
     Error_in_Network_Check_Phase2(a);
     return;
   }
-  
+
   // Check the teams
   std::string team;
-  TeamsList::iterator it = teams_list.playing_list.begin();
-  for (; it != teams_list.playing_list.end() ; ++it) {
+  TeamsList::iterator it = GetTeamsList().playing_list.begin();
+  for (; it != GetTeamsList().playing_list.end() ; ++it) {
     team = a->PopString();
     if (team != (*it)->GetId()) {
       Error_in_Network_Check_Phase2(a);
@@ -206,7 +209,7 @@ void Action_Player_NextCharacter (Action *a)
   jukebox.Play("share", "character/change_in_same_team");
   a->RetrieveCharacter();       // Retrieve current character's informations
   a->RetrieveCharacter();       // Retrieve next character information
-  Camera::GetInstance()->GetInstance()->FollowObject(&ActiveCharacter(), true, true);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
 }
 
 void Action_Player_PreviousCharacter (Action *a)
@@ -214,18 +217,18 @@ void Action_Player_PreviousCharacter (Action *a)
   jukebox.Play("share", "character/change_in_same_team");
   a->RetrieveCharacter();       // Retrieve current character's informations
   a->RetrieveCharacter();       // Retrieve previous character's information
-  Camera::GetInstance()->GetInstance()->FollowObject(&ActiveCharacter(), true, true);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
 }
 
-void Action_GameLoop_ChangeCharacter (Action *a)
+void Action_Game_ChangeCharacter (Action *a)
 {
   a->RetrieveCharacter();
-  Camera::GetInstance()->GetInstance()->FollowObject(&ActiveCharacter(), true, true);
+  Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
 }
 
-void Action_GameLoop_NextTeam (Action *a)
+void Action_Game_NextTeam (Action *a)
 {
-  teams_list.SetActive (a->PopString());
+  GetTeamsList().SetActive (a->PopString());
   ASSERT (!ActiveCharacter().IsDead());
 
   // Are we turn master for next turn ?
@@ -235,9 +238,29 @@ void Action_GameLoop_NextTeam (Action *a)
     Network::GetInstance()->SetTurnMaster(false);
 }
 
-void Action_GameLoop_SetState (Action *a)
+void Action_NewBonusBox (Action *a)
 {
-  GameLoop::GetInstance()->Really_SetState(GameLoop::game_loop_state_t(a->PopInt()));
+  ObjBox * box;
+  switch(a->PopInt()) {
+    case 2 :               box = new BonusBox(); break;
+    default: /* case 1 */  box = new Medkit(); break;
+  };
+  box->GetValueFromAction(a);
+  Game::GetInstance()->AddNewBox(box);
+}
+
+void Action_Game_SetState (Action *a)
+{
+  int random = a->PopInt();
+
+  if (!Network::GetInstance()->IsTurnMaster()) {
+    if (random != int(randomSync.GetLong(0, 65535))) {
+      Error("Network random generator is desynchronized!");
+      ASSERT(false);
+    }
+  }
+
+  Game::GetInstance()->Really_SetState(Game::game_loop_state_t(a->PopInt()));
 }
 
 // ########################################################
@@ -319,7 +342,7 @@ void Action_ChatMessage (Action *a)
   {
     if(Game::GetInstance()->IsGameLaunched())
       //Add message to chat session in Game
-      GameLoop::GetInstance()->chatsession.NewMessage(a->PopString());
+      Game::GetInstance()->chatsession.NewMessage(a->PopString());
     else if (Network::GetInstance()->network_menu != NULL) {
       //Network Menu
       Network::GetInstance()->network_menu->ReceiveMsgCallback(a->PopString());
@@ -330,7 +353,13 @@ void Action_ChatMessage (Action *a)
 void Action_Menu_SetMap (Action *a)
 {
   if (!Network::GetInstance()->IsClient()) return;
-  MapsList::GetInstance()->SelectMapByName(a->PopString());
+
+  std::string map_name = a->PopString();
+  if (map_name != "random") {
+    MapsList::GetInstance()->SelectMapByName(map_name);
+  } else {
+    MapsList::GetInstance()->SelectRandomMapByName(a->PopString());
+  }
 
   if (Network::GetInstance()->network_menu != NULL) {
     Network::GetInstance()->network_menu->ChangeMapCallback();
@@ -353,7 +382,7 @@ void Action_Menu_AddTeam (Action *a)
 
   MSG_DEBUG("action_handler.menu", "+ %s", the_team.id.c_str());
 
-  teams_list.AddTeam (the_team);
+  GetTeamsList().AddTeam (the_team);
 
   if (Network::GetInstance()->network_menu != NULL)
     Network::GetInstance()->network_menu->AddTeamCallback(the_team.id);
@@ -367,7 +396,7 @@ void Action_Menu_UpdateTeam (Action *a)
   the_team.player_name = a->PopString();
   the_team.nb_characters = uint(a->PopInt());
 
-  teams_list.UpdateTeam (the_team);
+  GetTeamsList().UpdateTeam (the_team);
 
   if (Network::GetInstance()->network_menu != NULL)
     Network::GetInstance()->network_menu->UpdateTeamCallback(the_team.id);
@@ -386,12 +415,12 @@ void Action_Menu_DelTeam (Action *a)
   MSG_DEBUG("action_handler.menu", "- %s", team.c_str());
   if (Game::GetInstance()->IsGameLaunched() && Network::GetInstance()->IsServer()) {
     int i;
-    Team* t = teams_list.FindById(team, i);
+    Team* t = GetTeamsList().FindById(team, i);
     if (t == &ActiveTeam()) // we have loose the turn master!!
       Network::GetInstance()->SetTurnMaster(true);
   }
 
-  teams_list.DelTeam (team);
+  GetTeamsList().DelTeam (team);
 
   if (Network::GetInstance()->network_menu != NULL)
     Network::GetInstance()->network_menu->DelTeamCallback(team);
@@ -407,8 +436,8 @@ void SyncCharacters()
   Action a_begin_sync(Action::ACTION_NETWORK_SYNC_BEGIN);
   Network::GetInstance()->SendAction(&a_begin_sync);
   TeamsList::iterator
-    it=teams_list.playing_list.begin(),
-    end=teams_list.playing_list.end();
+    it=GetTeamsList().playing_list.begin(),
+    end=GetTeamsList().playing_list.end();
 
   for (int team_no = 0; it != end; ++it, ++team_no)
   {
@@ -429,19 +458,19 @@ void SyncCharacters()
 
 void Action_Character_Jump (Action */*a*/)
 {
-  GameLoop::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->character_already_chosen = true;
   ActiveCharacter().Jump();
 }
 
 void Action_Character_HighJump (Action */*a*/)
 {
-  GameLoop::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->character_already_chosen = true;
   ActiveCharacter().HighJump();
 }
 
 void Action_Character_BackJump (Action */*a*/)
 {
-  GameLoop::GetInstance()->character_already_chosen = true;
+  Game::GetInstance()->character_already_chosen = true;
   ActiveCharacter().BackJump();
 }
 
@@ -476,7 +505,7 @@ void SendActiveCharacterInfo(bool can_be_dropped)
 
 void Action_Weapon_Shoot (Action *a)
 {
-  if (GameLoop::GetInstance()->ReadState() != GameLoop::PLAYING)
+  if (Game::GetInstance()->ReadState() != Game::PLAYING)
     return; // hack related to bug 8656
 
   double strength = a->PopDouble();
@@ -764,9 +793,9 @@ ActionHandler::ActionHandler():
   Register (Action::ACTION_PLAYER_CHANGE_WEAPON, "PLAYER_change_weapon", &Action_Player_ChangeWeapon);
   Register (Action::ACTION_PLAYER_NEXT_CHARACTER, "PLAYER_next_character", &Action_Player_NextCharacter);
   Register (Action::ACTION_PLAYER_PREVIOUS_CHARACTER, "PLAYER_previous_character", &Action_Player_PreviousCharacter);
-  Register (Action::ACTION_GAMELOOP_CHANGE_CHARACTER, "GAMELOOP_change_character", &Action_GameLoop_ChangeCharacter);
-  Register (Action::ACTION_GAMELOOP_NEXT_TEAM, "GAMELOOP_change_team", &Action_GameLoop_NextTeam);
-  Register (Action::ACTION_GAMELOOP_SET_STATE, "GAMELOOP_set_state", &Action_GameLoop_SetState);
+  Register (Action::ACTION_GAMELOOP_CHANGE_CHARACTER, "GAMELOOP_change_character", &Action_Game_ChangeCharacter);
+  Register (Action::ACTION_GAMELOOP_NEXT_TEAM, "GAMELOOP_change_team", &Action_Game_NextTeam);
+  Register (Action::ACTION_GAMELOOP_SET_STATE, "GAMELOOP_set_state", &Action_Game_SetState);
 
   // ########################################################
   // To be sure that rules will be the same on each computer
@@ -808,6 +837,8 @@ ActionHandler::ActionHandler():
   Register (Action::ACTION_WEAPON_CONSTRUCTION, "WEAPON_construction", &Action_Weapon_Construction);
   Register (Action::ACTION_WEAPON_GRAPPLE, "WEAPON_grapple", &Action_Weapon_Grapple);
 
+  // Bonus box
+  Register (Action::ACTION_NEW_BONUS_BOX, "BONUSBOX_new_box", &Action_NewBonusBox);
   // ########################################################
   Register (Action::ACTION_NETWORK_SYNC_BEGIN, "NETWORK_sync_begin", &Action_Network_SyncBegin);
   Register (Action::ACTION_NETWORK_SYNC_END, "NETWORK_sync_end", &Action_Network_SyncEnd);

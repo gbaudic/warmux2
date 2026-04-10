@@ -19,7 +19,7 @@
  * Results menu
  *****************************************************************************/
 
-#include "results_menu.h"
+#include "menu/results_menu.h"
 #ifdef _MSC_VER
 #  include <algorithm>  //std::sort
 #endif
@@ -47,10 +47,8 @@
 #define DEF_SIZE       32
 #define LINE_THICKNESS  2
 
-#define GRAPH_X        20
-#define GRAPH_Y       500
-#define GRAPH_W       400
-#define GRAPH_H       200
+#define GRAPH_BORDER        20
+#define GRAPH_START_Y       450
 
 const Point2i BorderSize(DEF_BORDER, DEF_BORDER);
 const Vector2<double> Zoom(1.7321, 1.7321);
@@ -63,7 +61,7 @@ private:
   Label *score_lbl;
   PictureWidget *team_picture;
 public:
-  ResultBox(const Rectanglei &rect, bool _visible,
+  ResultBox(int height, bool _visible,
             const char* type_name,
             Font::font_size_t font_size,
             Font::font_style_t font_style,
@@ -77,14 +75,14 @@ public:
   void SetNoResult();
 };
 
-ResultBox::ResultBox(const Rectanglei &rect, bool _visible,
+ResultBox::ResultBox(int height, bool _visible,
                      const char *type_name,
                      Font::font_size_t font_size,
                      Font::font_style_t font_style,
                      const Point2i& type_size,
                      const Point2i& name_size,
                      const Point2i& score_size)
-  : HBox(rect, _visible)
+  : HBox(height, _visible)
 {
   Point2i pos(0, 0);
   Point2i posZero(0,0);
@@ -92,17 +90,17 @@ ResultBox::ResultBox(const Rectanglei &rect, bool _visible,
   margin = DEF_MARGIN;
   border.SetValues(DEF_BORDER, DEF_BORDER);
 
-  AddWidget(new Label(type_name, Rectanglei(pos, type_size), font_size, font_style));
+  AddWidget(new Label(type_name, type_size, font_size, font_style));
 
   pos.SetValues(pos.GetX()+type_size.GetX(), pos.GetY());
-  name_lbl = new Label("", Rectanglei(pos, name_size), font_size, font_style);
+  name_lbl = new Label("", name_size, font_size, font_style);
   AddWidget(name_lbl);
 
   pos.SetValues(pos.GetX()+name_size.GetX(), pos.GetY());
-  score_lbl = new Label("", Rectanglei(pos, score_size), font_size, font_style);
+  score_lbl = new Label("", score_size, font_size, font_style);
   AddWidget(score_lbl);
 
-  team_picture = new PictureWidget( Rectanglei(0,0,48,48) );
+  team_picture = new PictureWidget(Point2i(48, 48) );
   AddWidget(team_picture);
 }
 
@@ -198,19 +196,20 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v)
   if (first_team) {
     jukebox.Play("share","victory");
 
-    winner_box = new VBox(Rectanglei(x, y, 240, 0), true);
-    winner_box->AddWidget(new Label(_("Winner"), Rectanglei(0,0, 240,1), Font::FONT_BIG, Font::FONT_BOLD,
+    winner_box = new VBox(240, true);
+    winner_box->AddWidget(new Label(_("Winner"), Point2i(240, -1), Font::FONT_BIG, Font::FONT_BOLD,
                                     white_color, true));
-    PictureWidget* winner_logo = new PictureWidget( Rectanglei(0,0,64,64));
+    PictureWidget* winner_logo = new PictureWidget(Point2i(64, 64));
     winner_logo->SetSurface(first_team->GetBigFlag());
     winner_box->AddWidget(winner_logo);
-    winner_box->AddWidget(new Label(first_team->GetName(), Rectanglei(0,0, 240,1), Font::FONT_BIG, Font::FONT_NORMAL,
+    winner_box->AddWidget(new Label(first_team->GetName(), Point2i(240, -1), Font::FONT_BIG, Font::FONT_NORMAL,
                                     white_color, true));
 
     std::string tmp = _("Controlled by: ") + first_team->GetPlayerName();
-    winner_box->AddWidget(new Label(tmp, Rectanglei(0,0, 240,1), Font::FONT_MEDIUM, Font::FONT_NORMAL,
+    winner_box->AddWidget(new Label(tmp, Point2i(240, -1), Font::FONT_MEDIUM, Font::FONT_NORMAL,
                                     white_color, true));
 
+    winner_box->SetXY(x, y);
     widgets.AddWidget(winner_box);
   }
 
@@ -220,71 +219,73 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v)
   x+=260;
 
   //Team selection
-  team_box = new HBox(Rectanglei(x, y, 0, max_height), true);
+  team_box = new HBox(max_height, true);
   team_box->SetMargin(DEF_MARGIN);
   team_box->SetBorder(Point2i(DEF_BORDER, DEF_BORDER));
 
-  bt_prev_team = new Button(Rectanglei(pos, Point2i(DEF_SIZE, DEF_SIZE)),
-                            res, "menu/really_big_minus");
+  bt_prev_team = new Button(res, "menu/really_big_minus");
+  bt_prev_team->SetSizePosition(Rectanglei(pos, Point2i(DEF_SIZE, DEF_SIZE)));
   team_box->AddWidget(bt_prev_team);
 
   pos.SetValues(pos.GetX()+DEF_SIZE, pos.GetY());
 
-  HBox* tmp_box = new HBox( Rectanglei(pos, team_size), false);
-  team_logo = new PictureWidget( Rectanglei(0,0,48,48) );
+  HBox* tmp_box = new HBox(team_size.GetY(), false);
+  team_logo = new PictureWidget(Point2i(48, 48) );
   tmp_box->AddWidget(team_logo);
 
   pos.SetValues(pos.GetX()+team_logo->GetSizeX(),pos.GetY());
-  team_name = new Label("", Rectanglei(pos, team_size-48), Font::FONT_BIG, Font::FONT_NORMAL);
+  team_name = new Label("", team_size-48, Font::FONT_BIG, Font::FONT_NORMAL);
   tmp_box->AddWidget(team_name);
 
   team_box->AddWidget(tmp_box);
   pos.SetValues(pos.GetX()+team_size.GetX(), pos.GetY());
-  bt_next_team = new Button(Rectanglei(pos, Point2i(DEF_SIZE, DEF_SIZE)),
-                            res, "menu/really_big_plus");
+  bt_next_team = new Button(res, "menu/really_big_plus");
+  bt_next_team->SetSizePosition(Rectanglei(pos, Point2i(DEF_SIZE, DEF_SIZE)));
   team_box->AddWidget(bt_next_team);
 
+  team_box->SetXY(x, y);
   widgets.AddWidget(team_box);
 
   resource_manager.UnLoadXMLProfile(res);
 
   //Results
-  statistics_box = new VBox(Rectanglei(x, y+int(1.5*max_height), 510, 0), true);
+  statistics_box = new VBox(510, true);
 
-  most_violent = new ResultBox(Rectanglei(0,0,0, max_height),
+  most_violent = new ResultBox(max_height,
                                false, _("Most violent"), Font::FONT_BIG, Font::FONT_NORMAL,
                                type_size, name_size, score_size);
   statistics_box->AddWidget(most_violent);
 
-  most_useful = new ResultBox(Rectanglei(0,0,0, max_height),
+  most_useful = new ResultBox(max_height,
                                false, _("Most useful"), Font::FONT_BIG, Font::FONT_NORMAL,
                                type_size, name_size, score_size);
   statistics_box->AddWidget(most_useful);
 
-  most_useless = new ResultBox(Rectanglei(0,0,0, max_height),
+  most_useless = new ResultBox(max_height,
                                false, _("Most useless"), Font::FONT_BIG, Font::FONT_NORMAL,
                                type_size, name_size, score_size);
   statistics_box->AddWidget(most_useless);
 
-  biggest_traitor = new ResultBox(Rectanglei(0,0,0, max_height),
+  biggest_traitor = new ResultBox(max_height,
                                   false, _("Most sold-out"), Font::FONT_BIG, Font::FONT_NORMAL,
                                   type_size, name_size, score_size);
   statistics_box->AddWidget(biggest_traitor);
 
-  most_clumsy = new ResultBox(Rectanglei(0,0,0, max_height),
+  most_clumsy = new ResultBox(max_height,
                               false, _("Most clumsy"), Font::FONT_BIG, Font::FONT_NORMAL,
                               type_size, name_size, score_size);
   statistics_box->AddWidget(most_clumsy);
 
-  most_accurate = new ResultBox(Rectanglei(0,0,0, max_height),
+  most_accurate = new ResultBox(max_height,
                                 false, _("Most accurate"), Font::FONT_BIG, Font::FONT_NORMAL,
                                 type_size, name_size, score_size);
   statistics_box->AddWidget(most_accurate);
 
+  statistics_box->SetXY(x, y+int(1.5*max_height));
   widgets.AddWidget(statistics_box);
 
   // Label for graph axes
-  //widgets.AddWidget(new Label(_("Time"), Rectanglei(GRAPH_X, GRAPH_Y+8, GRAPH_W, 32),
+  //widgets.AddWidget(new Label(_("Time"), Point2i(GRAPH_W, 32),
   //                            Font::FONT_SMALL, Font::FONT_BOLD, black_color, true, false));
 }
 
@@ -517,5 +518,8 @@ void ResultsMenu::Draw(const Point2i &/*mousePosition*/)
   if (index == -1)
     SetResult(results.size()-1);
   // Far from rendering properly
-  //DrawGraph(GRAPH_X, GRAPH_Y, GRAPH_W, GRAPH_H);
+  DrawGraph(GRAPH_BORDER, GRAPH_START_Y,
+            AppWormux::GetInstance()->video->window.GetWidth()/2-GRAPH_BORDER,
+            AppWormux::GetInstance()->video->window.GetHeight()-GRAPH_BORDER-GRAPH_START_Y);
 }
+

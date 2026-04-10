@@ -19,15 +19,14 @@
  * Grapple
  *****************************************************************************/
 
-#include "grapple.h"
-#include "weapon_cfg.h"
+#include "weapon/grapple.h"
+#include "weapon/weapon_cfg.h"
 
 #include <math.h>
-#include "explosion.h"
+#include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
 #include "game/game.h"
-#include "game/game_loop.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
@@ -458,8 +457,7 @@ void Grapple::AttachRope(const Point2i& contact_point)
   ActiveCharacter().SetFiringAngle(-M_PI / 3);
 
   // Camera should focus on it!
-  Camera::GetInstance()->GetInstance()->FollowObject (&ActiveCharacter(),true, true, true);
-  Camera::GetInstance()->GetInstance()->SetCloseFollowing(true);
+  Camera::GetInstance()->FollowObject (&ActiveCharacter(), true);
 }
 
 void Grapple::DetachRope()
@@ -467,7 +465,6 @@ void Grapple::DetachRope()
   ActiveCharacter().UnsetPhysFixationPoint() ;
   rope_nodes.clear();
   m_is_active = false;
-  Camera::GetInstance()->GetInstance()->SetCloseFollowing(false);
 }
 
 void Grapple::AttachNode(const Point2i& contact_point,

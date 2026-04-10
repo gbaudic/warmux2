@@ -19,7 +19,7 @@
  * Handle a SDL Surface
  *****************************************************************************/
 
-#include "surface.h"
+#include "graphic/surface.h"
 #include <SDL.h>
 #include <SDL_gfxPrimitives.h>
 #include <SDL_image.h>
@@ -30,8 +30,10 @@
 
 /* texturedPolygon import from SDL_gfx v2.0.15 */
 #if (SDL_GFXPRIMITIVES_MAJOR == 2) && (SDL_GFXPRIMITIVES_MINOR == 0) && (SDL_GFXPRIMITIVES_MICRO < 14)
-#include "textured_polygon.h"
+#include "graphic/textured_polygon.h"
 #endif /* texturedPolygon import from SDL_gfx v2.0.15 */
+
+#include "graphic/fading_effect.h"
 
 /**
  * Default constructor.
@@ -81,7 +83,7 @@ Surface::Surface(const std::string &filename){
 
 /**
  * Copy constructor: build a surface from an other surface.
- *
+ *  
  * The two surfaces share the same graphic data.
  */
 Surface::Surface(const Surface &src){
@@ -453,6 +455,10 @@ int Surface::LineColor(const uint &x1, const uint &x2, const uint &y1, const uin
 
 int Surface::AALineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color){
   return aalineRGBA( surface, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha() );
+}
+
+int Surface::AAFadingLineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color1, const Color &color2){
+  return aafadingLineColor(surface, x1, y1, x2, y2,color1.GetColor(), color2.GetColor());
 }
 
 int Surface::CircleColor(const uint &x, const uint &y, const uint &rad, const Color &color){

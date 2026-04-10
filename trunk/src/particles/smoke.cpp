@@ -19,8 +19,8 @@
  * Particle Engine
  *****************************************************************************/
 
-#include "smoke.h"
-#include "particle.h"
+#include "particles/smoke.h"
+#include "particles/particle.h"
 #include "graphic/sprite.h"
 
 Smoke::Smoke() :

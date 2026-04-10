@@ -19,8 +19,8 @@
  * Particle Engine
  *****************************************************************************/
 
-#include "particle.h"
-#include "star.h"
+#include "particles/particle.h"
+#include "particles/star.h"
 #include "graphic/sprite.h"
 
 StarParticle::StarParticle() :

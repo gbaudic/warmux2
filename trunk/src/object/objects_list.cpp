@@ -21,9 +21,8 @@
 
 #include "object/objects_list.h"
 //-----------------------------------------------------------------------------
-#include "barrel.h"
+#include "object/barrel.h"
 #include "include/app.h"
-#include "game/game_loop.h"
 #include "map/map.h"
 #include "map/maps_list.h"
 #include "map/camera.h"
@@ -81,7 +80,7 @@ void ObjectsList::Refresh()
     (*object)->Refresh();
     if((*object)->IsGhost()) {
       // Stop following this object, remove from overlapse reference then delete it.
-      Camera::GetInstance()->GetInstance()->StopFollowingObj(*object);
+      Camera::GetInstance()->StopFollowingObj(*object);
       RemoveOverlappedObjectReference(*object);
       delete (*object);
       object = erase(object);

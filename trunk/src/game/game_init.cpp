@@ -19,20 +19,18 @@
  * Game loop : drawing and data handling
  *****************************************************************************/
 
-#include "game_init.h"
+#include "game/game_init.h"
 #include <SDL.h>
 #include <iostream>
-#include "game_loop.h"
-#include "game.h"
-#include "game_mode.h"
-#include "time.h"
+#include "game/game.h"
+#include "game/game_mode.h"
+#include "game/time.h"
 #include "character/character.h"
 #include "include/action_handler.h"
 #include "interface/cursor.h"
 #include "interface/game_msg.h"
 #include "interface/interface.h"
 #include "interface/keyboard.h"
-#include "interface/loading_screen.h"
 #include "interface/mouse.h"
 #include "game/config.h"
 #include "map/camera.h"
@@ -75,7 +73,7 @@ void GameInit::EndInitGameData_NetServer()
   // Before playing we should check that init phase happens correctly on all clients
   Action a(Action::ACTION_NETWORK_CHECK_PHASE1);
   Network::GetInstance()->SendAction(&a);
-  
+
   while (Network::IsConnected()
          && Network::GetInstanceServer()->GetNbCheckedPlayers() + 1  != Network::GetInstanceServer()->GetNbConnectedPlayers())
     {
@@ -108,7 +106,7 @@ void GameInit::InitMap()
 {
   std::cout << "o " << _("Initialise map") << std::endl;
 
-  LoadingScreen::GetInstance()->StartLoading(1, "map_icon", _("Maps"));
+  loading_sreen.StartLoading(1, "map_icon", _("Maps"));
   world.Reset();
   MapsList::GetInstance()->ActiveMap().FreeData();
 
@@ -119,19 +117,22 @@ void GameInit::InitTeams()
 {
   std::cout << "o " << _("Initialise teams") << std::endl;
 
-  LoadingScreen::GetInstance()->StartLoading(2, "team_icon", _("Teams"));
+  loading_sreen.StartLoading(2, "team_icon", _("Teams"));
 
   // Check the number of teams
-  if (teams_list.playing_list.size() < 2)
+  if (GetTeamsList().playing_list.size() < 2)
     Error(_("You need at least two valid teams !"));
-  ASSERT (teams_list.playing_list.size() <= GameMode::GetInstance()->max_teams);
+  ASSERT (GetTeamsList().playing_list.size() <= GameMode::GetInstance()->max_teams);
 
   // Load the teams
-  teams_list.LoadGamingData();
+  GetTeamsList().LoadGamingData();
 
   // Initialization of teams' energy
-  LoadingScreen::GetInstance()->StartLoading(3, "weapon_icon", _("Weapons")); // use fake message...
-  teams_list.InitEnergy();
+  loading_sreen.StartLoading(3, "weapon_icon", _("Weapons")); // use fake message...
+  GetTeamsList().InitEnergy();
+
+  // Randomize first player
+  GetTeamsList().RandomizeFirstPlayer();
 
   lst_objects.PlaceMines();
 }
@@ -141,7 +142,7 @@ void GameInit::InitSounds()
   std::cout << "o " << _("Initialise sounds") << std::endl;
 
   // Load teams' sound profiles
-  LoadingScreen::GetInstance()->StartLoading(4, "sound_icon", _("Sounds"));
+  loading_sreen.StartLoading(4, "sound_icon", _("Sounds"));
 
   jukebox.LoadXML("default");
   FOR_EACH_TEAM(team)
@@ -170,7 +171,8 @@ void GameInit::InitData()
   InitSounds();
 }
 
-void GameInit::Init()
+GameInit::GameInit():
+  loading_sreen()
 {
   Config::GetInstance()->RemoveAllObjectConfigs();
 
@@ -178,11 +180,8 @@ void GameInit::Init()
   bool enable_sound = jukebox.UseEffects();
   jukebox.ActiveEffects(false);
 
-  // Display Loading screen
-  LoadingScreen::GetInstance()->DrawBackground();
+  Mouse::GetInstance()->CenterPointer();
   Mouse::GetInstance()->Hide();
-
-  Game::GetInstance()->MessageLoading();
 
   // Init all needed data
   InitData();
@@ -209,18 +208,8 @@ void GameInit::Init()
   else if (Network::GetInstance()->IsClient())
     EndInitGameData_NetClient();
 
-  GameLoop::GetInstance()->Init();
+  Game::GetInstance()->Init();
 
   // Reset time at end of initialisation, so that the first player doesn't loose a few seconds.
   Time::GetInstance()->Reset();
-
-  // Put the camera on the first playing character.
-  Team* team = teams_list.GetNextTeam();
-  Character* first_to_play;
-  if(team->GetNbCharacters() > 1)
-        first_to_play = team->FindByIndex(1);
-  else
-        first_to_play = team->FindByIndex(0);
-  Camera::GetInstance()->GetInstance()->FollowObject(first_to_play, true, true, true);
 }
-

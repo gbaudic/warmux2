@@ -17,19 +17,17 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#include "video.h"
 #ifdef _MSC_VER
 #  include <algorithm>
 #endif
 #include <iostream>
 #include <SDL_image.h>
 #include "game/config.h"
-#ifdef WIN32
-#  include "include/app.h"
-#endif
-#include "tool/i18n.h"
+#include "graphic/video.h"
+#include "include/app.h"
 #include "include/constant.h"
 #include "map/camera.h"
+#include "tool/i18n.h"
 
 
 Video::Video(){
@@ -63,6 +61,7 @@ Video::Video(){
 Video::~Video(){
   if( SDLReady )
     SDL_Quit();
+  SDLReady = false;
 }
 
 void Video::SetMaxFps(uint max_fps){
@@ -151,6 +150,8 @@ const std::list<Point2i>& Video::GetAvailableConfigs() const
 
 bool Video::SetConfig(const int width, const int height, const bool _fullscreen){
   int flag = (_fullscreen) ? SDL_FULLSCREEN : 0;
+  bool window_was_null = window.IsNull();
+
 
   // update the main window if needed
   if( window.IsNull() ||
@@ -170,8 +171,11 @@ bool Video::SetConfig(const int width, const int height, const bool _fullscreen)
       return false;
 
     fullscreen = _fullscreen;
-    Camera::GetInstance()->GetInstance()->SetSize(width, height);
-    Camera::GetInstance()->GetInstance()->SetXY(Camera::GetInstance()->GetPosition());
+    Camera::GetInstance()->SetSize(width, height);
+
+    // refresh all the map when switching to higher resolution
+    if (!window_was_null)
+      AppWormux::GetInstance()->RefreshDisplay();
   }
 
   return true;

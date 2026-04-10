@@ -18,13 +18,13 @@ wormux_SOURCES = \
         game/config.cpp game/config.h \
         game/game.cpp game/game.h \
         game/game_init.cpp game/game_init.h \
-        game/game_loop.cpp game/game_loop.h \
         game/game_mode.cpp game/game_mode.h \
         game/time.cpp game/time.h \
         graphic/color.cpp graphic/color.h \
         graphic/colors.h \
         graphic/composite_shape.cpp graphic/composite_shape.h \
         graphic/effects.cpp graphic/effects.h \
+        graphic/fading_effect.h \
         graphic/font.cpp graphic/font.h \
         graphic/fps.cpp graphic/fps.h \
         graphic/polygon.cpp graphic/polygon.h \
@@ -38,11 +38,12 @@ wormux_SOURCES = \
         graphic/text_list.cpp graphic/text_list.h \
         graphic/textured_polygon.h \
         graphic/video.cpp graphic/video.h \
+        gui/abstract_spin_button.h \
         gui/box.cpp gui/box.h \
         gui/button.cpp gui/button.h \
         gui/button_text.cpp gui/button_text.h \
         gui/check_box.cpp gui/check_box.h \
-	gui/combo_box.cpp gui/combo_box.h \
+        gui/combo_box.cpp gui/combo_box.h \
         gui/container.h \
         gui/energy_bar.cpp gui/energy_bar.h \
         gui/label.cpp gui/label.h \
@@ -74,6 +75,7 @@ wormux_SOURCES = \
         interface/loading_screen.cpp interface/loading_screen.h \
         interface/man_machine_interface.cpp interface/man_machine_interface.h \
         interface/mouse.cpp interface/mouse.h \
+        interface/mouse_cursor.cpp interface/mouse_cursor.h \
         interface/weapon_menu.cpp interface/weapon_menu.h \
         map/camera.cpp map/camera.h \
         map/ground.cpp map/ground.h \
@@ -98,17 +100,20 @@ wormux_SOURCES = \
         menu/results_menu.cpp menu/results_menu.h \
         menu/team_box.cpp menu/team_box.h \
         menu/teams_selection_box.cpp menu/teams_selection_box.h \
+        network/admin_commands.cpp network/admin_commands.h \
         network/chat.cpp network/chat.h \
         network/distant_cpu.cpp network/distant_cpu.h \
         network/download.cpp network/download.h \
         network/index_server.cpp network/index_server.h \
         network/index_svr_msg.h \
+        network/irc.cpp network/irc.h \
         network/net_error_msg.cpp network/net_error_msg.h \
         network/network_client.cpp network/network_client.h \
         network/network.cpp network/network.h \
         network/network_local.cpp network/network_local.h \
         network/network_server.cpp network/network_server.h \
         network/randomsync.cpp network/randomsync.h \
+        network/socket.cpp network/socket.h \
         object/barrel.cpp object/barrel.h \
         object/bonus_box.cpp object/bonus_box.h \
         object/medkit.cpp  object/medkit.h \
@@ -143,6 +148,7 @@ wormux_SOURCES = \
         tool/error.cpp tool/error.h \
         tool/euler_vector.cpp tool/euler_vector.h \
         tool/file_tools.cpp tool/file_tools.h \
+        tool/isnan.h \
         tool/i18n.cpp tool/i18n.h \
         tool/math_tools.cpp tool/math_tools.h \
         tool/random.cpp tool/random.h \
@@ -150,6 +156,7 @@ wormux_SOURCES = \
         tool/resource_manager.cpp tool/resource_manager.h \
         tool/stats.cpp tool/stats.h \
         tool/string_tools.cpp tool/string_tools.h \
+	tool/text_handling.cpp tool/text_handling.h \
         tool/vector2.h \
         tool/xml_document.cpp tool/xml_document.h \
         weapon/air_attack.cpp weapon/air_attack.h \
@@ -167,6 +174,7 @@ wormux_SOURCES = \
         weapon/disco_grenade.cpp weapon/disco_grenade.h \
         weapon/dynamite.cpp weapon/dynamite.h \
         weapon/explosion.cpp weapon/explosion.h \
+	weapon/flamethrower.cpp weapon/flamethrower.h \
         weapon/gnu.cpp weapon/gnu.h \
         weapon/grapple.cpp weapon/grapple.h \
         weapon/grenade.cpp weapon/grenade.h \
@@ -201,6 +209,7 @@ AM_CXXFLAGS = -I $(top_srcdir)/src -DINSTALL_DATADIR=\"@DATADIR@\"      \
 
 if WIN32
 wormux_SOURCES += wormux.rc wormux.ico
+LIBS+=@LIBINTL@
 .rc.o:
 	@WINDRES@ -o $@ -i $<
 else

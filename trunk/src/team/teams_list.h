@@ -43,19 +43,25 @@ private:
   typedef std::list<uint>::iterator selection_iterator;
   std::list<uint> selection;
   std::vector<Team*>::iterator active_team;
-  void LoadOneTeam (const std::string &dir, const std::string &file);
+  static TeamsList *singleton;
 
-public:
+  void LoadOneTeam (const std::string &dir, const std::string &file);
   TeamsList();
   ~TeamsList();
   void LoadList();
+
+  static TeamsList *GetInstance();
+
+public:
+  friend TeamsList &GetTeamsList(void);
+  friend void TeamsListCleanup(void);
   void NextTeam();
   Team* GetNextTeam();
   Team& ActiveTeam();
   void LoadGamingData();
   void UnloadGamingData();
   void Clear();
-
+  void RandomizeFirstPlayer();
 
   // Add a new team to playing, and change active team
   void AddTeam (const ConfigTeam& the_team_cfg, bool generate_error=true);
@@ -77,7 +83,6 @@ public:
   Team* FindPlayingByIndex(uint index);
 };
 
-extern TeamsList teams_list;
 //-----------------------------------------------------------------------------
 
 // current active team
@@ -89,6 +94,10 @@ Character& ActiveCharacter();
 //-----------------------------------------------------------------------------
 
 bool compareTeams(const Team *a, const Team *b);
+
+inline TeamsList &GetTeamsList(void) { return *TeamsList::GetInstance(); };
+
+inline void TeamsListCleanup(void) { delete TeamsList::GetInstance(); };
 
 //-----------------------------------------------------------------------------
 #endif

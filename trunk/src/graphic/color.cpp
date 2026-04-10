@@ -19,7 +19,7 @@
  * Handle a color
  *****************************************************************************/
 
-#include "color.h"
+#include "graphic/color.h"
 #include <SDL.h>
 
 Color::Color(){
@@ -37,27 +37,18 @@ bool Color::operator==(const Color &color) const{
                && alpha == color.alpha;
 }
 
+Color Color::operator*(const Color &fact) const{
+        return Color((Uint8) ((Uint32)red * fact.red / 255),
+                     (Uint8) ((Uint32)green * fact.green / 255),
+                     (Uint8) ((Uint32)blue * fact.blue / 255),
+                     (Uint8) ((Uint32)alpha * fact.alpha / 255));
+}
+
 void Color::SetColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a){
         red = r;
         green = g;
         blue = b;
         alpha = a;
-}
-
-Uint8 Color::GetRed() const{
-        return red;
-}
-
-Uint8 Color::GetGreen() const{
-        return green;
-}
-
-Uint8 Color::GetBlue() const{
-        return blue;
-}
-
-Uint8 Color::GetAlpha() const{
-        return alpha;
 }
 
 SDL_Color Color::GetSDLColor() const{
@@ -69,4 +60,13 @@ SDL_Color Color::GetSDLColor() const{
         sdlColor.unused = alpha;
 
         return sdlColor;
+}
+
+Uint32 Color::GetColor() const
+{
+#if SDL_BYTEORDER == SDL_LIL_ENDIAN
+  return (red << 24) | green << 16 | blue << 8 | alpha;
+#else
+  return (alpha << 24) | blue << 16 | green << 8 | red;
+#endif
 }

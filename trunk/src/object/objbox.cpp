@@ -19,26 +19,29 @@
  * Generic Box that falls from they sky.
  *****************************************************************************/
 
-#include "objbox.h"
-#include "medkit.h"
-#include "bonus_box.h"
+#include "object/objbox.h"
+#include "object/medkit.h"
+#include "object/bonus_box.h"
 #include <sstream>
 #include <iostream>
 #include "game/game_mode.h"
-#include "game/game_loop.h"
+#include "game/game.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "include/app.h"
+#include "include/action.h"
 #include "interface/game_msg.h"
 #include "map/camera.h"
 #include "map/map.h"
 #include "network/randomsync.h"
 #include "object/objects_list.h"
 #include "team/macro.h"
+#include "team/team.h"
 #include "tool/debug.h"
 #include "tool/i18n.h"
 #include "tool/resource_manager.h"
 #include "weapon/explosion.h"
+#include "character/character.h"
 
 const uint SPEED = 5; // meter / seconde
 // XXX Unused !?
@@ -51,7 +54,7 @@ ObjBox::ObjBox(const std::string &name)
 
   parachute = true;
 
-  life_points = start_life_points;
+  energy = start_life_points;
 
   SetSpeed (SPEED, M_PI_2);
   SetCollisionModel(false, false, true);
@@ -60,14 +63,14 @@ ObjBox::ObjBox(const std::string &name)
 
 ObjBox::~ObjBox(){
   delete anim;
-  GameLoop::GetInstance()->SetCurrentBox(NULL);
+  Game::GetInstance()->SetCurrentBox(NULL);
 }
 
 // Say hello to the ground
 void ObjBox::SignalCollision()
 {
   SetAirResistFactor(1.0);
-  GameLoop::GetInstance()->SetCurrentBox(NULL);
+  Game::GetInstance()->SetCurrentBox(NULL);
   MSG_DEBUG("box", "End of the fall: parachute=%d", parachute);
   if (!parachute) return;
 
@@ -75,6 +78,13 @@ void ObjBox::SignalCollision()
   parachute = false;
   anim->SetCurrentFrame(0);
   anim->Start();
+}
+
+void ObjBox::SignalObjectCollision(PhysicalObj * obj)
+{
+  SignalCollision();
+  if(typeid(*obj) == typeid(Character))
+    ApplyBonus((Character *)obj);
 }
 
 void ObjBox::DropBox()
@@ -88,59 +98,44 @@ void ObjBox::DropBox()
   }
 }
 
+void ObjBox::Refresh()
+{
+  // If we touch a character, we remove the medkit
+  FOR_ALL_LIVING_CHARACTERS(team, character)
+  {
+    if(Overlapse(*character)) {
+      ApplyBonus(&(*character));
+      Ghost();
+      return;
+    }
+  }
+  // Refresh animation
+  if (!anim->IsFinished() && !parachute) anim->Update();
+}
+
 //Boxes can explode...
 void ObjBox::SignalGhostState(bool /*was_already_dead*/)
 {
-  if(life_points > 0) return;
+  if(energy > 0) return;
   ParticleEngine::AddNow(GetCenter() , 10, particle_FIRE, true);
   ApplyExplosion(GetCenter(), GameMode::GetInstance()->bonus_box_explosion_cfg); //reuse the bonus_box explosion
+}
+
+void ObjBox::GetValueFromAction(Action * a)
+{
+  start_life_points = a->PopInt();
+  SetXY(a->PopPoint2i());
+  SetSpeedXY(a->PopPoint2d());
+}
+
+void ObjBox::StoreValue(Action *a)
+{
+  a->Push(start_life_points);
+  a->Push(GetPosition());
+  a->Push(GetSpeed());
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 // Static methods
-bool ObjBox::enable = true;
 int ObjBox::start_life_points = 41;
-
-// Make the box active?
-void ObjBox::Enable (bool _enable)
-{
-  MSG_DEBUG("box", "Enable ? %d", _enable);
-  enable = _enable;
-}
-
-bool ObjBox::NewBox()
-{
-  if (!enable) { // Boxes are disabled on closed map
-    return false;
-  }
-
-  uint nbr_teams=teams_list.playing_list.size();
-  if(nbr_teams<=1) {
-    MSG_DEBUG("box", "There is less than 2 teams in the game");
-    return false;
-  }
-  // .7 is a magic number to get the probability of boxes falling once every round close to .333
-  double randValue = randomSync.GetDouble();
-  if(randValue > (1-pow(.5,1.0/nbr_teams))) {
-       return false;
-  }
-
-  ObjBox * box;
-  if(randomSync.GetBool())
-    box = new Medkit();
-  else
-    box = new BonusBox();
-  if(!box->PutRandomly(true,0)) {
-    MSG_DEBUG("box", "Missed to put a box");
-    delete box;
-  } else {
-    lst_objects.AddObject(box);
-    Camera::GetInstance()->GetInstance()->FollowObject(box, true, true);
-    GameMessages::GetInstance()->Add (_("It's a present!"));
-    GameLoop::GetInstance()->SetCurrentBox(box);
-    return true;
-  }
-
-  return false;
-}

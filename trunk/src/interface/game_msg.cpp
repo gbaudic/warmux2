@@ -16,10 +16,10 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Messages s'affichant en haut de l'ecran (et écrit dans la console).
+ * Messages displayed at the top of screen and also into the terminal.
  *****************************************************************************/
 
-#include "game_msg.h"
+#include "interface/game_msg.h"
 #include <iostream>
 #include "game/time.h"
 #include "graphic/video.h"

@@ -58,7 +58,6 @@ using namespace std;
 #include "tool/debug.h"
 #include "tool/i18n.h"
 #include "tool/random.h"
-#include "tool/stats.h"
 
 
 static Menu *menu = NULL;
@@ -80,8 +79,6 @@ AppWormux *AppWormux::GetInstance()
 AppWormux::AppWormux():
   video(new Video())
 {
-  teams_list.LoadList();
-
   jukebox.Init();
 
   cout << "[ " << _("Run game") << " ]" << endl;
@@ -89,7 +86,9 @@ AppWormux::AppWormux():
 
 AppWormux::~AppWormux()
 {
+  singleton = NULL;
   delete video;
+  TeamsListCleanup();
 }
 
 int AppWormux::Main(void)
@@ -102,13 +101,11 @@ int AppWormux::Main(void)
 
     do
       {
-        MainMenu main_menu;
 
         if (choice == MainMenu::NONE) {
+          MainMenu main_menu;
           menu = &main_menu;
-          StatStart("Main:Menu");
           choice = main_menu.Run();
-          StatStop("Main:Menu");
         }
 
         ActionHandler::GetInstance()->Flush();
@@ -222,7 +219,10 @@ void AppWormux::End() const
 {
   cout << endl << "[ " << _("Quit Wormux") << " ]" << endl;
 
+  /* FIXME calling Config->Save here sucks: it nothing was ever done, it loads
+   * the whole stuff just before exiting... This should be moved, but where? */
   Config::GetInstance()->Save();
+
   jukebox.End();
   delete Config::GetInstance();
   delete Time::GetInstance();
@@ -251,13 +251,13 @@ void DisplayWelcomeMessage()
     << "=== " << _("Website: ") << Constants::WEB_SITE << endl
     << endl;
 
-  // Affiche l'absence de garantie sur le jeu
+  // print the disclaimer
   cout << "Wormux version " << Constants::VERSION
-    << ", Copyright (C) 2001-2006 Wormux Team" << endl
+    << ", Copyright (C) 2001-2007 Wormux Team" << endl
     << "Wormux comes with ABSOLUTELY NO WARRANTY." << endl
-    << "This is free software, and you are welcome to redistribute it" << endl
+    << "This is free software and you are welcome to redistribute it" << endl
     << "under certain conditions." << endl << endl
-    << "Read COPYING file for details." << endl << endl;
+    << "Read the file COPYING for details." << endl << endl;
 
 #ifdef DEBUG
   cout << "This program was compiled in DEBUG mode (development version)"
@@ -267,7 +267,7 @@ void DisplayWelcomeMessage()
 
 void ParseArgs(int argc, char * argv[])
 {
-  char c;
+  int c;
   int option_index = 0;
   struct option long_options[] =
     {

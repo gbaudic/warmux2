@@ -17,8 +17,8 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *****************************************************************************/
 
-#include "tile.h"
-#include "tileitem.h"
+#include "map/tile.h"
+#include "map/tileitem.h"
 #include "graphic/surface.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
@@ -39,16 +39,16 @@ Tile::~Tile(){
   FreeMem();
 }
 
-void Tile::InitTile(const Point2i &pSize){
-  nbCells = pSize / CELL_SIZE;
+void Tile::InitTile(const Point2i &pSize, const Point2i & upper_left_offset, const Point2i & lower_right_offset){
+  Point2i offset = upper_left_offset + lower_right_offset;
+  size = pSize + offset;
+  nbCells = size / CELL_SIZE;
 
-  if( (pSize.x % CELL_SIZE.x) != 0 )
+  if((size.x % CELL_SIZE.x) != 0)
     nbCells.x++;
 
-  if( (pSize.y % CELL_SIZE.y) != 0 )
+  if((size.y % CELL_SIZE.y) != 0)
     nbCells.y++;
-
-  size = pSize;
 
   nbr_cell = nbCells.x * nbCells.y;
 }
@@ -56,8 +56,8 @@ void Tile::InitTile(const Point2i &pSize){
 void Tile::Dig(const Point2i &position, const Surface& dig){
   // XXX Not used !?
   // Rectanglei rect = Rectanglei(position, dig.GetSize());
-  Point2i firstCell = Clamp(position/CELL_SIZE);
-  Point2i lastCell = Clamp((position + dig.GetSize())/CELL_SIZE);
+  Point2i firstCell = Clamp(position / CELL_SIZE);
+  Point2i lastCell = Clamp((position + dig.GetSize()) / CELL_SIZE);
   Point2i c;
 
   for( c.y = firstCell.y; c.y <= lastCell.y; c.y++ )
@@ -151,10 +151,10 @@ void Tile::MergeSprite(const Point2i &position, Surface& surf){
     }
 }
 
-void Tile::LoadImage (Surface& terrain){
+void Tile::LoadImage(Surface& terrain, const Point2i & upper_left_offset, const Point2i & lower_right_offset){
+  Point2i offset = upper_left_offset + lower_right_offset;
   FreeMem();
-
-  InitTile(terrain.GetSize());
+  InitTile(terrain.GetSize(), upper_left_offset, lower_right_offset);
   ASSERT(nbr_cell != 0);
 
   // Create the TileItem objects
@@ -166,7 +166,7 @@ void Tile::LoadImage (Surface& terrain){
   for( i.y = 0; i.y < nbCells.y; i.y++ )
     for( i.x = 0; i.x < nbCells.x; i.x++ ){
       int piece = i.y * nbCells.x + i.x;
-      Rectanglei sr( i * CELL_SIZE, CELL_SIZE);
+      Rectanglei sr(i * CELL_SIZE - upper_left_offset, CELL_SIZE);
 
       terrain.SetAlpha(0, 0);
       item[piece]->GetSurface().Blit(terrain, sr, Point2i(0, 0));

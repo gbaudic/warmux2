@@ -19,12 +19,11 @@
  * Skip his turn
  *****************************************************************************/
 
-#include "skip_turn.h"
-#include "weapon_cfg.h"
+#include "weapon/skip_turn.h"
+#include "weapon/weapon_cfg.h"
 
 //-----------------------------------------------------------------------------
 #include "character/character.h"
-#include "game/game_loop.h"
 #include "game/time.h"
 #include "interface/game_msg.h"
 #include "sound/jukebox.h"

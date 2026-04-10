@@ -27,6 +27,7 @@
 class Team;
 class Character;
 class Sprite;
+class Action;
 namespace xmlpp
 {
   class Element;
@@ -46,22 +47,23 @@ class ObjBox : public PhysicalObj //it would be nice to name this "Box", but tha
     ObjBox(const std::string &name);
     ~ObjBox();
 
-    // Activate box ?
-    static void Enable (bool _enable);
-    static bool NewBox();
     void DropBox();
     static void LoadXml(xmlpp::Element * /*object*/){};
 
-    virtual void Draw(){}
-    virtual void Refresh(){}
+    virtual void Draw() {}
+    virtual void Refresh();
+    virtual void Randomize() {};
+    virtual void GetValueFromAction(Action *);
+    virtual void StoreValue(Action *);
+    virtual void ApplyBonus(Character *) {};
 
   protected:
     bool parachute;
     Sprite *anim;
-    static bool enable;
     static int start_life_points;
     // Signal Fall ending
     void SignalCollision();
+    virtual void SignalObjectCollision(PhysicalObj *);
     void SignalDrowning() { SignalCollision(); };
     void SignalGhostState(bool was_already_dead);
 };

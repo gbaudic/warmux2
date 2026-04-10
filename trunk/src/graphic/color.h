@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  ******************************************************************************
- * Handle a SDL_Surface.
+ * Color
  *****************************************************************************/
 
 #ifndef COLOR_H
@@ -38,13 +38,15 @@ class Color
     Color(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
     bool operator==(const Color &color) const;
+    Color operator*(const Color &fact) const;
 
     void SetColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
-    Uint8 GetRed() const;
-    Uint8 GetGreen() const;
-    Uint8 GetBlue() const;
-    Uint8 GetAlpha() const;
+    Uint8 GetRed() const { return red; };
+    Uint8 GetGreen() const { return green; };
+    Uint8 GetBlue() const { return blue; };
+    Uint8 GetAlpha() const { return alpha; };
+    Uint32 GetColor() const;
 
     SDL_Color GetSDLColor() const;
 };

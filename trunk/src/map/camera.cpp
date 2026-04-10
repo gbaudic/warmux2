@@ -19,23 +19,23 @@
  * Camera : follow an object, center on it or follow mouse interaction.
  *****************************************************************************/
 
-#include "camera.h"
-#include "map.h"
-#include "wind.h"
+#include "map/camera.h"
+#include "map/map.h"
+#include "game/game.h"
+#include "game/config.h"
 #include "graphic/video.h"
 #include "include/app.h"
 #include "interface/mouse.h"
+#include "interface/interface.h"
 #include "object/physical_obj.h"
 #include "team/teams_list.h"
 #include "tool/debug.h"
 #include "tool/math_tools.h"
-#include "game/game.h"
 
-const Point2i CAMERA_MARGIN(200, 200);
 const Point2i CAMERA_SPEED(20, 20);
 
 Camera* Camera::singleton = NULL;
- 
+
 Camera * Camera::GetInstance()
 {
   if (singleton == NULL) {
@@ -46,17 +46,16 @@ Camera * Camera::GetInstance()
 
 Camera::Camera():
   auto_crop(true),
-  followed_object(NULL),
-  throw_camera(false),
-  follow_closely(false)
-{}
+  followed_object(NULL)
+{
+  pointer_used_before_scroll = Mouse::POINTER_SELECT;
+}
 
 void Camera::Reset()
 {
   auto_crop = true;
   followed_object = NULL;
-  throw_camera = false;
-  follow_closely = false;
+  SetXY(world.GetSize() / 2);
 }
 
 bool Camera::HasFixedX() const{
@@ -70,17 +69,16 @@ bool Camera::HasFixedY() const{
 void Camera::SetXYabs(int x, int y){
   AppWormux * app = AppWormux::GetInstance();
 
-  if( !HasFixedX() )
-    position.x = BorneLong(x, 0, world.GetWidth() - GetSizeX());
+  if(!HasFixedX())
+    position.x = InRange_Long(x, 0, world.GetWidth() - GetSizeX());
   else
     position.x = - (app->video->window.GetWidth() - world.GetWidth())/2;
 
-  if( !HasFixedY() )
-    position.y = BorneLong(y, 0, world.GetHeight()-GetSizeY());
+  if(!HasFixedY())
+    position.y = InRange_Long(y, 0, world.GetHeight() - GetSizeY());
   else
     position.y = - (app->video->window.GetHeight() - world.GetHeight())/2;
 
-  throw_camera = true;
 }
 
 void Camera::SetXY(Point2i pos){
@@ -91,85 +89,154 @@ void Camera::SetXY(Point2i pos){
   SetXYabs(position + pos);
 }
 
-// Center on a object
-void Camera::CenterOn(const PhysicalObj &obj){
-  if (obj.IsGhost())
-    return;
-
-  MSG_DEBUG( "camera.scroll", "centering on %s", obj.GetName().c_str() );
-
-  Point2i pos(0, 0);
-
-  pos += FreeDegrees() * obj.GetPosition() - ( GetSize() - obj.GetSize() )/2;
-  pos += NonFreeDegrees() * ( world.GetSize() - GetSize() )/2;
-
-  SetXYabs( pos );
-}
-
 void Camera::AutoCrop(){
-  if( !followed_object || followed_object->IsGhost() )
-    return;
+  /* Stuff is put static in order to be able to reach the last position
+   * of the object the camera was following, in case it desapears. This
+   * typically happen when something explodes or a character dies. */
+  static Point2i pos(0, 0);
+  static Point2i size(1, 1);
 
-  if( !IsVisible(*followed_object) )
+  if (followed_object && !followed_object->IsGhost() )
   {
-    MSG_DEBUG("camera.scroll", "The object is not visible.");
-    CenterOnFollowedObject();
-    return;
+    pos = followed_object->GetPosition();
+    size = followed_object->GetSize();
   }
-
-  if(follow_closely)
-  {
-    CenterOn(*followed_object);
-    return;
-  }
-  Point2i pos = followed_object->GetPosition();
-  Point2i size = followed_object->GetSize();
 
   if( pos.y < 0 )
     pos.y = 0;
 
-  Point2i dstMax = GetSize()/2 - CAMERA_MARGIN;
+  Point2i dstMax = GetSize()/2;
+
+  ASSERT(!dstMax.IsNull());
+
   Point2i cameraBR = GetSize() + position;
-  Point2i objectBRmargin = pos + size + CAMERA_MARGIN;
+  Point2i objectBRmargin = pos + size + GetSize()/2;
   Point2i dst(0, 0);
 
   dst += cameraBR.inf(objectBRmargin) * (objectBRmargin - cameraBR);
-  dst += (pos - CAMERA_MARGIN).inf(position) * (pos - CAMERA_MARGIN - position);
+  dst += (pos - GetSize()/2).inf(position) * (pos - GetSize()/2 - position);
 
-  SetXY( dst * CAMERA_SPEED / dstMax );
+  SetXY(dst * CAMERA_SPEED / dstMax );
+}
+
+void Camera::SaveMouseCursor()
+{
+  Mouse::pointer_t current_pointer = Mouse::GetInstance()->GetPointer();
+  if (current_pointer != Mouse::POINTER_MOVE &&
+      current_pointer != Mouse::POINTER_ARROW_UP &&
+      current_pointer != Mouse::POINTER_ARROW_DOWN &&
+      current_pointer != Mouse::POINTER_ARROW_LEFT &&
+      current_pointer != Mouse::POINTER_ARROW_RIGHT &&
+      current_pointer != Mouse::POINTER_ARROW_DOWN_RIGHT &&
+      current_pointer != Mouse::POINTER_ARROW_UP_RIGHT &&
+      current_pointer != Mouse::POINTER_ARROW_UP_LEFT &&
+      current_pointer != Mouse::POINTER_ARROW_DOWN_LEFT) {
+    pointer_used_before_scroll = current_pointer;
+  }
+}
+
+void Camera::RestoreMouseCursor()
+{
+  Mouse::GetInstance()->SetPointer(pointer_used_before_scroll);
+}
+
+void Camera::ScrollCamera()
+{
+  static const unsigned int SENSIT_SCROLL_MOUSE = 50;
+  Point2i mousePos = Mouse::GetInstance()->GetPosition();
+
+  Point2i tstVector;
+  // If application is fullscreen, mouse is only sensitive when touching the
+  // border screen
+  int coef = (AppWormux::GetInstance()->video->IsFullScreen() ? 10 : 1);
+  Point2i sensitZone(SENSIT_SCROLL_MOUSE / coef, SENSIT_SCROLL_MOUSE / coef);
+
+  /* tstVector represents the vector of how deep the cursor is in a sensit
+   * zone; negative value means that the camera has to reduce its coordinates,
+   * a positive value means that it should increase. Actually reduce means
+   * LEFT/UP (for x/y) and increase RIGHT/DOWN directions.
+   * The bigger tstVector is, the faster the camera will scroll. */
+  tstVector = GetSize().inf(mousePos + sensitZone) * (mousePos + sensitZone - GetSize()) ;
+  tstVector -= mousePos.inf(sensitZone) * (sensitZone - mousePos);
+
+  if (!tstVector.IsNull())
+    {
+      SetXY(tstVector);
+      SetAutoCrop(false);
+    }
+
+  /* mouse pointer ***********************************************************/
+  SaveMouseCursor();
+
+  if (tstVector.IsNull())
+    RestoreMouseCursor();
+  else if (tstVector.IsXNull() && tstVector.y < 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP);
+  else if (tstVector.IsXNull() && tstVector.y > 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN);
+  else if (tstVector.IsYNull() && tstVector.x < 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_LEFT);
+  else if (tstVector.IsYNull() && tstVector.x > 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_RIGHT);
+  else if (tstVector.y > 0 && tstVector.x > 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN_RIGHT);
+  else if (tstVector.y < 0 && tstVector.x > 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP_RIGHT);
+  else if (tstVector.y < 0 && tstVector.x < 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_UP_LEFT);
+  else if (tstVector.y > 0 && tstVector.x < 0)
+    Mouse::GetInstance()->SetPointer(Mouse::POINTER_ARROW_DOWN_LEFT);
+  /***************************************************************************/
+}
+
+void Camera::TestCamera()
+{
+  static Point2i last_mouse_pos(0, 0);
+  Point2i curr_pos = Mouse::GetInstance()->GetPosition();
+
+  int x,y;
+  //Move camera with mouse holding Ctrl key down or with middle button of mouse
+  if (SDL_GetModState() & KMOD_CTRL ||
+      SDL_GetMouseState(&x, &y) & SDL_BUTTON(SDL_BUTTON_MIDDLE))
+    {
+      SetAutoCrop(false);
+      SetXY(last_mouse_pos - curr_pos);
+      SaveMouseCursor();
+      Mouse::GetInstance()->SetPointer(Mouse::POINTER_MOVE);
+      last_mouse_pos = curr_pos;
+      return;
+    }
+  else if (Mouse::GetInstance()->GetPointer() == Mouse::POINTER_MOVE)
+    RestoreMouseCursor();
+
+  last_mouse_pos = curr_pos;
+
+  if(!Interface::GetInstance()->weapons_menu.IsDisplayed() &&
+     Config::GetInstance()->GetScrollOnBorder())
+    ScrollCamera();
 }
 
 void Camera::Refresh(){
-  throw_camera = false;
+  // Check if player wants the camera to move
+  TestCamera();
 
-  // mouse mouvement
-  Mouse::GetInstance()->TestCamera();
-  if (throw_camera) return;
-
-  if (auto_crop)
+  if (auto_crop && followed_object != NULL)
     AutoCrop();
 }
 
-void Camera::FollowObject(const PhysicalObj *obj, bool follow, bool center_on, bool force_center_on_object){
-  MSG_DEBUG( "camera.tracking", "Following object %s, center_on=%d, follow=%d", obj->GetName().c_str(), center_on, follow);
-  if ((center_on) && (followed_object != obj ||
-                      !IsVisible(*obj) || force_center_on_object))
-  {
-    bool visible = IsVisible(*obj);
-    CenterOn(*obj);
+void Camera::FollowObject(const PhysicalObj *obj, bool follow){
+  MSG_DEBUG( "camera.tracking", "Following object %s",
+                                 obj->GetName().c_str());
+
+  if (followed_object != obj || !IsVisible(*obj))
     auto_crop = follow;
-    if(!visible)
-      wind.RandomizeParticlesPos();
-  }
   followed_object = obj;
 }
 
 void Camera::StopFollowingObj(const PhysicalObj* obj){
-  if(Game::GetInstance()->IsGameFinished())
-    return;
 
   if (followed_object == obj)
-    FollowObject((PhysicalObj*)&ActiveCharacter(), true, true, true);
+    followed_object = NULL;
 }
 
 bool Camera::IsVisible(const PhysicalObj &obj) const {

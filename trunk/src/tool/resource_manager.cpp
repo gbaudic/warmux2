@@ -25,16 +25,17 @@
  * TODO:       Keep reference to resources, better exceptions
  *****************************************************************************/
 
-#include "resource_manager.h"
+#include "tool/resource_manager.h"
 #include <string>
 #include <iostream>
-#include "error.h"
-#include "xml_document.h"
-#include "string_tools.h"
+#include "tool/error.h"
+#include "tool/xml_document.h"
+#include "tool/string_tools.h"
 #include "game/config.h"
 #include "graphic/sprite.h"
 #include "graphic/polygon_generator.h"
 #include "map/random_map.h"
+#include "interface/mouse_cursor.h"
 
 Profile::Profile()
 {
@@ -106,7 +107,7 @@ Point2i ResourceManager::LoadPoint2i(const Profile *profile, const std::string& 
   std::string tmp[2] = { "x", "y" };
   for(int i = 0; i < 2; i++) {
     if (!profile->doc->ReadUintAttr(elem, tmp[i], point[i]))
-      Error("ResourceManager: color resource \""+resource_name+"\" has no "+tmp[i]+" field in profile "+profile->filename);
+      Error("ResourceManager: point resource \""+resource_name+"\" has no "+tmp[i]+" field in profile "+profile->filename);
   }
   return Point2i(point[0], point[1]);
 }
@@ -121,9 +122,32 @@ Point2d ResourceManager::LoadPoint2d(const Profile *profile, const std::string& 
   std::string tmp[2] = { "x", "y" };
   for(int i = 0; i < 2; i++) {
     if (!profile->doc->ReadDoubleAttr(elem, tmp[i], point[i]))
-      Error("ResourceManager: color resource \""+resource_name+"\" has no "+tmp[i]+" field in profile "+profile->filename);
+      Error("ResourceManager: point resource \""+resource_name+"\" has no "+tmp[i]+" field in profile "+profile->filename);
   }
   return Point2d(point[0], point[1]);
+}
+
+MouseCursor ResourceManager::LoadMouseCursor(const Profile *profile, const std::string& resource_name,
+					     Mouse::pointer_t _pointer_id) const
+{
+  xmlpp::Element *elem = GetElement ( profile, "mouse_cursor", resource_name);
+  if(elem == NULL)
+    Error("ResourceManager: can't find mouse cursor resource \""+resource_name+"\" in profile "+profile->filename);
+
+  std::string filename;
+  if (!profile->doc->ReadStringAttr(elem, "file", filename))
+    Error("ResourceManager: mouse cursor resource \""+resource_name+"\" has no file field in profile "+profile->filename);
+
+  uint point[2];
+  std::string tmp[2] = { "x", "y" };
+  for(int i = 0; i < 2; i++) {
+    if (!profile->doc->ReadUintAttr(elem, tmp[i], point[i]))
+      Error("ResourceManager: mouse cursor resource \""+resource_name+"\" has no "+tmp[i]+" field in profile "+profile->filename);
+  }
+  Point2i pos(point[0], point[1]);
+
+  MouseCursor mouse_cursor(_pointer_id, profile->relative_path+filename, pos);
+  return mouse_cursor;
 }
 
 Surface ResourceManager::LoadImage(const std::string& filename,
@@ -142,11 +166,11 @@ Surface ResourceManager::LoadImage(const std::string& filename,
   return end_surface;
 }
 
-Profile *ResourceManager::LoadXMLProfile(const std::string& xml_filename, bool relative_path) const
+Profile *ResourceManager::LoadXMLProfile(const std::string& xml_filename, bool is_absolute_path) const
 {
    XmlReader *doc = new XmlReader;
    std::string filename, path;
-   if (!relative_path) {
+   if (!is_absolute_path) {
      path = base_path;
      filename = path + xml_filename;
    } else {

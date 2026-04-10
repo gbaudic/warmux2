@@ -19,7 +19,7 @@
  * Generic menu
  *****************************************************************************/
 
-#include "menu.h"
+#include "menu/menu.h"
 #include "include/app.h"
 #include "graphic/sprite.h"
 #include "graphic/video.h"
@@ -48,18 +48,19 @@ Menu::Menu(const std::string& bg, t_action _actions) :
     actions_buttons = NULL;
   } else {
 
-    actions_buttons = new HBox( Rectanglei(x, y, 1, 50), false);
+    actions_buttons = new HBox(50, false);
 
     if (actions == vOk || actions == vOkCancel) {
-      b_ok = new Button( Point2i(0, 0), res, "menu/valider");
+      b_ok = new Button(res, "menu/valider");
       actions_buttons->AddWidget(b_ok);
     }
 
     if (actions == vCancel  || actions == vOkCancel) {
-      b_cancel = new Button( Point2i(0, 0), res, "menu/annuler");
+      b_cancel = new Button(res, "menu/annuler");
       actions_buttons->AddWidget(b_cancel);
     }
 
+    actions_buttons->SetXY(x, y);
     widgets.AddWidget(actions_buttons);
   }
 
@@ -195,33 +196,41 @@ void Menu::Run (bool skip_menu)
       if (event.type == SDL_QUIT) {
         key_cancel();
       } else if (event.type == SDL_KEYDOWN) {
-        switch (event.key.keysym.sym)
-          {
-          case SDLK_ESCAPE:
-            key_cancel();
-            break;
-          case SDLK_RETURN:
-            key_ok();
-            break;
-          case SDLK_UP:
-            key_up();
-            break;
-          case SDLK_DOWN:
-            key_down();
-            break;
-          case SDLK_LEFT:
-            key_left();
-            break;
-          case SDLK_RIGHT:
-            key_right();
-            break;
-          case SDLK_F10:
-            AppWormux::GetInstance()->video->ToggleFullscreen();
-            break;
-          default:
-            widgets.SendKey(event.key.keysym);
-            break;
-          }
+	bool used_by_widget = false;
+
+	if (event.key.keysym.sym != SDLK_ESCAPE &&
+	    event.key.keysym.sym != SDLK_RETURN)
+	  used_by_widget = widgets.SendKey(event.key.keysym);
+	
+	if (!used_by_widget) {
+	  switch (event.key.keysym.sym)
+	    {
+	    case SDLK_ESCAPE:
+	      key_cancel();
+	      break;
+	    case SDLK_RETURN:
+	      key_ok();
+	      break;          
+	    case SDLK_UP:
+	      key_up();
+	      break;
+	    case SDLK_DOWN:
+	      key_down();
+	      break;
+	    case SDLK_LEFT:
+	      key_left();
+	      break;
+	    case SDLK_RIGHT:
+	      key_right();
+	      break;
+	    case SDLK_F10:
+	      AppWormux::GetInstance()->video->ToggleFullscreen();
+	      break;
+	    default:
+	      // should have been handle upper!
+	      break;
+	    }
+	}
       } else if (event.type == SDL_MOUSEBUTTONUP) {
         if (!BasicOnClickUp(mousePosition))
           OnClickUp(mousePosition, event.button.button);

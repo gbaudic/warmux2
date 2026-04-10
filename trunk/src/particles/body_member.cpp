@@ -19,8 +19,8 @@
  * Particle Engine
  *****************************************************************************/
 
-#include "body_member.h"
-#include "particle.h"
+#include "particles/body_member.h"
+#include "particles/particle.h"
 #include "graphic/sprite.h"
 #include "tool/random.h"
 

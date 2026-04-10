@@ -19,15 +19,15 @@
  * WeaponLauncher: generic weapon to launch a projectile
  *****************************************************************************/
 
-#include "weapon_launcher.h"
-#include "weapon_cfg.h"
+#include "weapon/weapon_launcher.h"
+#include "weapon/weapon_cfg.h"
 
 #include <sstream>
 
-#include "explosion.h"
+#include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
-#include "game/game_loop.h"
+#include "game/game.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "include/action_handler.h"
@@ -53,6 +53,7 @@ WeaponBullet::WeaponBullet(const std::string &name,
   WeaponProjectile(name, cfg, p_launcher)
 {
   explode_colliding_character = true;
+  m_allow_negative_y = false;
   ResetTimeOut();
 }
 
@@ -68,6 +69,7 @@ void WeaponBullet::SignalOutOfMap()
 {
   WeaponProjectile::SignalOutOfMap();
   launcher->IncMissedShots();
+  Camera::GetInstance()->FollowObject(&ActiveCharacter(), true);
 }
 
 void WeaponBullet::SignalObjectCollision(PhysicalObj * obj)
@@ -109,7 +111,6 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
   image = resource_manager.LoadSprite( weapons_res_profile, name);
   image->EnableRotationCache(32);
   SetSize(image->GetSize());
-  camera_follow_closely = true;
 
   // Set rectangle test
   int dx = image->GetWidth()/2-1;
@@ -119,7 +120,7 @@ WeaponProjectile::WeaponProjectile(const std::string &name,
   ResetTimeOut();
 
   // generate a unique id for the projectile
-  m_unique_id = name + GameLoop::GetUniqueId();
+  m_unique_id = name + Game::GetUniqueId();
 }
 
 WeaponProjectile::~WeaponProjectile()
@@ -140,14 +141,12 @@ void WeaponProjectile::Shoot(double strength)
   ResetConstants();
 
   // Set the initial position.
-  SetXY(launcher->GetGunHolePosition());
   SetOverlappingObject(&ActiveCharacter(), 100);
+  lst_objects.AddObject(this);
+  Camera::GetInstance()->FollowObject(this, true);
 
-  // Set the initial speed.
   double angle = ActiveCharacter().GetFiringAngle();
-  RandomizeShoot(angle,strength);
-  SetSpeed(strength, angle);
-  PutOutOfGround(angle);
+  RandomizeShoot(angle, strength);
 
   MSG_DEBUG("weapon.projectile", "shoot from position %d,%d (size %d, %d) - hand position:%d,%d",
 	    ActiveCharacter().GetX(),
@@ -163,10 +162,22 @@ void WeaponProjectile::Shoot(double strength)
 
   ShootSound();
 
-  lst_objects.AddObject(this);
-  Camera::GetInstance()->GetInstance()->FollowObject(this, true, true, true);
-  if (camera_follow_closely)
-    Camera::GetInstance()->GetInstance()->SetCloseFollowing(true);
+  // bug #10236 : problem with flamethrower collision detection
+  // Check if the object is colliding something between hand position and gun hole
+  Point2i hand_position = ActiveCharacter().GetHandPosition() - GetSize() / 2;
+  Point2i hole_position = launcher->GetGunHolePosition() - GetSize() / 2;
+  Point2d f_hand_position(hand_position.GetX() / PIXEL_PER_METER, hand_position.GetY() / PIXEL_PER_METER);
+  Point2d f_hole_position(hole_position.GetX() / PIXEL_PER_METER, hole_position.GetY() / PIXEL_PER_METER);
+  SetXY(hand_position);
+  SetSpeed(strength, angle);
+  NotifyMove(f_hand_position, f_hole_position);
+  if(last_collision_type == NO_COLLISION) {
+    // Set the initial position and speed.
+    SetXY(hole_position);
+    SetSpeed(strength, angle);
+    PutOutOfGround(angle);
+  }
+
 }
 
 void WeaponProjectile::ShootSound()
@@ -176,6 +187,10 @@ void WeaponProjectile::ShootSound()
 
 void WeaponProjectile::Refresh()
 {
+  if(energy == 0) {
+    Explosion();
+    return;
+  }
   // Explose after timeout
   double tmp = Time::GetInstance()->Read() - begin_time;
 
@@ -184,7 +199,8 @@ void WeaponProjectile::Refresh()
 
 void WeaponProjectile::SetEnergyDelta(int /*delta*/, bool /*do_report*/)
 {
-  Explosion();
+  // Don't call Explosion here, we're already in an explosion
+  energy = 0;
 }
 
 void WeaponProjectile::Draw()
@@ -219,7 +235,8 @@ bool WeaponProjectile::IsImmobile() const
 void WeaponProjectile::SignalObjectCollision(PhysicalObj * obj)
 {
   ASSERT(obj != NULL);
-  MSG_DEBUG("weapon.projectile", "SignalObjectCollision %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalObjectCollision \"%s\" with \"%s\": %d, %d", 
+	    m_name.c_str(), obj->GetName().c_str(), GetX(), GetY());
   if (explode_colliding_character)
     Explosion();
 }
@@ -227,7 +244,7 @@ void WeaponProjectile::SignalObjectCollision(PhysicalObj * obj)
 // projectile explode when hiting the ground
 void WeaponProjectile::SignalGroundCollision()
 {
-  MSG_DEBUG("weapon.projectile", "SignalGroundCollision %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalGroundCollision \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   if (explode_with_collision)
     Explosion();
 }
@@ -235,37 +252,47 @@ void WeaponProjectile::SignalGroundCollision()
 // Default behavior : signal to launcher a collision and explode
 void WeaponProjectile::SignalCollision()
 {
-  MSG_DEBUG("weapon.projectile", "SignalCollision %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalCollision \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   if (launcher != NULL && !launcher->ignore_collision_signal) launcher->SignalProjectileCollision();
 }
 
 // Default behavior : signal to launcher projectile is drowning
 void WeaponProjectile::SignalDrowning()
 {
-  MSG_DEBUG("weapon.projectile", "SignalDrowning %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalDrowning \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   PhysicalObj::SignalDrowning();
   if (launcher != NULL && !launcher->ignore_drowning_signal)
     launcher->SignalProjectileDrowning();
+
+  jukebox.Play("share", "sink");
+}
+
+// Default behavior : signal to launcher a projectile is going out of water
+void WeaponProjectile::SignalGoingOutOfWater()
+{
+  MSG_DEBUG("weapon.projectile", "SignalDrowning \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
+  PhysicalObj::SignalGoingOutOfWater();
+  if (launcher != NULL && !launcher->ignore_going_out_of_water_signal)
+    launcher->SignalProjectileGoingOutOfWater();
 }
 
 // Signal a ghost state
 void WeaponProjectile::SignalGhostState(bool)
 {
-  MSG_DEBUG("weapon.projectile", "SignalGhostState %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalGhostState \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   if (launcher != NULL && !launcher->ignore_ghost_state_signal)
     launcher->SignalProjectileGhostState();
-  Camera::GetInstance()->GetInstance()->SetCloseFollowing(false);
 }
 
 void WeaponProjectile::SignalOutOfMap()
 {
-  MSG_DEBUG("weapon.projectile", "SignalOutOfMap %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalOutOfMap \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
 }
 
 // the projectile explode and signal the explosion to launcher
 void WeaponProjectile::Explosion()
 {
-  MSG_DEBUG("weapon.projectile", "Explosion %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "Explosion \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   DoExplosion();
   SignalExplosion();
   Ghost();
@@ -273,7 +300,7 @@ void WeaponProjectile::Explosion()
 
 void WeaponProjectile::SignalExplosion()
 {
-  MSG_DEBUG("weapon.projectile", "SignalExplosion %s: %d, %d", m_name.c_str(), GetX(), GetY());
+  MSG_DEBUG("weapon.projectile", "SignalExplosion \"%s\": %d, %d", m_name.c_str(), GetX(), GetY());
   if (launcher != NULL && !launcher->ignore_explosion_signal)
     launcher->SignalProjectileExplosion();
 }
@@ -311,7 +338,7 @@ int WeaponProjectile::GetTotalTimeout() const
 // Signal a projectile timeout and explode
 void WeaponProjectile::SignalTimeout()
 {
-  MSG_DEBUG("weapon.projectile", "%s timeout has expired", m_name.c_str());
+  MSG_DEBUG("weapon.projectile", "\"%s\" timeout has expired", m_name.c_str());
   if (launcher != NULL && !launcher->ignore_timeout_signal)
     launcher->SignalProjectileTimeout();
   if (explode_with_timeout)
@@ -341,6 +368,7 @@ WeaponLauncher::WeaponLauncher(Weapon_type type,
   ignore_explosion_signal = false;
   ignore_ghost_state_signal = false;
   ignore_drowning_signal = false;
+  ignore_going_out_of_water_signal = false;
 }
 
 WeaponLauncher::~WeaponLauncher()
@@ -490,13 +518,13 @@ void WeaponLauncher::HandleKeyReleased_Num9(bool /*shift*/)
 
 void WeaponLauncher::HandleKeyReleased_Less(bool /*shift*/)
 {
-  projectile->IncrementTimeOut();
+  projectile->DecrementTimeOut();
   NetworkSetTimeoutProjectile();
 }
 
 void WeaponLauncher::HandleKeyReleased_More(bool /*shift*/)
 {
-  projectile->DecrementTimeOut();
+  projectile->IncrementTimeOut();
   NetworkSetTimeoutProjectile();
 }
 

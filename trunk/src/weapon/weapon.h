@@ -54,7 +54,7 @@ public:
   {
     WEAPON_BAZOOKA,        WEAPON_AUTOMATIC_BAZOOKA, WEAPON_RIOT_BOMB, WEAPON_GRENADE,
     WEAPON_DISCO_GRENADE,  WEAPON_CLUSTER_BOMB,      WEAPON_GUN,       WEAPON_SHOTGUN,
-    WEAPON_SUBMACHINE_GUN, WEAPON_BASEBALL,
+    WEAPON_SUBMACHINE_GUN, WEAPON_BASEBALL,          WEAPON_FLAMETHROWER,
 
     WEAPON_DYNAMITE,      WEAPON_MINE,
 
@@ -155,6 +155,9 @@ protected:
   virtual void Refresh() = 0;
   virtual bool p_Shoot() = 0;
 
+  virtual void DrawWeaponFire();
+  void DrawAmmoUnits() const;
+
 public:
   Weapon(Weapon_type type,
          const std::string &id,
@@ -172,9 +175,6 @@ public:
 
   // Draw the weapon
   virtual void Draw();
-  virtual void DrawWeaponFire();
-
-  void DrawAmmoUnits() const;
 
   Sprite & GetIcon() const { return *icon; };
   // Manage the numbers of ammunitions
@@ -323,6 +323,8 @@ public:
 private:
   // Angle in radian between -PI to PI
   double min_angle, max_angle;
+  // display crosshair ?
+  bool m_display_crosshair;
 
   /* If you need this, implement it (correctly)*/
   Weapon(const Weapon&);

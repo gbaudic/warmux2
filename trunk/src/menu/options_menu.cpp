@@ -19,7 +19,7 @@
  * Options menu
  *****************************************************************************/
 
-#include "options_menu.h"
+#include "menu/options_menu.h"
 
 #include "include/app.h"
 #include "game/game_mode.h"
@@ -46,13 +46,10 @@
 #include "tool/resource_manager.h"
 #include <sstream>
 
-const uint SOUND_X = 30;
-const uint SOUND_Y = 30;
+const uint SOUND_Y = 10;
 const uint SOUND_W = 530;
-const uint SOUND_H = 170;
+const uint SOUND_H = 200;
 
-const uint GRAPHIC_X = 30;
-const uint GRAPHIC_Y = SOUND_Y + SOUND_H + 20;
 const uint GRAPHIC_W = 530;
 const uint GRAPHIC_H = 330;
 
@@ -61,35 +58,35 @@ OptionMenu::OptionMenu() :
 {
   AppWormux * app = AppWormux::GetInstance();
   Profile *res = resource_manager.LoadXMLProfile("graphism.xml", false);
-  Rectanglei stdRect(0, 0, 140, 30);
+  Point2i stdSize(140, -1);
 
   /* Graphic options */
-  Box * graphic_options = new HBox(Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H));
-  graphic_options->AddWidget(new PictureWidget(Rectanglei(0, 0, 40, 136), "menu/video_label"));
+  Box * graphic_options = new HBox(GRAPHIC_H);
+  graphic_options->AddWidget(new PictureWidget(Point2i(40, 136), "menu/video_label"));
 
-  Box * top_n_bottom_graphic_options = new VBox(Rectanglei(0, 0, GRAPHIC_W - 40, GRAPHIC_H),false);
-  Box * top_graphic_options = new HBox(Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H / 2 - 20), false);
-  Box * bottom_graphic_options = new HBox(Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H / 2 - 20), false);
+  Box * top_n_bottom_graphic_options = new VBox(GRAPHIC_W - 40,false);
+  Box * top_graphic_options = new HBox(GRAPHIC_H / 2 - 20, false);
+  Box * bottom_graphic_options = new HBox(GRAPHIC_H / 2 - 20, false);
   top_graphic_options->SetMargin(25);
   bottom_graphic_options->SetMargin(25);
 
   // Various options
-  opt_display_wind_particles = new PictureTextCBox(_("Wind particles?"), "menu/display_wind_particles", stdRect);
+  opt_display_wind_particles = new PictureTextCBox(_("Wind particles?"), "menu/display_wind_particles", stdSize);
   top_graphic_options->AddWidget(opt_display_wind_particles);
 
-  opt_display_energy = new PictureTextCBox(_("Player energy?"), "menu/display_energy", stdRect);
+  opt_display_energy = new PictureTextCBox(_("Player energy?"), "menu/display_energy", stdSize);
   top_graphic_options->AddWidget(opt_display_energy);
 
-  opt_display_name = new PictureTextCBox(_("Player's name?"), "menu/display_name", stdRect);
+  opt_display_name = new PictureTextCBox(_("Player's name?"), "menu/display_name", stdSize);
   top_graphic_options->AddWidget(opt_display_name);
 
-  full_screen = new PictureTextCBox(_("Fullscreen?"), "menu/fullscreen", stdRect);
+  full_screen = new PictureTextCBox(_("Fullscreen?"), "menu/fullscreen", stdSize);
   bottom_graphic_options->AddWidget(full_screen);
 
   opt_max_fps = new SpinButtonWithPicture(_("Maximum FPS"), "menu/fps",
-                                                stdRect,
-                                                50, 5,
-                                                20, 50);
+					  stdSize,
+					  50, 5,
+					  20, 50);
   bottom_graphic_options->AddWidget(opt_max_fps);
 
 
@@ -110,7 +107,7 @@ OptionMenu::OptionMenu() :
 
       video_resolutions.push_back (std::pair<std::string, std::string>(text, text));
   }
-  cbox_video_mode = new ComboBox(_("Resolution"), "menu/resolution", stdRect,
+  cbox_video_mode = new ComboBox(_("Resolution"), "menu/resolution", stdSize,
 				 video_resolutions, current_resolution);
   bottom_graphic_options->AddWidget(cbox_video_mode);
 
@@ -121,28 +118,45 @@ OptionMenu::OptionMenu() :
   widgets.AddWidget(graphic_options);
 
   /* Language selection */
-  Box * language_options = new HBox(Rectanglei(GRAPHIC_X, GRAPHIC_Y, GRAPHIC_W, GRAPHIC_H));
-  language_options->AddWidget(new PictureWidget(Rectanglei(0, 0, 40, 136), "menu/config_label"));
+  Box * language_options = new HBox(GRAPHIC_H);
+  language_options->AddWidget(new PictureWidget(Point2i(40, 136), "menu/config_label"));
   widgets.AddWidget(language_options);
-  lbox_languages = new ListBoxWithLabel(_("Language"), stdRect);
+  lbox_languages = new ListBoxWithLabel(_("Language"), stdSize);
   language_options->AddWidget(lbox_languages);
 
   /* Sound options */
-  Box * sound_options = new HBox(Rectanglei(SOUND_X, SOUND_Y, SOUND_W, SOUND_H));
-  sound_options->AddWidget(new PictureWidget(Rectanglei(0,0,40,138), "menu/audio_label"));
+  Box * sound_options = new HBox(SOUND_H);
+  sound_options->AddWidget(new PictureWidget(Point2i(40, 138), "menu/audio_label"));
 
-  Box * all_sound_options = new HBox(Rectanglei(SOUND_X, SOUND_Y, SOUND_W, SOUND_H-20),false);
+  Box * all_sound_options = new HBox(SOUND_H-20,false);
   all_sound_options->SetMargin(25);
   all_sound_options->SetBorder(Point2i(10,10));
 
-  opt_music = new PictureTextCBox(_("Music?"), "menu/music_enable", stdRect);
+  opt_music = new PictureTextCBox(_("Music?"), "menu/music_enable", stdSize);
   all_sound_options->AddWidget(opt_music);
 
-  opt_sound_effects = new PictureTextCBox(_("Sound effects?"), "menu/sound_effects_enable", stdRect);
+  opt_sound_effects = new PictureTextCBox(_("Sound effects?"), "menu/sound_effects_enable", stdSize);
   all_sound_options->AddWidget(opt_sound_effects);
 
-  lbox_sound_freq = new ListBoxWithLabel(_("Sound frequency"), stdRect);
-  all_sound_options->AddWidget(lbox_sound_freq);
+
+  // Generate sound mode list
+  uint current_freq = jukebox.GetFrequency();
+  std::vector<std::pair<std::string, std::string> > sound_freqs;
+  std::string current_sound_freq;
+  sound_freqs.push_back (std::pair<std::string, std::string> ("11025", "11 kHz"));
+  sound_freqs.push_back (std::pair<std::string, std::string> ("22050", "22 kHz"));
+  sound_freqs.push_back (std::pair<std::string, std::string> ("44100", "44 kHz"));
+
+  if (current_freq == 44100)
+    current_sound_freq = "44100";
+  else if (current_freq == 22050)
+    current_sound_freq = "22050";
+  else
+    current_sound_freq = "11025";
+
+  cbox_sound_freq = new ComboBox(_("Sound frequency"), "menu/sound_frequency",
+				 stdSize, sound_freqs, current_sound_freq);
+  all_sound_options->AddWidget(cbox_sound_freq);
 
   sound_options->AddWidget(all_sound_options);
   widgets.AddWidget(sound_options);
@@ -150,19 +164,15 @@ OptionMenu::OptionMenu() :
   /* Center the widgets */
   uint center_x = app->video->window.GetWidth()/2;
 
-  sound_options->SetXY(center_x - sound_options->GetSizeX()/2, sound_options->GetPositionY());
+  sound_options->SetXY(center_x - sound_options->GetSizeX()/2, SOUND_Y);
+
   language_options->SetXY(center_x - (graphic_options->GetSizeX() + language_options->GetSizeX() + 20)/2,
-			  language_options->GetPositionY());
+			  sound_options->GetPositionY() + sound_options->GetSizeY() + 10);
+
   graphic_options->SetXY(language_options->GetPositionX() + language_options->GetSizeX() + 10, 
-			 graphic_options->GetPositionY());
+			 language_options->GetPositionY());
   
   // Values initialization
-
-  // Generate sound mode list
-  uint current_freq = jukebox.GetFrequency();
-  lbox_sound_freq->AddItem(current_freq == 11025, "11 kHz", "11025");
-  lbox_sound_freq->AddItem(current_freq == 22050, "22 kHz", "22050");
-  lbox_sound_freq->AddItem(current_freq == 44100, "44 kHz", "44100");
 
   resource_manager.UnLoadXMLProfile(res);
 
@@ -232,7 +242,7 @@ void OptionMenu::SaveOptions()
   // Sound settings
   config->SetSoundEffects(opt_sound_effects->GetValue());
   config->SetSoundMusic(opt_music->GetValue());
-  config->SetSoundFrequency(lbox_sound_freq->ReadIntValue());
+  config->SetSoundFrequency(cbox_sound_freq->GetIntValue());
 
   AppWormux * app = AppWormux::GetInstance();
   app->video->SetMaxFps(opt_max_fps->GetValue());
@@ -255,7 +265,7 @@ void OptionMenu::SaveOptions()
   // Sound
   jukebox.ActiveMusic(opt_music->GetValue());
   jukebox.ActiveEffects(opt_sound_effects->GetValue());
-  std::string sfreq = lbox_sound_freq->ReadValue();
+  std::string sfreq = cbox_sound_freq->GetValue();
   long freq;
   if (str2long(sfreq,freq)) jukebox.SetFrequency(freq);
 

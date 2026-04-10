@@ -19,8 +19,8 @@
  * Useful for weapons: explode on one point
  *****************************************************************************/
 
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "graphic/surface.h"
@@ -37,7 +37,7 @@
 #include "team/team.h"
 #include "tool/debug.h"
 #include "tool/math_tools.h"
-#include "weapon.h"
+#include "weapon/weapon.h"
 #include "object/physical_obj.h"
 #include "graphic/surface.h"
 #include "tool/resource_manager.h"
@@ -138,7 +138,7 @@ void ApplyExplosion_common (const Point2i &pos,
   }
 
   if(fastest_character != NULL)
-    Camera::GetInstance()->GetInstance()->FollowObject (fastest_character, true, true);
+    Camera::GetInstance()->FollowObject (fastest_character, true);
 
   // Apply the blast on physical objects.
   FOR_EACH_OBJECT(it)
@@ -183,7 +183,7 @@ void ApplyExplosion_common (const Point2i &pos,
            angle = -M_PI_2;
 
          if(fastest_character != NULL)
-           Camera::GetInstance()->GetInstance()->FollowObject (obj, true, true);
+           Camera::GetInstance()->FollowObject (obj, true);
          ASSERT( obj->GetMass() != 0.0);
          obj->AddSpeed (force / obj->GetMass(), angle);
        }
@@ -211,8 +211,8 @@ void ApplyExplosion_master (const Point2i &pos,
   Network::GetInstance()->SendAction(&a_begin_sync);
 
   TeamsList::iterator
-    it=teams_list.playing_list.begin(),
-    end=teams_list.playing_list.end();
+    it=GetTeamsList().playing_list.begin(),
+    end=GetTeamsList().playing_list.end();
 
   Action a_characters_info(Action::ACTION_CHARACTER_SET_PHYSICS);
 

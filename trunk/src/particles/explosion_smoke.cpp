@@ -20,8 +20,8 @@
  * Particle Engine
  *****************************************************************************/
 
-#include "explosion_smoke.h"
-#include "particle.h"
+#include "particles/explosion_smoke.h"
+#include "particles/particle.h"
 #include "game/time.h"
 #include "graphic/sprite.h"
 #include "tool/random.h"

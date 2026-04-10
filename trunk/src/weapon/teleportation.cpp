@@ -19,10 +19,9 @@
  * Teleportation : move a charecter anywhere on the map
  *****************************************************************************/
 
-#include "teleportation.h"
+#include "weapon/teleportation.h"
 #include "character/character.h"
 #include "character/body.h"
-#include "game/game_loop.h"
 #include "game/game_mode.h"
 #include "game/time.h"
 #include "include/action_handler.h"
@@ -60,7 +59,7 @@ bool Teleportation::p_Shoot ()
   // Go back to default cursor
   Mouse::GetInstance()->SetPointer(Mouse::POINTER_SELECT);
 
-  //  GameLoop::GetInstance()->interaction_enabled = false;
+  //  Game::GetInstance()->interaction_enabled = false;
 
   jukebox.Play("share", "weapon/teleport_start");
 
@@ -74,7 +73,7 @@ bool Teleportation::p_Shoot ()
 void Teleportation::Refresh()
 {
   if(Time::GetInstance()->Read() - m_last_fire_time > (int)teleportation_anim_duration) {
-    Camera::GetInstance()->GetInstance()->SetXYabs(dst - Camera::GetInstance()->GetSize()/2);
+    Camera::GetInstance()->SetXYabs(dst - Camera::GetInstance()->GetSize()/2);
     ActiveCharacter().SetXY(dst);
     ActiveCharacter().SetSpeed(0.0,0.0);
     ActiveCharacter().Show();

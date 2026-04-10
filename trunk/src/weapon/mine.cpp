@@ -20,10 +20,10 @@
  * Sometime the mine didn't explode randomly.
  *****************************************************************************/
 
-#include "mine.h"
+#include "weapon/mine.h"
 #include <iostream>
 #include <sstream>
-#include "explosion.h"
+#include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
 #include "game/time.h"
@@ -85,7 +85,7 @@ void ObjMine::StartTimeout()
   {
     animation=true;
 
-    Camera::GetInstance()->GetInstance()->CenterOn(*this);
+    Camera::GetInstance()->FollowObject(this, true);
 
     MSG_DEBUG("mine", "EnableDetection - CurrentTime : %d",Time::GetInstance()->ReadSec() );
     attente = Time::GetInstance()->ReadSec() + cfg.timeout;
@@ -139,8 +139,9 @@ void ObjMine::Detection()
   }
 }
 
-void ObjMine::SetEnergyDelta(int /*delta*/, bool /*do_report*/)
+void ObjMine::SetEnergyDelta(int delta, bool do_report)
 {
+  WeaponProjectile::SetEnergyDelta(delta, do_report);
   // Don't call Explosion here, we're already in an explosion
   attente = 0;
   animation = true;

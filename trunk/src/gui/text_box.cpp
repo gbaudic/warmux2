@@ -20,24 +20,31 @@
  *****************************************************************************/
 
 #include <SDL_keyboard.h>
-#include "text_box.h"
+#include "gui/text_box.h"
 #include "graphic/text.h"
+#include "tool/text_handling.h"
 
-TextBox::TextBox (const std::string &label, const Rectanglei &rect,
+TextBox::TextBox (const std::string &label, const Point2i &_size,
                   Font::font_size_t fsize, Font::font_style_t fstyle) :
-  Label(label, rect, fsize, fstyle),
+  Label(label, _size, fsize, fstyle),
   cursor_pos(label.size())
 {
 }
 
-void TextBox::SetText(std::string const &new_txt)
+void TextBox::BasicSetText(std::string const &new_txt)
 {
   Font* font = Font::GetInstance(font_size, font_style);
 
   if (font->GetWidth(new_txt) < GetSizeX() - 5) {
     Label::SetText(new_txt);
-    cursor_pos = new_txt.size();
   }
+}
+
+void TextBox::SetText(std::string const &new_txt)
+{
+  BasicSetText(new_txt);
+
+  cursor_pos = new_txt.size();
 }
 
 void TextBox::SetCursor(std::string::size_type pos)
@@ -52,95 +59,32 @@ void TextBox::SetCursor(std::string::size_type pos)
   }
 }
 
-void TextBox::SendKey(const SDL_keysym& key)
+bool TextBox::SendKey(const SDL_keysym& key)
 {
+  bool used = true;
+
   need_redrawing = true;
 
-  std::string::size_type old_cursor_pos = cursor_pos;
-  std::string::size_type length = GetText().size();
   std::string new_txt = GetText();
 
-  switch (key.sym){
-  case SDLK_BACKSPACE:
-    if(cursor_pos != 0)
-      {
-	while((new_txt[--cursor_pos] & 0xc0) == 0x80)
-	  {
-	    new_txt.erase(cursor_pos, 1);
-	  }
-	new_txt.erase(cursor_pos, 1);
-	SetText(new_txt);
-      }
-    break;
-  case SDLK_LEFT:
-    if(cursor_pos != 0)
-      {
-	while((new_txt[--cursor_pos] & 0xc0) == 0x80);
-      }
-    break;
-  case SDLK_RIGHT:
-    if(cursor_pos < new_txt.size())
-      {
-	while((new_txt[++cursor_pos] & 0xc0) == 0x80);
-      }
-    break;
+  used = TextHandle(new_txt, cursor_pos, key);
 
-  case SDLK_TAB:
-  case SDLK_CLEAR:
-  case SDLK_ESCAPE:
-  case SDLK_DELETE:
-  case SDLK_UP:
-  case SDLK_DOWN:
-  case SDLK_INSERT:
-  case SDLK_HOME:
-  case SDLK_END:
-  case SDLK_PAGEUP:
-  case SDLK_PAGEDOWN:
-    break;
-
-  default:
-    if(key.unicode > 0)
-    {
-      if(key.unicode < 0x80) { // 1 byte char
-        new_txt.insert(cursor_pos++, 1, (char)key.unicode);
-      }
-      else if (key.unicode < 0x800) // 2 byte char
-      {
-        new_txt.insert(cursor_pos++, 1, (char)(((key.unicode & 0x7c0) >> 6) | 0xc0));
-        new_txt.insert(cursor_pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
-      }
-      else // if (key.unicode < 0x10000) // 3 byte char
-      {
-        new_txt.insert(cursor_pos++, 1, (char)(((key.unicode & 0xf000) >> 12) | 0xe0));
-        new_txt.insert(cursor_pos++, 1, (char)(((key.unicode & 0xfc0) >> 6) | 0x80));
-        new_txt.insert(cursor_pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
-      }
-    }
-    SetText(new_txt);
-    break;
-  }
+  if (new_txt != GetText())
+    BasicSetText(new_txt);
   
-  if (GetText().size() == length)
-    cursor_pos = old_cursor_pos;
+  return used;
 }
 
 void TextBox::Draw(const Point2i &mousePosition, Surface& surf) const
 {
   if (!hidden)
     {
-      if(have_focus)
+      if (have_focus)
         surf.BoxColor(*this, highlightOptionColorBox);
 
       surf.RectangleColor(*this, defaultOptionColorRect);
 
       Label::Draw(mousePosition, surf);
-
-      //sort of a hacky way to get the cursor pos, but I couldn't find anything better...
-      Text txt_before_cursor(*txt_label);
-      txt_before_cursor.Set(GetText().substr(0, cursor_pos));
-
-      surf.VlineColor(GetPositionX()+txt_before_cursor.GetWidth(),
-              GetPositionY()+2,
-              GetPositionY()+GetSizeY()-4, c_white);
+      txt_label->DrawCursor(position, cursor_pos);
     }
 }

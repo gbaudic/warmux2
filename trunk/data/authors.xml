@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE authors SYSTEM "authors.dtd">
-
 <authors>
 
   <team>
@@ -365,10 +364,9 @@
 	<country>Spain</country>
       </author>
       <author>
-        <nickname>????</nickname>
+        <nickname>Varga</nickname>
         <name>Varga Istvan</name>
-        <description>Hungarian translation updates(?)</description>
-        <email>????</email>
+        <description>Hungarian translation updates</description>
         <country>Hungary</country>
       </author>
     </section>
@@ -388,6 +386,13 @@
 	<website>http://jeanparpaillon.info/</website>
 	<email>jean.parpaillon_AT_free_DOT_fr</email>
 	<country>France</country>
+      </author>
+      <author>
+	<nickname>Auria</nickname>
+	<name>Marianne Gagnon</name>
+	<description>MacOSX package</description>
+	<email>fire_void_AT_hotmail_DOT_com</email>
+	<country>Canada</country>
       </author>
       <author>
 	<nickname>che</nickname>
@@ -463,8 +468,15 @@
 	<nickname>François</nickname>
 	<name>François BLEIBEL</name>
 	<description>Write first network patch with Jerome Glatigny</description>
-	<email>francois.bleibel_AT_utbm_DOT_fr</email>
+	<email>maisola_AT_gmail_DOT_com</email>
 	<country>France</country>
+      </author>
+      <author>
+	<nickname>funebre</nickname>
+	<name>Carlo MAISOLA</name>
+	<description>Flamethrower weapon</description>
+	<email>francois.bleibel_AT_utbm_DOT_fr</email>
+	<country>Italy</country>
       </author>
       <author>
 	<nickname>Hanna</nickname>
@@ -703,10 +715,24 @@
 	<country>France</country>
       </author>
       <author>
+	<nickname>Jeese</nickname>
+	<name>JS</name>
+	<description>Draw the map EasterIsland</description>
+	<email>jeeseverly_AT_yahoo_dot_fr</email>
+	<country>france</country>
+      </author>
+      <author>
 	<nickname>Michael</nickname>
 	<name>Michael PRAGER</name>
 	<description>Map pirates. Also: Gentoo package maintainer (prepare ebuilds), German translation of Wormux</description>
 	<email>X_X_L_AT_gmx_DOT_net</email>
+	<country>Germany</country>
+      </author>
+      <author>
+	<nickname>mmbenya</nickname>
+	<name>Matt Benya</name>
+	<description>Some maps</description>
+	<email>mmbenya_AT_primatestudios_DOT_com</email>
 	<country>Germany</country>
       </author>
       <author>

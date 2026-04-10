@@ -50,6 +50,16 @@ class DistantComputer;
 class NetworkServer;
 class NetworkMenu;
 
+typedef enum
+{
+  CONNECTED,
+  CONN_BAD_HOST,
+  CONN_BAD_PORT,
+  CONN_BAD_SOCKET,
+  CONN_REJECTED,
+  CONN_TIMEOUT
+} connection_state_t;
+
 class Network
 {
 public:
@@ -61,16 +71,6 @@ public:
       NETWORK_READY_TO_PLAY,
       NETWORK_PLAYING
     } network_state_t;
-
-  typedef enum
-    {
-      CONNECTED,
-      CONN_BAD_HOST,
-      CONN_BAD_PORT,
-      CONN_BAD_SOCKET,
-      CONN_REJECTED,
-      CONN_TIMEOUT
-    } connection_state_t;
 
 private:
 
@@ -85,6 +85,8 @@ private:
 
   static bool stop_thread;
   bool turn_master_player;
+
+  void ReceiveActions();
 
 protected:
   network_state_t state;
@@ -104,8 +106,10 @@ protected:
   bool ThreadToContinue() const;
   static int ThreadRun(void* no_param);
 
+  virtual void HandleAction(Action* a, DistantComputer* sender) = 0;
+  virtual void WaitActionSleep() = 0;
+
   void DisconnectNetwork();
-  const connection_state_t CheckHost(const std::string &host, int prt) const;
 public:
   NetworkMenu* network_menu;
 
@@ -132,7 +136,6 @@ public:
   void SendPacket(char* packet, int size) const;
   virtual void SendAction(Action* action) const;
 
-  virtual void ReceiveActions() = 0;
   virtual void SendChatMessage(const std::string& txt) = 0;
   virtual std::list<DistantComputer*>::iterator CloseConnection(std::list<DistantComputer*>::iterator closed) = 0;
 
@@ -143,6 +146,7 @@ public:
   static connection_state_t ServerStart(const std::string &port);
 
   // Manage network state
+  const connection_state_t CheckHost(const std::string &host, int prt) const;
   void SetState(Network::network_state_t state);
   Network::network_state_t GetState() const;
   void SendNetworkState() const;

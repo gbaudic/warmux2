@@ -19,19 +19,21 @@
  * Picture widget: A widget containing a picture
  *****************************************************************************/
 
-#include "picture_widget.h"
+#include "gui/picture_widget.h"
 #include "graphic/colors.h"
 #include "graphic/sprite.h"
 #include "tool/resource_manager.h"
 
-PictureWidget::PictureWidget (const Rectanglei &rect) : Widget(rect)
+PictureWidget::PictureWidget (const Point2i& _size)
 {
+  size = _size;
   spr = NULL;
   disabled = false;
 }
 
-PictureWidget::PictureWidget (const Rectanglei &rect, const std::string& resource_id) : Widget(rect)
+PictureWidget::PictureWidget (const Point2i& _size, const std::string& resource_id)
 {
+  size = _size;
   spr = NULL;
   disabled = false;
 

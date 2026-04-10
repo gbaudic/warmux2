@@ -63,9 +63,6 @@ class IndexServer
   int ReceiveInt();
   std::string ReceiveStr();
 
-  // Download the list of online servers on www.wormux.org
-  bool GetServerList();
-
   // Gives the address of a server in the list
   bool GetServerAddress(std::string & address, int & port);
   // Connect to a server
@@ -78,7 +75,7 @@ public:
   ~IndexServer();
 
   // Connect/disconnect to a server
-  Network::connection_state_t Connect();
+  connection_state_t Connect();
   void Disconnect();
 
   // Answers to pings from the server / close connection if distantly closed

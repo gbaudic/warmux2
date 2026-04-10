@@ -19,12 +19,12 @@
  * Polecat : send a polecat to the enemy. Close character get sick with the mefitic odor.
  *****************************************************************************/
 
-#include "polecat.h"
-#include "grenade.h"
-#include "weapon_cfg.h"
+#include "weapon/polecat.h"
+#include "weapon/grenade.h"
+#include "weapon/weapon_cfg.h"
 
 #include <sstream>
-#include "explosion.h"
+#include "weapon/explosion.h"
 #include "character/character.h"
 #include "game/config.h"
 #include "game/time.h"
@@ -65,7 +65,7 @@ Polecat::Polecat(ExplosiveWeaponConfig& cfg,
   last_fart_time = 0;
 }
 
-void Polecat::Shoot (double strength)
+void Polecat::Shoot(double strength)
 {
   WeaponProjectile::Shoot(strength);
   last_fart_time = Time::GetInstance()->Read() + TIME_BETWEEN_FART;

@@ -19,7 +19,7 @@
  * Random map generator
  *****************************************************************************/
 
-#include "random_map.h"
+#include "map/random_map.h"
 #include "game/config.h"
 #include "graphic/polygon_generator.h"
 #include "graphic/sprite.h"
@@ -240,7 +240,7 @@ void RandomMap::GenerateIsland()
 void RandomMap::Generate(InfoMap::Island_type generator)
 {
   srand(time(NULL));
-  if(generator == InfoMap::RANDOM) {
+  if(generator == InfoMap::RANDOM_GENERATED) {
     generator = (InfoMap::Island_type) Random::GetInt(InfoMap::SINGLE_ISLAND, InfoMap::DEFAULT);
     generator = InfoMap::PLATEFORMS;
   }

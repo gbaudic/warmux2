@@ -19,7 +19,7 @@
  * A beautiful checkbox with picture and text
  *****************************************************************************/
 
-#include "picture_text_cbox.h"
+#include "gui/picture_text_cbox.h"
 #include "include/app.h"
 #include "graphic/text.h"
 #include "graphic/font.h"
@@ -30,8 +30,9 @@
 
 PictureTextCBox::PictureTextCBox(const std::string &label,
                                  const std::string &resource_id,
-                                 const Rectanglei &rect, bool value):
-  CheckBox(new Text(label, dark_gray_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false), rect, value)
+                                 const Point2i &_size, bool value):
+  CheckBox(new Text(label, dark_gray_color, Font::FONT_MEDIUM, Font::FONT_BOLD, false),
+	   _size.x, value)
 {
   Profile *res = resource_manager.LoadXMLProfile( "graphism.xml", false);
   m_image = resource_manager.LoadImage(res, resource_id);
@@ -59,8 +60,8 @@ void PictureTextCBox::Draw(const Point2i &/*mousePosition*/, Surface& /*surf*/) 
         {
           uint enabled_x = GetPositionX() + (GetSizeX() - m_enabled.GetWidth() - 20)/2 ;
           uint enabled_y = GetPositionY() + (GetSizeY() - m_enabled.GetHeight() - txt_label->GetHeight() - 5) /2;
-          uint outside_x = max(uint(0), GetPositionX() - enabled_x);
-          uint outside_y = max(uint(0), GetPositionY() - enabled_y);
+          uint outside_x = std::max(uint(0), GetPositionX() - enabled_x);
+          uint outside_y = std::max(uint(0), GetPositionY() - enabled_y);
 
           enabled_x+= outside_x;
           enabled_y+= outside_y;
@@ -72,8 +73,8 @@ void PictureTextCBox::Draw(const Point2i &/*mousePosition*/, Surface& /*surf*/) 
         {
           uint disabled_x = GetPositionX() + (GetSizeX() - m_disabled_back.GetWidth() - 20)/2 ;
           uint disabled_y = GetPositionY() + (GetSizeY() - m_disabled_back.GetHeight() - txt_label->GetHeight() - 5) /2;
-          uint outside_x = max(uint(0), GetPositionX() - disabled_x);
-          uint outside_y = max(uint(0), GetPositionY() - disabled_y);
+          uint outside_x = std::max(uint(0), GetPositionX() - disabled_x);
+          uint outside_y = std::max(uint(0), GetPositionY() - disabled_y);
 
           disabled_x+= outside_x;
           disabled_y+= outside_y;

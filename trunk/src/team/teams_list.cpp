@@ -20,9 +20,9 @@
  *****************************************************************************/
 
 #include <libxml++/libxml++.h>
-#include "team.h"
-#include "team_config.h"
-#include "teams_list.h"
+#include "team/team.h"
+#include "team/team_config.h"
+#include "team/teams_list.h"
 //-----------------------------------------------------------------------------
 #include "character/character.h"
 #include "character/body_list.h"
@@ -31,12 +31,24 @@
 #include "network/network.h"
 #include "tool/file_tools.h"
 #include "tool/i18n.h"
-#include "team_energy.h"
+#include "team/team_energy.h"
 #include <algorithm>
 #include <iostream>
+#include "network/randomsync.h"
 
 //-----------------------------------------------------------------------------
-TeamsList teams_list;
+TeamsList *TeamsList::singleton = NULL;
+
+TeamsList *TeamsList::GetInstance()
+{
+  if (singleton == NULL)
+    {
+      singleton = new TeamsList();
+    }
+  return singleton;
+}
+
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 
@@ -45,10 +57,22 @@ TeamsList::TeamsList():
   playing_list(),
   selection(),
   active_team(playing_list.end())
-{}
+{
+  LoadList();
+}
 
 TeamsList::~TeamsList()
 {
+  /* The teamslist was never built... nothing to delete.
+   * FIXME This is needed because we are lead to delete things even if they
+   * were not created completely. IMHO, this reflects the fact that the object
+   * life time is not well known...
+   * Actually, this is not that bad whereas free(NULL) is accepted... but it
+   * remains spurious. */
+  if (!singleton)
+    return;
+
+  singleton = NULL;
   Clear();
   for(full_iterator it = full_list.begin(); it != full_list.end(); ++it)
     delete (*it);
@@ -60,7 +84,7 @@ TeamsList::~TeamsList()
 void TeamsList::NextTeam ()
 {
   Team* next = GetNextTeam();
-  teams_list.SetActive (next->GetId());
+  GetTeamsList().SetActive (next->GetId());
   Action a(Action::ACTION_GAMELOOP_NEXT_TEAM, next->GetId());
   Network::GetInstance()->SendAction(&a);
 }
@@ -157,7 +181,7 @@ void TeamsList::LoadList()
       << std::endl;
   }
 
-  teams_list.full_list.sort(compareTeams);
+  full_list.sort(compareTeams);
 
   // We need at least 2 teams
   if (full_list.size() < 2)
@@ -184,6 +208,14 @@ void TeamsList::LoadGamingData()
 
   // Load the data of all teams
   for (; it != end; ++it) (**it).LoadGamingData();
+}
+
+void TeamsList::RandomizeFirstPlayer()
+{
+  active_team = playing_list.begin();
+  int skip = randomSync.GetLong(0, playing_list.size() - 1);
+  for(int i = 0; i < skip; i++)
+    active_team++;
 }
 
 //-----------------------------------------------------------------------------
@@ -535,7 +567,7 @@ void TeamsList::SetActive(const std::string &id)
 
 Team& ActiveTeam()
 {
-  return teams_list.ActiveTeam();
+  return GetTeamsList().ActiveTeam();
 }
 
 //-----------------------------------------------------------------------------

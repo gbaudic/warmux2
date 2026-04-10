@@ -19,9 +19,9 @@
  * auto bazooka : launch a homing missile
  *****************************************************************************/
 
-#include "auto_bazooka.h"
-#include "explosion.h"
-#include "weapon_cfg.h"
+#include "weapon/auto_bazooka.h"
+#include "weapon/explosion.h"
+#include "weapon/weapon_cfg.h"
 
 #include "character/character.h"
 #include "game/time.h"
@@ -54,35 +54,42 @@ class AutomaticBazookaConfig : public ExplosiveWeaponConfig {
 
 class RPG : public WeaponProjectile
 {
+private:
   ParticleEngine smoke_engine;
-  protected:
-    double angle_local;
-    Point2i m_targetPoint;
-    bool m_targeted;
-    double m_force;
-    uint m_lastrefresh;
-  public:
-    RPG(AutomaticBazookaConfig& cfg,
-        WeaponLauncher * p_launcher);
-    void Refresh();
-    void Shoot(double strength);
-    void SetTarget (int x,int y);
-
-  protected:
-    void SignalOutOfMap();
-    void SignalDrowning();
+  SoundSample flying_sound;
+protected:
+  double angle_local;
+  Point2i m_targetPoint;
+  bool m_targeted;
+  double m_force;
+  uint m_lastrefresh;
+public:
+  RPG(AutomaticBazookaConfig& cfg,
+      WeaponLauncher * p_launcher);
+  void Refresh();
+  void Shoot(double strength);
+  void Explosion();
+  void SetTarget (int x,int y);
+  
+protected:
+  void SignalOutOfMap();
+  void SignalDrowning();
 };
 
-RPG::RPG(AutomaticBazookaConfig& cfg,
-                                         WeaponLauncher * p_launcher) :
+RPG::RPG(AutomaticBazookaConfig& cfg, WeaponLauncher * p_launcher) :
   WeaponProjectile("rocket", cfg, p_launcher), smoke_engine(20), m_lastrefresh(0)
 {
   m_targeted = false;
   explode_colliding_character = true;
 }
 
-void RPG::Shoot (double strength)
+void RPG::Shoot(double strength)
 {
+  // Sound must be launched before WeaponProjectile::Shoot
+  // in case that the projectile leave the battlefield
+  // during WeaponProjectile::Shoot (#bug 10241)
+  flying_sound.Play("share","weapon/automatic_rocket_flying", -1);
+
   WeaponProjectile::Shoot(strength);
   angle_local=ActiveCharacter().GetFiringAngle();
 }
@@ -156,12 +163,16 @@ void RPG::SignalDrowning()
 {
   smoke_engine.Stop();
   WeaponProjectile::SignalDrowning();
+
+  flying_sound.Stop();
 }
 
 void RPG::SignalOutOfMap()
 {
   GameMessages::GetInstance()->Add (_("The automatic rocket has left the battlefield..."));
   WeaponProjectile::SignalOutOfMap();
+
+  flying_sound.Stop();
 }
 
 // Set the coordinate of the target
@@ -169,6 +180,13 @@ void RPG::SetTarget (int x, int y)
 {
   m_targetPoint.x = x;
   m_targetPoint.y = y;
+}
+
+void RPG::Explosion()
+{
+  WeaponProjectile::Explosion();
+
+  flying_sound.Stop();
 }
 
 //-----------------------------------------------------------------------------
@@ -248,7 +266,7 @@ void AutomaticBazooka::ChooseTarget(Point2i mouse_pos)
   m_target->selected = true;
 
   if(!ActiveTeam().IsLocal())
-    Camera::GetInstance()->GetInstance()->SetXYabs(mouse_pos - Camera::GetInstance()->GetSize()/2);
+    Camera::GetInstance()->SetXYabs(mouse_pos - Camera::GetInstance()->GetSize()/2);
   DrawTarget();
   static_cast<RPG *>(projectile)->SetTarget(m_target->pos.x, m_target->pos.y);
 }

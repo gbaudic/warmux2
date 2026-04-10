@@ -19,7 +19,7 @@
  * energy bar of each team
  *****************************************************************************/
 
-#include "team_energy.h"
+#include "team/team_energy.h"
 #include <sstream>
 #include <math.h>
 #include "map/camera.h"
@@ -27,8 +27,8 @@
 #include "game/time.h"
 #include "graphic/text.h"
 #include "graphic/sprite.h"
-#include "team.h"
-#include "teams_list.h"
+#include "team/team.h"
+#include "team/teams_list.h"
 #include "include/app.h"
 
 const uint BAR_WIDTH = 13;
