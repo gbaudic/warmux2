@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -108,7 +108,8 @@ public:
    *
    * Should be used carefully.
    */
-  inline SDL_Surface *GetSurface() { return surface; };
+  SDL_Surface *GetSurface() { return surface; };
+  const SDL_Surface *GetSurface() const { return surface; };
 
   void NewSurface(const Point2i &size, Uint32 flags, bool useAlpha = true);
   int SetAlpha(Uint32 flags, Uint8 alpha);
@@ -163,7 +164,7 @@ public:
 
   int ImgLoad(const std::string& filename);
   bool ImgSave(const std::string& filename, bool bmp=false);
-  Surface RotoZoom(Double angle, Double zoomx, Double zoomy, int smooth=1 /* auto-aliasing = ON */);
+  Surface RotoZoom(Double angle, Double zoomx, Double zoomy);
   Surface DisplayFormatAlpha();
   Surface DisplayFormat();
   Uint32 GetPixel(int x, int y) const;

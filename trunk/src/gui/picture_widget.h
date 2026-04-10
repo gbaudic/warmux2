@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -76,6 +76,7 @@ public:
   // Apply a transparency color mask
   void Disable() { disabled = true; };
   void Enable() { disabled = false; };
+  bool IsEnabled() { return !disabled; };
   Point2i GetPicturePosition() const;
   Point2f GetScale() const;
 };

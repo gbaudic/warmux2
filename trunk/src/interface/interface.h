@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -151,6 +151,7 @@ public:
   Point2i GetMenuPosition() const { return bottom_bar_pos; }
   bool IsDisplayed () const { return display; }
   bool IsControl() const { return is_control; }
+  void DisableControl() { is_control = false; Hide(); }
   void EnableDisplay(bool _display) { display = _display; }
   void Show();
   void Hide();

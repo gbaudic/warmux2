@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -109,6 +109,10 @@ uint16_t TileItem_NonEmpty::GetChecksum() const
   uint16_t        crc = 0xFFFF;
   const uint8_t  *ptr = m_empty_bitfield;
   int             i   = (CELL_SIZE.y*CELL_SIZE.x)>>3;
+  // Some tiles completely empty are not deleted because of some pixel data
+  // being actually displayed. The 16bpp rendering however doesn't keep them
+  // as it can't differenciate such pixel data, and really delete the tiles.
+  bool            empty = true;
 
   static const uint16_t table[] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
@@ -146,10 +150,12 @@ uint16_t TileItem_NonEmpty::GetChecksum() const
   };
 
 
-  while (i--)
+  while (i--) {
+    empty &= ((*ptr)==0xFF);
     crc = (crc<<8) ^ table[(crc>>8) ^ *(ptr++)];
+  }
 
-  return crc;
+  return empty ? 0 : crc;
 }
 
 void TileItem_NonEmpty::CheckEmptyField()
@@ -232,9 +238,12 @@ void TileItem_BaseColorKey::Dig(const Point2i &position, const Surface& dig)
   m_start_check.SetValues(position.max(Point2i(0, 0)));
   m_end_check.SetValues(m_surface.GetSize().min(position+dig.GetSize()));
 
+  const SDL_PixelFormat *fmt = dig.GetSurface()->format;
+  Uint32 dig_ckey = (fmt->BitsPerPixel==32) ? 0 : fmt->colorkey;
+
   for (int py = m_start_check.y ; py < m_end_check.y ; py++) {
     for (int px = m_start_check.x ; px < m_end_check.x ; px++) {
-      if (dig.GetPixel(px-position.x, py-position.y) != 0)
+      if (dig.GetPixel(px-position.x, py-position.y) != dig_ckey)
         m_surface.PutPixel(px, py, color_key);
     }
   }
@@ -281,12 +290,15 @@ void TileItem_BaseColorKey::MergeSprite(const Point2i &position, Surface& spr)
   m_start_check.SetValues(position.max(Point2i(0, 0)));
   m_end_check.SetValues(m_surface.GetSize().min(position+spr.GetSize()));
 
+  const SDL_PixelFormat *fmt = spr.GetSurface()->format;
+  Uint32 spr_ckey = (fmt->BitsPerPixel==32) ? 0 : fmt->colorkey;
+
   spr.Lock();
 
   for (int py = m_start_check.y ; py < m_end_check.y ; py++) {
     for (int px = m_start_check.x ; px < m_end_check.x ; px++) {
       Uint32 pixel = spr.GetPixel(px-position.x, py-position.y);
-      if (pixel) {
+      if (pixel != spr_ckey) {
         Uint8 r, g, b, a;
         spr.GetRGBA(pixel, r, g, b, a);
         if (a < m_alpha_threshold) {

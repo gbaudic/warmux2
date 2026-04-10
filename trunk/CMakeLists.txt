@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.4.4)
 
 # Project name
 PROJECT(Warmux)
-SET(VERSION "10.12")
+SET(VERSION "11.01")
 
 # change the default install prefix to /usr
 SET(CMAKE_INSTALL_PREFIX /usr)
@@ -87,6 +87,8 @@ FIND_PACKAGE(CURL REQUIRED)
 FIND_PACKAGE(GLUT REQUIRED)
 FIND_PACKAGE(OpenGL REQUIRED)
 FIND_PACKAGE(FriBiDi)
+
+ADD_DEFINITIONS(-DHAVE_LIBCURL)
 
 IF(APPLE)
     # to ease packaging, we'll use a static libintl

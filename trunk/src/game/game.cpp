@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -739,6 +739,8 @@ void Game::MessageEndOfGame() const
 
   Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
 
+  JukeBox::GetInstance()->StopAll();
+
   if (!benching) {
     std::vector<TeamResults*>* results_list = TeamResults::createAllResults();
     ResultsMenu menu(*results_list, disconnected);
@@ -928,7 +930,8 @@ void Game::SetState(game_loop_state_t new_state, bool begin_game)
 
   state = new_state;
 
-  Interface::GetInstance()->weapons_menu.Hide();
+  Interface *interf = Interface::GetInstance();
+  interf->weapons_menu.Hide();
 
   switch (state) {
   // Beginning of a new turn:
@@ -944,6 +947,7 @@ void Game::SetState(game_loop_state_t new_state, bool begin_game)
   // Little pause at the end of the turn
   case END_TURN:
     __SetState_END_TURN();
+    interf->DisableControl();
     m_current_turn++;
     break;
   }

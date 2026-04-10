@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,8 +35,6 @@
 #endif /* texturedPolygon import from SDL_gfx v2.0.15 */
 
 #include "graphic/fading_effect.h"
-
-#define BUGGY_SDLGFX 1
 
 /**
  * Constructor building a surface by reading the image from a file.
@@ -642,6 +640,7 @@ end:
   return ret;
 }
 
+#if SDL_GFXPRIMITIVES_MICRO > 20
 template<typename pixel>
 void
 mirror(void *d, uint dpitch,
@@ -649,22 +648,23 @@ mirror(void *d, uint dpitch,
        int w, int h)
 {
   pixel *dst = (pixel*)d;
-  const pixel *src = ((pixel*)s)+w-1;
+  const pixel *src = ((pixel*)s)+(w-1);
 
   dpitch /= sizeof(pixel);
   spitch /= sizeof(pixel);
+
   while (h--) {
     for (int x=0; x<w; x++)
       dst[x] = src[-x];
-    // Try to avoid having garbage sdl_gfx < 2.0.22 actually reads
-    memset(dst+w*sizeof(pixel), 0, (dpitch-w)*sizeof(pixel));
     dst += dpitch;
     src += spitch;
   }
 }
+#endif
 
 Surface Surface::Mirror()
 {
+#if SDL_GFXPRIMITIVES_MICRO > 20
   const SDL_PixelFormat *fmt = surface->format;
   SDL_Surface *surf = SDL_CreateRGBSurface(surface->flags, surface->w, surface->h, fmt->BitsPerPixel,
                                            fmt->Rmask, fmt->Gmask, fmt->Bmask, fmt->Amask);
@@ -714,6 +714,9 @@ Surface Surface::Mirror()
     SDL_SetColorKey(surf, SDL_SRCCOLORKEY, surface->format->colorkey);
 
   return Surface(surf);
+#else
+  return Surface(zoomSurface(surface, -1, 1, 0));
+#endif
 }
 
 /**
@@ -726,32 +729,20 @@ Surface Surface::Mirror()
 * but when accessing thanks to GetSurfaceForAngle the index is using radian
 * (because we juste need an index in array, not an angle) */
 static const Double ratio_deg_to_rad = 180 / PI;
-Surface Surface::RotoZoom(Double angle, Double zoomx, Double zoomy, int smooth)
+Surface Surface::RotoZoom(Double angle, Double zoomx, Double zoomy)
 {
   SDL_Surface *surf;
 
-#ifdef BUGGY_SDLGFX
-  /* From SDLGFX website,
-   * 'zoomx' and 'zoomy' are scaling factors that
-   * can also be negative. In this case the corresponding axis is flipped.
-   * Note: Flipping currently only works with antialiasing turned off
-   */
-  if (zoomx == -1 && zoomy == ONE) {
-    if (EqualsZero(angle)) return Mirror();
-    smooth = 0;
-  }
-#endif
-
   if (EqualsZero(angle)) {
     if (zoomx!=ONE || zoomy!=ONE)
-      surf = zoomSurface(surface, zoomx.toDouble(), zoomy.toDouble(), smooth);
+      surf = zoomSurface(surface, zoomx.toDouble(), zoomy.toDouble(), 1);
     else {
       return *this;
     }
   } else if (zoomx == zoomy && zoomx > ZERO) {
-    surf = rotozoomSurface(surface, (angle * ratio_deg_to_rad).toDouble() , zoomx.toDouble(), smooth);
+    surf = rotozoomSurface(surface, (angle * ratio_deg_to_rad).toDouble() , zoomx.toDouble(), 1);
   } else {
-    surf = rotozoomSurfaceXY(surface, (angle * ratio_deg_to_rad).toDouble() , zoomx.toDouble(), zoomy.toDouble(), smooth);
+    surf = rotozoomSurfaceXY(surface, (angle * ratio_deg_to_rad).toDouble() , zoomx.toDouble(), zoomy.toDouble(), 1);
   }
 
   if (!surf)

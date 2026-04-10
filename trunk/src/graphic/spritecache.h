@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,9 +33,9 @@
 class Sprite;
 
 #if 0 //def ANDROID
-#  define RotoZoomC(a, x, y, s) RotoZoom(a, x, y, s).DisplayFormatColorKey(128)
+#  define RotoZoomC(a, x, y) RotoZoom(a, x, y).DisplayFormatColorKey(128)
 #else
-#  define RotoZoomC(a, x, y, s) RotoZoom(a, x, y, s)
+#  define RotoZoomC(a, x, y) RotoZoom(a, x, y)
 #endif
 
 class SpriteSubframeCache

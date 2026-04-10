@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -179,12 +179,15 @@ WSocket::~WSocket()
 
 connection_state_t WSocket::ConnectTo(const std::string &host, const int &port)
 {
+  connection_state_t r;
   WNet::Init();
 
-  connection_state_t r = WNet::CheckHost(host, port);
+#ifndef __SYMBIAN32__
+  r = WNet::CheckHost(host, port);
   if (r != CONNECTED)
     return r;
-
+#endif
+  
   Lock();
   ASSERT(socket == NULL);
 

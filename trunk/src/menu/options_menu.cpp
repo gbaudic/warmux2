@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ OptionMenu::OptionMenu() :
 #endif
   graphic_options->AddWidget(opt_max_fps);
 
-#ifndef HAVE_TOUCHSCREEN
+#ifndef HAVE_HANDHELD
   // Get available video resolution
   const std::list<Point2i>& video_res = app->video->GetAvailableConfigs();
   std::list<Point2i>::const_iterator mode;
@@ -297,9 +297,9 @@ OptionMenu::OptionMenu() :
   else
     current_sound_freq = "11025";
 
+#ifndef HAVE_HANDHELD
   cbox_sound_freq = new ComboBox(_("Sound frequency"), "menu/sound_frequency",
                                  option_size, sound_freqs, current_sound_freq);
-#ifndef HAVE_HANDHELD
   sound_options->AddWidget(cbox_sound_freq);
 #endif
 
@@ -433,14 +433,16 @@ void OptionMenu::SaveOptions()
 #endif
 
   // Sound settings - volume already saved
+#ifndef HAVE_HANDHELD
   config->SetSoundFrequency(cbox_sound_freq->GetIntValue());
+#endif
   config->SetSoundMusic(music_cbox->GetValue());
   config->SetSoundEffects(effects_cbox->GetValue());
 
   AppWarmux * app = AppWarmux::GetInstance();
   app->video->SetMaxFps(opt_max_fps->GetValue());
 
-#ifndef HAVE_TOUCHSCREEN
+#ifndef HAVE_HANDHELD
   // Video mode
   std::string s_mode = cbox_video_mode->GetValue();
 
@@ -466,10 +468,12 @@ void OptionMenu::SaveOptions()
   controls->SaveControlConfig();
 
   // Sound
+#ifndef HAVE_HANDHELD
   std::string sfreq = cbox_sound_freq->GetValue();
   int freq;
   if (str2int(sfreq,freq))
     JukeBox::GetInstance()->SetFrequency(freq);
+#endif
   config->SetWarnOnNewPlayer(warn_cbox->GetValue());
 
   JukeBox::GetInstance()->Init(); // commit modification on sound options

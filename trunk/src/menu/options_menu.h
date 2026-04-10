@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,13 +49,15 @@ private:
   CheckBox *opt_display_multisky;
 #endif
 
-#ifndef ANDROID
+#ifndef HAVE_HANDHELD
   ComboBox *cbox_video_mode;
 #endif
   SpinButtonWithPicture *opt_max_fps;
 
   /* Sound options controllers */
+#ifndef HAVE_HANDHELD
   ComboBox *cbox_sound_freq;
+#endif
   uint initial_vol_mus;
   uint initial_vol_eff;
   SpinButtonWithPicture *volume_music;

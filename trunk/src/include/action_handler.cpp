@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -410,20 +410,23 @@ static void Action_ChatMessage(Action *a)
                              : &Network::GetInstance()->GetPlayer();
 
   // Search first active team
-  const std::list<ConfigTeam>& teams = player->GetTeams();
-  std::list<ConfigTeam>::const_iterator it = teams.begin(), found = it;
-  for (; it != teams.end(); ++it) {
-    if (it->ai == NO_AI_NAME) {
-      found = it;
-      break;
+  Team *team = NULL;
+  if (player) {
+    const std::list<ConfigTeam>& teams = player->GetTeams();
+    std::list<ConfigTeam>::const_iterator it = teams.begin(), found = it;
+    for (; it != teams.end(); ++it) {
+      if (it->ai == NO_AI_NAME) {
+        found = it;
+        break;
+      }
     }
-  }
 
-  int unused_buffer;
-  Team *team = GetTeamsList().FindById(found->id, unused_buffer);
+    int unused_buffer;
+    team = GetTeamsList().FindById(found->id, unused_buffer);
+  }
   const Color& color = (team) ? team->GetColor()
                               : DefaultCPUColor(cpu);
-  const std::string& nickname = player->GetNickname();
+  const std::string& nickname = (player) ? player->GetNickname() : "?";
 
   ChatLogger::GetInstance()->LogMessage(nickname+"> "+message);
   AppWarmux::GetInstance()->ReceiveMsgCallback(nickname+"> "+message, color);

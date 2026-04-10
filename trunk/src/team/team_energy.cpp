@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "game/game_time.h"
 #include "graphic/text.h"
 #include "graphic/sprite.h"
+#include "sound/jukebox.h"
 #include "team/team.h"
 #include "team/teams_list.h"
 #include "include/app.h"
@@ -204,6 +205,11 @@ void TeamEnergy::Move()
 // Move energy bar immediatly to there final destination
 void TeamEnergy::FinalizeMove()
 {
+
+  // play leader_sound ( change "default" by GetTeam().GetSoundProfile()??)
+  if(rank!=0 && new_rank==0)
+  JukeBox::GetInstance()->Play("default","leader_change");
+
   dy = 0;
   dx = 0;
   rank = new_rank;

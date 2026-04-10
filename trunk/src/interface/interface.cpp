@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -71,14 +71,12 @@ void Interface::LoadDataInternal(Profile *res)
     small_interface = LOAD_RES_IMAGE("interface/small_background_interface");
   }
   clock_width = 70*zoom+0.5f;
-#ifdef ANDROID
+#if defined(ANDROID) || defined (__SYMBIAN32__)
   // The optimization below depends on fastpath being implemented
   // for RGB565 with surface alpha *and* colorkey
   default_toolbar = default_toolbar.DisplayFormatColorKey(64);
-  control_toolbar = control_toolbar.DisplayFormatColorKey(64);
   small_interface = small_interface.DisplayFormatColorKey(64);
   default_toolbar.SetAlpha(SDL_SRCALPHA, 128);
-  control_toolbar.SetAlpha(SDL_SRCALPHA, 128);
   small_interface.SetAlpha(SDL_SRCALPHA, 128);
 #endif
 
@@ -658,8 +656,11 @@ void AbsoluteDraw(const Surface &s, const Point2i& pos)
 bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i old_mouse_pos)
 {
   // Make sure we don't go in there while we shouldn't
-  if (!ActiveTeam().IsLocalHuman() || ActiveCharacter().IsDead() ||
-      Game::GetInstance()->ReadState() != Game::PLAYING)
+  if (!ActiveTeam().IsLocalHuman()
+      || ActiveCharacter().IsDead()
+      || (Game::GetInstance()->ReadState() != Game::PLAYING
+	  // movement should be possible just after shooting
+	  && Game::GetInstance()->ReadState() != Game::HAS_PLAYED))
     return false;
 
   Character *active_char = &ActiveCharacter();
@@ -672,8 +673,18 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
   if (left_button.Contains(mouse_rel_pos)) {
     switch (type) {
       case CLICK_TYPE_LONG: break;
-      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_MoveLeft(false); break;
-      case CLICK_TYPE_UP: active_char->HandleKeyReleased_MoveLeft(false); break;
+      case CLICK_TYPE_DOWN:
+	active_char->HandleKeyPressed_MoveLeft(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyPressed_MoveLeft(false);
+	}
+	break;
+      case CLICK_TYPE_UP:
+	active_char->HandleKeyReleased_MoveLeft(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyReleased_MoveLeft(false);
+	}
+	break;
     }
     return true;
   }
@@ -682,8 +693,19 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
    if (right_button.Contains(mouse_rel_pos)) {
     switch (type) {
       case CLICK_TYPE_LONG: break;
-      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_MoveRight(false); break;
-      case CLICK_TYPE_UP: active_char->HandleKeyReleased_MoveRight(false); break;
+      case CLICK_TYPE_DOWN:
+	active_char->HandleKeyPressed_MoveRight(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyPressed_MoveRight(false);
+	}
+	break;
+
+      case CLICK_TYPE_UP:
+	active_char->HandleKeyReleased_MoveRight(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyReleased_MoveRight(false);
+	}
+	break;
     }
     return true;
   }
@@ -694,10 +716,18 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
       case CLICK_TYPE_LONG:
         if (!jump_button.Contains(old_mouse_pos))
           return false;
-        active_char->HandleKeyPressed_HighJump();
+	active_char->HandleKeyPressed_HighJump();
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyPressed_HighJump();
+	}
         break;
       case CLICK_TYPE_DOWN: return false; // Needed to allow long clicks
-      case CLICK_TYPE_UP: active_char->HandleKeyPressed_Jump(); break;
+      case CLICK_TYPE_UP:
+	active_char->HandleKeyPressed_Jump();
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyPressed_Jump();
+	}
+	break;
     }
     return true;
   }
@@ -726,8 +756,19 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
    if (up_button.Contains(mouse_rel_pos)) {
     switch (type) {
       case CLICK_TYPE_LONG: break;
-      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_Up(false); break;
-      case CLICK_TYPE_UP: active_char->HandleKeyReleased_Up(false); break;
+      case CLICK_TYPE_DOWN:
+	active_char->HandleKeyPressed_Up(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyPressed_Up(false);
+	}
+	break;
+
+      case CLICK_TYPE_UP:
+	active_char->HandleKeyReleased_Up(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyReleased_Up(false);
+	}
+	break;
     }
     return true;
   }
@@ -736,8 +777,19 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
    if (down_button.Contains(mouse_rel_pos)) {
     switch (type) {
       case CLICK_TYPE_LONG: break;
-      case CLICK_TYPE_DOWN: active_char->HandleKeyPressed_Down(false); break;
-      case CLICK_TYPE_UP: active_char->HandleKeyReleased_Down(false); break;
+      case CLICK_TYPE_DOWN:
+	active_char->HandleKeyPressed_Down(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyPressed_Down(false);
+	}
+	break;
+
+      case CLICK_TYPE_UP:
+	active_char->HandleKeyReleased_Down(false);
+	if (Game::GetInstance()->ReadState() == Game::PLAYING) {
+	  ActiveTeam().AccessWeapon().HandleKeyReleased_Down(false);
+	}
+	break;
     }
     return true;
   }
@@ -745,23 +797,17 @@ bool Interface::ControlClick(const Point2i &mouse_pos, ClickType type, Point2i o
   // Check if we clicked the shoot icon: start firing!
   Rectanglei shoot_button(Point2i(546*zoom, 0), button_size);
   if (shoot_button.Contains(mouse_rel_pos)) {
+    if (Game::GetInstance()->ReadState() != Game::PLAYING)
+      return false;
+
     switch (type) {
       case CLICK_TYPE_LONG: break;
       case CLICK_TYPE_DOWN:
+	ActiveTeam().AccessWeapon().HandleKeyPressed_Shoot();
+	break;
       case CLICK_TYPE_UP: {
-        // Send the shoot action
-        Action *a;
-        if (type == CLICK_TYPE_UP) {
-          a = new Action(Action::ACTION_WEAPON_STOP_SHOOTING);
-          // If we don't have ammo left for the weapon,
-          if (ActiveTeam().ReadNbUnits() < 2) {
-            is_control = false;
-            Hide();
-          }
-        } else {
-          a = new Action(Action::ACTION_WEAPON_START_SHOOTING);
-        }
-        ActionHandler::GetInstance()->NewAction(a);
+	ActiveTeam().AccessWeapon().HandleKeyReleased_Shoot();
+	break;
       }
     }
     return true;

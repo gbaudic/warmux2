@@ -32,7 +32,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have a functional curl library. */
-/* #define HAVE_LIBCURL 1 */
+#define HAVE_LIBCURL 1
 
 /* Define to 1 if you have the `SDL_gfx' library (-lSDL_gfx). */
 #define HAVE_LIBSDL_GFX 1
@@ -94,7 +94,7 @@
 #define PACKAGE_NAME "Warmux"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Warmux 10.12"
+#define PACKAGE_STRING "Warmux 11.01"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "warmux"
@@ -103,7 +103,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "10.12"
+#define PACKAGE_VERSION "11.01"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -115,7 +115,7 @@
 /* #undef USE_X11 */
 
 /* Version number of package */
-#define VERSION "10.12"
+#define VERSION "11.01"
 
 #define HAVE_TOUCHSCREEN
 #define HAVE_HANDHELD

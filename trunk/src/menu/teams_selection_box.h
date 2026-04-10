@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,11 +30,7 @@
 class SpinButtonWithPicture;
 class TeamBox;
 
-#ifndef __SYMBIAN32__
 const uint MAX_NB_TEAMS=8;
-#else
-const uint MAX_NB_TEAMS=4;
-#endif
 
 class TeamScrollBox : public ScrollBox
 {

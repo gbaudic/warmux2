@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ua\n"
 "Report-Msgid-Bugs-To: warmux-dev@gna.org\n"
-"POT-Creation-Date: 2010-12-10 13:28+0100\n"
-"PO-Revision-Date: 2010-04-19 22:12+0200\n"
+"POT-Creation-Date: 2011-01-15 13:46+0100\n"
+"PO-Revision-Date: 2010-12-13 00:36+0300\n"
 "Last-Translator: Victor VMC <postvmc@gmail.com>\n"
 "Language-Team: Ukrainian <ua@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -69,34 +69,34 @@ msgstr "Команда %s"
 msgid "%s Team - Remote"
 msgstr "Команда %s - Віддалено"
 
-#: src/game/game.cpp:1024
-#, fuzzy, c-format
+#: src/game/game.cpp:1028
+#, c-format
 msgid "%s from %s team committed suicide!"
 msgstr "Гравець %s з команди %s закінчує життя самогубством !"
 
 #. Could be modified, but for now, save on translation
-#: src/game/game.cpp:1050 src/game/game.cpp:1069
+#: src/game/game.cpp:1054 src/game/game.cpp:1073
 #, c-format
 msgid "%s from %s team has died."
 msgstr "Гравець %s з команди %s загинув."
 
-#: src/game/game.cpp:1016
+#: src/game/game.cpp:1020
 #, c-format
 msgid "%s from %s team has fallen into the water!"
 msgstr "Гравець %s з команди %s впав у воду."
 
-#: src/game/game.cpp:1010
+#: src/game/game.cpp:1014
 #, c-format
 msgid "%s from %s team has fallen off the map!"
 msgstr "Гравець %s з команди %s випав з мапи!"
 
-#: src/game/game.cpp:1030
+#: src/game/game.cpp:1034
 #, c-format
 msgid "%s from %s team has hit the ground too hard!"
 msgstr "Гравець %s з команди %s дуже сильно вдарився об землю!"
 
 #. The playing character killed himself
-#: src/game/game.cpp:1037
+#: src/game/game.cpp:1041
 #, c-format
 msgid "%s from %s team is dead because he is clumsy!"
 msgstr "Гравець %s з команди %s загинув, тому що він незграбний!"
@@ -112,13 +112,14 @@ msgid ""
 "%s has done something for the environment, he has not ordered the polecat to "
 "fart."
 msgstr ""
+"%s зробив дещо для навколишнього середовища, він не наказав скунсу пукнути."
 
 #: src/object/medkit.cpp:74
-#, fuzzy, c-format
+#, c-format
 msgid "%s has won %u points of energy!"
 msgstr "%s отримав %u одиницю енергії!"
 
-#: src/game/game.cpp:1061
+#: src/game/game.cpp:1065
 #, c-format
 msgid "%s is a psychopath, he has killed a member of the %s team!"
 msgstr "%s - псих, він вбив члена команди %s!"
@@ -133,10 +134,10 @@ msgstr "%s поруч з міною!"
 msgid "%s kicked from game"
 msgstr ""
 
-#: src/include/action_handler.cpp:436
+#: src/include/action_handler.cpp:439
 #, c-format
 msgid "%s needs a pause."
-msgstr ""
+msgstr "%s потребує паузи."
 
 #. Can happen if the configuration is wrong...
 #: src/object/bonus_box.cpp:88
@@ -158,13 +159,13 @@ msgstr[0] "Команда %s виграла %u осколкову базуку!"
 msgstr[1] "Команда %s виграла %u осколкові базуки!"
 msgstr[2] "Команда %s виграла %u осколкових базук!"
 
-#: src/weapon/gnu.cpp:241
+#: src/weapon/gnu.cpp:239
 #, c-format
 msgid "%s team has won %u Gnu! Blow them all, cowboy!"
 msgid_plural "%s team has won %u Gnus! Blow them all, cowboy!"
-msgstr[0] "Команда %s виграла %u Gnu! Взірви їх всіх, козаче!"
-msgstr[1] "Команда %s виграла %u Gnu! Взірви їх всіх, козаче!"
-msgstr[2] "Команда %s виграла %u Gnu! Взірви їх всіх, козаче!"
+msgstr[0] "Команда %s виграла %u Gnu! Підірви їх всіх, козаче!"
+msgstr[1] "Команда %s виграла %u Gnu! Підірви їх всіх, козаче!"
+msgstr[2] "Команда %s виграла %u Gnu! Підірви їх всіх, козаче!"
 
 #: src/weapon/air_attack.cpp:256
 #, c-format
@@ -196,9 +197,9 @@ msgstr[2] ""
 #, c-format
 msgid "%s team has won %u anvil! Splat them all!"
 msgid_plural "%s team has won %u anvils! Splat them all!"
-msgstr[0] "Команда '%s виграла %u наковальню! Розмажте їх!"
-msgstr[1] "Команда '%s виграла %u наковальні! Розмажте їх!"
-msgstr[2] "Команда '%s виграла %u наковалень! Розмажте їх!"
+msgstr[0] "Команда '%s виграла %u готовальню! Розмажте їх!"
+msgstr[1] "Команда '%s виграла %u готовальні! Розмажте їх!"
+msgstr[2] "Команда '%s виграла %u готовалень! Розмажте їх!"
 
 #: src/weapon/auto_bazooka.cpp:325
 #, c-format
@@ -245,9 +246,9 @@ msgstr[2] ""
 #, c-format
 msgid "%s team has won %u bounce ball! Boing!"
 msgid_plural "%s team has won %u bounce balls! Boing!"
-msgstr[0] "Команда %s виграла %u стрибаючий м'яч! Бонг!"
-msgstr[1] "Команда %s виграла %u стрибаючі м'яча! Бонг!"
-msgstr[2] "Команда %s виграла %u стрибаючих м'ячей! Бонг!"
+msgstr[0] "Команда %s виграла %u стрибаючий м'яч!"
+msgstr[1] "Команда %s виграла %u стрибаючі м'яча!"
+msgstr[2] "Команда %s виграла %u стрибаючих м'ячей!"
 
 #: src/weapon/cluster_bomb.cpp:204
 #, c-format
@@ -353,19 +354,19 @@ msgstr[2] "Команда %s виграла %u мін!"
 #, c-format
 msgid "%s team has won %u parachute!"
 msgid_plural "%s team has won %u parachutes!"
-msgstr[0] "Команда %s виграла %u парашют!"
-msgstr[1] "Команда %s виграла %u парашюта!"
-msgstr[2] "Команда %s виграла %u парашютів!"
+msgstr[0] "Команда %s виграла %u парашут!"
+msgstr[1] "Команда %s виграла %u парашута!"
+msgstr[2] "Команда %s виграла %u парашутів!"
 
 #: src/weapon/polecat.cpp:273
 #, fuzzy, c-format
 msgid "%s team has won %u polecat! You have your gas mask, right?"
 msgid_plural "%s team has won %u polecats! You have your gas mask, right?"
 msgstr[0] "Команда %s виграла %u скунса! Ви ж не забули свій протигаз?"
-msgstr[1] "Команда %s виграла %u скунса! Ви ж не забули свій протигаз?"
+msgstr[1] "Команда %s виграла %u скунсів! Ви ж не забули свій протигаз?"
 msgstr[2] "Команда %s виграла %u скунсів! Ви ж не забули свій протигаз?"
 
-#: src/weapon/rail_gun.cpp:131
+#: src/weapon/rail_gun.cpp:133
 #, fuzzy, c-format
 msgid "%s team has won %u rail gun! It's skewer time!"
 msgid_plural "%s team has won %u rail guns! It's skewer time!"
@@ -394,7 +395,7 @@ msgstr[2] "Команда %s виграла %u дробовиків!"
 msgid "%s team has won %u slap!"
 msgid_plural "%s team has won %u slaps! Dodge this!"
 msgstr[0] "Команда %s виграла %u ляпас по ворогу!"
-msgstr[1] "Команда %s виграла %u ляпаси по ворогу! Спробуй відхились!"
+msgstr[1] "Команда %s виграла %u ляпаси по ворогу!"
 msgstr[2] "Команда %s виграла %u ляпасів по ворогу!"
 
 #: src/weapon/snipe_rifle.cpp:253
@@ -403,14 +404,14 @@ msgid "%s team has won %u sniper rifle! Aim and shoot between the eyes!"
 msgid_plural ""
 "%s team has won %u sniper rifles! Aim and shoot between the eyes!"
 msgstr[0] ""
-"Команда %s виграла %u снайперську гвинтівку! Прицілься і пальни йому поміж "
-"очей!"
+"Команда %s виграла %u снайперську гвинтівку! Прицілься і пальни йому "
+"поміж... очей!"
 msgstr[1] ""
-"Команда %s виграла %u снайперські гвинтівки! Прицілься і пальни йому поміж "
-"очей!"
+"Команда %s виграла %u снайперські гвинтівки! Прицілься і пальни йому "
+"поміж... очей!"
 msgstr[2] ""
-"Команда %s виграла %u снайперських гвинтівок! Прицілься і пальни йому поміж "
-"очей!"
+"Команда %s виграла %u снайперських гвинтівок! Прицілься і пальни йому "
+"поміж... очей!"
 
 #: src/weapon/submachine_gun.cpp:147
 #, c-format
@@ -426,10 +427,10 @@ msgid "%s team has won %u suicide!"
 msgid_plural "%s team has won %u suicides! Use them all for an extra bonus!"
 msgstr[0] "Команда %s виграла %u самогубство!"
 msgstr[1] ""
-"Команда %s виграла %u самогубства! Використайте їх всі, щоб отримати "
+"Команда %s виграла %u самогубства! Використайте їх усі, щоб отримати "
 "додатковий бонус!"
 msgstr[2] ""
-"Команда %s виграла %u самогубств! Використайте їх всі щоб отримати екстра "
+"Команда %s виграла %u самогубств! Використайте їх усі щоб отримати екстра "
 "бонус"
 
 #: src/weapon/syringe.cpp:120
@@ -453,8 +454,8 @@ msgstr[2] "Команда %s виграла %u телепортацій!"
 msgid "%s team has won %u turn skip! I know you'll love it."
 msgid_plural "%s team has won %u turn skips! I know you'll love them."
 msgstr[0] "Команда %s виграла %u пропуск ходу! Вам це сподобається."
-msgstr[1] "Команда %s виграла %u пропуска ходу! Вам це сподобається."
-msgstr[2] "Команда %s виграла %u пропусков ходу! Вам це сподобається."
+msgstr[1] "Команда %s виграла %u пропуски ходу! Вам це сподобається."
+msgstr[2] "Команда %s виграла %u пропусків ходу! Вам це сподобається."
 
 #: src/weapon/supertux.cpp:291
 #, c-format
@@ -463,16 +464,16 @@ msgid_plural "%s team has won %u tux launchers! Never seen a flying penguin?"
 msgstr[0] ""
 "Команда %s виграла %u туксомет! Ніколи не бачили літаючого пінгвіна?"
 msgstr[1] ""
-"Команда %s виграла %u tux'омета! Ніколи не бачили літаючого пінгвіна?"
+"Команда %s виграла %u туксомета! Ніколи не бачили літаючого пінгвіна?"
 msgstr[2] ""
-"Команда %s виграла %u tux'ометів ! Ніколи не бачили літаючого пінгвіна?"
+"Команда %s виграла %u туксометів ! Ніколи не бачили літаючого пінгвіна?"
 
 #: src/game/game_blitz.cpp:67
 #, c-format
 msgid "%s team was fragged down."
 msgstr "Команду %s було знищено"
 
-#: src/game/game.cpp:1045 src/game/game.cpp:1057
+#: src/game/game.cpp:1049 src/game/game.cpp:1061
 #, c-format
 msgid "%s took a member of the %s team to the grave with him!"
 msgstr "%s потягнув члена команди %s за собою в могилу!"
@@ -483,37 +484,30 @@ msgid "%s: no such nickame"
 msgstr ""
 
 #: src/interface/man_machine_interface.cpp:1149
-#, fuzzy
 msgid "'Duel' weapon category"
 msgstr "Змінити вид зброї"
 
 #: src/interface/man_machine_interface.cpp:1145
-#, fuzzy
 msgid "'Heavy' weapon category"
 msgstr "Змінити вид зброї"
 
 #: src/interface/man_machine_interface.cpp:1150
-#, fuzzy
 msgid "'Move' weapon category"
 msgstr "Змінити вид зброї"
 
 #: src/interface/man_machine_interface.cpp:1146
-#, fuzzy
 msgid "'Rifle' weapon category"
 msgstr "Змінити вид зброї"
 
 #: src/interface/man_machine_interface.cpp:1148
-#, fuzzy
 msgid "'Special' weapon category"
 msgstr "Змінити вид зброї"
 
 #: src/interface/man_machine_interface.cpp:1147
-#, fuzzy
 msgid "'Throwing' weapon category"
 msgstr "Змінити вид зброї"
 
 #: src/interface/man_machine_interface.cpp:1151
-#, fuzzy
 msgid "'Tool' weapon category"
 msgstr "Змінити вид зброї"
 
@@ -536,7 +530,7 @@ msgid "(unlimited)"
 msgstr "(нескінченно)"
 
 #: src/menu/options_menu.cpp:515
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "A new version %s is available, while your version is %s. You may want to "
 "check whether an update is available for your OS!"
@@ -545,8 +539,7 @@ msgstr ""
 "чи нема оновлення гри для вашої операційної системи!"
 
 #. Action name
-#: src/gui/control_config.cpp:218
-#, fuzzy
+#: src/gui/control_config.cpp:236
 msgid "Action"
 msgstr "Налаштування"
 
@@ -564,14 +557,13 @@ msgstr "Всі команди"
 
 #: src/menu/game_mode_editor.cpp:56
 msgid "Always"
-msgstr "Всегда"
+msgstr "Завжди"
 
 #: src/game/game_blitz.cpp:48 src/game/game_classic.cpp:54
 msgid "And the winner is..."
 msgstr "І переможцем стає..."
 
 #: src/weapon/baseball.cpp:56
-#, fuzzy
 msgid ""
 "Angle: Up/Down\n"
 "Fire: space key\n"
@@ -583,7 +575,7 @@ msgstr ""
 
 #: src/weapon/anvil.cpp:141
 msgid "Anvil"
-msgstr "Наковальня"
+msgstr "Готовальня"
 
 #: src/menu/help_menu.cpp:107
 msgid "Area currently displayed"
@@ -627,7 +619,7 @@ msgstr ""
 
 #: src/game/game_mode.cpp:343
 msgid "Blitz"
-msgstr "Наліт авиації"
+msgstr "Наліт авіації"
 
 #: src/weapon/blowtorch.cpp:63
 msgid "Blowtorch"
@@ -638,7 +630,6 @@ msgid "Bounce Ball"
 msgstr "Стрибучий м'яч"
 
 #: src/weapon/supertux.cpp:177
-#, fuzzy
 msgid "Bye bye Tux..."
 msgstr "Прощавай tux..."
 
@@ -666,43 +657,36 @@ msgstr "Не виходить відкрити особистий каталог
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:121 src/menu/help_menu.cpp:138
-#, fuzzy
 msgid "Center camera on character"
-msgstr "Перемістити камеру на активного гравця"
+msgstr "Перемістити камеру на гравця"
 
 #: src/interface/man_machine_interface.cpp:1156
-#, fuzzy
 msgid "Center on active character"
-msgstr "Змінити активного гравця"
+msgstr "Перемістити камеру на активного гравця"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:137
-#, fuzzy
 msgid "Change active character"
 msgstr "Змінити активного гравця"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:128
-#, fuzzy
 msgid "Change aim angle"
 msgstr "Змінити кут прицілу"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:56
-#, fuzzy
 msgid "Change number of players per team"
-msgstr "Макс. кількість гравців:"
+msgstr "Макс. кількість гравців в команді:"
 
 #: src/interface/man_machine_interface.cpp:1176
-#, fuzzy
 msgid "Change weapon"
-msgstr "Змінити вид зброї"
+msgstr "Змінити зброю"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:126
-#, fuzzy
 msgid "Change weapon category"
-msgstr "Змінити вид зброї"
+msgstr "Змінити категорію зброї"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:127
@@ -733,7 +717,7 @@ msgstr ""
 
 #: src/menu/options_menu.cpp:236
 msgid "Check updates online?"
-msgstr "Перевірити по мережі, чи немає оновлень?"
+msgstr "Перевірити по мережі наявність оновлень?"
 
 #: src/menu/map_selection_box.cpp:225
 msgid "Choose randomly between the different maps"
@@ -781,7 +765,7 @@ msgstr "Режим клієнта"
 
 #: src/menu/results_menu.cpp:172 src/menu/results_menu.cpp:174
 msgid "Clumsiest"
-msgstr "Самий незграбний"
+msgstr "Найбільш незграбний"
 
 #: src/weapon/cluster_bomb.cpp:187
 msgid "Cluster Bomb"
@@ -789,7 +773,7 @@ msgstr "Касетна бомба"
 
 #: src/weapon/cluzooka.cpp:373
 msgid "Cluzooka"
-msgstr "Осколочна базука"
+msgstr "Осколкова базука"
 
 #: src/weapon/suicide.cpp:46
 msgid "Commit Suicide"
@@ -819,12 +803,12 @@ msgstr "Будівництво"
 
 #: src/menu/results_menu.cpp:280
 msgid "Controlled by: "
-msgstr "Головуючий: "
+msgstr "Провідник: "
 
-#: lib/warmux/net/download.cpp:198
+#: lib/warmux/net/download.cpp:199
 #, c-format
 msgid "Couldn't fetch last version from %s"
-msgstr "Не виходить скачати останню версію з %s"
+msgstr "Не виходить завантажити останню версію з %s"
 
 #: src/network/chatlogger.cpp:52
 #, c-format
@@ -872,7 +856,7 @@ msgstr "Показувати це повідомлення"
 
 #: src/menu/network_menu.cpp:190
 msgid "Don't forget to validate once you have selected your team(s)!"
-msgstr ""
+msgstr "Не забувайте перевіряти як тільки ви вибрали свою команду(и)!"
 
 #: src/interface/man_machine_interface.cpp:1165
 msgid "Down"
@@ -886,7 +870,7 @@ msgstr ""
 #: src/menu/help_menu.cpp:120
 #, fuzzy
 msgid "Drag&drop: Move camera"
-msgstr "Утримуючи коліщатко мишки: перевести огляд камери"
+msgstr "Утримуючи коліщатко мишки: Рухати камеру"
 
 #. some death mode options
 #: src/menu/game_mode_editor.cpp:82
@@ -962,26 +946,25 @@ msgstr "Помилка: Не вийшло з'єднатися з серверо�
 msgid ""
 "Error: Unable to contact the index server to search for an internet game"
 msgstr ""
-"Помилка: Не вийшло з'єднатися з вказаним сервером, щоб знайти Інтернет-гру"
+"Помилка: Не вийшло з'єднатися з вказаним сервером, щоб знайти інтернет-гру"
 
 #: src/menu/network_connection_menu.cpp:504
-#, fuzzy
 msgid "Error: Unable to start the server"
 msgstr "Помилка: Не вийшло запустити сервер"
 
 #: src/menu/network_connection_menu.cpp:497
-#: tools/servers/game_server/server.cpp:302
-#, fuzzy, c-format
+#: tools/servers/game_server/server.cpp:303
+#, c-format
 msgid ""
 "Error: Your server is not reachable from the internet. Check your firewall "
 "configuration: TCP Port %s must accept connections from the outside. If you "
 "are not directly connected to the internet, check your router configuration: "
 "TCP Port %s must be forwarded on your computer."
 msgstr ""
-"Помилка: Ваш сервер недоступний з Інтернету. Перевірте налаштування Вашого "
+"Помилка: Ваш сервер недоступний з інтернету. Перевірте налаштування Вашого "
 "фаєрволу: порт TCP %s повинен приймати з'єднання ззовні. Якщо Ви не "
-"підключені до Інтернету напряму, перевірте налаштування Вашого "
-"маршрутизатора: порт TCP %s повинен бути відкритий на Вашому компьютері."
+"підключені до інтернету напряму, перевірте налаштування Вашого "
+"маршрутизатора: порт TCP %s повинен бути відкритий на Вашому комп'ютері."
 
 #: src/team/team.cpp:162
 #, c-format
@@ -1009,15 +992,15 @@ msgstr ""
 msgid "FPS"
 msgstr ""
 
-#: lib/warmux/net/download.cpp:183 lib/warmux/net/download.cpp:224
+#: lib/warmux/net/download.cpp:184 lib/warmux/net/download.cpp:225
 #, c-format
 msgid "Fail to create temporary file: %s"
 msgstr ""
 
-#: lib/warmux/net/download.cpp:190
-#, fuzzy, c-format
+#: lib/warmux/net/download.cpp:191
+#, c-format
 msgid "Fail to open temporary file: %s"
-msgstr "Неможливо відкрити каталог з мапами (%s)!"
+msgstr "Неможливо відкрити тимчасовий файл (%s)!"
 
 #: src/weapon/flamethrower.cpp:134
 msgid "Flame Thrower"
@@ -1036,9 +1019,8 @@ msgid "Game"
 msgstr "Гра"
 
 #: src/menu/help_menu.cpp:61
-#, fuzzy
 msgid "Game menu"
-msgstr "Режим гри"
+msgstr "Меню гри"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/game_mode_editor.cpp:45 src/menu/help_menu.cpp:75
@@ -1050,9 +1032,9 @@ msgstr "Режим гри"
 msgid "Game name:"
 msgstr "Ім'я гри:"
 
-#: src/weapon/gnu.cpp:164
+#: src/weapon/gnu.cpp:162
 msgid "Gnu Launcher"
-msgstr "Антилопа гну"
+msgstr "Антилопа Гну"
 
 #: src/weapon/syringe.cpp:70
 msgid ""
@@ -1062,7 +1044,6 @@ msgid ""
 msgstr ""
 
 #: src/menu/benchmark_menu.cpp:114 src/menu/options_menu.cpp:148
-#, fuzzy
 msgid "Graphics"
 msgstr "Графічний"
 
@@ -1094,7 +1075,7 @@ msgstr "Гарної гри!"
 #: src/interface/interface.cpp:251 src/menu/options_menu.cpp:173
 #: src/menu/team_box.cpp:81
 msgid "Head commander"
-msgstr "Головуючий"
+msgstr "Провідник"
 
 #: src/interface/man_machine_interface.cpp:1173 src/menu/main_menu.cpp:69
 #: src/menu/pause_menu.cpp:56
@@ -1112,15 +1093,14 @@ msgstr "Стати сервером"
 
 #: src/game/game_classic.cpp:196
 msgid "Hurry up, you are too slow !!"
-msgstr "Поспішайте, вы занадто повільні!!"
+msgstr "Поспішайте, ви занадто повільні!!"
 
 #: src/main.cpp:261
-#, fuzzy
 msgid ""
 "If you found a bug or have a feature request send us an email (in english, "
 "please):"
 msgstr ""
-"Якщо ви знашли помилку чи у вас є якісь побажання, надішліть нам email "
+"Якщо ви знайшли помилку чи у вас є побажання, надішліть нам email "
 "(англійською, будь-ласка):"
 
 #. TRANSLATORS: please be imaginative and keep it short!
@@ -1144,11 +1124,10 @@ msgstr ""
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:73
-#, fuzzy
 msgid "Increase this for faster death mode end"
 msgstr "Затримка перед увімкненням режиму смерті"
 
-#. TRANSLATORS: please be imaginative and keep it short!
+#. Select between "classic", "blitz" and "unlimited" rules
 #: src/menu/help_menu.cpp:68
 msgid "Increase this if you are a slow player"
 msgstr ""
@@ -1170,15 +1149,14 @@ msgstr "Початкова енергія"
 
 #: src/weapon/bazooka.cpp:120 src/weapon/cluzooka.cpp:374
 #: src/weapon/riot_bomb.cpp:120
-#, fuzzy
 msgid ""
 "Initial fire angle: Up/Down\n"
 "Fire: Press space until desired strength is reached\n"
 "One ammo per turn"
 msgstr ""
 "Початковий кут стрільби : Вверх/Вниз\n"
-"Стрільба : утримуйте пробіл до досягнення бажаної сили\n"
-"патрон за хід"
+"Стрільба : Утримуйте пробіл до досягнення бажаної сили\n"
+"один патрон за хід"
 
 #: src/game/game.cpp:122
 msgid "Initialisation"
@@ -1199,7 +1177,6 @@ msgstr "Ініціалізація команд"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:92
-#, fuzzy
 msgid "Interface"
 msgstr "Показати/заховати панель"
 
@@ -1208,7 +1185,7 @@ msgstr "Показати/заховати панель"
 msgid "Interface and touch controls, more details in other tabs"
 msgstr ""
 
-#: src/game/game.cpp:900
+#: src/game/game.cpp:902
 msgid "It's a present!"
 msgstr "Це подарунок!"
 
@@ -1226,18 +1203,17 @@ msgid "Jump backwards"
 msgstr "Зворотнє сальто"
 
 #: src/weapon/blowtorch.cpp:64
-#, fuzzy
 msgid ""
 "Keep the space key pressed\n"
 "Angle: Up/Down\n"
 "One ammo per turn"
 msgstr ""
-"Правила використання : зажміть пробіл\n"
+"Правила використання : натисніть пробіл\n"
 "Кут : Вверх/Вниз\n"
-"патрон за хід"
+"один патрон за хід"
 
 #. Actual key
-#: src/gui/control_config.cpp:230
+#: src/gui/control_config.cpp:248
 msgid "Key"
 msgstr ""
 
@@ -1251,7 +1227,6 @@ msgid "Keyboard"
 msgstr ""
 
 #: src/network/admin_commands.cpp:33
-#, fuzzy
 msgid "Kicks the player designated by <nickname> out of the game"
 msgstr "Викидує гравців, позначених <nickname>, з гри"
 
@@ -1261,10 +1236,9 @@ msgstr "Мова"
 
 #: src/menu/options_menu.cpp:242
 msgid "Left-handed mouse?"
-msgstr "Мишка лівші?"
+msgstr "Мишка шульги?"
 
 #: src/network/admin_commands.cpp:35
-#, fuzzy
 msgid "Lists the connected players"
 msgstr "Список підключених гравців"
 
@@ -1336,9 +1310,8 @@ msgstr "Міна"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:110
-#, fuzzy
 msgid "Minimap"
-msgstr "Мапа"
+msgstr "Мінімапа"
 
 #: src/menu/help_menu.cpp:80
 msgid "Minimap, more details in another tab"
@@ -1349,7 +1322,7 @@ msgid "Misc"
 msgstr "Різне"
 
 #. Modifiers
-#: src/gui/control_config.cpp:224
+#: src/gui/control_config.cpp:242
 msgid "Modifiers"
 msgstr ""
 
@@ -1360,23 +1333,23 @@ msgstr ""
 
 #: src/menu/results_menu.cpp:180 src/menu/results_menu.cpp:182
 msgid "Most accurate"
-msgstr "Самий точний"
+msgstr "Найточніший"
 
 #: src/menu/results_menu.cpp:164 src/menu/results_menu.cpp:166
 msgid "Most sold-out"
-msgstr "Самий продажний"
+msgstr "Найбільш продажний"
 
 #: src/menu/results_menu.cpp:148 src/menu/results_menu.cpp:150
 msgid "Most useful"
-msgstr "Самий корисний"
+msgstr "Найкорисніший"
 
 #: src/menu/results_menu.cpp:156 src/menu/results_menu.cpp:158
 msgid "Most useless"
-msgstr "Самий даремний"
+msgstr "Найбільш даремний"
 
 #: src/menu/results_menu.cpp:140 src/menu/results_menu.cpp:142
 msgid "Most violent"
-msgstr "Самий жорстокий"
+msgstr "Найжорстокіший"
 
 #: src/interface/man_machine_interface.cpp:1170
 #, fuzzy
@@ -1400,13 +1373,11 @@ msgstr "Курсори руху"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:134
-#, fuzzy
 msgid "Move camera with mouse or arrows"
-msgstr "Перемістити камеру з допомогою мишки чи клавіатури"
+msgstr "Перемістити камеру з допомогою мишки чи клавіш"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:129
-#, fuzzy
 msgid "Move character"
 msgstr "Курсори руху"
 
@@ -1439,7 +1410,6 @@ msgid "Music?"
 msgstr "Музика?"
 
 #: src/game/game.cpp:168
-#, fuzzy
 msgid "Network"
 msgstr "Мережа"
 
@@ -1461,7 +1431,6 @@ msgid "New player warning?"
 msgstr "Застереження про появу нового гравця?"
 
 #: src/interface/man_machine_interface.cpp:1188
-#, fuzzy
 msgid "Next character"
 msgstr "Курсори руху"
 
@@ -1475,7 +1444,7 @@ msgstr "Елемент <%s> не знайдений в файлі з налаш�
 msgid "No player connected"
 msgstr "%i гравець приєднався"
 
-#: lib/warmux/net/download.cpp:139
+#: lib/warmux/net/download.cpp:140
 msgid "No pointer"
 msgstr ""
 
@@ -1483,9 +1452,8 @@ msgstr ""
 msgid "Nobody!"
 msgstr "Ніхто!"
 
-#: src/gui/control_config.cpp:89 src/gui/control_config.cpp:131
+#: src/gui/control_config.cpp:103 src/gui/control_config.cpp:149
 #: src/interface/man_machine_interface.cpp:1197
-#, fuzzy
 msgid "None"
 msgstr "Добре"
 
@@ -1500,18 +1468,15 @@ msgstr "Кількість команд:"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:131
-#, fuzzy
 msgid "On a character: select it"
 msgstr "На гравці: Вибрати гравця"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:130
-#, fuzzy
 msgid "On map: select a target"
 msgstr "На мапі: Вибрати ціль"
 
 #: src/interface/man_machine_interface.cpp:1189
-#, fuzzy
 msgid "Open options menu"
 msgstr "Меню налаштувань"
 
@@ -1525,7 +1490,7 @@ msgstr "Меню налаштувань"
 
 #: src/weapon/parachute.cpp:64
 msgid "Parachute"
-msgstr "Парашют"
+msgstr "Парашут"
 
 #: src/weapon/parachute.cpp:65
 msgid ""
@@ -1538,7 +1503,7 @@ msgstr ""
 #: src/menu/network_connection_menu.cpp:236
 #: src/menu/network_connection_menu.cpp:275
 msgid "Password:"
-msgstr "Пароль:"
+msgstr "Гасло:"
 
 #: src/interface/man_machine_interface.cpp:1153
 msgid "Pause"
@@ -1591,14 +1556,12 @@ msgstr ""
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:108
-#, fuzzy
 msgid ""
 "Position of the characters.\n"
 "A circle surrounds the active character."
 msgstr "Змінити активного гравця"
 
 #: src/weapon/suicide.cpp:47
-#, fuzzy
 msgid "Press space to commit suicide"
 msgstr "Гравець %s з команди %s закінчує життя самогубством !"
 
@@ -1663,7 +1626,6 @@ msgid "Quit"
 msgstr "Вийти"
 
 #: src/main.cpp:250
-#, fuzzy
 msgid "Quit Warmux"
 msgstr "Вийти з Warmux"
 
@@ -1679,20 +1641,18 @@ msgstr ""
 msgid "Random map"
 msgstr "Випадкова мапа"
 
-#: lib/warmux/net/download.cpp:133
-#, fuzzy, c-format
+#: lib/warmux/net/download.cpp:134
+#, c-format
 msgid "Read only %i bytes"
 msgstr "Всього %i команда."
 
 #: src/game/config.cpp:380
-#, fuzzy
 msgid "Reading the default config file"
-msgstr "Зчитування конфігу за замовчанням"
+msgstr "Зчитування налаштувань за замовчанням"
 
 #: src/game/config.cpp:437
-#, fuzzy
 msgid "Reading the personal config file"
-msgstr "Зчитування персонального конфігу"
+msgstr "Зчитування персональних налаштувань"
 
 #: src/menu/options_menu.cpp:143
 msgid "Resolution"
@@ -1719,7 +1679,6 @@ msgid "Scroll on border"
 msgstr "Прокрутка на межі"
 
 #: src/menu/help_menu.cpp:55
-#, fuzzy
 msgid "Select number of playing teams"
 msgstr "Макс. кількість гравців:"
 
@@ -1744,7 +1703,7 @@ msgid ""
 "Use Left/Right to change direction"
 msgstr ""
 
-#: src/weapon/gnu.cpp:165 src/weapon/polecat.cpp:195
+#: src/weapon/gnu.cpp:163 src/weapon/polecat.cpp:195
 msgid ""
 "Set timer 1-6 using +/- or 1-6 keys\n"
 "Press space to shoot\n"
@@ -1758,7 +1717,6 @@ msgid ""
 msgstr ""
 
 #: src/interface/man_machine_interface.cpp:1175
-#, fuzzy
 msgid "Shoot"
 msgstr "Дробовик"
 
@@ -1772,13 +1730,11 @@ msgstr "Дробовик"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:132
-#, fuzzy
 msgid "Show weapons menu"
 msgstr "Показати меню зброї"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:122
-#, fuzzy
 msgid "Show/hide the interface"
 msgstr "Показати/заховати панель"
 
@@ -1816,14 +1772,14 @@ msgid "Sorry, currently, no game is waiting for players"
 msgstr "Вибачте, на даний момент немає ігор, що очікують гравців"
 
 #: src/menu/network_connection_menu.cpp:446
-#: tools/servers/game_server/server.cpp:287
-#, fuzzy, c-format
+#: tools/servers/game_server/server.cpp:288
+#, c-format
 msgid ""
 "Sorry, your version is not supported anymore. Supported versions are %s. You "
 "can download an updated version from http://www.warmux.org/wiki/download.php"
 msgstr ""
 "Вибачте, Ваша версія програми більше не підтримується. Версії, що "
-"підтримуються наступні: %s. Ви можете завантажити останню версию за адресою "
+"підтримуються наступні: %s. Ви можете завантажити останню версію за адресою "
 "http://www.warmux.org/wiki/download.php"
 
 #: src/menu/options_menu.cpp:310
@@ -1869,9 +1825,8 @@ msgstr ""
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:125
-#, fuzzy
 msgid "Talk in network battles"
-msgstr "Розмова в мережній грі"
+msgstr "Розмова в мережній битві"
 
 #: src/menu/results_menu.cpp:326
 msgid "Team graphs"
@@ -1901,19 +1856,17 @@ msgstr "Телепортація"
 
 #: src/weapon/cluster_bomb.cpp:145
 msgid "The Cluster Bomb has left the battlefield before it could explode."
-msgstr "Кассетна бомба залишила поле битви не встигнув вибухнути."
+msgstr "Касетна бомба залишила поле битви не встигнув вибухнути."
 
 #: src/weapon/footbomb.cpp:110
 msgid "The Football Bomb has left the battlefield before it could explode."
 msgstr "Футбольна бомба залишила поле битви не встигнув вибухнути."
 
-#: src/weapon/gnu.cpp:139
-#, fuzzy
+#: src/weapon/gnu.cpp:137
 msgid "The Gnu left the battlefield before exploding!"
 msgstr "Гну залишила поле битви не встигнув вибухнути"
 
 #: src/weapon/polecat.cpp:172
-#, fuzzy
 msgid "The Polecat left the battlefield before exploding!"
 msgstr "Скунс залишив поле битви не встигнув вибухнути"
 
@@ -1922,7 +1875,6 @@ msgid "The automatic rocket has left the battlefield..."
 msgstr "Автоматична ракета вилетіла за межі поля битви..."
 
 #: src/weapon/bounce_ball.cpp:73
-#, fuzzy
 msgid "The ball left the battlefield before exploding!"
 msgstr "М'яч вилетів за межі поля битви"
 
@@ -1951,7 +1903,6 @@ msgid "The connection timed out. Check there is no firewall in the way!"
 msgstr "Перевищено час підключення. Перевірте, що на шляху немає фаєрвола!"
 
 #: src/weapon/disco_grenade.cpp:127
-#, fuzzy
 msgid "The disco grenade has left the dance floor before exploding!"
 msgstr "Диско-граната вилетіла з поля битви не встигнув вибухнути"
 
@@ -1960,19 +1911,16 @@ msgid "The game was interrupted because you got disconnected."
 msgstr "Гру було завершено, тому що ви були відключені."
 
 #: src/weapon/grenade.cpp:58
-#, fuzzy
 msgid "The grenade left the battlefield before exploding!"
 msgstr "Граната вилетіла за межі поля битви"
 
 #: src/menu/network_menu.cpp:385
-#, fuzzy
 msgid "The others are waiting for you! Wake up! :-)"
 msgstr "Всі чекають на тебе! Прокинься :-)"
 
 #: src/weapon/parachute.cpp:89
-#, fuzzy
 msgid "The parachute is activated automatically."
-msgstr "Парашют розкрився автоматично."
+msgstr "Парашут розкрився автоматично."
 
 #: src/weapon/bazooka.cpp:80 src/weapon/cluzooka.cpp:323
 #: src/weapon/riot_bomb.cpp:85
@@ -1985,13 +1933,15 @@ msgstr "Сервер відхилив з'єднання."
 
 #: src/network/net_error_msg.cpp:35
 msgid "The server rejected the connection: wrong password!"
-msgstr "Сервер відхилив з'єднання: невірний пароль!"
+msgstr "Сервер відхилив з'єднання: невірне гасло!"
 
 #: src/weapon/weapon.cpp:649
 #, c-format
 msgid ""
 "The weapon %s has infinite ammo, but bonus boxes might contain ammo for it!"
 msgstr ""
+"Зброя %s має нескінченні набої, та бонусні ящики можуть містити набої для "
+"неї!"
 
 #: src/menu/network_menu.cpp:286
 #, c-format
@@ -2001,7 +1951,7 @@ msgstr[0] "Всього %i команда."
 msgstr[1] "Всього %i команди."
 msgstr[2] "Всього %i команд"
 
-#: src/gui/control_config.cpp:153
+#: src/gui/control_config.cpp:168
 #, c-format
 msgid "This key has already been attributed to '%s'"
 msgstr ""
@@ -2018,7 +1968,6 @@ msgid ""
 msgstr ""
 
 #: src/weapon/cluster_bomb.cpp:188 src/weapon/footbomb.cpp:158
-#, fuzzy
 msgid ""
 "Timeout: Mouse wheel or Page Up/Down\n"
 "Angle: Up/Down\n"
@@ -2027,11 +1976,10 @@ msgid ""
 msgstr ""
 "Затримка : Коліщатко мишки чи Page Up/Down\n"
 "Кут : Вверх/Вниз\n"
-"Стрільба : утримуйте пробіл до досянення бажаної сили\n"
+"Стрільба : утримуйте пробіл до досягнення бажаної сили\n"
 "патрон за хід"
 
 #: src/weapon/bounce_ball.cpp:91
-#, fuzzy
 msgid ""
 "Timeout: Mouse wheel or Page Up/Down\n"
 "Angle: Up/Down\n"
@@ -2045,23 +1993,19 @@ msgstr ""
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/interface/man_machine_interface.cpp:1154 src/menu/help_menu.cpp:123
-#, fuzzy
 msgid "Toggle fullscreen"
 msgstr "На весь екран?"
 
 #: src/interface/man_machine_interface.cpp:1155
-#, fuzzy
 msgid "Toggle interface"
 msgstr "Показати/заховати панель"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/interface/man_machine_interface.cpp:1190 src/menu/help_menu.cpp:136
-#, fuzzy
 msgid "Toggle minimap"
 msgstr "Показати/заховати мінікарту"
 
 #: src/interface/man_machine_interface.cpp:1157
-#, fuzzy
 msgid "Toggle weapons menu"
 msgstr "Показати меню зброї"
 
@@ -2096,17 +2040,16 @@ msgid "Touch/click to jump. Maintaining the touch/click to high jump."
 msgstr ""
 
 #: src/network/net_error_msg.cpp:30
-#, fuzzy
 msgid "Unable to contact the host."
 msgstr "Не вийшло з'єднатись з хостом."
 
 #: src/map/maps_list.cpp:288
-#, fuzzy, c-format
+#, c-format
 msgid "Unable to open the maps directory (%s)!"
 msgstr "Неможливо відкрити каталог з мапами (%s)!"
 
 #: src/map/maps_list.cpp:300
-#, fuzzy, c-format
+#, c-format
 msgid "Unable to open the personal maps directory (%s)!"
 msgstr "Неможливо відкрити персональний каталог з мапами (%s)!"
 
@@ -2119,9 +2062,9 @@ msgid "Unknown command"
 msgstr "Невідома команда"
 
 #: src/network/admin_commands.cpp:69
-#, fuzzy, c-format
+#, c-format
 msgid "Unknown command of type %i"
-msgstr "Невідома команда"
+msgstr "Невідома команда %i"
 
 #: src/game/game_mode.cpp:342
 msgid "Unlimited"
@@ -2143,17 +2086,15 @@ msgid ""
 msgstr ""
 
 #: src/weapon/anvil.cpp:142
-#, fuzzy
 msgid ""
 "Usage: left click on the target\n"
 "Anvil kill all characters beneath.\n"
 "One ammo per turn"
 msgstr ""
 "Правила використання : клацніть лівою кнопкою мишки на цілі\n"
-"патрон за хід"
+"один патрон за хід"
 
 #: src/weapon/auto_bazooka.cpp:221
-#, fuzzy
 msgid ""
 "Usage: left click on the target\n"
 "Initial fire angle: Up/Down\n"
@@ -2163,16 +2104,16 @@ msgstr ""
 "Правила використання : клацніть лівою кнопкою мишки на цілі\n"
 "Початковий кут стрільби : Вверх/Вниз\n"
 "Стрільба : утримуйте пробіл до досягнення бажаної сили\n"
-"патрон за хід"
+"один патрон за хід"
 
 #: src/main.cpp:179
 msgid "Version"
 msgstr "Версія"
 
 #: src/menu/options_menu.cpp:522
-#, fuzzy, c-format
+#, c-format
 msgid "Version verification failed because: %s"
-msgstr "Перевірка версії невдала із-за: %s\n"
+msgstr "Перевірка версії невдала, тому що: %s"
 
 #: src/menu/network_menu.cpp:447
 msgid "Wait until some opponent(s) connect!"
@@ -2189,37 +2130,32 @@ msgstr[2] "Зачекайте! %i гравців поки не готові!"
 #: src/game/game.cpp:635
 #, c-format
 msgid "Waiting for %s"
-msgstr ""
+msgstr "Очікування %s"
 
 #: src/game/game.cpp:167
 msgid "Waiting for remote players"
 msgstr "Чекаємо віддалених гравців"
 
 #: src/menu/network_menu.cpp:514
-#, fuzzy
 msgid "Waiting for the server. All you can do is cancel or chat!"
 msgstr ""
 "Очікування сервера - все що ви можете зробити, це відмінити свою готовність "
 "чи потеревеніти!"
 
 #: src/main.cpp:190
-#, fuzzy
 msgid "Warmux launching..."
 msgstr "Запуск Warmux..."
 
 #: src/main.cpp:326
-#, fuzzy
 msgid "Warmux version "
 msgstr "Warmux версії "
 
 #: src/interface/man_machine_interface.cpp:1152
-#, fuzzy
 msgid "Weapon category 8"
 msgstr "Змінити вид зброї"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:135
-#, fuzzy
 msgid "Weapon: Fire / Bonus box: drop"
 msgstr "Зброя: Вогонь/Подарунки: падають швидше"
 
@@ -2236,21 +2172,20 @@ msgstr "Веб-сайт: "
 #: src/menu/network_menu.cpp:180
 #, c-format
 msgid "Welcome to %s on %s!"
-msgstr ""
+msgstr "Ласкаво просимо до %s на %s"
 
-#: src/game/game.cpp:1003
+#: src/game/game.cpp:1007
 #, c-format
 msgid "What a beautiful homerun! %s from %s team is in another world..."
-msgstr ""
+msgstr "Яка красива втеча! %s з команди %s вже в іншому світі..."
 
-#: src/game/game.cpp:1066
+#: src/game/game.cpp:1070
 #, c-format
 msgid "What a shame for %s - he was killed by a simple gun!"
 msgstr "Яка ганьба для %s - його вбили з простого пістолета!"
 
 #. TRANSLATORS: please be imaginative and keep it short!
 #: src/menu/help_menu.cpp:69
-#, fuzzy
 msgid "When a character can be switched"
 msgstr "На гравці: Вибрати гравця"
 
@@ -2268,7 +2203,8 @@ msgstr ""
 msgid "Winner"
 msgstr "Переможець"
 
-#: src/weapon/rail_gun.cpp:123
+#. The shot efficiency was improved by having more than one target hit
+#: src/weapon/rail_gun.cpp:124
 #, c-format
 msgid "Woah! Combo of %u!"
 msgstr ""
@@ -2285,34 +2221,30 @@ msgstr "Невірне ім'я карти!"
 msgid "Wrong team!"
 msgstr "Невірна команда!"
 
-#: lib/warmux/net/download.cpp:149
+#: lib/warmux/net/download.cpp:150
 #, c-format
 msgid "Wrote %i/%i bytes"
 msgstr ""
 
 #: src/menu/network_menu.cpp:294 src/menu/network_menu.cpp:389
-#, fuzzy
 msgid "You are alone. :-/"
 msgstr "Ви один :-/"
 
 #: src/menu/network_menu.cpp:446
 msgid "You are the new turn master!"
-msgstr "Ви новий головуючий"
+msgstr "Ви новий Провідник"
 
 #: src/map/maps_list.cpp:309
-#, fuzzy
 msgid "You need at least one valid map!"
 msgstr "Вам потрібна хоча б одна карта !"
 
 #: src/game/game.cpp:280 src/team/teams_list.cpp:163
-#, fuzzy
 msgid "You need at least two valid teams!"
 msgstr "Вам потрібні хоча б дві команди !"
 
 #: src/menu/network_menu.cpp:270
-#, fuzzy
 msgid "You won't be able to play before selecting a team!"
-msgstr "Вы не можете грати не вибравши команду !"
+msgstr "Ви не можете грати не вибравши команду !"
 
 #: src/weapon/weapon_launcher.cpp:554
 msgid "Your shot has missed!"
@@ -2323,19 +2255,18 @@ msgid "aka"
 msgstr "також відомий як"
 
 #: src/weapon/air_attack.cpp:214
-#, fuzzy
 msgid ""
 "attack direction: Left/Right\n"
 "Bombing: Left click on the target\n"
 "One bombing per turn"
 msgstr ""
-"напрям атаки : Вліво/Вправо\n"
+"напрям атаки : Ліворуч/Праворуч\n"
 "Бомбардування : клацніть лівою кнопкою мишки на цілі\n"
 "Одне бомбардування за хід"
 
 #: src/map/maps_list.cpp:80
 msgid "couldn't load config"
-msgstr "не можу завантажити конфіг"
+msgstr "не можу завантажити налаштування"
 
 #. the default player name for custom teams
 #: src/team/custom_team.cpp:47
@@ -2406,7 +2337,7 @@ msgstr "o Відкрито аудіо в %d Hz %d bit"
 #~ "патрон за хід"
 
 #~ msgid "Head commander: "
-#~ msgstr "Головуючий: "
+#~ msgstr "Провідник: "
 
 #, fuzzy
 #~ msgid "Click: Center the camera on the character"
@@ -2456,7 +2387,7 @@ msgstr "o Відкрито аудіо в %d Hz %d bit"
 
 #, fuzzy
 #~ msgid "Head commander:"
-#~ msgstr "Головуючий: "
+#~ msgstr "Провідник: "
 
 #~ msgid "Network initialization"
 #~ msgstr "Ініціалізація мережі"
@@ -2475,4 +2406,4 @@ msgstr "o Відкрито аудіо в %d Hz %d bit"
 #~ msgstr "Інструменти"
 
 #~ msgid "Unnamed"
-#~ msgstr "Без імені"
+#~ msgstr "Без ім'я"

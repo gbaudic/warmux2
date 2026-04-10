@@ -1,6 +1,6 @@
 /******************************************************************************
  *  Warmux is a convivial mass murder game.
- *  Copyright (C) 2001-2010 Warmux Team.
+ *  Copyright (C) 2001-2011 Warmux Team.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ void GraphCanvas::SetAxis(const std::string& xname, const std::string& yname)
 {
   Font* font = Font::GetInstance(Font::FONT_MEDIUM, Font::FONT_BOLD);
   xaxis = font->CreateSurface(xname, black_color);
-  yaxis = font->CreateSurface(yname, black_color).RotoZoom(M_PI/2, ONE, ONE, false);
+  yaxis = font->CreateSurface(yname, black_color).RotoZoom(M_PI/2, ONE, ONE);
 #ifdef HAVE_HANDHELD
   /* The text being black, after rotation, the color key has been set to white */
   yaxis.SetColorKey(SDL_SRCCOLORKEY, 0xFFFF);
