@@ -57,10 +57,10 @@ public:
 
   virtual ~ComboBox();
 
-  virtual void Pack();
-  virtual void Draw(const Point2i &mousePosition);
-  virtual Widget* Click(const Point2i&, uint) const { return NULL; };
-  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
+  virtual void Pack() override;
+  virtual void Draw(const Point2i &mousePosition) override;
+  virtual Widget* Click(const Point2i&, uint) override { return NULL; };
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button) override;
 
   const std::string& GetValue() const { return m_choices[m_index].first; };
   int GetIntValue() const;

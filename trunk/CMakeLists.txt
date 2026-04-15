@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 # Project name
 PROJECT(Warmux)
-SET(VERSION "svn")
+SET(VERSION svn)
 
 # change the default install prefix to /usr
 SET(CMAKE_INSTALL_PREFIX /usr)
@@ -21,8 +21,6 @@ ENDIF(PREFIX)
 SET(WARMUX_CFLAGS "") # additional compile flags for warmux
 SET(WARMUX_LDFLAGS "")		# additional linking flags for warmux
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/cmake)
-
-add_compile_options(-Wno-cast-qual)
 
 IF(BIN_PATH)
   # If user specified a path for binary, use it

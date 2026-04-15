@@ -63,9 +63,9 @@ public:
   virtual void NeedRedrawing();
 
   // methods specialized from Widget to manage the list of widgets
-  virtual bool SendKey(SDL_keysym key);
-  virtual Widget* Click(const Point2i &mousePosition, uint button);
-  virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
+  virtual bool SendKey(const SDL_keysym &key) override;
+  virtual Widget* Click(const Point2i &mousePosition, uint button) override;
+  virtual Widget* ClickUp(const Point2i &mousePosition, uint button) override;
 
   // to add a widget
   virtual void AddWidget(Widget* widget);

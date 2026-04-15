@@ -49,7 +49,7 @@ public:
   bool TextHasFocus() const;
   TextBox* GetTextBox() const {return line_to_send_tbox; };
 
-  bool SendKey(SDL_keysym key);
+  bool SendKey(const SDL_keysym &key) override;
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 };
 
