@@ -17,7 +17,7 @@ before attempting to install Warmux 0.8 on your computer...
 * All dependencies in one command (Debian/Ubuntu)
 -------------------------------------------------
 
-sudo apt-get install g++ gettext \
+sudo apt-get install g++ gettext autoconf autoconf-archive \
    libxml2-dev libsdl-ttf2.0-dev libsdl-mixer1.2-dev \
    libsdl-image1.2-dev libsdl-gfx1.2-dev \
    libcurl4-dev libsdl-net1.2-dev

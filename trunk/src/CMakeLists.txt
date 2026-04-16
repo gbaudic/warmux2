@@ -7,8 +7,8 @@ IF(NOT WIN32 AND NOT MSYS)
                                      ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt.h
         )
 ENDIF(NOT WIN32 AND NOT MSYS)
-LIST(REMOVE_ITEM WARMUX_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/maemo/osso.cpp
-                             ${CMAKE_CURRENT_SOURCE_DIR}/maemo/osso.h)
+# Exclude maemo files as is already the case in autotools
+LIST(FILTER WARMUX_SRCS EXCLUDE REGEX ${CMAKE_CURRENT_SOURCE_DIR}/maemo/.*)
 SET(WARMUX_SRCS ${WARMUX_SRCS} PARENT_SCOPE)
 
 INCLUDE_DIRECTORIES(

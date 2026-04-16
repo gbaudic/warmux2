@@ -98,7 +98,7 @@ void WeaponStrengthBar::FetchData()
 }
 
 // TODO pass a Surface as parameter
-void WeaponStrengthBar::DrawXY(const Point2i &pos) const {
+void WeaponStrengthBar::DrawXY(const Point2i &pos) {
   int begin, end;
 
   FetchData();
