@@ -75,7 +75,11 @@ bool XmlReader::Load(const std::string &filename)
   Reset();
 
   // Activate Entities
+#if LIBXML_VERSION > 21300
   doc = xmlReadFile(filename.c_str(), NULL, XML_PARSE_NOENT | XML_PARSE_NO_XXE);
+#else
+  doc = xmlReadFile(filename.c_str(), NULL, XML_PARSE_NOENT);
+#endif
   if (!doc)
     return false;
 
