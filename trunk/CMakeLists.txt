@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 2.4.4)
+cmake_minimum_required(VERSION 3.10)
 
 # Project name
 PROJECT(Warmux)
-SET(VERSION "svn")
+SET(VERSION svn)
 
 # change the default install prefix to /usr
 SET(CMAKE_INSTALL_PREFIX /usr)
@@ -18,7 +18,7 @@ IF(PREFIX)
 ENDIF(PREFIX)
 
 # Set some global variables
-SET(WARMUX_CFLAGS "-Wall") # additional compile flags for warmux
+SET(WARMUX_CFLAGS "") # additional compile flags for warmux
 SET(WARMUX_LDFLAGS "")		# additional linking flags for warmux
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/cmake)
 
@@ -61,10 +61,6 @@ ELSE(DATA_PATH)
   ENDIF(UNIX AND NOT WIN32)
 
 ENDIF(DATA_PATH)
-
-IF(COMMAND cmake_policy)
-# cmake_policy(SET CMP0011 NEW)
-ENDIF(COMMAND cmake_policy)
 
 # Optional package CPack
 INCLUDE(CPackConfig OPTIONAL)
@@ -144,14 +140,6 @@ ELSE(APPLE)
   FIND_PACKAGE(Gettext REQUIRED)
 ENDIF(APPLE)
 
-# new stuff in 2.6; remove when it is widespread enough and we switch (see top)
-# CMP0005 - ADD_DEFINITION is now properly autoescaped
-IF(COMMAND cmake_policy)
-  cmake_policy(SET CMP0005 OLD)
-  cmake_policy(SET CMP0003 NEW)
-#  cmake_policy(SET CMP0011 NEW)
-ENDIF(COMMAND cmake_policy)
-
 ADD_DEFINITIONS(${LIBXML2_DEFINITIONS})
 IF(FRIBIDI_FOUND)
   ADD_DEFINITIONS(-DUSE_FRIBIDI)
@@ -161,10 +149,10 @@ ENDIF(FRIBIDI_FOUND)
 CONFIGURE_FILE(${PROJECT_SOURCE_DIR}/src/config.h.cmake ${PROJECT_SOURCE_DIR}/lib/warmux/include/config_autotools.h)
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 
-ADD_DEFINITIONS(-DINSTALL_DATADIR=\\"${INSTALL_DATADIR}\\")
-ADD_DEFINITIONS(-DINSTALL_LOCALEDIR=\\"${INSTALL_LOCALEDIR}\\")
-ADD_DEFINITIONS(-DFONT_FILE=\\"${FONT_FILE}\\")
-ADD_DEFINITIONS(-DPACKAGE_VERSION=\\"${VERSION}\\")
+ADD_DEFINITIONS(-DINSTALL_DATADIR="${INSTALL_DATADIR}")
+ADD_DEFINITIONS(-DINSTALL_LOCALEDIR="${INSTALL_LOCALEDIR}")
+ADD_DEFINITIONS(-DFONT_FILE="${FONT_FILE}")
+ADD_DEFINITIONS(-DPACKAGE_VERSION="${VERSION}")
 
 IF(NOT WIN32)
   INCLUDE(CheckCXXCompilerFlag)
@@ -174,7 +162,7 @@ IF(NOT WIN32)
   ENDIF(COMPILER_SUPPORTS_WEXTRA)
 
   IF(CMAKE_BUILD_TYPE MATCHES "Debug")
-  SET(WARMUX_CFLAGS "-Werror ${WARMUX_CFLAGS}")
+    SET(WARMUX_CFLAGS " ${WARMUX_CFLAGS}")
   ENDIF(CMAKE_BUILD_TYPE MATCHES "Debug")
 
 ENDIF(NOT WIN32)

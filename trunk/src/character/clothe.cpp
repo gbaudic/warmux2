@@ -32,7 +32,7 @@ Clothe::Clothe(const xmlNode *                  xml,
 
   xmlNodeArray nodes = XmlReader::GetNamedChildren(xml, "c_member");
   xmlNodeArray::const_iterator it;
-  MSG_DEBUG("body.clothe", "   Found "SIZET_FORMAT"u clothe members in %s", nodes.size(), name.c_str());
+  MSG_DEBUG("body.clothe", "   Found " SIZET_FORMAT "u clothe members in %s", nodes.size(), name.c_str());
 
   ASSERT(nodes.size());
 
@@ -72,7 +72,7 @@ Clothe::Clothe(Clothe *                         c,
     Member *member = members_lst.find((*it)->GetName())->second;
     layers.push_back(member);
     // Weapon member doesn't have a sprite, don't check it
-    if (member->GetType()!="weapon") {
+    if (member->GetType() != "weapon") {
       non_weapon_layers.push_back(member);
       if (member->MustRefresh())
         must_refresh.push_back(member);

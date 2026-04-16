@@ -45,7 +45,8 @@ public:
     { SetColor(r, g, b, a); }
   Color(Uint8 grey, Uint8 a = SDL_ALPHA_OPAQUE)
     { SetColor(grey, grey, grey, a); }
-  Color(const Color& other) { value.color = other.value.color; }
+  Color(const Color& other) = default;
+  Color& operator=(const Color& other) = default;
 
   bool operator==(const Color &c) const { return value.color == c.value.color; }
   bool operator!=(const Color &c) const { return value.color != c.value.color; }

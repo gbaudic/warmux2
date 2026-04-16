@@ -106,6 +106,7 @@ bool Downloader::HttpMethod(const std::string& url, std::string* out, int option
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, NULL);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, dummy_callback);
   }
+  curl_easy_setopt(curl, CURLOPT_URL, url);
   int r = curl_easy_perform(curl);
   if (CURLE_OK == r)
     return true;

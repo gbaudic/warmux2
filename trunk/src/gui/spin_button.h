@@ -54,11 +54,11 @@ public:
   virtual ~SpinButton(void);
 
   // From Widget
-  virtual void Pack();
-  virtual void Draw(const Point2i & mousePosition);
-  virtual Widget * Click(const Point2i &/*mousePosition*/, uint /*button*/) const { return NULL; };
-  virtual Widget * ClickUp(const Point2i & mousePosition, uint button);
-  virtual bool LoadXMLConfiguration(void);
+  virtual void Pack() override;
+  virtual void Draw(const Point2i & mousePosition) override;
+  virtual Widget * Click(const Point2i &/*mousePosition*/, uint /*button*/) override { return NULL; };
+  virtual Widget * ClickUp(const Point2i & mousePosition, uint button) override;
+  virtual bool LoadXMLConfiguration(void) override;
 
   // From AbstractSpinButton
   virtual void ValueHasChanged();

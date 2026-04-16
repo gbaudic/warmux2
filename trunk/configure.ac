@@ -10,9 +10,9 @@ dnl === Initial configuration                                              =
 dnl ========================================================================
 
 dnl = Require at least automake 2.52
-AC_PREREQ(2.52)
+AC_PREREQ([2.72])
 
-AC_INIT([Warmux], [svn], [warmux-dev@gna.org], [warmux])
+AC_INIT([Warmux],[svn],[warmux-dev@gna.org],[warmux])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -108,7 +108,7 @@ AC_ARG_ENABLE([profile],
                    CXXFLAGS="$CXXFLAGS -pg"
                fi])
 
-AC_ARG_ENABLE(vkeybd, AC_HELP_STRING([--enable-vkeybd], [Enable Virtual Keyboard]) )
+AC_ARG_ENABLE(vkeybd, AS_HELP_STRING([--enable-vkeybd],[Enable Virtual Keyboard]) )
 if test "${enable_vkeybd}" = "yes"; then
        AC_DEFINE([ENABLE_VKEYBD], [1], [Enable Virtual Keyboard])
 fi
@@ -116,7 +116,7 @@ fi
 # Check whether user supplied the option to statically link binaries.
 if test "$static" = yes; then
 # if we're using gcc, add `-static' to LDFLAGS
-       if test -n "$GCC" || test "$ac_cv_prog_gcc" = "yes"; then
+       if test -n "$GCC" || test "$ac_cv_c_compiler_gnu" = "yes"; then
                STATIC_LD="-static"
                LDFLAGS="$LDFLAGS -static"
                LIBCURL="$(curl-config --libs)"
@@ -252,7 +252,7 @@ CXXFLAGS="$CXXFLAGS $LIBPNG_CFLAGS $LIBXML2_CFLAGS"
 LIBS="$LIBS $LIBPNG_LIBS $LIBXML2_LIBS"
 
 dnl === Check for FriBidi ==================================================
-AC_ARG_ENABLE(fribidi, AC_HELP_STRING([--enable-fribidi], [enable bi-directional unicode support]) )
+AC_ARG_ENABLE(fribidi, AS_HELP_STRING([--enable-fribidi],[enable bi-directional unicode support]) )
 if test "${enable_fribidi}" = "yes"; then
    if test "x$USE_NLS" != "xyes"; then
      AC_MSG_WARN([NLS disabled, not enabling fribidi support])
@@ -326,7 +326,7 @@ fi
 
 dnl === Check for Maemo ====================================================
 
-AC_ARG_ENABLE(maemo, AC_HELP_STRING([--enable-maemo], [enable Maemo support]) )
+AC_ARG_ENABLE(maemo, AS_HELP_STRING([--enable-maemo],[enable Maemo support]) )
 if test "${enable_maemo}" = "yes"; then
   AC_DEFINE([MAEMO], [yes], [Maemo support])
   PKG_CHECK_MODULES(GLIB, glib-2.0, [], [AC_MSG_FAILURE([libglib-2.0 not found])])
@@ -403,7 +403,15 @@ dnl ========================================================================
 dnl TODO: remove them when we don't need them any more ;)
 
 AC_HEADER_DIRENT
-AC_HEADER_STDC
+m4_warn([obsolete],
+[The preprocessor macro 'STDC_HEADERS' is obsolete.
+  Except in unusual embedded environments, you can safely include all
+  C89 headers unconditionally.])dnl
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 
 
 dnl ========================================================================
