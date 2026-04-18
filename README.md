@@ -1,5 +1,7 @@
 # Warmux
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=gbaudic_warmux2&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=gbaudic_warmux2) [![pipeline](https://github.com/gbaudic/warmux2/actions/workflows/pipeline.yml/badge.svg)](https://github.com/gbaudic/warmux2/actions/workflows/pipeline.yml)
+
 warmux was a worms free opensource clone project.
 
 ![logo](https://raw.githubusercontent.com/yeKcim/warmux/master/logo.png)
