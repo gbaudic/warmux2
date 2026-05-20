@@ -25,7 +25,6 @@
 #endif
 
 #include <SDL.h>
-#include <SDL_gfxPrimitives.h>
 
 #include <WARMUX_singleton.h>
 
@@ -569,16 +568,6 @@ extern "C" int main(int argc, char *argv[])
 
 #ifdef MAEMO
   Maemo::Init();
-#endif
-
-#if SDL_GFXPRIMITIVES_MAJOR>2 || SDL_GFXPRIMITIVES_MINOR>0 || SDL_GFXPRIMITIVES_MICRO>20
-#else
-  // The packager/people compiling WarMUX might choose to ignore the warning
-  // from configure, but the users of the binary should still be warned
-  // about potential problems
-  fprintf(stderr, "The version of SDL_gfx on your computer, %i.%i.%i, is known to cause crashes\n"
-          "Please update it or ask to have it updated!\n",
-          SDL_GFXPRIMITIVES_MAJOR, SDL_GFXPRIMITIVES_MINOR, SDL_GFXPRIMITIVES_MICRO);
 #endif
 
   AppWarmux::GetInstance()->Main();

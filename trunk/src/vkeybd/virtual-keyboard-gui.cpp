@@ -31,7 +31,7 @@
 
 #ifdef ENABLE_VKEYBD
 #include <assert.h>
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include "vkeybd/virtual-keyboard-gui.h"
 #include "include/app.h"
 #include "graphic/surface.h"
