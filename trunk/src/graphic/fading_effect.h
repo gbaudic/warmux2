@@ -22,7 +22,7 @@
 #ifndef FADING_EFFECT_H
 #define FADING_EFFECT_H
 
-#include <SDL_gfxPrimitives.h>
+#include <SDL2_gfxPrimitives.h>
 #include <SDL.h>
 
 /* ----- Defines for pixel clipping tests */

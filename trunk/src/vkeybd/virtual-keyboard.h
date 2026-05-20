@@ -34,7 +34,7 @@
 
 #ifdef ENABLE_VKEYBD
 
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include <map>
 #include <list>
 #include <WARMUX_singleton.h>

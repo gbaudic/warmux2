@@ -21,7 +21,7 @@
 
 #include <iostream>
 #include <libosso.h>
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include "sound/jukebox.h"
 #include "game/game_time.h"
 #include "interface/mouse.h"

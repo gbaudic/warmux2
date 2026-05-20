@@ -165,8 +165,6 @@ dnl ========================================================================
 dnl === Checks for required libraries to be present                        =
 dnl ========================================================================
 
-SDL_VERSION=1.2.6
-
 dnl === Set compiler flags =================================================
 
 if test "x$GCC" = "xyes"; then
@@ -215,15 +213,13 @@ else
   fi
 fi
 
-dnl === Check for SDL ======================================================
-
-AM_PATH_SDL($SDL_VERSION,
-            :,
-            AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!]))
-CXXFLAGS="$CXXFLAGS $SDL_CFLAGS"
-CFLAGS="$CFLAGS $SDL_CFLAGS"
-CPPFLAGS="$CPPFLAGS $SDL_CFLAGS"
-LIBS="$LIBS $SDL_LIBS"
+dnl === Check for SDL using pkg-config =====================================
+PKG_PROG_PKG_CONFIG()
+PKG_CHECK_MODULES(SDL2, libSDL2-2.0, [], [AC_MSG_FAILURE([SDL2 not found])])
+CXXFLAGS="$CXXFLAGS $SDL2_CFLAGS"
+CFLAGS="$CFLAGS $SDL2_CFLAGS"
+CPPFLAGS="$CPPFLAGS $SDL2_CFLAGS"
+LIBS="$LIBS $SDL2_LIBS"
 
 dnl === Check for X11 ======================================================
 dnl Deactivated on purpose under OSX (in case X11 SDK is installed)
@@ -243,8 +239,8 @@ if test "x$OSX" != "xyes" ; then
   fi
 fi
 
-dnl === Check for libxml2 and libpng using pkg-confg =======================
-PKG_PROG_PKG_CONFIG()
+dnl === Check for libxml2 and libpng using pkg-config ======================
+
 PKG_CHECK_MODULES(LIBXML2, libxml-2.0, [], [AC_MSG_FAILURE([libxml2 not found])])
 PKG_CHECK_MODULES(LIBPNG, libpng, [], [AC_MSG_FAILURE([libpng not found])])
 CFLAGS="$CFLAGS $LIBPNG_CFLAGS $LIBXML2_CFLAGS"
@@ -287,25 +283,8 @@ fi
 if test "$static" = yes; then
   LIBS="$LIBS -lm -ldl -lfreetype -lz"
 fi
-AC_CHECK_HEADER(SDL_rotozoom.h,,AC_MSG_ERROR(Please install SDL_gfx))
-AC_CHECK_LIB(SDL_gfx, rotozoomSurfaceXY,, AC_MSG_ERROR(Please install SDL_gfx))
-AC_MSG_CHECKING([whether SDL_gfx - version >= 2.0.22 ])
-AC_RUN_IFELSE([
-#include <stdio.h>
-#include <SDL_gfxPrimitives.h>
-#undef main
-int main(void)
-{
-  FILE *f = fopen("conftest.out", "wt+");
-  fprintf(f, "%i.%i.%i\n",
-         SDL_GFXPRIMITIVES_MAJOR, SDL_GFXPRIMITIVES_MINOR, SDL_GFXPRIMITIVES_MICRO);
-  fclose(f);
-  int ver = SDL_GFXPRIMITIVES_MAJOR*1000+SDL_GFXPRIMITIVES_MINOR*100+SDL_GFXPRIMITIVES_MICRO;
-  return ver < 2022;
-}],
-  [echo "`cat conftest.out`, OK"],
-  [cat conftest.out
-   AC_MSG_WARN(This version of SDL_gfx is outdated and prone to cause crashes, please update it.)])
+AC_CHECK_HEADER(SDL2_rotozoom.h,,AC_MSG_ERROR(Please install SDL_gfx))
+AC_CHECK_LIB(SDL2_gfx, rotozoomSurfaceXY,, AC_MSG_ERROR(Please install SDL_gfx))
 
 dnl === Check for curl =====================================================
 
@@ -345,10 +324,10 @@ AM_CONDITIONAL(HAVE_LIBCONIC, test "x${use_conic}" = "xyes")
 
 dnl === Check for SDL image, mixer, etc. ===================================
 
-AC_CHECK_LIB(SDL_image, IMG_Load,,check_sdl_image="no")
-AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
-AC_CHECK_LIB([SDL_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
-AC_CHECK_LIB([SDL_net], [SDLNet_Init],,check_sdl_net="no")
+AC_CHECK_LIB(SDL2_image, IMG_Load,,check_sdl_image="no")
+AC_CHECK_LIB(SDL2_mixer, Mix_OpenAudio,,check_sdl_mixer="no")
+AC_CHECK_LIB([SDL2_ttf], [TTF_OpenFont],,check_sdl_ttf="no")
+AC_CHECK_LIB([SDL2_net], [SDLNet_Init],,check_sdl_net="no")
 if test "${WIN32}" = "yes"; then
   LIBS="$LIBS -lwsock32 -lws2_32 -luser32"
   CXXFLAGS="$CXXFLAGS -D_WIN32_WINNT=0x501"

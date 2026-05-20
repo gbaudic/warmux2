@@ -21,19 +21,14 @@
 
 #include <iostream>
 #include <SDL.h>
-#include <SDL_gfxPrimitives.h>
+#include <SDL2_gfxPrimitives.h>
 #include <SDL_image.h>
-#include <SDL_rotozoom.h>
+#include <SDL2_rotozoom.h>
 #include <png.h>
 #include <zlib.h>
 
 #include "graphic/surface.h"
 #include "tool/math_tools.h"
-
-/* texturedPolygon import from SDL_gfx v2.0.15 */
-#if (SDL_GFXPRIMITIVES_MAJOR == 2) && (SDL_GFXPRIMITIVES_MINOR == 0) && (SDL_GFXPRIMITIVES_MICRO < 14)
-#include "graphic/textured_polygon.h"
-#endif /* texturedPolygon import from SDL_gfx v2.0.15 */
 
 #include "graphic/fading_effect.h"
 
@@ -649,7 +644,6 @@ end:
   return ret;
 }
 
-#if SDL_GFXPRIMITIVES_MICRO > 20
 template<typename pixel>
 static void
 mirror(void *d, uint dpitch,
@@ -669,11 +663,9 @@ mirror(void *d, uint dpitch,
     src += spitch;
   }
 }
-#endif
 
 Surface Surface::Mirror()
 {
-#if SDL_GFXPRIMITIVES_MICRO > 20
   const SDL_PixelFormat *fmt = surface->format;
   SDL_Surface *surf = SDL_CreateRGBSurface(surface->flags, surface->w, surface->h, fmt->BitsPerPixel,
                                            fmt->Rmask, fmt->Gmask, fmt->Bmask, fmt->Amask);
@@ -725,9 +717,6 @@ Surface Surface::Mirror()
     SDL_SetColorKey(surf, SDL_SRCCOLORKEY|SDL_RLEACCEL, surface->format->colorkey);
 
   return Surface(surf);
-#else
-  return Surface(zoomSurface(surface, -1, 1, 1)).DisplayFormatAlpha();
-#endif
 }
 
 /**
