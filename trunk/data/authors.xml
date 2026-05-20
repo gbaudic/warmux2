@@ -5,6 +5,15 @@
   <team>
     <section title="Active Team">
       <author>
+        <nickname>gbaudic</nickname>
+        <name>Gwilherm BAUDIC</name>
+        <description>Developer</description>
+        <country>France</country>
+      </author>
+    </section>
+
+    <section title="Inactive Team">
+      <author>
         <nickname>yeKcim</nickname>
         <name>Anthony CARRÉ</name>
         <description>Graphic artist</description>
@@ -12,7 +21,7 @@
         <email>yeknan_AT_yahoo_DOT_fr</email>
         <country>France</country>
       </author>
-        <author>
+      <author>
         <nickname>Kurosu</nickname>
         <name>Christophe GISQUET</name>
         <description>Win32 port, programmer</description>
@@ -57,12 +66,6 @@
         <email>matthieu.fertre_AT_free_DOT_fr</email>
         <country>France</country>
       </author>
-
-
-
-    </section>
-
-    <section title="Inactive Team">
       <author>
         <nickname>jcduberga</nickname>
         <name>Jean-Christophe DUBERGA</name>

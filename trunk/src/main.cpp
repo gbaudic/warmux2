@@ -291,8 +291,8 @@ void AppWarmux::End() const
   SaveStatToXML("stats.xml");
 #endif
   std::cout << "o " << _("If you found a bug or have a feature request "
-                         "send us an email (in english, please):")
-    << " " << Constants::EMAIL << std::endl;
+                         "open a pull request (in english, please):")
+    << " " << Constants::WEB_SITE << std::endl;
 }
 
 bool AppWarmux::CheckInactive(SDL_Event& evnt)
