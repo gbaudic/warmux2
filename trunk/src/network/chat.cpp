@@ -142,7 +142,7 @@ void Chat::CloseInput()
 void Chat::HandleKeyPressed(const SDL_Event& evnt)
 {
   SDL_KeyboardEvent kbd_event = evnt.key;
-  SDL_keysym key = kbd_event.keysym;
+  SDL_Keysym key = kbd_event.keysym;
   std::string txt = input->GetText();
 
   if (TextHandle(txt, cursor_pos, key))
@@ -152,7 +152,7 @@ void Chat::HandleKeyPressed(const SDL_Event& evnt)
 void Chat::HandleKeyReleased(const SDL_Event& evnt)
 {
   SDL_KeyboardEvent kbd_event = evnt.key;
-  SDL_keysym key = kbd_event.keysym;
+  SDL_Keysym key = kbd_event.keysym;
   std::string txt = input->GetText();
 
   switch (key.sym) {

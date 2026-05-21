@@ -86,7 +86,7 @@ void VirtualKeyboardGUI::setupDisplayArea(Rectanglei& r, Color forecolor)
   _dispI = 0;
   _dispForeColor = forecolor;
   _dispBackColor = Color();
-  _dispSurface.NewSurface(Point2i(r.GetSizeX(), _dispFont->GetHeight()), 0, true);
+  _dispSurface.NewSurface(Point2i(r.GetSizeX(), _dispFont->GetHeight()), true);
   _dispSurface.FillRect(Rectanglei(0, 0, _dispSurface.GetWidth(), _dispSurface.GetHeight()),
       _dispBackColor);
   _displayEnabled = true;
@@ -218,7 +218,7 @@ void VirtualKeyboardGUI::screenChanged()
     _screenW = newScreenW;
     _screenH = newScreenH;
 
-    _overlayBackup.NewSurface(Point2i(_screenW, _screenH), 0, true);
+    _overlayBackup.NewSurface(Point2i(_screenW, _screenH), true);
 
     if (!_kbd->checkModeResolutions()) {
       _displaying = false;

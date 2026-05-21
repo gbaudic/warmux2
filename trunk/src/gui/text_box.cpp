@@ -100,7 +100,7 @@ void TextBox::SetText(std::string const & new_txt)
   cursor_pos = GetText().size();
 }
 
-bool TextBox::SendKey(const SDL_keysym & key)
+bool TextBox::SendKey(const SDL_Keysym & key)
 {
   bool used = true;
 
@@ -203,7 +203,7 @@ void PasswordBox::BasicSetText(std::string const & new_txt)
   }
 }
 
-bool PasswordBox::SendKey(const SDL_keysym & key)
+bool PasswordBox::SendKey(const SDL_Keysym & key)
 {
   bool used = true;
 

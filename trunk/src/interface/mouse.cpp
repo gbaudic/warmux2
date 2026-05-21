@@ -229,7 +229,7 @@ bool Mouse::HandleEvent(const SDL_Event& evnt)
     return false;
   }
 
-  if (evnt.type != SDL_MOUSEBUTTONDOWN && evnt.type != SDL_MOUSEBUTTONUP) {
+  if (evnt.type != SDL_MOUSEBUTTONDOWN && evnt.type != SDL_MOUSEBUTTONUP && evnt.type != SDL_MOUSEWHEEL) {
     return false;
   }
 
@@ -273,10 +273,11 @@ bool Mouse::HandleEvent(const SDL_Event& evnt)
       ActionRightClick(shift);
     else if (evnt.button.button == Mouse::BUTTON_LEFT())
       ActionLeftClick(shift);
-    else if (evnt.button.button == SDL_BUTTON_WHEELDOWN)
-      ActionWheelDown(shift);
-    else if (evnt.button.button == SDL_BUTTON_WHEELUP)
-      ActionWheelUp(shift);
+  } else if (evnt.type == SDL_MOUSEWHEEL) {
+      if (evnt.button.button == SDL_BUTTON_WHEELDOWN)
+        ActionWheelDown(shift);
+      else if (evnt.button.button == SDL_BUTTON_WHEELUP)
+        ActionWheelUp(shift);
   }
 
   return true;
@@ -436,7 +437,7 @@ void Mouse::SetPosition(Point2i pos)
 
   MSG_DEBUG("mouse", "1) %d, %d\n", GetPosition().GetX(), GetPosition().GetY());
 
-  SDL_WarpMouse(pos.x, pos.y);
+  SDL_WarpMouseInWindow(GetWindow(), pos.x, pos.y);
   SDL_PumpEvents(); // force new position else GetPosition does not return new position
 
   lastpos = GetPosition();

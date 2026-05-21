@@ -223,7 +223,7 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
   int        pitch     = m_preview->GetPitch();
   Point2i c;
 
-  s.SetAlpha(0, 0);
+  s.SetAlpha(0);
   pdst += (firstCell.y-startCell.y)*(pitch<<(CELL_BITS-m_shift));
 
   for (c.y = firstCell.y; c.y <= lastCell.y; c.y++) {
@@ -273,7 +273,7 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
     pdst += pitch<<(CELL_BITS-m_shift);
   }
 
-  s.SetAlpha(SDL_SRCALPHA, 0);
+  s.SetAlpha(0);
 
   m_preview->Unlock();
   m_last_preview_redraw = GameTime::GetInstance()->Read();
@@ -328,13 +328,13 @@ void Tile::InitPreview()
   Quality qual = Config::GetInstance()->GetQuality();
   m_use_alpha = qual > QUALITY_16BPP;
   if (!m_use_alpha) {
-    m_preview = new Surface(world_size, SDL_SWSURFACE, false);
-    m_preview->SetColorKey(SDL_SRCCOLORKEY|SDL_RLEACCEL, 0xF81F);
+    m_preview = new Surface(world_size, false);
+    m_preview->SetColorKey(SDL_TRUE, 0xF81F);
     m_preview->Fill(0xF81F);
   } else {
-    m_preview = new Surface(world_size, SDL_SWSURFACE, true);
+    m_preview = new Surface(world_size, true);
     // Having an alpha channel forces SDL_SRCALPHA, so we must remove it
-    m_preview->SetAlpha(0, 0);
+    m_preview->SetAlpha(0);
   }
 
   // Actual preview size from pixel-wise information
@@ -621,15 +621,15 @@ void Tile::DrawTile_Clipped(const Rectanglei & worldClip) const
 
 Surface Tile::GetPart(const Rectanglei& rec)
 {
-  Surface part(rec.GetSize(), SDL_SWSURFACE|SDL_SRCALPHA, true);
-  part.SetAlpha(0, 0);
+  Surface part(rec.GetSize(), true);
+  part.SetAlpha(0);
   part.Fill(0x00000000);
-  part.SetAlpha(SDL_SRCALPHA, 0);
+  part.SetAlpha(0);
 
   Point2i firstCell = Clamp(rec.GetPosition()>> CELL_BITS);
   Point2i lastCell = Clamp((rec.GetPosition() + rec.GetSize())>> CELL_BITS);
   Point2i i = nbCells - 1;
-  bool    force_copy = SDL_GetVideoInfo()->vfmt->BytesPerPixel>2;
+  bool    force_copy = SDL_GetVideoInfo()->vfmt->BytesPerPixel > 2;
 
   for (i.y = firstCell.y; i.y <= lastCell.y; i.y++) {
     uint index = i.y*nbCells.x;
@@ -656,9 +656,9 @@ Surface Tile::GetPart(const Rectanglei& rec)
       if (dst.x < 0) dst.x = 0;
       if (dst.y < 0) dst.y = 0;
 
-      if (force_copy) tin->GetSurface().SetAlpha(0, 0);
+      if (force_copy) tin->GetSurface().SetAlpha(0);
       part.Blit(tin->GetSurface(), src, dst);
-      if (force_copy) tin->GetSurface().SetAlpha(SDL_SRCALPHA, 0);
+      if (force_copy) tin->GetSurface().SetAlpha(0);
     }
   }
   return part;
@@ -669,7 +669,7 @@ Tile::SynchTileList Tile::GetTilesToSynch()
   SynchTileList list;
   uint cellsCount = nbCells.x * nbCells.y;
 
-  for (uint i = 0; i < cellsCount; i++) {
+  for (uint16_t i = 0; i < cellsCount; i++) {
     if (item[i]->IsTotallyEmpty())
       continue;
     TileItem_NonEmpty *t = static_cast<TileItem_NonEmpty*>(item[i]);

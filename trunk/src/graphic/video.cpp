@@ -9,7 +9,7 @@
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A ARTICULAR PURPOSE.  See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU GeneralPublic License
@@ -56,10 +56,6 @@ Video::Video()
   // to an anti-aliased version.
   icon = IMG_Load((config->GetDataDir() + "icon/warmux_128x128.xpm").c_str());
 #endif
-  // SDL_WM_SetIcon must be called before the first call to SDL_SetVideoMode
-#ifndef MAEMO
-  SDL_WM_SetIcon(icon, NULL);
-#endif
 
   window.SetSurface(NULL, false);
   window.SetAutoFree(false);
@@ -76,13 +72,17 @@ Video::Video()
 
   SetConfig(w, h, config->IsVideoFullScreen());
 
-  if (window.IsNull()) {
+  if (screen == NULL || renderer == NULL) {
     Error(Format("Unable to initialize SDL window: %s", SDL_GetError()));
     exit (1);
   }
   AddUniqueConfigSorted(window.GetWidth(), window.GetHeight());
 
   SetWindowCaption(std::string("WarMUX ") + Constants::WARMUX_VERSION);
+
+#ifndef MAEMO
+  SDL_SetWindowIcon(screen, icon);
+#endif
 }
 
 Video::~Video()
@@ -133,21 +133,17 @@ void Video::AddUniqueConfigSorted(int w, int h)
 }
 
 void Video::ComputeAvailableConfigs()
-{
-  //Generate video mode list
-  SDL_Rect **modes;
-
-  // Get available fullscreen modes
-  modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
-
-  // Check is there are any modes available
-  if (modes != NULL){
-    // We also had the current window resolution if it is not already in the list!
-    for (int i=0;modes[i];++i) {
-      if (modes[i]->w>=480 && modes[i]->h>=320) {
-        AddUniqueConfigSorted(modes[i]->w, modes[i]->h);
+{  
+  int displayIndex = 0;
+  SDL_DisplayMode *mode;
+  
+  // Check if there are any modes available
+  for(int i=0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
+    SDL_GetDisplayMode(displayIndex, i, mode);
+    
+    if (mode->w >= 480 && mode->h >= 320) {
+        AddUniqueConfigSorted(mode->w, mode->h);
       }
-    }
   }
 
   // If biggest resolution is big enough, we propose standard resolutions
@@ -161,12 +157,7 @@ void Video::ComputeAvailableConfigs()
 
 bool Video::__SetConfig(const int width, const int height, const bool _fullscreen)
 {
-  int flags = SDL_SWSURFACE;
-#ifdef HAVE_HANDHELD
-  int bpp   = 16;
-#else
-  int bpp   = Config::GetInstance()->GetQuality()==QUALITY_32BPP ? 32 : 16;
-#endif
+  int flags = 0;
 
 #ifdef HAVE_TOUCHSCREEN
   bool __fullscreen = true;
@@ -174,13 +165,22 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
   bool __fullscreen = _fullscreen;
 #endif
 
-  flags |= (__fullscreen) ? SDL_FULLSCREEN : 0;
+  flags |= (__fullscreen) ? SDL_WINDOW_FULLSCREEN : 0;
 #ifdef __SYMBIAN32__
   flags = 0;
 #endif
 
-  window.SetSurface(SDL_SetVideoMode(width, height, bpp, flags));
-  if (window.IsNull())
+  screen = SDL_CreateWindow("",
+                          SDL_WINDOWPOS_UNDEFINED,
+                          SDL_WINDOWPOS_UNDEFINED,
+                          width, height, flags);
+
+  if (screen == NULL)
+    return false;
+
+  renderer = SDL_CreateRenderer(screen, -1, 0);
+  
+  if (renderer == NULL)
     return false;
 
   fullscreen = __fullscreen;
@@ -253,7 +253,7 @@ void Video::ToggleFullscreen()
 
 void Video::SetWindowCaption(const std::string& caption) const
 {
-  SDL_WM_SetCaption(caption.c_str(), NULL);
+  SDL_SetWindowTitle(screen, caption.c_str());
 }
 
 void Video::InitSDL()
@@ -271,13 +271,13 @@ void Video::InitSDL()
   SDL_ANDROID_SetScreenKeyboardButtonPos(SDL_ANDROID_SCREENKEYBOARD_BUTTON_TEXT, &r);
 #endif
 
-  SDL_EnableUNICODE(1);
+  //SDL_EnableUNICODE(1);
   SDLReady = true;
 }
 
 void Video::Flip()
 {
-  window.Flip();
+  SDL_RenderPresent(renderer);
 }
 
 bool Video::SaveScreenshot()
@@ -308,6 +308,16 @@ bool Video::SaveScreenshot()
 Surface& GetMainWindow()
 {
   return AppWarmux::GetInstance()->video->window;
+}
+
+SDL_Renderer* GetRenderer()
+{
+  return AppWarmux::GetInstance()->video->renderer;
+}
+
+SDL_Window* GetWindow()
+{
+  return AppWarmux::GetInstance()->video->screen;
 }
 
 void SwapWindowClip(Rectanglei& r)

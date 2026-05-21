@@ -136,9 +136,9 @@ public:
     return NULL;
   }
 
-  virtual bool SendKey(const SDL_keysym & key)
+  virtual bool SendKey(const SDL_Keysym & key)
   {
-    SDLKey key_code = key.sym;
+    SDL_Keycode key_code = key.sym;
 
     if (read_only || key_code == SDLK_UNKNOWN)
       return false;
@@ -149,7 +149,7 @@ public:
 
     Keyboard *kbd = Keyboard::GetInstance();
 
-    SDLMod mod_bits = SDL_GetModState();
+    SDL_Keymod mod_bits = SDL_GetModState();
     bool has_shift = mod_bits & KMOD_SHIFT;
     bool has_alt = mod_bits & KMOD_ALT;
     bool has_ctrl = mod_bits & KMOD_CTRL;

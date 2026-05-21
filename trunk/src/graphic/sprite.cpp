@@ -101,9 +101,9 @@ void Sprite::Init(Surface& surface, const Point2i &frameSize, int nb_frames_x, i
   frame_width_pix = frameSize.x;
   frame_height_pix = frameSize.y;
 
-  surface.SetAlpha(0, 0);
+  surface.SetAlpha(0);
 
-  Surface new_surf(frameSize, SDL_SWSURFACE|SDL_SRCALPHA, true);
+  Surface new_surf(frameSize, true);
   for (f.y=0; f.y<nb_frames_y; f.y++) {
     for (f.x=0; f.x<nb_frames_x; f.x++) {
       new_surf.Blit(surface, Rectanglei(f * frameSize, frameSize), Point2i(0, 0));
@@ -213,9 +213,9 @@ void Sprite::CheckScratch(const Point2i& size)
   if (w<size.GetX() || h<size.GetY()) {
     w = std::max(size.GetX(), w);
     h = std::max(size.GetY(), h);
-    scratch.NewSurface(Point2i(w, h), SDL_SWSURFACE, false);
+    scratch.NewSurface(Point2i(w, h), false);
   }
-  scratch.SetAlpha(SDL_SRCALPHA, 0);
+  scratch.SetAlpha(0);
 }
 
 void Sprite::Blit(Surface &dest, int pos_x, int pos_y, int src_x, int src_y, uint w, uint h)
@@ -232,12 +232,12 @@ void Sprite::Blit(Surface &dest, int pos_x, int pos_y, int src_x, int src_y, uin
   } else if (current_surface.GetSurface()->format->Amask) {
     CheckScratch(srcRect.GetSize());
     scratch.Blit(dest, dstRect, Point2i(0,0));
-    scratch.SetAlpha(SDL_SRCALPHA, alpha * 255);
+    scratch.SetAlpha(alpha * 255);
     scratch.Blit(current_surface, srcRect, Point2i(0,0));
     dest.Blit(scratch, srcRect, dstRect.GetPosition());
   } else {
     // Surface doesn't have alpha, do a simple blit
-    current_surface.SetAlpha(SDL_SRCALPHA, alpha * 255);
+    current_surface.SetAlpha(alpha * 255);
     dest.Blit(current_surface, srcRect, dstRect.GetPosition());
   }
 

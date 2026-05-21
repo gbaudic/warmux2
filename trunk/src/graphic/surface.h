@@ -30,12 +30,14 @@
 #include <WARMUX_rectangle.h>
 
 struct SDL_Surface;
+struct SDL_Renderer;
 struct SDL_PixelFormat;
 
 class Surface
 {
 private:
   SDL_Surface* surface;
+  SDL_Renderer* renderer; // software renderer for the surface
   bool autoFree;
   int Blit(const Surface& src, SDL_Rect *srcRect, SDL_Rect *dstRect);
   static SDL_Rect GetSDLRect(const Rectanglei &r);
@@ -47,23 +49,22 @@ public:
    *
    * Build a null surface with autoFree at true.
    */
-  explicit Surface() : surface(NULL), autoFree(true) { };
+  explicit Surface() : surface(NULL), renderer(NULL), autoFree(true) { };
   /**
    * Constructor building a surface object using an existing SDL_Surface pointer.
    *
    * @param sdl_surface The existing sdl_surface.
    */
-  explicit Surface(SDL_Surface *sdl_surface) : surface(sdl_surface), autoFree(true) { };
+  explicit Surface(SDL_Surface *sdl_surface) : surface(sdl_surface), renderer(SDL_CreateSoftwareRenderer(sdl_surface)), autoFree(true) { };
   /**
    * Constructor building a surface object using the NewSurface function.
    *
    * @param size
-   * @param flags
    * @param useAlpha
    * @see NewSurface
    */
-  explicit Surface(const Point2i &size, Uint32 flags, bool useAlpha = true)
-  : surface(NULL), autoFree(true) { NewSurface(size, flags, useAlpha); }
+  explicit Surface(const Point2i &size, bool useAlpha = true)
+  : surface(NULL), autoFree(true) { NewSurface(size, useAlpha); }
   explicit Surface(const std::string &filename);
   Surface(const Surface &src);
   /**
@@ -106,8 +107,8 @@ public:
   SDL_Surface *GetSurface() { return surface; };
   const SDL_Surface *GetSurface() const { return surface; };
 
-  void NewSurface(const Point2i &size, Uint32 flags, bool useAlpha = true);
-  int SetAlpha(Uint32 flags, Uint8 alpha);
+  void NewSurface(const Point2i &size, bool useAlpha = true);
+  int SetAlpha(Uint8 alpha);
 
   void Lock();
   void Unlock();
@@ -131,8 +132,6 @@ public:
   Uint32 MapRGBA(Uint8 r, Uint8 g, Uint8 b, Uint8 a) const;
   Color GetColor(Uint32 color) const;
   Uint32 MapColor(const Color& color) const;
-
-  void Flip();
 
   int BoxColor(const Rectanglei &rect, const Color &color);
   int RectangleColor(const Rectanglei &rect, const Color &color, const uint &border_size = 1);
@@ -183,8 +182,8 @@ public:
 
   static Surface DisplayFormatColorKey(const uint32_t* data, SDL_PixelFormat *fmt,
                                        int w, int h, int stride,
-                                       uint8_t alpha_threshold, bool rle=false);
-  Surface DisplayFormatColorKey(uint8_t alpha_threshold, bool rle=false);
+                                       uint8_t alpha_threshold);
+  Surface DisplayFormatColorKey(uint8_t alpha_threshold);
 
   Surface Crop(const Rectanglei& area) const;
 

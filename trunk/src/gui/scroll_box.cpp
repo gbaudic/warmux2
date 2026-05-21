@@ -446,7 +446,7 @@ void ScrollBox::Pack()
   }
 }
 
-bool ScrollBox::SendKey(const SDL_keysym & key)
+bool ScrollBox::SendKey(const SDL_Keysym & key)
 {
   if (!WidgetList::SendKey(key)) {
     int new_offset = offset;

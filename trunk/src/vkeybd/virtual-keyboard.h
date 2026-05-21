@@ -41,8 +41,8 @@
 #include "graphic/surface.h"
 #include "vkeybd/image-map.h"
 
-typedef SDL_keysym KeyState;
-typedef Uint8 KeyCode; //SDL_keysym.scancode
+typedef SDL_Keysym KeyState;
+typedef Uint8 KeyCode; //SDL_Keysym.scancode
 
 namespace Common {
 

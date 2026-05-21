@@ -25,7 +25,7 @@
 #include "label.h"
 
 // Forward declaration
-struct SDL_keysym;
+struct SDL_Keysym;
 
 class TextBox : public Label
 {
@@ -49,7 +49,7 @@ public:
   void SetMaxNbChars(uint nb_chars) { max_nb_chars = nb_chars; }
 
   // From widget
-  virtual bool SendKey(const SDL_keysym & key);
+  virtual bool SendKey(const SDL_Keysym & key);
   virtual void Draw(const Point2i & mousePosition);
   virtual Widget *ClickUp(const Point2i &, uint);
 };
@@ -71,7 +71,7 @@ public:
   PasswordBox(Profile * profile, const xmlNode * passwordBoxNode)
     : TextBox(profile, passwordBoxNode) { }
 
-  bool SendKey(const SDL_keysym & key);
+  bool SendKey(const SDL_Keysym & key);
   const std::string & GetPassword() const { return clear_text; };
 };
 

@@ -69,8 +69,8 @@ ProgressBar::ProgressBar(uint _x,
   bar_value(0),
   orientation(_orientation)
 {
-  image.NewSurface(Point2i(width, height), SDL_SWSURFACE, false);
-  image.SetColorKey(SDL_SRCCOLORKEY, 0);
+  image.NewSurface(Point2i(width, height), false);
+  image.SetColorKey(SDL_TRUE, 0);
 }
 
 void ProgressBar::SetMinMaxValueColor(const Color & min,
@@ -90,8 +90,8 @@ void ProgressBar::InitPos(uint px, uint py,
   y    = py;
   width = pwidth;
   height = pheight;
-  image.NewSurface(Point2i(width, height), SDL_SWSURFACE, false);
-  image.SetColorKey(SDL_SRCCOLORKEY, 0);
+  image.NewSurface(Point2i(width, height), false);
+  image.SetColorKey(SDL_TRUE, 0);
 }
 
 /*
@@ -212,7 +212,7 @@ void ProgressBar::DrawXY(const Point2i & pos) const
   GetWorld().ToRedrawOnScreen(dst);
 }
 
-// Ajoute/supprime un mark
+// Add/delete a mark
 ProgressBar::mark_it ProgressBar::AddTag(int val, const Color & color)
 {
   mark_t m;

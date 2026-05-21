@@ -25,6 +25,6 @@
 #include <string>
 #include <SDL_keyboard.h>
 
-bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_keysym& key);
+bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_Keysym& key);
 
 #endif //TEXT_HANDLING_H

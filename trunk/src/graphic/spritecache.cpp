@@ -86,6 +86,6 @@ void SpriteCache::FixParameters(const Double& rotation_rad,
     if (rotozoom)
       frame.normal.surface = frame.normal.surface.RotoZoom(rotation_rad, scale_x, scale_y);
     if (force_color_key)
-      frame.normal.surface = frame.normal.surface.DisplayFormatColorKey(128, true);
+      frame.normal.surface = frame.normal.surface.DisplayFormatColorKey(128);
   }
 }

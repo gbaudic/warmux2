@@ -42,6 +42,8 @@ class Video
 
 public:
   Surface window;
+  SDL_Window *screen;
+  SDL_Renderer *renderer;
   void SetWindowCaption(const std::string& caption) const;
   void SetMaxFps(uint max_fps);
   uint GetMaxFps() const { return m_max_fps; };
@@ -66,6 +68,8 @@ public:
 };
 
 Surface& GetMainWindow();
+SDL_Window* GetWindow();
+SDL_Renderer* GetRenderer();
 void SwapWindowClip(Rectanglei& clip);
 
 #endif

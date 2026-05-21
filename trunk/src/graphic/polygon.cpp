@@ -574,8 +574,8 @@ DecoratedBox::~DecoratedBox()
 void DecoratedBox::Draw(Surface * dest)
 {
   if (!m_border) {
-    //m_border = new Surface(Point2i(GetSize().x, GetSize().y), SDL_SWSURFACE, true);
-    Surface border = Surface(GetSize(), SDL_SWSURFACE, true);
+    //m_border = new Surface(Point2i(GetSize().x, GetSize().y), true);
+    Surface border = Surface(GetSize(), true);
     GenerateStyledBorder(border, m_style);
     m_border = new Surface(border.DisplayFormatAlpha());
   }
@@ -635,10 +635,10 @@ void GenerateStyledBorder(Surface & source, DecoratedBox::Style style)
   rounding_style[1][1] = LOAD_RES_IMAGE("interface/"+style_str+"_center");
   for (j=0; j<3; j++)
     for (i=0; i<3; i++)
-      rounding_style[j][i].SetAlpha(0, 0);
+      rounding_style[j][i].SetAlpha(0);
 
-  Surface save_surf(source.GetSize(),SDL_SWSURFACE, true);
-  source.SetAlpha(0, 0);
+  Surface save_surf(source.GetSize(), true);
+  source.SetAlpha(0);
   save_surf.Blit(source);
 
   Rectanglei temp_rect(Point2i(0,0), source.GetSize());
@@ -698,7 +698,7 @@ void GenerateStyledBorder(Surface & source, DecoratedBox::Style style)
     }
   }
 
-  source.SetAlpha(SDL_SRCALPHA, 0);
+  source.SetAlpha(0);
   source.Blit(save_surf);
 }
 

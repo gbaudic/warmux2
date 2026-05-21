@@ -12,7 +12,7 @@ dnl ========================================================================
 dnl = Require at least automake 2.52
 AC_PREREQ([2.72])
 
-AC_INIT([Warmux],[svn],[warmux-dev@gna.org],[warmux])
+AC_INIT([Warmux],[svn],,[warmux],[https://github.com/gbaudic/warmux2])
 AC_CONFIG_SRCDIR([src/main.cpp])
 
 dnl Detect the canonical host and target build environment
@@ -215,7 +215,7 @@ fi
 
 dnl === Check for SDL using pkg-config =====================================
 PKG_PROG_PKG_CONFIG()
-PKG_CHECK_MODULES(SDL2, libSDL2-2.0, [], [AC_MSG_FAILURE([SDL2 not found])])
+PKG_CHECK_MODULES(SDL2, sdl2, [], [AC_MSG_FAILURE([SDL2 not found])])
 CXXFLAGS="$CXXFLAGS $SDL2_CFLAGS"
 CFLAGS="$CFLAGS $SDL2_CFLAGS"
 CPPFLAGS="$CPPFLAGS $SDL2_CFLAGS"
@@ -424,7 +424,7 @@ AC_CONFIG_FILES([lib/warmux-server/Makefile
                  ])
 fi
 
-AM_CONFIG_HEADER(lib/warmux/include/config_autotools.h)
+AC_CONFIG_HEADERS(lib/warmux/include/config_autotools.h)
 
 AC_OUTPUT
 
