@@ -348,7 +348,7 @@ bool VirtualKeyboardParser::parserCallback_layout(const xmlNode *node)
 
   _mode->image = ResourceManager::GetRef().LoadImage(Config::GetConstInstance()->GetDataDir()
       + "/vkeyb/" + "vkeybd_default" + "/" + _mode->bitmapName, false, false);
-  _mode->image.SetColorKey(SDL_SRCCOLORKEY | SDL_RLEACCEL, _mode->image.MapColor(
+  _mode->image.SetColorKey(SDL_TRUE, _mode->image.MapColor(
       _mode->transparentColor));
 
   if (ReadStringAttr(node, "display_font_color", tcolor)) {

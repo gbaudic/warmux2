@@ -13,8 +13,8 @@ SET(WARMUX_SRCS ${WARMUX_SRCS} PARENT_SCOPE)
 
 INCLUDE_DIRECTORIES(
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${SDL_INCLUDE_DIR} ${SDLIMAGE_INCLUDE_DIR} ${SDLMIXER_INCLUDE_DIR}
-        ${SDLTTF_INCLUDE_DIR} ${SDLGFX_INCLUDE_DIR} ${SDLNET_INCLUDE_DIR}
+        ${SDL2_INCLUDE_DIR} ${SDL2IMAGE_INCLUDE_DIR} ${SDL2MIXER_INCLUDE_DIR}
+        ${SDL2TTF_INCLUDE_DIR} ${SDL2GFX_INCLUDE_DIR} ${SDL2NET_INCLUDE_DIR}
         ${LIBXML2_INCLUDE_DIR}
         ${CURL_INCLUDE_DIRS}
         ${PNG_INCLUDE_DIR}
@@ -28,11 +28,11 @@ SET_TARGET_PROPERTIES(${EXECUTABLE} PROPERTIES LINK_FLAGS "${WARMUX_LDFLAGS}" CO
 
 TARGET_LINK_LIBRARIES( ${EXECUTABLE}
         libwarmux
-        ${SDLIMAGE_LIBRARY} ${SDLMIXER_LIBRARY} ${SDLTTF_LIBRARY} ${SDLGFX_LIBRARY} ${SDLNET_LIBRARY}
+        ${SDL2IMAGE_LIBRARY} ${SDL2MIXER_LIBRARY} ${SDL2TTF_LIBRARY} ${SDL2GFX_LIBRARY} ${SDL2NET_LIBRARY}
         ${LIBXML2_LIBRARIES}
         ${CURL_LIBRARIES}
         ${PNG_LIBRARY}
-        ${SDL_LIBRARY}
+        ${SDL2_LIBRARY}
         ${GETTEXT_LIBRARY}
         libfixedpoint
 )
@@ -59,17 +59,16 @@ IF(WIN32)
     libgobject-2.0-0.dll
     libpng13.dll
     libsigc-2.0-0.dll
-    libxml++-2.6-2.dll
     libxml2.dll
     ogg.dll
     vorbis.dll
     vorbisfile.dll
-    SDL.dll
-    SDL_gfx.dll
-    SDL_image.dll
-    SDL_mixer.dll
-    SDL_net.dll
-    SDL_ttf.dll
+    SDL2.dll
+    SDL2_gfx.dll
+    SDL2_image.dll
+    SDL2_mixer.dll
+    SDL2_net.dll
+    SDL2_ttf.dll
     zlib1.dll
     DESTINATION ${BIN_DESTINATION}
   )

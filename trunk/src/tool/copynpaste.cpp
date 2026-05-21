@@ -20,6 +20,7 @@
  *****************************************************************************/
 #include "copynpaste.h"
 #include <WARMUX_config.h>
+#include "graphic/video.h"
 
 #include <SDL_syswm.h>
 
@@ -251,7 +252,7 @@ bool RetrieveBuffer(std::string& text, std::string::size_type& pos)
 
   //printf("Retrieving buffer...\n");
   SDL_VERSION(&info.version);
-  if (SDL_GetWMInfo(&info)) {
+  if (SDL_GetWindowWMInfo(GetWindow(), &info)) {
     Display *dpy  = info.info.x11.display;
     Window  us    = info.info.x11.window;
     char    *data = NULL;

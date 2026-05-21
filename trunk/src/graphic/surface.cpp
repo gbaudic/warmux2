@@ -53,6 +53,7 @@ Surface::Surface(const std::string &filename)
 Surface::Surface(const Surface &src)
 {
   surface = src.surface;
+  renderer = src.renderer;
   autoFree = true;
   if (!IsNull())
     surface->refcount++;
@@ -62,6 +63,7 @@ Surface &Surface::operator=(const Surface & src)
 {
   AutoFree();
   surface = src.surface;
+  renderer = src.renderer;
   autoFree = true;
   if (!IsNull())
     surface->refcount++;
@@ -77,8 +79,10 @@ Surface &Surface::operator=(const Surface & src)
 void Surface::Free()
 {
   if (!IsNull()) {
+    SDL_DestroyRenderer(renderer);
     SDL_FreeSurface(surface);
     surface = NULL;
+    renderer = NULL;
   }
 }
 
@@ -86,10 +90,9 @@ void Surface::Free()
  * Create a new surface.
  *
  * @param size
- * @param flags
  * @param useAlpha
  */
-void Surface::NewSurface(const Point2i &size, Uint32 flags, bool useAlpha)
+void Surface::NewSurface(const Point2i &size, bool useAlpha)
 {
   if (autoFree)
     Free();
@@ -97,7 +100,7 @@ void Surface::NewSurface(const Point2i &size, Uint32 flags, bool useAlpha)
   const SDL_PixelFormat* fmt = SDL_GetVideoSurface()->format;
   // If no alpha, use default parameters
   if (!useAlpha) {
-    surface = SDL_CreateRGBSurface(flags, size.x, size.y,
+    surface = SDL_CreateRGBSurface(0, size.x, size.y,
                                    fmt->BitsPerPixel, fmt->Rmask, fmt->Gmask, fmt->Bmask, 0);
   } else {
     // Code below taken from SDL_DisplayFormatAlpha
@@ -134,20 +137,25 @@ void Surface::NewSurface(const Point2i &size, Uint32 flags, bool useAlpha)
          optimised alpha format is written, add the converter here */
       break;
     }
-    surface = SDL_CreateRGBSurface(flags|SDL_SRCALPHA, size.x, size.y, 32,
+    surface = SDL_CreateRGBSurface(0, size.x, size.y, 32,
                                    rmask, gmask, bmask, amask);
   }
   if (!surface)
     Error(std::string("Can't create SDL RGB(A) surface: ") + SDL_GetError());
+
+  renderer = SDL_CreateSoftwareRenderer(surface);
+  
+  if (!renderer)
+    Error(std::string("Can't create renderer for SDL RGB(A) surface: ") + SDL_GetError());
 }
 
 /**
  * Set the alpha value of a surface.
  *
  */
-int Surface::SetAlpha(Uint32 flags, Uint8 alpha)
+int Surface::SetAlpha(Uint8 alpha)
 {
-  return SDL_SetAlpha(surface, flags, alpha);
+  return SDL_SetSurfaceAlphaMod(surface, alpha);
 }
 
 /**
@@ -368,11 +376,6 @@ Uint32 Surface::MapColor(const Color& color) const
   return MapRGBA(color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
-void Surface::Flip()
-{
-  SDL_Flip(surface);
-}
-
   int Surface::BoxColor(const Rectanglei &rect, const Color &color)
 {
   if (rect.IsSizeZero())
@@ -380,7 +383,7 @@ void Surface::Flip()
 
   Point2i ptBR = rect.GetBottomRightPoint();
 
-  return boxRGBA(surface, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return boxRGBA(renderer, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::RectangleColor(const Rectanglei &rect, const Color &color,
@@ -392,25 +395,25 @@ int Surface::RectangleColor(const Rectanglei &rect, const Color &color,
   Point2i ptBR = rect.GetBottomRightPoint();
 
   if (border_size == 1)
-    return rectangleRGBA(surface, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+    return rectangleRGBA(renderer, rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), ptBR.GetY(), color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 
   // top border
-  boxRGBA (surface,
+  boxRGBA (renderer,
            rect.GetPositionX(), rect.GetPositionY(), ptBR.GetX(), rect.GetPositionY()+border_size,
            color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 
   // bottom border
-  boxRGBA (surface,
+  boxRGBA (renderer,
            rect.GetPositionX(), ptBR.GetY() - border_size, ptBR.GetX(), ptBR.GetY(),
            color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 
   // left border
-  boxRGBA (surface,
+  boxRGBA (renderer,
            rect.GetPositionX(), rect.GetPositionY() + border_size, rect.GetPositionX()+border_size, ptBR.GetY()-border_size,
            color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 
   // right border
-  boxRGBA (surface,
+  boxRGBA (renderer,
            ptBR.GetX() - border_size, rect.GetPositionY() + border_size, ptBR.GetX(), ptBR.GetY()-border_size,
            color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 
@@ -419,22 +422,22 @@ int Surface::RectangleColor(const Rectanglei &rect, const Color &color,
 
 int Surface::VlineColor(const uint &x, const uint &y1, const uint &y2, const Color &color)
 {
-  return vlineRGBA(surface, x, y1, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return vlineRGBA(renderer, x, y1, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::HlineColor(const uint &x1, const uint &x2, const uint &y, const Color &color)
 {
-  return hlineRGBA(surface, x1, x2, y, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return hlineRGBA(renderer, x1, x2, y, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::LineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color)
 {
-  return lineRGBA(surface, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return lineRGBA(renderer, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::AALineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color)
 {
-  return aalineRGBA(surface, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return aalineRGBA(renderer, x1, y1, x2, y2, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::AAFadingLineColor(const uint &x1, const uint &x2, const uint &y1, const uint &y2, const Color &color1, const Color &color2)
@@ -444,26 +447,26 @@ int Surface::AAFadingLineColor(const uint &x1, const uint &x2, const uint &y1, c
 
 int Surface::CircleColor(const uint &x, const uint &y, const uint &rad, const Color &color)
 {
-  return circleRGBA(surface, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return circleRGBA(renderer, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::FilledCircleColor(const uint &x, const uint &y, const uint &rad, const Color &color)
 {
-  return filledCircleRGBA(surface, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return filledCircleRGBA(renderer, x, y, rad, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::PieColor(const uint &x, const uint &y, const uint &rad, const int &start, const int &end, const Color &color)
 {
-  return pieRGBA(surface, x, y, rad, start, end, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return pieRGBA(renderer, x, y, rad, start, end, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::FilledPieColor(const uint &x, const uint &y, const uint &rad, const int &start, const int &end, const Color &color)
 {
-  return filledPieRGBA(surface, x, y, rad, start, end, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return filledPieRGBA(renderer, x, y, rad, start, end, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::AAPolygonColor(const Sint16 * vx, const Sint16 * vy, const int n, const Color & color) {
-  return aapolygonRGBA(surface, vx, vy, n, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return aapolygonRGBA(renderer, vx, vy, n, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::AAPolygonColor(std::list<Point2i> polygon, const Color & color)
@@ -476,7 +479,7 @@ int Surface::AAPolygonColor(std::list<Point2i> polygon, const Color & color)
     vx[i] = point->x;
     vy[i] = point->y;
   }
-  int result = aapolygonRGBA(surface, vx, vy, polygon.size(), color.GetRed(),
+  int result = aapolygonRGBA(renderer, vx, vy, polygon.size(), color.GetRed(),
                              color.GetGreen(), color.GetBlue(), color.GetAlpha());
   delete[] vx;
   delete[] vy;
@@ -486,7 +489,7 @@ int Surface::AAPolygonColor(std::list<Point2i> polygon, const Color & color)
 int Surface::FilledPolygon(const Sint16 * vx, const Sint16 * vy, const int n, const Color & color)
 {
   // Internal static leak in sdl_gfx
-  return filledPolygonRGBA(surface, vx, vy, n, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
+  return filledPolygonRGBA(renderer, vx, vy, n, color.GetRed(), color.GetGreen(), color.GetBlue(), color.GetAlpha());
 }
 
 int Surface::FilledPolygon(std::list<Point2i> polygon, const Color & color)
@@ -499,7 +502,7 @@ int Surface::FilledPolygon(std::list<Point2i> polygon, const Color & color)
     vx[i] = point->x;
     vy[i] = point->y;
   }
-  int result = filledPolygonRGBA(surface, vx, vy, polygon.size(), color.GetRed(),
+  int result = filledPolygonRGBA(renderer, vx, vy, polygon.size(), color.GetRed(),
                                  color.GetGreen(), color.GetBlue(), color.GetAlpha());
   delete[] vx;
   delete[] vy;
@@ -508,7 +511,7 @@ int Surface::FilledPolygon(std::list<Point2i> polygon, const Color & color)
 
 int Surface::TexturedPolygon(const Sint16 * vx, const Sint16 * vy, const int n, const Surface *texture, const int texture_dx, const int texture_dy)
 {
-  return texturedPolygon(surface, vx, vy, n, texture->surface, texture_dx, texture_dy);
+  return texturedPolygon(renderer, vx, vy, n, texture->surface, texture_dx, texture_dy);
 }
 
 int Surface::TexturedPolygon(std::list<Point2i> polygon, const Surface * texture)
@@ -521,7 +524,7 @@ int Surface::TexturedPolygon(std::list<Point2i> polygon, const Surface * texture
     vx[i] = point->x;
     vy[i] = point->y;
   }
-  int result = texturedPolygon(surface, vx, vy, polygon.size(), texture->surface, 0, 0);
+  int result = texturedPolygon(renderer, vx, vy, polygon.size(), texture->surface, 0, 0);
   delete[] vx;
   delete[] vy;
   return result;
@@ -667,7 +670,7 @@ mirror(void *d, uint dpitch,
 Surface Surface::Mirror()
 {
   const SDL_PixelFormat *fmt = surface->format;
-  SDL_Surface *surf = SDL_CreateRGBSurface(surface->flags, surface->w, surface->h, fmt->BitsPerPixel,
+  SDL_Surface *surf = SDL_CreateRGBSurface(0, surface->w, surface->h, fmt->BitsPerPixel,
                                            fmt->Rmask, fmt->Gmask, fmt->Bmask, fmt->Amask);
 
   if (SDL_MUSTLOCK(surface))
@@ -711,10 +714,12 @@ Surface Surface::Mirror()
   SDL_UnlockSurface(surf);
   SDL_UnlockSurface(surface);
 
-  if (surface->flags & SDL_SRCALPHA)
-    SDL_SetAlpha(surf, SDL_SRCALPHA, surface->format->alpha);
-  if (surface->flags & SDL_SRCCOLORKEY)
-    SDL_SetColorKey(surf, SDL_SRCCOLORKEY|SDL_RLEACCEL, surface->format->colorkey);
+  Uint8 alphamod;
+  Uint32 colorkey;
+  SDL_GetSurfaceAlphaMod(surface, &alphamod);
+  SDL_GetColorKey(surface, &colorkey);
+  SDL_SetSurfaceAlphaMod(surf, alphamod);
+  SDL_SetColorKey(surf, SDL_TRUE, colorkey);
 
   return Surface(surf);
 }
@@ -814,7 +819,7 @@ Uint32 Surface::GetPixel(int x, int y) const
     return *(Uint32 *)p;
 
   default:
-    Error("Unknow bpp!");
+    Error("Unknown bpp!");
     return 0;   // To make gcc happy
   }
 }
@@ -884,11 +889,11 @@ SDL_Rect Surface::GetSDLRect(const Point2i &pt)
 
 Surface Surface::DisplayFormatColorKey(const uint32_t* data, SDL_PixelFormat *sfmt,
                                        int w, int h, int stride,
-                                       uint8_t threshold, bool rle)
+                                       uint8_t threshold)
 {
   SDL_PixelFormat *fmt   = SDL_GetVideoSurface()->format;
   uint             bpp   = fmt->BitsPerPixel==16 ? 16 : 24;
-  Surface          surf(SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, bpp, 0, 0, 0, 0));
+  Surface          surf(SDL_CreateRGBSurface(0, w, h, bpp, 0, 0, 0, 0));
   const uint32_t  *src   = data;
   int              pitch = stride>>2;
   Uint32           ckey  = SDL_MapRGB(surf.surface->format, 0xFF, 0, 0xFF);
@@ -907,28 +912,25 @@ Surface Surface::DisplayFormatColorKey(const uint32_t* data, SDL_PixelFormat *sf
   }
 
   surf.Unlock();
-  if (rle)
-    surf.SetColorKey(SDL_SRCCOLORKEY|SDL_RLEACCEL, ckey);
-  else
-    surf.SetColorKey(SDL_SRCCOLORKEY, ckey);
+  surf.SetColorKey(SDL_TRUE, ckey);
 
   return surf;
 }
 
-Surface Surface::DisplayFormatColorKey(uint8_t alpha_threshold, bool rle)
+Surface Surface::DisplayFormatColorKey(uint8_t alpha_threshold)
 {
   Lock();
   Surface tmp = DisplayFormatColorKey((uint32_t*)surface->pixels, surface->format,
                                       surface->w, surface->h, surface->pitch,
-                                      alpha_threshold, rle);
+                                      alpha_threshold);
   Unlock();
   return tmp;
 }
 
 Surface Surface::Crop(const Rectanglei& area) const
 {
-  Surface sub(area.GetSize(), SDL_SWSURFACE, surface->format->Amask!=0);
-  SDL_SetAlpha(surface, 0, 0);
+  Surface sub(area.GetSize(), surface->format->Amask!=0);
+  SDL_SetSurfaceAlphaMod(surface, 0);
   sub.Blit(*this, -area.GetPosition());
   return sub;
 }

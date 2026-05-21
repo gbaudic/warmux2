@@ -265,12 +265,12 @@ void MultiTabs::NeedRedrawing()
     tabs[current_tab].box->NeedRedrawing();
 }
 
-bool MultiTabs::SendKey(const SDL_keysym& key)
+bool MultiTabs::SendKey(const SDL_Keysym& key)
 {
   if (tabs.empty())
     return false;
 
-  if (SDL_GetModState()&(KMOD_CTRL|KMOD_META)) {
+  if (SDL_GetModState()&(KMOD_CTRL|KMOD_GUI)) {
     switch (key.sym) {
     case SDLK_PAGEUP:
       PrevTab();

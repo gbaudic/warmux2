@@ -97,8 +97,8 @@ void Interface::LoadDataInternal(Profile *res)
   // for RGB565 with surface alpha *and* colorkey
   default_toolbar = default_toolbar.DisplayFormatColorKey(64);
   small_interface = small_interface.DisplayFormatColorKey(64);
-  default_toolbar.SetAlpha(SDL_SRCALPHA, 128);
-  small_interface.SetAlpha(SDL_SRCALPHA, 128);
+  default_toolbar.SetAlpha(128);
+  small_interface.SetAlpha(128);
 #endif
 
   // energy bar
@@ -462,11 +462,11 @@ void Interface::DrawMapPreview()
       }
 
       if (!minimap)
-        minimap = new Surface(preview_size, SDL_SWSURFACE, true);
+        minimap = new Surface(preview_size, true);
 
       // Recreate the scratch buffer
       if (!scratch)
-        scratch = new Surface(preview_size, SDL_SWSURFACE, true);
+        scratch = new Surface(preview_size, true);
 
       Point2i mergePos = -ground.GetPreviewRect().GetPosition();
       scratch->Blit(*ground.GetPreview(), mergePos);
@@ -484,14 +484,14 @@ void Interface::DrawMapPreview()
                           color);
       }
 
-      //scratch->SetAlpha(SDL_SRCALPHA, 0);
+      //scratch->SetAlpha(0);
       if (!mask) {
         m_last_preview_size = ground.GetPreviewSize();
-        mask = new Surface(m_last_preview_size, SDL_SWSURFACE, true);
+        mask = new Surface(m_last_preview_size, true);
 
         GenerateStyledBorder(*mask, DecoratedBox::STYLE_ROUNDED);
 
-        mask->SetAlpha(0, 0);
+        mask->SetAlpha(0);
       }
 
       // Compose

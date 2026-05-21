@@ -69,7 +69,7 @@ static bool RemoveUTF8CharAfter(std::string& text, std::string::size_type& pos)
 }
 
 
-static bool InsertUTF8Char(std::string& text, std::string::size_type& pos, const SDL_keysym& key)
+static bool InsertUTF8Char(std::string& text, std::string::size_type& pos, const SDL_Keysym& key)
 {
   // check cursor position
   if (pos > text.size()) {
@@ -100,7 +100,7 @@ static bool InsertUTF8Char(std::string& text, std::string::size_type& pos, const
   return false;
 }
 
-static bool processModifier(std::string& text, std::string::size_type& pos, const SDL_keysym& key)
+static bool processModifier(std::string& text, std::string::size_type& pos, const SDL_Keysym& key)
 {
   switch (key.sym)
     {
@@ -113,7 +113,7 @@ static bool processModifier(std::string& text, std::string::size_type& pos, cons
     }
 }
 
-bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_keysym& key)
+bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_Keysym& key)
 {
   bool r = true;
 
@@ -155,7 +155,7 @@ bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_keysym
     break;
 
   default:
-    if (SDL_GetModState()&(KMOD_CTRL|KMOD_META))
+    if (SDL_GetModState()&(KMOD_CTRL|KMOD_GUI))
       r = processModifier(text, pos, key);
     else
       r = InsertUTF8Char(text, pos, key);

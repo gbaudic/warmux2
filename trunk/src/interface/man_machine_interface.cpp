@@ -455,7 +455,7 @@ void ManMachineInterface::HandleKeyReleased(const Key_t &key)
 
     case KEY_NEXT_CHARACTER:
       if (GameMode::GetInstance()->AllowCharacterSelection()) {
-        SDLMod mod = SDL_GetModState();
+        SDL_Keymod mod = SDL_GetModState();
         if (mod & KMOD_CTRL) {
           ActiveTeam().PreviousCharacter();
         } else {
@@ -690,16 +690,16 @@ int ManMachineInterface::GetKeyFromKeyName(const std::string &name) const
 #endif
 
   // Numeric keypad
-  if(name == "kp0") return SDLK_KP0;
-  if(name == "kp1") return SDLK_KP1;
-  if(name == "kp2") return SDLK_KP2;
-  if(name == "kp3") return SDLK_KP3;
-  if(name == "kp4") return SDLK_KP4;
-  if(name == "kp5") return SDLK_KP5;
-  if(name == "kp6") return SDLK_KP6;
-  if(name == "kp7") return SDLK_KP7;
-  if(name == "kp8") return SDLK_KP8;
-  if(name == "kp9") return SDLK_KP9;
+  if(name == "kp0") return SDLK_KP_0;
+  if(name == "kp1") return SDLK_KP_1;
+  if(name == "kp2") return SDLK_KP_2;
+  if(name == "kp3") return SDLK_KP_3;
+  if(name == "kp4") return SDLK_KP_4;
+  if(name == "kp5") return SDLK_KP_5;
+  if(name == "kp6") return SDLK_KP_6;
+  if(name == "kp7") return SDLK_KP_7;
+  if(name == "kp8") return SDLK_KP_8;
+  if(name == "kp9") return SDLK_KP_9;
   if(name == "kp_period") return SDLK_KP_PERIOD;
   if(name == "kp_divide") return SDLK_KP_DIVIDE;
   if(name == "kp_multiply") return SDLK_KP_MULTIPLY;
@@ -737,30 +737,26 @@ int ManMachineInterface::GetKeyFromKeyName(const std::string &name) const
   if(name == "F15") return SDLK_F15;
 
   // Key state modifier keys
-  if(name == "numlock") return SDLK_NUMLOCK;
+  if(name == "numlock") return SDLK_NUMLOCKCLEAR;
   if(name == "capslock") return SDLK_CAPSLOCK;
-  if(name == "scrollock") return SDLK_SCROLLOCK;
+  if(name == "scrollock") return SDLK_SCROLLLOCK;
   if(name == "rshift") return SDLK_RSHIFT;
   if(name == "lshift") return SDLK_LSHIFT;
   if(name == "rctrl") return SDLK_RCTRL;
   if(name == "lctrl") return SDLK_LCTRL;
   if(name == "ralt") return SDLK_RALT;
   if(name == "lalt") return SDLK_LALT;
-  if(name == "rmeta") return SDLK_RMETA;
-  if(name == "lmeta") return SDLK_LMETA;
-  if(name == "lsuper") return SDLK_LSUPER;
-  if(name == "rsuper") return SDLK_RSUPER;
+  if(name == "rmeta") return SDLK_RGUI;
+  if(name == "lmeta") return SDLK_LGUI;
   if(name == "mode") return SDLK_MODE;
-  if(name == "compose") return SDLK_COMPOSE;
+  if(name == "compose") return SDLK_APPLICATION;
 
   // Miscellaneous function keys
   if(name == "help") return SDLK_HELP;
-  if(name == "print") return SDLK_PRINT;
+  if(name == "print") return SDLK_PRINTSCREEN;
   if(name == "sysreq") return SDLK_SYSREQ;
-  if(name == "break") return SDLK_BREAK;
   if(name == "menu") return SDLK_MENU;
   if(name == "power") return SDLK_POWER;
-  if(name == "euro") return SDLK_EURO;
   if(name == "undo") return SDLK_UNDO;
 
   return SDLK_UNKNOWN;
@@ -947,16 +943,16 @@ std::string ManMachineInterface::GetKeyNameFromKey(int key) const
 #endif
 
   // Numeric keypad
-  if(key == SDLK_KP0) return "kp0";
-  if(key == SDLK_KP1) return "kp1";
-  if(key == SDLK_KP2) return "kp2";
-  if(key == SDLK_KP3) return "kp3";
-  if(key == SDLK_KP4) return "kp4";
-  if(key == SDLK_KP5) return "kp5";
-  if(key == SDLK_KP6) return "kp6";
-  if(key == SDLK_KP7) return "kp7";
-  if(key == SDLK_KP8) return "kp8";
-  if(key == SDLK_KP9) return "kp9";
+  if(key == SDLK_KP_0) return "kp0";
+  if(key == SDLK_KP_1) return "kp1";
+  if(key == SDLK_KP_2) return "kp2";
+  if(key == SDLK_KP_3) return "kp3";
+  if(key == SDLK_KP_4) return "kp4";
+  if(key == SDLK_KP_5) return "kp5";
+  if(key == SDLK_KP_6) return "kp6";
+  if(key == SDLK_KP_7) return "kp7";
+  if(key == SDLK_KP_8) return "kp8";
+  if(key == SDLK_KP_9) return "kp9";
   if(key == SDLK_KP_PERIOD) return "kp_period";
   if(key == SDLK_KP_DIVIDE) return "kp_divide";
   if(key == SDLK_KP_MULTIPLY) return "kp_multiply";
@@ -994,30 +990,26 @@ std::string ManMachineInterface::GetKeyNameFromKey(int key) const
   if(key == SDLK_F15) return "f15";
 
   // Key state modifier keys
-  if(key == SDLK_NUMLOCK) return "numlock";
+  if(key == SDLK_NUMLOCKCLEAR) return "numlock";
   if(key == SDLK_CAPSLOCK) return "capslock";
-  if(key == SDLK_SCROLLOCK) return "scrollock";
+  if(key == SDLK_SCROLLLOCK) return "scrollock";
   if(key == SDLK_RSHIFT) return "rshift";
   if(key == SDLK_LSHIFT) return "lshift";
   if(key == SDLK_RCTRL) return "rctrl";
   if(key == SDLK_LCTRL) return "lctrl";
   if(key == SDLK_RALT) return "ralt";
   if(key == SDLK_LALT) return "lalt";
-  if(key == SDLK_RMETA) return "rmeta";
-  if(key == SDLK_LMETA) return "lmeta";
-  if(key == SDLK_LSUPER) return "lsuper";
-  if(key == SDLK_RSUPER) return "rsuper";
+  if(key == SDLK_RGUI) return "rmeta";
+  if(key == SDLK_LGUI) return "lmeta";
   if(key == SDLK_MODE) return "mode";
-  if(key == SDLK_COMPOSE) return "compose";
+  if(key == SDLK_APPLICATION) return "compose";
 
   // Miscellaneous function keys
   if(key == SDLK_HELP) return "help";
-  if(key == SDLK_PRINT) return "print";
+  if(key == SDLK_PRINTSCREEN) return "print";
   if(key == SDLK_SYSREQ) return "sysreq";
-  if(key == SDLK_BREAK) return "break";
   if(key == SDLK_MENU) return "menu";
   if(key == SDLK_POWER) return "power";
-  if(key == SDLK_EURO) return "euro";
   if(key == SDLK_UNDO) return "undo";
 
   return "unknown";

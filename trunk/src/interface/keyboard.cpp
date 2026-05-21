@@ -234,7 +234,7 @@ void Keyboard::HandleKeyComboEvent(int key_code, Key_Event_t event_type)
 
 int Keyboard::GetModifierBits()
 {
-  SDLMod sdl_modifier_bits = SDL_GetModState();
+  SDL_Keymod sdl_modifier_bits = SDL_GetModState();
   int result = 0;
   if (sdl_modifier_bits & KMOD_SHIFT)
     result |= SHIFT_BIT;
@@ -250,7 +250,7 @@ int Keyboard::GetModifierBits()
 
 bool Keyboard::IsModifier(int raw_key_code)
 {
-  return raw_key_code>=SDLK_NUMLOCK && raw_key_code<=SDLK_COMPOSE;
+  return raw_key_code>=SDLK_NUMLOCKCLEAR && raw_key_code<=SDLK_APPLICATION;
 }
 
 bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
@@ -280,7 +280,7 @@ bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
     return false;
   }
 
-  SDLKey basic_key_code = evnt.key.keysym.sym;
+  SDL_Keycode basic_key_code = evnt.key.keysym.sym;
 
 #ifdef DEBUG
   if (IsLOGGING("killsynchro")
@@ -295,12 +295,12 @@ bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
   if (IsModifier(basic_key_code)) {
     int modifier_changed = modifier_only_bits ^ GetModifierBits();
     if (event_type == KEY_RELEASED) {
-      for (std::set<SDLKey>::const_iterator it = pressed_keys.begin(); it != pressed_keys.end(); it++ ) {
+      for (std::set<SDL_Keycode>::const_iterator it = pressed_keys.begin(); it != pressed_keys.end(); it++ ) {
         int key_code = *it + MODIFIER_OFFSET * modifier_changed;
         HandleKeyComboEvent(key_code, KEY_RELEASED);
       }
     } else if (modifier_only_bits && event_type == KEY_PRESSED) {
-      for (std::set<SDLKey>::const_iterator it = pressed_keys.begin(); it != pressed_keys.end(); it++ ) {
+      for (std::set<SDL_Keycode>::const_iterator it = pressed_keys.begin(); it != pressed_keys.end(); it++ ) {
         int key_code = *it + MODIFIER_OFFSET * modifier_only_bits;
         HandleKeyComboEvent(key_code, KEY_RELEASED);
       }
@@ -320,7 +320,7 @@ bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
   modifier_bits = GetModifierBits();
 
   if (modifier_bits != previous_modifier_bits) {
-    std::set<SDLKey>::const_iterator it = pressed_keys.find(basic_key_code);
+    std::set<SDL_Keycode>::const_iterator it = pressed_keys.find(basic_key_code);
     if (it !=  pressed_keys.end()) {
       key_code = basic_key_code + MODIFIER_OFFSET * previous_modifier_bits;
       HandleKeyComboEvent(key_code, KEY_RELEASED);

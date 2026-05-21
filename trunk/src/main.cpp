@@ -228,7 +228,7 @@ void AppWarmux::DisplayLoadingPicture()
   text2.DrawCenter(windowCenter
                    + Point2i(0, Font::GetInstance(Font::FONT_HUGE, Font::FONT_BOLD)->GetHeight() + 20));
 
-  video->window.Flip();
+  video->Flip();
 }
 
 void AppWarmux::RefreshDisplay()
