@@ -2,6 +2,9 @@ name: pipeline
 on: [push]
 jobs:
   warmux:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
