@@ -638,7 +638,7 @@ void GenerateStyledBorder(Surface & source, DecoratedBox::Style style)
       rounding_style[j][i].SetAlpha(0);
 
   Surface save_surf(source.GetSize(), true);
-  source.SetAlpha(0);
+  source.SetBlendMode(SDL_BLENDMODE_NONE);
   save_surf.Blit(source);
 
   Rectanglei temp_rect(Point2i(0,0), source.GetSize());
@@ -698,7 +698,7 @@ void GenerateStyledBorder(Surface & source, DecoratedBox::Style style)
     }
   }
 
-  source.SetAlpha(0);
+  source.SetBlendMode(SDL_BLENDMODE_BLEND);
   source.Blit(save_surf);
 }
 

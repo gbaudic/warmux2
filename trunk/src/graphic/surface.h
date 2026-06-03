@@ -109,6 +109,7 @@ public:
 
   void NewSurface(const Point2i &size, bool useAlpha = true);
   int SetAlpha(Uint8 alpha);
+  int SetBlendMode(SDL_BlendMode blendMode);
 
   void Lock();
   void Unlock();
