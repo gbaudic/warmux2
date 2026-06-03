@@ -223,7 +223,7 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
   int        pitch     = m_preview->GetPitch();
   Point2i c;
 
-  s.SetAlpha(0);
+  s.SetBlendMode(SDL_BLENDMODE_NONE);
   pdst += (firstCell.y-startCell.y)*(pitch<<(CELL_BITS-m_shift));
 
   for (c.y = firstCell.y; c.y <= lastCell.y; c.y++) {
@@ -273,7 +273,7 @@ void Tile::PutSprite(const Point2i& pos, Sprite* spr)
     pdst += pitch<<(CELL_BITS-m_shift);
   }
 
-  s.SetAlpha(0);
+  s.SetBlendMode(SDL_BLENDMODE_BLEND);
 
   m_preview->Unlock();
   m_last_preview_redraw = GameTime::GetInstance()->Read();
@@ -622,9 +622,9 @@ void Tile::DrawTile_Clipped(const Rectanglei & worldClip) const
 Surface Tile::GetPart(const Rectanglei& rec)
 {
   Surface part(rec.GetSize(), true);
-  part.SetAlpha(0);
+  part.SetBlendMode(SDL_BLENDMODE_NONE);
   part.Fill(0x00000000);
-  part.SetAlpha(0);
+  part.SetBlendMode(SDL_BLENDMODE_BLEND);
 
   Point2i firstCell = Clamp(rec.GetPosition()>> CELL_BITS);
   Point2i lastCell = Clamp((rec.GetPosition() + rec.GetSize())>> CELL_BITS);
@@ -656,9 +656,9 @@ Surface Tile::GetPart(const Rectanglei& rec)
       if (dst.x < 0) dst.x = 0;
       if (dst.y < 0) dst.y = 0;
 
-      if (force_copy) tin->GetSurface().SetAlpha(0);
+      if (force_copy) tin->GetSurface().SetBlendMode(SDL_BLENDMODE_NONE);
       part.Blit(tin->GetSurface(), src, dst);
-      if (force_copy) tin->GetSurface().SetAlpha(0);
+      if (force_copy) tin->GetSurface().SetBlendMode(SDL_BLENDMODE_BLEND);
     }
   }
   return part;

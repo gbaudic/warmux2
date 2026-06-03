@@ -109,7 +109,7 @@ void TorusCache::Refresh(float angle, float open)
   }
   if (!m_torus) {
     m_torus = new Surface(Point2i(m_big_r*2+2, m_big_r*2+2), true);
-    m_torus->SetAlpha(0); // Overwrite all
+    m_torus->SetBlendMode(SDL_BLENDMODE_NONE); // Overwrite all
 
     Polygon *poly = PolygonGenerator::GeneratePartialTorus(m_big_r * 2, m_small_r * 2, 30,
                                                            angle, open / 2);
@@ -118,7 +118,7 @@ void TorusCache::Refresh(float angle, float open)
     poly->Draw(m_torus);
     delete poly;
 
-    m_torus->SetAlpha(0);
+    m_torus->SetBlendMode(SDL_BLENDMODE_BLEND);
   }
   m_last_angle = angle;
 }

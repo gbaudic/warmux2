@@ -159,6 +159,15 @@ int Surface::SetAlpha(Uint8 alpha)
 }
 
 /**
+ * Set the blend mode of a surface.
+ *
+ */
+int Surface::SetBlendMode(SDL_BlendMode blendMode)
+{
+  return SDL_SetSurfaceBlendMode(surface, blendMode);
+}
+
+/**
  * Lock the surface to permit direct access.
  *
  */
