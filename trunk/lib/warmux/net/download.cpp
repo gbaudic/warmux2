@@ -483,7 +483,7 @@ bool Downloader::TwitterLogin(const std::string& user, const std::string& pwd)
   std::string html, fields;
 
   twitter_logged = false;
-  if (!GetUrl("http://mobile.twitter.com/session/new", &html)) {
+  if (!GetUrl("http://mobile.x.com/session/new", &html)) {
     goto end;
   }
   MSG_DEBUG("downloader", "Login connect success!");
@@ -500,7 +500,7 @@ bool Downloader::TwitterLogin(const std::string& user, const std::string& pwd)
   fields = "authenticity_token=" + auth + "&username=" + UrlEncode(user) +
            "&password=" + UrlEncode(pwd);
   MSG_DEBUG("downloader", "Fields: %s\n", fields.c_str());
-  if (!Post("http://mobile.twitter.com/session", &html, fields)) {
+  if (!Post("http://mobile.x.com/session", &html, fields)) {
     goto end;
   }
 #if 0
@@ -532,6 +532,6 @@ bool Downloader::Tweet(const std::string& text)
     return false;
   std::string txt = "authenticity_token=" + auth + "&tweet%5Btext%5D=" + UrlEncode(text);
   MSG_DEBUG("downloader", "fields=%s", txt.c_str());
-  return Post("https://mobile.twitter.com/", NULL, txt);
+  return Post("https://mobile.x.com/", NULL, txt);
 }
 #endif
