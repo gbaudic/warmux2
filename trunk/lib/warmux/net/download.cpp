@@ -76,7 +76,7 @@ Downloader::Downloader()
   curl_easy_setopt(curl, CURLOPT_CAINFO, NULL);
   curl_easy_setopt(curl, CURLOPT_CAPATH, NULL); 
   curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "");
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.3) Gecko/20070309 Firefox/2.0.0.3");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0");
 }
 
 Downloader::~Downloader()
@@ -317,7 +317,7 @@ bool Downloader::GetServerList(std::map<std::string, int>& server_lst, const std
   MSG_DEBUG("downloader", "Retrieving server list: %s", list_name.c_str());
 
   // Download the list of server
-  const std::string list_url = "http://www.wormux.org/" + list_name;
+  const std::string list_url = "https://www.wormux.org/" + list_name;
   std::string       list_line;
 
   error.clear();
@@ -385,7 +385,7 @@ bool Downloader::FacebookLogin(const std::string& email, const std::string& pwd)
   std::string html, fields;
 
   fb_logged = false;
-  if (!GetUrl("http://m.facebook.com/login.php?http&refsrc=http%3A%2F%2Fm.facebook.com%2F&no_next_msg&refid=8", &html)) {
+  if (!GetUrl("https://m.facebook.com/login.php?http&refsrc=https%3A%2F%2Fm.facebook.com%2F&no_next_msg&refid=8", &html)) {
     goto end;
   }
   MSG_DEBUG("downloader", "Login connect success!");
@@ -413,7 +413,7 @@ bool Downloader::FacebookLogin(const std::string& email, const std::string& pwd)
 
   html.clear();
 
-  form = "http://m.facebook.com" + form;
+  form = "https://m.facebook.com" + form;
   fields = "lsd=&post_form_id=" + post_form_id +
            "&version=1&ajax=0&pxr=0&gps=0&email=" + UrlEncode(email) +
            "&pass=" + UrlEncode(pwd) + "&m_ts=" + m_ts + "&login=Login";
@@ -448,7 +448,7 @@ bool Downloader::FacebookLogin(const std::string& email, const std::string& pwd)
   } 
   MSG_DEBUG("downloader", "post_form_id=%s", post_form_id.c_str());
   
-  form = "http://m.facebook.com" + form;
+  form = "https://m.facebook.com" + form;
   html.clear();
 
   fb_logged = true;
@@ -483,7 +483,7 @@ bool Downloader::TwitterLogin(const std::string& user, const std::string& pwd)
   std::string html, fields;
 
   twitter_logged = false;
-  if (!GetUrl("http://mobile.x.com/session/new", &html)) {
+  if (!GetUrl("https://mobile.x.com/session/new", &html)) {
     goto end;
   }
   MSG_DEBUG("downloader", "Login connect success!");
@@ -500,7 +500,7 @@ bool Downloader::TwitterLogin(const std::string& user, const std::string& pwd)
   fields = "authenticity_token=" + auth + "&username=" + UrlEncode(user) +
            "&password=" + UrlEncode(pwd);
   MSG_DEBUG("downloader", "Fields: %s\n", fields.c_str());
-  if (!Post("http://mobile.x.com/session", &html, fields)) {
+  if (!Post("https://mobile.x.com/session", &html, fields)) {
     goto end;
   }
 #if 0

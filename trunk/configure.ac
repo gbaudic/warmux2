@@ -288,15 +288,26 @@ AC_CHECK_LIB(SDL2_gfx, rotozoomSurfaceXY,, AC_MSG_ERROR(Please install SDL_gfx))
 
 dnl === Check for curl =====================================================
 
+AC_ARG_ENABLE(facebook, AS_HELP_STRING([--enable-facebook],[enable Facebook support]) )
+AC_ARG_ENABLE(twitter, AS_HELP_STRING([--enable-twitter],[enable Twitter support]) )
+
 LIBCURL_CHECK_CONFIG([yes],[7.0],[check_curl=yes],[check_curl=no])
 if test "${check_curl}" = "yes"; then
   if test "${libcurl_protocol_HTTPS}" != "yes"; then
-    AC_MSG_WARN([No HTTPS support in curl, Twitter support off])
-    social="Facebook"
-    CXXFLAGS="$CXXFLAGS -DHAVE_FACEBOOK"
+    AC_MSG_WARN([No HTTPS support in curl, social network support off])
+    # This is not 2011 any more, all connections are now https
+    social="None"
   else
-    CXXFLAGS="$CXXFLAGS -DHAVE_FACEBOOK -DHAVE_TWITTER"
-    social="Facebook Twitter"
+    if test "${enable_facebook}" = "yes"; then
+      CXXFLAGS="$CXXFLAGS -DHAVE_FACEBOOK"
+      social="Facebook"
+    elif test "${enable_twitter}" = "yes"; then
+      CXXFLAGS="$CXXFLAGS -DHAVE_TWITTER"
+      social="$social Twitter"
+    else
+      AC_MSG_WARN([Social network support disabled by default. Use options --enable-facebook and/or --enable-twitter to enable them])
+      social="None"
+    fi
   fi
 else
   AC_MSG_WARN(Absolutely no network support!)
