@@ -1,0 +1,4 @@
+title: Warmux Site
+description: Simple site with the version endpoint
+markdown: kramdown
+theme: minima

@@ -300,7 +300,7 @@ std::string Downloader::UrlEncode(const std::string& str)
 
 bool Downloader::GetLatestVersion(std::string& line)
 {
-  static const char url[] = "http://www.wormux.org/last";
+  static const char url[] = "https://gbaudic.github.io/warmux2/version.txt";
   error.clear();
   if (!GetUrl(url, &line)) {
     if (error.empty())
