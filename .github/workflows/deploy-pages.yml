@@ -29,6 +29,8 @@ jobs:
           gem install jekyll bundler
           bundle init
           echo 'gem "jekyll"' >> Gemfile
+          echo 'gem "jekyll-remote-theme"' >> Gemfile
+          echo 'gem "jekyll-sitemap"' >> Gemfile
           bundle install
 
       - name: Build site
