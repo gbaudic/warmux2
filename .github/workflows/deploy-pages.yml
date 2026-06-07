@@ -31,6 +31,7 @@ jobs:
           echo 'gem "jekyll"' >> Gemfile
           echo 'gem "jekyll-remote-theme"' >> Gemfile
           echo 'gem "jekyll-sitemap"' >> Gemfile
+          echo 'gem "jekyll-seo-tag"' >> Gemfile
           bundle install
 
       - name: Build site
