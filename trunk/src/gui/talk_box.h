@@ -50,6 +50,7 @@ public:
   TextBox* GetTextBox() const {return line_to_send_tbox; };
 
   bool SendKey(const SDL_Keysym &key) override;
+  bool SendInput(const char* text) override;
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button);
 };
 

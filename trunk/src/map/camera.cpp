@@ -95,7 +95,7 @@ bool Camera::HasFixedY() const
 
 void Camera::SetXYabs(int x, int y)
 {
-  Surface &window = GetMainWindow();
+  Renderer &window = GetRenderer();
 
   if (!HasFixedX())
     position.x = InRange_Long(x, 0, GetWorld().GetWidth() - GetSizeX());

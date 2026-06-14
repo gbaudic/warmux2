@@ -41,11 +41,12 @@ ReplayMenu::ReplayMenu()
   , selected(NULL)
 {
   // Center the boxes!
-  uint h      = GetMainWindow().GetHeight();
+  Point2i dims = GetRenderer().GetSize();
+  uint h      = dims.y;
   uint size_y = h-50;
   float z     = size_y/430.0;
   uint border = 5*z;
-  uint size_x = GetMainWindow().GetWidth()/19;
+  uint size_x = dims.x/19;
   uint w      = 8*size_x - 2*border;
   Font::font_size_t fsize1 = Font::GetFixedSize(z * 18);
   Font::font_size_t fsize2 = Font::GetFixedSize(z * 16);

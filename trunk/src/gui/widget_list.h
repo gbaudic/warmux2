@@ -64,6 +64,7 @@ public:
 
   // methods specialized from Widget to manage the list of widgets
   virtual bool SendKey(const SDL_Keysym &key) override;
+  virtual bool SendInput(const char* text) override;
   virtual Widget* Click(const Point2i &mousePosition, uint button) override;
   virtual Widget* ClickUp(const Point2i &mousePosition, uint button) override;
 

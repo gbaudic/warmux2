@@ -55,7 +55,7 @@ void Sky::Draw(bool redraw_all)
   if (last_pos != cur_pos || redraw_all) {
     last_pos = cur_pos;
     std::list<Rectanglei> screen;
-    screen.push_back(Rectanglei(cur_pos, GetMainWindow().GetSize()));
+    screen.push_back(Rectanglei(cur_pos, GetRenderer().GetSize()));
     RedrawParticleList(screen);
     return;
   }
@@ -92,7 +92,7 @@ Point2i Sky::GetSkyPos(uint layer) const
   ASSERT(layer < images.size());
 
   Point2i tmp  = Camera::GetInstance()->GetPosition();
-  Point2i size = GetMainWindow().GetSize();
+  Point2i size = GetRenderer().GetSize();
 
   return ((images[layer]->GetSize() - size) * tmp) / (GetWorld().GetSize() - size);
 }

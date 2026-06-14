@@ -21,6 +21,7 @@
 
 #include <algorithm>
 
+#include <WARMUX_compat.h>
 #include "menu/map_selection_box.h"
 #include "game/config.h"
 #include "gui/button.h"

@@ -64,7 +64,7 @@ void Interface::LoadDataInternal(Profile *res)
     clock_emergency = LOAD_RES_SPRITE("interface/clock_emergency");
 
   bool replay = Replay::GetConstInstance()->IsPlaying();
-  last_width = AppWarmux::GetInstance()->video->window.GetWidth();
+  last_width = GetRenderer().GetWidth();
   if (last_width < tmp.GetWidth()+20) {
     zoom            = last_width / (float)(tmp.GetWidth()+20);
     default_toolbar = tmp.RotoZoom(0.0, zoom, zoom);
@@ -324,7 +324,7 @@ void Interface::DrawWeaponInfo() const
 
 void Interface::DrawTimeInfo() const
 {
-  Surface& window = GetMainWindow();
+  Renderer& window = GetRenderer();
   Point2i turn_time_pos((window.GetWidth() - clock_width)>>1,
                         window.GetHeight()  - GetHeight());
   Rectanglei dr(turn_time_pos, Point2i(clock_width, default_toolbar.GetHeight()));
@@ -1056,7 +1056,7 @@ int Interface::AnyClick(const Point2i &mouse_pos, ClickType type, Point2i old_mo
 
 bool Interface::ActionClickDown(const Point2i &mouse_pos)
 {
-  Surface& window = GetMainWindow();
+  Renderer& window = GetRenderer();
 
   if (IsDisplayed()) {
     Rectanglei menu_button(Point2i(), default_toolbar.GetSize());
@@ -1112,7 +1112,7 @@ bool Interface::ActionLongClick(const Point2i &mouse_pos, const Point2i& old_mou
 
 bool Interface::ActionClickUp(const Point2i &mouse_pos, const Point2i &old_click_pos)
 {
-  Surface &  window  = GetMainWindow();
+  Renderer &  window  = GetRenderer();
 
   if (IsDisplayed()) {
     if (mode == MODE_CONTROL) {

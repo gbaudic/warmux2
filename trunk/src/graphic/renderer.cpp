@@ -23,7 +23,34 @@
 #include <SDL2_gfxPrimitives.h>
 
 #include "graphic/renderer.h"
+#include "graphic/fading_effect.h"
 
+/** Copy constructor: the two share the same data */
+Renderer::Renderer(const Renderer &src)
+{
+  renderer = src.renderer;
+}
+
+Renderer &Renderer::operator=(const Renderer &src)
+{
+  Free();
+  renderer = src.renderer;
+  return *this;
+}
+
+void Renderer::Free()
+{
+  if (renderer)
+    SDL_DestroyRenderer(renderer);
+}
+
+
+Point2i Renderer::GetSize() const
+{
+  int w, h;
+  SDL_GetRendererOutputSize(renderer, &w, &h);
+  return Point2i( w, h );
+}
 
 int Renderer::BoxColor(const Rectanglei &rect, const Color &color)
 {

@@ -46,7 +46,7 @@ static const uint MARGIN_BOTTOM = 40;
 GameMenu::GameMenu() :
   Menu("menu/bg_play")
 {
-  Surface& window = GetMainWindow();
+  Renderer& window = GetRenderer();
 
   // Calculate main box size
   int  team_box_height = 240;

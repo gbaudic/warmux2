@@ -102,6 +102,7 @@ protected:
   {
     KEY_PRESSED,
     KEY_RELEASED,
+    TEXT_INPUT,
     KEY_REFRESH,
     X_AXIS_MOTION,
     Y_AXIS_MOTION

@@ -228,7 +228,7 @@ void WeaponsMenu::Show(const Point2i& pos)
   if (!ActiveTeam().GetWeapon().CanChangeWeapon())
     return;
 
-  Surface& window = GetMainWindow();
+  Renderer& window = GetRenderer();
   uint scroll_border = 0;
   
   if (Config::GetInstance()->GetScrollOnBorder()) {

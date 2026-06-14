@@ -182,8 +182,8 @@ bool VirtualKeyboardParser::parserCallback_mode(const xmlNode *node)
   // TODO: improve this by giving preference to a resolution that is smaller
   // than the overlay res (so the keyboard can't be too big for the screen)
   std::list<std::string>::iterator it;
-  int scrW = GetMainWindow().GetWidth();
-  int scrH = GetMainWindow().GetHeight();
+  int scrW = GetRenderer().GetWidth();
+  int scrH = GetRenderer().GetHeight();
   int diff = INT_MAX;
   string newResolution;
   string res;

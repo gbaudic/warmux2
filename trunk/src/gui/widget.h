@@ -93,6 +93,7 @@ public:
   virtual void NeedRedrawing() { need_redrawing = true; }; // set need_redrawing to true; -- virtual for widget_list
 
   virtual bool SendKey(const SDL_Keysym &) { return false; };
+  virtual bool SendInput(const char*) { return false; };
   virtual Widget * Click(const Point2i & mousePosition, uint button);
   virtual Widget * ClickUp(const Point2i & mousePosition, uint button);
   const std::string & GetActionName(void) const { return this->actionName; };
@@ -105,7 +106,7 @@ public:
 
   // manage mouse/keyboard focus
   bool HasFocus() const { return has_focus; };
-  void SetFocus(bool focus);
+  virtual void SetFocus(bool focus);
 
   bool IsHighlighted() const { return (is_highlighted || HasFocus()); }
   virtual void SetHighlighted(bool focus);

@@ -22,6 +22,7 @@
 #include "graphic/video.h"
 #include "graphic/colors.h"
 #include <SDL.h>
+#include <WARMUX_compat.h>
 #include "gui/button.h"
 #include "gui/horizontal_box.h"
 #include "gui/vertical_box.h"

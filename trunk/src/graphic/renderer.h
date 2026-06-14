@@ -23,6 +23,7 @@
 #define RENDERER_H
 
 #include "color.h"
+#include "surface.h"
 
 struct SDL_Renderer;
 
@@ -33,6 +34,19 @@ private:
   
 public:
 
+  explicit Renderer() : renderer(NULL) { };
+  explicit Renderer(SDL_Renderer* sdl_renderer) : renderer(sdl_renderer) { };
+  ~Renderer() { Free(); };
+  Renderer(const Renderer &src);
+  Renderer &operator=(const Renderer &src);
+  
+  void Free();
+  
+  bool IsNull() const { return renderer == NULL; };
+  Point2i GetSize() const;
+
+  inline int GetWidth() const { return GetSize().x; };
+  inline int GetHeight() const { return GetSize().y; };
 
   /**
    * Return the pointer of the SDL_Renderer.

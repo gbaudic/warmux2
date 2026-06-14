@@ -117,6 +117,23 @@ bool TextBox::SendKey(const SDL_Keysym & key)
   return used;
 }
 
+bool TextBox::SendInput(const char* text)
+{
+  bool used = true;
+
+  NeedRedrawing();
+
+  std::string new_txt = GetText();
+
+  used = TextHandle(new_txt, cursor_pos, text);
+
+  if (new_txt != GetText()) {
+	BasicSetText(new_txt);
+  }
+
+  return used;
+}
+
 void TextBox::Draw(const Point2i & mousePosition)
 {
   Rectanglei clip;
@@ -129,6 +146,16 @@ void TextBox::Draw(const Point2i & mousePosition)
 
   // Restore initial clip rectangle
   UnsetClip(clip);
+}
+
+void TextBox::SetFocus(bool focus)
+{
+  Widget::SetFocus(focus);
+  if (focus) {
+    SDL_StartTextInput();
+  } else {
+    SDL_StopTextInput();
+  }
 }
 
 Widget * TextBox::ClickUp(const Point2i & mousePosition, uint button)
@@ -212,6 +239,23 @@ bool PasswordBox::SendKey(const SDL_Keysym & key)
   std::string new_txt = clear_text;
 
   used = TextHandle(new_txt, cursor_pos, key);
+
+  if (new_txt != GetText()) {
+    BasicSetText(new_txt);
+  }
+
+  return used;
+}
+
+bool PasswordBox::SendInput(const char* text)
+{
+  bool used = true;
+
+  NeedRedrawing();
+
+  std::string new_txt = clear_text;
+
+  used = TextHandle(new_txt, cursor_pos, text);
 
   if (new_txt != GetText()) {
     BasicSetText(new_txt);

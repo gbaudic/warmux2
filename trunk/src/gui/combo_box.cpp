@@ -19,6 +19,7 @@
 
 #include <vector>
 #include <sstream>
+#include <WARMUX_compat.h>
 #include "graphic/polygon_generator.h"
 #include "graphic/sprite.h"
 #include "graphic/text.h"

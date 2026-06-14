@@ -79,7 +79,7 @@ void ManMachineInterface::HandleKeyPressed(const Key_t &key)
   // Key repeat is useful in the menu, but we are handling it manually
   // during the game
   if (PressedKeys[key]) {
-    SDL_EnableKeyRepeat(0,0);
+    //SDL_EnableKeyRepeat(0,0);
     return;
   }
 

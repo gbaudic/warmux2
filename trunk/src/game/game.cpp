@@ -696,7 +696,7 @@ void Game::Draw()
   }
 
   if (GameTime::GetInstance()->GetMSWaitingForNetwork() > MAX_WAIT_TIME_WITHOUT_MESSAGE_IN_MS) {
-    Point2i pos = GetMainWindow().GetSize()/2;
+    Point2i pos = GetRenderer().GetSize()/2;
     std::string text = Format(_("Waiting for %s"), ActiveTeam().GetPlayerName().c_str());
     waiting_for_network_text.SetText(text);
     waiting_for_network_text.DrawCenter(pos);

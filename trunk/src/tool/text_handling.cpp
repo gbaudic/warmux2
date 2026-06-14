@@ -69,37 +69,6 @@ static bool RemoveUTF8CharAfter(std::string& text, std::string::size_type& pos)
 }
 
 
-static bool InsertUTF8Char(std::string& text, std::string::size_type& pos, const SDL_Keysym& key)
-{
-  // check cursor position
-  if (pos > text.size()) {
-    pos = text.size();
-  }
-
-  if (key.unicode > 0)
-    {
-      if (key.unicode < 0x80) // 1 byte char
-        {
-          text.insert(pos++, 1, (char)key.unicode);
-        }
-      else if (key.unicode < 0x800) // 2 byte char
-        {
-          text.insert(pos++, 1, (char)(((key.unicode & 0x7c0) >> 6) | 0xc0));
-          text.insert(pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
-        }
-      else // if (key.unicode < 0x10000) // 3 byte char
-        {
-          text.insert(pos++, 1, (char)(((key.unicode & 0xf000) >> 12) | 0xe0));
-          text.insert(pos++, 1, (char)(((key.unicode & 0xfc0) >> 6) | 0x80));
-          text.insert(pos++, 1, (char)((key.unicode & 0x3f) | 0x80));
-        }
-      return true;
-    }
-
-  // this is not a valid char
-  return false;
-}
-
 static bool processModifier(std::string& text, std::string::size_type& pos, const SDL_Keysym& key)
 {
   switch (key.sym)
@@ -111,6 +80,23 @@ static bool processModifier(std::string& text, std::string::size_type& pos, cons
     default:
       return false;
     }
+}
+
+bool TextHandle(std::string& text, std::string::size_type& pos, const char* keys)
+{
+  // check cursor position
+  if (pos > text.size()) {
+    pos = text.size();
+  }
+
+  int i = 0;
+  while (i < SDL_TEXTINPUTEVENT_TEXT_SIZE && keys[i] != '\0')
+  {
+    text.insert(pos++, 1, keys[i]);
+    i++;
+  }
+
+  return i > 0;
 }
 
 bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_Keysym& key)
@@ -134,7 +120,7 @@ bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_Keysym
     break;
 
     // we return true for all the following cases because even if action has failed,
-    // the action has not be handled by something else
+    // the action has not been handled by something else
   case SDLK_HOME:
     pos = 0;
     break;
@@ -157,8 +143,7 @@ bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_Keysym
   default:
     if (SDL_GetModState()&(KMOD_CTRL|KMOD_GUI))
       r = processModifier(text, pos, key);
-    else
-      r = InsertUTF8Char(text, pos, key);
+    // Actual text input is no longer handled here
     break;
   }
 

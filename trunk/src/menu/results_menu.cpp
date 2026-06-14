@@ -228,7 +228,7 @@ bool compareTeamResults(const TeamResults* a, const TeamResults* b)
 
 static bool IsPodiumSeparate()
 {
-  return GetMainWindow().GetSize() >= Point2i(640, 480);
+  return GetRenderer().GetSize() >= Point2i(640, 480);
 }
 
 ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
@@ -242,7 +242,7 @@ ResultsMenu::ResultsMenu(std::vector<TeamResults*>& v, bool disconnected)
   , save(NULL)
 {
   Profile *res  = GetResourceManager().LoadXMLProfile("graphism.xml", false);
-  Point2i wsize = GetMainWindow().GetSize();
+  Point2i wsize = GetRenderer().GetSize();
   bool    small = !IsPodiumSeparate();
   uint x        = wsize.GetX() * 0.02f;
   uint tab_x    = small ? x : 260+16+x;

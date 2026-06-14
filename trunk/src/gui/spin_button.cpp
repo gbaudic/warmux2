@@ -19,6 +19,7 @@
 
 #include <sstream>
 
+#include <WARMUX_compat.h>
 #include "gui/spin_button.h"
 #include "gui/button.h"
 #include "graphic/text.h"

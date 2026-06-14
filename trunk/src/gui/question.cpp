@@ -76,8 +76,6 @@ int Question::TreatsKey (const SDL_Event &evnt){
 
 void Question::Draw() const
 {
-  AppWarmux * app = AppWarmux::GetInstance();
-
   Point2i icon_size(0,0);
   Point2i icon_border(0,0);
   if (icon != NULL) {
@@ -87,28 +85,27 @@ void Question::Draw() const
 
   Rectanglei rect;
   Point2i top_corner;
+  Surface& window = GetMainWindow();
 
   if (background != NULL) {
-    top_corner = app->video->window.GetSize() / 2 - background->GetSize() / 2;
+    top_corner = window.GetSize() / 2 - background->GetSize() / 2;
     rect = Rectanglei(top_corner, background->GetSize());
-    background->Blit(app->video->window,  top_corner);
+    background->Blit(window,  top_corner);
   }
   else if (text->GetText() != "") {
     Point2i rect_size(text->GetWidth() + icon_size.GetX() + icon_border.GetX() + 10,
                       std::max(text->GetHeight(), icon_size.GetY() + icon_border.GetY()) + 10);
 
-    top_corner = app->video->window.GetSize() / 2 - rect_size / 2;
+    top_corner = window.GetSize() / 2 - rect_size / 2;
     rect = Rectanglei(top_corner, rect_size);
 
-    AppWarmux * appli = AppWarmux::GetInstance();
-
-    appli->video->window.BoxColor(rect, defaultColorBox);
-    appli->video->window.RectangleColor(rect, defaultColorRect);
+    window.BoxColor(rect, defaultColorBox);
+    window.RectangleColor(rect, defaultColorRect);
   }
 
   if (icon != NULL) {
     Point2i icon_position = top_corner + Point2i(5, rect.GetSizeY()/2 - icon_size.GetY() /2);
-    icon->Blit(app->video->window, icon_position);
+    icon->Blit(window, icon_position);
   }
 
   if (text->GetText() != "") {
@@ -124,6 +121,7 @@ int Question::Ask(bool onKeyUp)
 
   int  answer = default_choice.value;
   bool end    = false;
+  AppWarmux * app = AppWarmux::GetInstance();
 
   Draw();
   Mouse::pointer_t prev_pointer = Mouse::GetInstance()->SetPointer(Mouse::POINTER_STANDARD);
@@ -137,7 +135,7 @@ int Question::Ask(bool onKeyUp)
       }
 
       // We might be put inactive while there
-      AppWarmux::GetInstance()->CheckInactive(evnt);
+      app->CheckInactive(evnt);
 
       if ((onKeyUp && evnt.type == SDL_KEYUP) || evnt.type == SDL_KEYDOWN) {
         answer = TreatsKey(evnt);
@@ -153,10 +151,10 @@ int Question::Ask(bool onKeyUp)
       SDL_Delay(50);
     }
 
-    AppWarmux::GetInstance()->video->Flip();
+    app->video->Flip();
   } while (!end);
 
-  AppWarmux::GetInstance()->RefreshDisplay();
+  app->RefreshDisplay();
   Mouse::GetInstance()->SetPointer(prev_pointer);
 
   return answer;
@@ -178,8 +176,8 @@ void Question::Set (const std::string &pmessage,
   if (bg_sprite != "") {
     Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
     background = new Sprite(LOAD_RES_IMAGE(bg_sprite));
-    background->ScaleSize(GetMainWindow().GetSize());
+    background->ScaleSize(GetRenderer().GetSize());
   } else {
-    text->SetMaxWidth(GetMainWindow().GetWidth()/2);
+    text->SetMaxWidth(GetRenderer().GetWidth()/2);
   }
 }

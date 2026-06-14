@@ -105,15 +105,11 @@ void Mouse::EndLongClickTimer()
 
 bool Mouse::HasFocus() const
 {
-  uint8_t state = SDL_GetAppState();
+  Uint32 state = SDL_GetWindowFlags(GetWindow());
 
-  if ((state & SDL_APPMOUSEFOCUS) &&
-      (state & SDL_APPINPUTFOCUS) &&
-      (state & SDL_APPACTIVE)) {
-    return true;
-  }
-
-  return false;
+  return ((state & SDL_WINDOW_MOUSE_FOCUS) &&
+      (state & SDL_WINDOW_INPUT_FOCUS) &&
+      (state & SDL_WINDOW_SHOWN));
 }
 
 static bool FindCharacter(const Point2i& pos, Team* team)
@@ -274,9 +270,9 @@ bool Mouse::HandleEvent(const SDL_Event& evnt)
     else if (evnt.button.button == Mouse::BUTTON_LEFT())
       ActionLeftClick(shift);
   } else if (evnt.type == SDL_MOUSEWHEEL) {
-      if (evnt.button.button == SDL_BUTTON_WHEELDOWN)
+      if (evnt.wheel.y < 0 || (evnt.wheel.y > 0 && evnt.wheel.direction == SDL_MOUSEWHEEL_FLIPPED))
         ActionWheelDown(shift);
-      else if (evnt.button.button == SDL_BUTTON_WHEELUP)
+      else if (evnt.wheel.y > 0 || (evnt.wheel.y < 0 && evnt.wheel.direction == SDL_MOUSEWHEEL_FLIPPED))
         ActionWheelUp(shift);
   }
 
@@ -427,7 +423,7 @@ void Mouse::Hide()
 // Center the pointer on the screen
 void Mouse::CenterPointer()
 {
-  SetPosition(GetMainWindow().GetSize() / 2);
+  SetPosition(GetRenderer().GetSize() / 2);
 }
 
 void Mouse::SetPosition(Point2i pos)
