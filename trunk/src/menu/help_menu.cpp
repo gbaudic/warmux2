@@ -34,8 +34,8 @@
 HelpMenu::HelpMenu()
   : Menu("help/background", vCancel)
 {
-  int window_w = GetMainWindow().GetWidth();
-  int window_h = GetMainWindow().GetHeight();
+  int window_w = GetRenderer().GetWidth();
+  int window_h = GetRenderer().GetHeight();
 
   float factor = (window_w < 640) ? 0.02f : 0.05f;
   int border   = window_w * factor;

@@ -36,6 +36,7 @@
 #include "team/team.h"
 
 #include <iostream>
+#include <WARMUX_compat.h>
 
 TeamScrollBox::TeamScrollBox(const std::vector<TeamBox*>& teams, const Point2i &size)
   : ScrollBox(size)

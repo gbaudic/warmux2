@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include <sstream>
+#include <WARMUX_compat.h>
 #include "include/app.h"
 #include "gui/spin_button_picture.h"
 #include "gui/torus_cache.h"

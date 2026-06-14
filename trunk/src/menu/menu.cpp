@@ -40,13 +40,14 @@
 #include "interface/mouse.h"
 #include "sound/jukebox.h"
 #include "tool/resource_manager.h"
+#include <WARMUX_compat.h>
 
 Menu::Menu(const std::string& bg, t_action _actions)
   : actions(_actions)
   , selected_widget(NULL)
 {
   close_menu = false ;
-  Surface& window = GetMainWindow();
+  Renderer& window = GetRenderer();
 
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
   background = new Sprite(GetResourceManager().LoadImage(res, bg, false));
@@ -290,7 +291,7 @@ void Menu::DrawBackground()
   if (!background) {
     return;
   }
-  background->ScaleSize(GetMainWindow().GetSize()+1);
+  background->ScaleSize(GetRenderer().GetSize()+1);
   background->Blit(GetMainWindow(), 0, 0);
 }
 
@@ -410,6 +411,17 @@ void Menu::HandleEvent(const SDL_Event& evnt)
   } else if (evnt.type == SDL_MOUSEBUTTONDOWN) {
     Point2i mousePosition(evnt.button.x, evnt.button.y);
     OnClick(mousePosition, evnt.button.button);
+  } else if (evnt.type == SDL_MOUSEWHEEL) {
+    Point2i mousePosition;
+    SDL_GetMouseState(&mousePosition.x, &mousePosition.y);
+
+    // Scroll events are handled by OnClickUp, so let's keep that unchanged
+    if (evnt.wheel.y < 0 || (evnt.wheel.y > 0 && evnt.wheel.direction == SDL_MOUSEWHEEL_FLIPPED))
+      OnClickUp(mousePosition, SDL_BUTTON_WHEELDOWN);
+    else if (evnt.wheel.y > 0 || (evnt.wheel.y < 0 && evnt.wheel.direction == SDL_MOUSEWHEEL_FLIPPED))
+      OnClickUp(mousePosition, SDL_BUTTON_WHEELUP);
+  } else if (evnt.type == SDL_TEXTINPUT) {
+    widgets.SendInput(evnt.text.text);
   }
 }
 
@@ -454,7 +466,7 @@ void Menu::Run(bool skip_menu)
   Point2i mousePosition(x, y);
   Display(mousePosition);
 
-  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+  //SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
   do {
     // this is the current menu (here in case we had run a submenu)
@@ -463,7 +475,7 @@ void Menu::Run(bool skip_menu)
     // Poll and treat events
     HandleEvents();
 
-    // Avoid to calculate redraw menu when comming back for closing.
+    // Avoid to calculate redraw menu when coming back for closing.
     if (!close_menu) {
       SDL_GetMouseState( &x, &y );
       Point2i mousePosition(x, y);

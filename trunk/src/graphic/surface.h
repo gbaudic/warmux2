@@ -33,15 +33,19 @@ struct SDL_Surface;
 struct SDL_Renderer;
 struct SDL_PixelFormat;
 
+class Renderer;
+
 class Surface
 {
 private:
   SDL_Surface* surface;
-  SDL_Renderer* renderer; // software renderer for the surface
+  SDL_Renderer* renderer; // software renderer for the surface (not the main screen!)
   bool autoFree;
   int Blit(const Surface& src, SDL_Rect *srcRect, SDL_Rect *dstRect);
   static SDL_Rect GetSDLRect(const Rectanglei &r);
   static SDL_Rect GetSDLRect(const Point2i &r);
+  
+  friend class Renderer;
 
 public:
   /**
@@ -90,7 +94,7 @@ public:
    * Change the surface pointer.
    *
    * @param newSurface The new surface to use.
-   * @param freePrevius Indicate if the old surface should be freed.
+   * @param freePrevious Indicate if the old surface should be freed.
    */
   void SetSurface(SDL_Surface *newSurface, bool freePrevious = true){
     if (freePrevious)

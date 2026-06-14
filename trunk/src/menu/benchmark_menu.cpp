@@ -104,7 +104,7 @@ public:
 BenchmarkMenu::BenchmarkMenu() :
   Menu("menu/bg_option", vOk)
 {
-  const Surface& window = GetMainWindow();
+  const Renderer& window = GetRenderer();
   tests = new VBox(window.GetWidth()*FACTOR, true, true, true);
   tests->SetPosition(window.GetSize()* (1.0f - FACTOR)/2);
 
@@ -186,7 +186,8 @@ bool BenchmarkMenu::Launch(BenchItem *b)
 
       // Set max FPS
       Video *video = AppWarmux::GetInstance()->video;
-      int fps = video->GetMaxFps(); video->SetMaxFps(60);
+      int fps = video->GetMaxFps();
+      video->SetMaxFps(60);
 
       // Set seeds - we'll set random ones afterwards
       RandomLocal().SetSeed(0xABADCAFE);
@@ -200,7 +201,7 @@ bool BenchmarkMenu::Launch(BenchItem *b)
         GraphCanvas::FindMax(res);
 
         float  time = res.xmax - res.list[0].first;
-        score = (num * video->window.GetWidth()*video->window.GetHeight())
+        score = (num * GetRenderer().GetWidth() * GetRenderer().GetHeight())
               / (1000.0f * time);
         fmt = "%.0f";
 

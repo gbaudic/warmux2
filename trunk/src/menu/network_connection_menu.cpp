@@ -175,9 +175,9 @@ NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
 {
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml",false);
 
-  uint max_width = 0.95f*GetMainWindow().GetWidth();
-  uint offset    = (GetMainWindow().GetWidth() - max_width)/2;
-  float zoom     = GetMainWindow().GetWidth() / 640.0;
+  uint max_width = 0.95f*GetRenderer().GetWidth();
+  uint offset    = (GetRenderer().GetWidth() - max_width)/2;
+  float zoom     = GetRenderer().GetWidth() / 640.0;
   uint border    = 5*zoom+0.5f;
   uint width     = max_width - 2*(border + 5); // 5 is the tab default margin
   Font::font_size_t fsmall  = Font::GetFixedSize(Font::FONT_SMALL*zoom);
@@ -189,7 +189,7 @@ NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
 #endif
   /* Tabs */
   tabs = new MultiTabs(Point2i(max_width,
-                               GetMainWindow().GetHeight()*0.6f), fadapt);
+                               GetRenderer().GetHeight()*0.6f), fadapt);
   tabs->SetPosition(offset, offset);
 
   // #############################
@@ -324,7 +324,7 @@ NetworkConnectionMenu::NetworkConnectionMenu(network_menu_action_t action) :
   // Warning about experimental networking
   Point2i msg_box_pos(offset, tabs->GetPositionY() + tabs->GetSizeY() + 10);
   Point2i msg_box_size(max_width,
-                       GetMainWindow().GetHeight() - 50 - msg_box_pos.y);
+                       GetRenderer().GetHeight() - 50 - msg_box_pos.y);
 
   msg_box = new MsgBox(msg_box_size, fsmall, Font::FONT_BOLD);
   msg_box->SetPosition(msg_box_pos);

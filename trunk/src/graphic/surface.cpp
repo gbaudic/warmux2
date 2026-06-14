@@ -32,6 +32,9 @@
 
 #include "graphic/fading_effect.h"
 
+// Forward declaration (lives in video.h, which includes surface.h...)
+Surface& GetMainWindow();
+
 /**
  * Constructor building a surface by reading the image from a file.
  *
@@ -97,7 +100,7 @@ void Surface::NewSurface(const Point2i &size, bool useAlpha)
   if (autoFree)
     Free();
 
-  const SDL_PixelFormat* fmt = SDL_GetVideoSurface()->format;
+  const SDL_PixelFormat* fmt = GetMainWindow().GetSurface()->format;
   // If no alpha, use default parameters
   if (!useAlpha) {
     surface = SDL_CreateRGBSurface(0, size.x, size.y,
@@ -770,11 +773,11 @@ Surface Surface::DisplayFormatAlpha()
   if (surface->format->BitsPerPixel == 24)
     return DisplayFormat();
 
-  const SDL_PixelFormat *fo = SDL_GetVideoSurface()->format,
+  const SDL_PixelFormat *fo = GetMainWindow().GetSurface()->format,
                         *fi = surface->format;
   if (fi->Rmask==fo->Rmask && fi->Bmask==fo->Bmask && fi->Amask==fo->Amask)
     return *this;
-  SDL_Surface *surf = SDL_DisplayFormatAlpha(surface);
+  SDL_Surface *surf = SDL_ConvertSurface(surface, fo, 0);
 
   if (!surf)
     Error("Unable to convert the surface to a surface compatible with the display format with alpha.");
@@ -784,12 +787,12 @@ Surface Surface::DisplayFormatAlpha()
 
 Surface Surface::DisplayFormat()
 {
-  const SDL_PixelFormat *fo = SDL_GetVideoSurface()->format,
+  const SDL_PixelFormat *fo = GetMainWindow().GetSurface()->format,
                         *fi = surface->format;
   if (fi->Rmask==fo->Rmask && fi->Bmask==fo->Bmask && fi->Amask==0)
     return *this;
 
-  SDL_Surface *surf = SDL_DisplayFormat(surface);
+  SDL_Surface *surf = SDL_ConvertSurface(surface, fo, 0);
 
   if (!surf)
     Error("Unable to convert the surface to a surface compatible with the display format.");
@@ -900,7 +903,7 @@ Surface Surface::DisplayFormatColorKey(const uint32_t* data, SDL_PixelFormat *sf
                                        int w, int h, int stride,
                                        uint8_t threshold)
 {
-  SDL_PixelFormat *fmt   = SDL_GetVideoSurface()->format;
+  SDL_PixelFormat *fmt   = GetMainWindow().GetSurface()->format;
   uint             bpp   = fmt->BitsPerPixel==16 ? 16 : 24;
   Surface          surf(SDL_CreateRGBSurface(0, w, h, bpp, 0, 0, 0, 0));
   const uint32_t  *src   = data;

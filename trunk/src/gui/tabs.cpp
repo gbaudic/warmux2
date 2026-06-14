@@ -21,6 +21,7 @@
 
 #include <algorithm> // std::min/max
 
+#include <WARMUX_compat.h>
 #include "include/app.h"
 #include "graphic/colors.h"
 #include "graphic/font.h"

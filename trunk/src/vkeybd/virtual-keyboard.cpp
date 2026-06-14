@@ -101,7 +101,7 @@ bool VirtualKeyboard::openPack(const std::string &packName, const std::string &n
 
 bool VirtualKeyboard::loadKeyboardPack(const std::string &packName)
 {
-  _kbdGUI->initSize(GetMainWindow().GetWidth(), GetMainWindow().GetHeight());
+  _kbdGUI->initSize(GetRenderer().GetWidth(), GetRenderer().GetHeight());
 
   _loaded = false;
 

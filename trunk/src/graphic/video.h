@@ -23,6 +23,7 @@
 #include <string>
 #include <list>
 #include "surface.h"
+#include "renderer.h"
 #include <WARMUX_base.h>
 
 class Video
@@ -43,7 +44,8 @@ class Video
 public:
   Surface window;
   SDL_Window *screen;
-  SDL_Renderer *renderer;
+  SDL_Texture *texture;
+  Renderer renderer;
   void SetWindowCaption(const std::string& caption) const;
   void SetMaxFps(uint max_fps);
   uint GetMaxFps() const { return m_max_fps; };
@@ -69,7 +71,7 @@ public:
 
 Surface& GetMainWindow();
 SDL_Window* GetWindow();
-SDL_Renderer* GetRenderer();
+Renderer& GetRenderer();
 void SwapWindowClip(Rectanglei& clip);
 
 #endif

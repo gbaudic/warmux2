@@ -175,7 +175,7 @@ int Widget::ParseHorizontalTypeAttribut(const std::string & attributName,
   float tmpValue;
 
   if (xmlFile->ReadPercentageAttr(widgetNode, attributName, tmpValue)) {
-    finalValue = GetMainWindow().GetWidth() * tmpValue / 100;
+    finalValue = GetRenderer().GetWidth() * tmpValue / 100;
   } else {
     xmlFile->ReadPixelAttr(widgetNode, attributName, finalValue);
   }
@@ -194,7 +194,7 @@ int Widget::ParseVerticalTypeAttribut(const std::string & attributName,
   float tmpValue;
 
   if (xmlFile->ReadPercentageAttr(widgetNode, attributName, tmpValue)) {
-    finalValue = GetMainWindow().GetHeight() * tmpValue / 100;
+    finalValue = GetRenderer().GetHeight() * tmpValue / 100;
   } else {
     xmlFile->ReadPixelAttr(widgetNode, attributName, finalValue);
   }
@@ -216,13 +216,13 @@ void Widget::ParseXMLGeometry(void)
   if ("manual" == alignType) {
     ParseXMLPosition();
   } else if ("centeredInX" == alignType) {
-    SetPosition((GetMainWindow().GetWidth() - GetSizeX()) / 2,
+    SetPosition((GetRenderer().GetWidth() - GetSizeX()) / 2,
                 ParseVerticalTypeAttribut("y", 0));
   } else if ("centeredInY" == alignType) {
     SetPosition(ParseHorizontalTypeAttribut("x", 0),
-                (GetMainWindow().GetHeight() - GetSizeY()) / 2);
+                (GetRenderer().GetHeight() - GetSizeY()) / 2);
   } else if ("centeredInXY" == alignType) {
-    SetPosition((GetMainWindow().GetSize() - GetSize()) / 2);
+    SetPosition((GetRenderer().GetSize() - GetSize()) / 2);
   } else {
     ParseXMLPosition();
   }

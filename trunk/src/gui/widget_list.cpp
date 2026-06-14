@@ -305,6 +305,14 @@ bool WidgetList::SendKey(const SDL_Keysym &key)
   return false;
 }
 
+bool WidgetList::SendInput(const char* text)
+{
+  if (selected_widget != NULL)
+    return selected_widget->SendInput(text);
+
+  return false;
+}
+
 bool WidgetList::Update(const Point2i& mousePosition,
                         const Point2i& lastMousePosition)
 {

@@ -49,6 +49,7 @@ warmux_SOURCES = \
         graphic/colors.h \
         graphic/composite_shape.cpp \
         graphic/composite_shape.h \
+        graphic/fading_effect.cpp \
         graphic/fading_effect.h \
         graphic/font.cpp \
         graphic/font.h \
@@ -58,6 +59,8 @@ warmux_SOURCES = \
         graphic/polygon.h \
         graphic/polygon_generator.cpp \
         graphic/polygon_generator.h \
+        graphic/renderer.cpp \
+        graphic/renderer.h \
         graphic/sprite.cpp \
         graphic/sprite.h \
         graphic/spriteanimation.cpp \

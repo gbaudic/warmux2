@@ -72,7 +72,7 @@ Video::Video()
 
   SetConfig(w, h, config->IsVideoFullScreen());
 
-  if (screen == NULL || renderer == NULL) {
+  if (screen == NULL || renderer.IsNull()) {
     Error(Format("Unable to initialize SDL window: %s", SDL_GetError()));
     exit (1);
   }
@@ -178,10 +178,19 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
   if (screen == NULL)
     return false;
 
-  renderer = SDL_CreateRenderer(screen, -1, 0);
+  renderer = Renderer(SDL_CreateRenderer(screen, -1, 0));
   
-  if (renderer == NULL)
+  if (renderer.IsNull())
     return false;
+
+  window.SetSurface(SDL_CreateRGBSurface(0, width, height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000));
+  if (window.IsNull())
+    return false;
+
+  texture = SDL_CreateTexture(renderer.GetRenderer(),
+          SDL_PIXELFORMAT_ARGB8888,
+          SDL_TEXTUREACCESS_STREAMING,
+          width, height);
 
   fullscreen = __fullscreen;
 
@@ -243,7 +252,7 @@ bool Video::SetConfig(const int width, const int height, const bool _fullscreen)
 void Video::ToggleFullscreen()
 {
 #ifndef WIN32
-  SDL_WM_ToggleFullScreen(window.GetSurface());
+  SDL_SetWindowFullscreen(screen, fullscreen ? 0 : SDL_WINDOW_FULLSCREEN);
   fullscreen = !fullscreen;
 #else
   SetConfig(window.GetWidth(), window.GetHeight(), !fullscreen);
@@ -277,7 +286,10 @@ void Video::InitSDL()
 
 void Video::Flip()
 {
-  SDL_RenderPresent(renderer);
+  SDL_UpdateTexture(texture, NULL, window.GetSurface()->pixels, window.GetSurface()->pitch);
+  SDL_RenderClear(renderer.GetRenderer());
+  SDL_RenderCopy(renderer.GetRenderer(), texture, NULL, NULL);
+  SDL_RenderPresent(renderer.GetRenderer());
 }
 
 bool Video::SaveScreenshot()
@@ -310,7 +322,7 @@ Surface& GetMainWindow()
   return AppWarmux::GetInstance()->video->window;
 }
 
-SDL_Renderer* GetRenderer()
+Renderer& GetRenderer()
 {
   return AppWarmux::GetInstance()->video->renderer;
 }
@@ -322,5 +334,5 @@ SDL_Window* GetWindow()
 
 void SwapWindowClip(Rectanglei& r)
 {
-  AppWarmux::GetInstance()->video->window.SwapClipRect(r);
+  GetMainWindow().SwapClipRect(r);
 }

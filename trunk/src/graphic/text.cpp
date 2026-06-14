@@ -101,7 +101,7 @@ void Text::LoadXMLConfiguration(XmlReader * xmlFile,
   float tmpValue;
 
   if (xmlFile->ReadPercentageAttr(textNode, "fontSize", tmpValue)) {
-    fontSize = GetMainWindow().GetHeight() * tmpValue / 100;
+    fontSize = GetRenderer().GetHeight() * tmpValue / 100;
   } else {
     xmlFile->ReadPixelAttr(textNode, "fontSize", fontSize);
   }
@@ -391,10 +391,8 @@ void DrawTmpBoxText(Font& font, Point2i pos,
 
   Rectanglei rect( pos - size/2, size);
 
-  AppWarmux * app = AppWarmux::GetInstance();
-
-  app->video->window.BoxColor(rect, boxColor);
-  app->video->window.RectangleColor(rect, rectColor);
+  GetMainWindow().BoxColor(rect, boxColor);
+  GetMainWindow().RectangleColor(rect, rectColor);
 
   GetWorld().ToRedrawOnScreen( rect );
 

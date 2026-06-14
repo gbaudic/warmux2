@@ -76,7 +76,8 @@ void Chat::ShowInput()
     check_input = true;
 
     /* Enable key repeat when chatting :) */
-    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+    //SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+    SDL_StartTextInput();
   }
 
   if (!input) {
@@ -85,7 +86,7 @@ void Chat::ShowInput()
   }
 
   /* FIXME where do those constants come from ?*/
-  int ypos = GetMainWindow().GetHeight() - 100;
+  int ypos = GetRenderer().GetHeight() - 100;
   msg->DrawLeftTop(Point2i(25, ypos));
   if (input->GetText() != "") {
     int x = 25 + msg->GetWidth() + 5;
@@ -136,7 +137,8 @@ void Chat::CloseInput()
   cursor_pos = 0;
 
   // Disable key repeat during the game!
-  SDL_EnableKeyRepeat(0, 0);
+  //SDL_EnableKeyRepeat(0, 0);
+  SDL_StopTextInput();
 }
 
 void Chat::HandleKeyPressed(const SDL_Event& evnt)
@@ -157,7 +159,7 @@ void Chat::HandleKeyReleased(const SDL_Event& evnt)
 
   switch (key.sym) {
 
-  case SDLK_RETURN:
+  case SDLK_RETURN: // fallthrough
   case SDLK_KP_ENTER:
     ProcessSendMessage(txt);
     CloseInput();
@@ -168,4 +170,14 @@ void Chat::HandleKeyReleased(const SDL_Event& evnt)
   default:
     break;
   }
+}
+
+void Chat::HandleTextInput(const SDL_Event& evnt)
+{
+  SDL_TextInputEvent kbd_event = evnt.text;
+  std::string txt = input->GetText();
+
+  // Handle the text char array from event
+  if (TextHandle(txt, cursor_pos, kbd_event.text))
+      input->SetText(txt);
 }

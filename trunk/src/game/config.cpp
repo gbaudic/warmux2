@@ -682,8 +682,8 @@ bool Config::SaveXml(bool save_current_teams)
   doc.WriteElement(video_node, "default_mouse_cursor", bool2str(default_mouse_cursor));
   doc.WriteElement(video_node, "scroll_on_border", bool2str(scroll_on_border));
   doc.WriteElement(video_node, "scroll_border_size", uint2str(scroll_border_size));
-  doc.WriteElement(video_node, "width", uint2str(video->window.GetWidth()));
-  doc.WriteElement(video_node, "height", uint2str(video->window.GetHeight()));
+  doc.WriteElement(video_node, "width", uint2str(GetRenderer().GetWidth()));
+  doc.WriteElement(video_node, "height", uint2str(GetRenderer().GetHeight()));
   doc.WriteElement(video_node, "full_screen", bool2str(video->IsFullScreen()));
   doc.WriteElement(video_node, "quality", uint2str(quality));
   doc.WriteElement(video_node, "max_fps", uint2str(video->GetMaxFps()));

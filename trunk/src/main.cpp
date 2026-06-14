@@ -211,9 +211,10 @@ void AppWarmux::DisplayLoadingPicture()
 
   Surface surfaceLoading(filename.c_str());
   Sprite loading_image(surfaceLoading);
+  Surface& window = GetMainWindow();
 
-  loading_image.ScaleSize(video->window.GetSize());
-  loading_image.Blit(video->window, 0, 0);
+  loading_image.ScaleSize(window.GetSize());
+  loading_image.Blit(window, 0, 0);
 
   GameTime::GetInstance()->Reset();
 
@@ -222,7 +223,7 @@ void AppWarmux::DisplayLoadingPicture()
   Text text2(txt_version, white_color, Font::FONT_HUGE, Font::FONT_BOLD,
              true);
 
-  Point2i windowCenter = video->window.GetSize() / 2;
+  Point2i windowCenter = window.GetSize() / 2;
 
   text1.DrawCenter(windowCenter);
   text2.DrawCenter(windowCenter
@@ -302,13 +303,13 @@ bool AppWarmux::CheckInactive(SDL_Event& evnt)
 #endif
 
 #ifdef HAVE_HANDHELD
-#  define CHECK_STATE(e) e.type==SDL_ACTIVEEVENT
+#  define CHECK_STATE(e) e.type==SDL_APP_WILLENTERBACKGROUND
 #else
-#  define CHECK_STATE(e) e.type==SDL_ACTIVEEVENT && e.active.state&SDL_APPACTIVE
+#  define CHECK_STATE(e) e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_MINIMIZED
 #endif
 
-  if (CHECK_STATE(evnt) && evnt.active.gain == 0) {
-    PAUSE_LOG("Pause: entering, state=%X\n", evnt.active.state);
+  if (CHECK_STATE(evnt)) {
+    PAUSE_LOG("Pause: entering, state=%X\n", SDL_GetWindowFlags(GetWindow()));
     JukeBox::GetInstance()->CloseDevice();
     GameTime::GetInstance()->SetWaitingForUser(true);
 
@@ -319,9 +320,9 @@ bool AppWarmux::CheckInactive(SDL_Event& evnt)
 #ifdef MAEMO
       Maemo::Process();
 #endif
-      if (evnt.type == SDL_QUIT) AppWarmux::EmergencyExit();
-      if (evnt.type == SDL_ACTIVEEVENT && evnt.active.gain == 1) {
-        PAUSE_LOG("Active: state=%X\n", evnt.active.state);
+      if (evnt.type == SDL_QUIT || evnt.type == SDL_APP_TERMINATING) AppWarmux::EmergencyExit();
+      if ((evnt.type == SDL_WINDOWEVENT && evnt.window.event == SDL_WINDOWEVENT_RESTORED) || evnt.type == SDL_APP_DIDENTERFOREGROUND) {
+        PAUSE_LOG("Active: state=%X\n", SDL_GetWindowFlags(GetWindow()));
         if ((!menu || choice != MainMenu::NONE) && GameIsRunning()) {
           PAUSE_LOG("Pause: menu=%p\n", menu);
           choice = MainMenu::NONE;

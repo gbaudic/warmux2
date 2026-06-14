@@ -65,7 +65,7 @@ NetworkMenu::NetworkMenu()
 
   Point2i pointZero(W_UNDEF, W_UNDEF);
 
-  Surface& window = GetMainWindow();
+  Renderer& window = GetRenderer();
 
   // Calculate main box size
   int chat_box_height = window.GetHeight()/4;
@@ -515,6 +515,8 @@ void NetworkMenu::HandleEvent(const SDL_Event& evnt)
 
     if (b_cancel->Contains(mousePosition))
       Menu::mouse_cancel();
+  } else if (evnt.type == SDL_TEXTINPUT) {
+    widgets.SendInput(evnt.text.text);
   }
 }
 

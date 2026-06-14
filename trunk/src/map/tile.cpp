@@ -353,7 +353,7 @@ void Tile::CheckPreview(bool force)
     m_last_preview_redraw = GameTime::GetInstance()->Read();
   }
 
-  const Surface& window = GetMainWindow();
+  const Renderer& window = GetRenderer();
   if (!force && window.GetSize() == m_last_video_size)
     return;
 
@@ -382,7 +382,7 @@ void Tile::CheckPreview(bool force)
   }
 
   m_preview->Unlock();
-  m_last_video_size = GetMainWindow().GetSize();
+  m_last_video_size = GetRenderer().GetSize();
 }
 
 void Tile::SetPreviewSizeDelta(int delta)
@@ -468,7 +468,7 @@ bool Tile::LoadImage(const std::string& filename,
   // often less in fact
   m_shift = 0;
   world_size = (endCell+1-startCell)<<CELL_BITS;
-  m_last_video_size = GetMainWindow().GetSize();
+  m_last_video_size = GetRenderer().GetSize();
   while (5*world_size.x>2*m_last_video_size.x ||
          5*world_size.y>2*m_last_video_size.y) {
     world_size >>= 1;
@@ -629,7 +629,7 @@ Surface Tile::GetPart(const Rectanglei& rec)
   Point2i firstCell = Clamp(rec.GetPosition()>> CELL_BITS);
   Point2i lastCell = Clamp((rec.GetPosition() + rec.GetSize())>> CELL_BITS);
   Point2i i = nbCells - 1;
-  bool    force_copy = SDL_GetVideoInfo()->vfmt->BytesPerPixel > 2;
+  bool    force_copy = GetMainWindow().GetSurface()->format->BytesPerPixel > 2;
 
   for (i.y = firstCell.y; i.y <= lastCell.y; i.y++) {
     uint index = i.y*nbCells.x;

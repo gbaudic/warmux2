@@ -92,12 +92,15 @@ Keyboard::Keyboard()
   , modifier_only_bits(0)
 {
   //Disable repeated events when a key is kept down
-  SDL_EnableKeyRepeat(0,0);
+  //SDL_EnableKeyRepeat(0,0);
   SetDefaultConfig();
 
-  // Registring SDL event
+  // Registering SDL event
   RegisterEvent(SDL_KEYDOWN);
   RegisterEvent(SDL_KEYUP);
+  RegisterEvent(SDL_TEXTINPUT);
+  RegisterEvent(SDL_TEXTEDITING);
+  RegisterEvent(SDL_TEXTEDITING_EXT);
 }
 
 void Keyboard::SetDefaultConfig()
@@ -229,6 +232,8 @@ void Keyboard::HandleKeyComboEvent(int key_code, Key_Event_t event_type)
       HandleKeyReleased(*itv);
       return;
     }
+
+    // Does TEXT_INPUT also require some processing here?
   }
 }
 
@@ -255,7 +260,7 @@ bool Keyboard::IsModifier(int raw_key_code)
 
 bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
 {
-  // Not a registred event
+  // Not a registered event
   if (!IsRegistredEvent(evnt.type))
     return false;
 
@@ -267,6 +272,9 @@ bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
   case SDL_KEYUP:
     event_type = KEY_RELEASED;
     break;
+  case SDL_TEXTINPUT:
+    event_type = TEXT_INPUT;
+    break;
   default:
     return false;
   }
@@ -277,6 +285,8 @@ bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
       Game::GetInstance()->chatsession.HandleKeyPressed(evnt);
     else if (event_type == KEY_RELEASED)
       Game::GetInstance()->chatsession.HandleKeyReleased(evnt);
+    else if (event_type == TEXT_INPUT)
+      Game::GetInstance()->chatsession.HandleTextInput(evnt);
     return false;
   }
 
@@ -344,8 +354,7 @@ bool Keyboard::HandleKeyEvent(const SDL_Event& evnt)
       HandleKeyComboEvent(key_code, KEY_RELEASED);
     }
     pressed_keys.insert(basic_key_code);
-  } else {
-    ASSERT(event_type == KEY_RELEASED);
+  } else if (event_type == KEY_RELEASED) {
     key_code = basic_key_code + (MODIFIER_OFFSET * previous_modifier_bits);
     HandleKeyComboEvent(key_code, KEY_RELEASED);
     if (key_code != basic_key_code)

@@ -52,7 +52,7 @@ void GameMessages::Draw()
   uint msgy = 50;
 
   for (iterator i=list.begin(); i!=list.end(); ++i) {
-    (*i)->DrawCenterTop(Point2i(GetMainWindow().GetWidth()/2, msgy));
+    (*i)->DrawCenterTop(Point2i(GetRenderer().GetWidth()/2, msgy));
     msgy += (*i)->GetHeight() + MIN_LINE_SPACING;
   }
 }
@@ -81,7 +81,7 @@ void GameMessages::Add(const std::string &message, const Color& color)
   // Add message at the end of the list
   Message * newMessage = new Message(message, color, Font::FONT_MEDIUM,
                                      Font::FONT_BOLD, GameTime::GetInstance()->Read());
-  newMessage->SetMaxWidth(GetMainWindow().GetWidth()-8);
+  newMessage->SetMaxWidth(GetRenderer().GetWidth()-8);
   list.push_back(newMessage);
 
   /* if there are too many messages, remove some of them */

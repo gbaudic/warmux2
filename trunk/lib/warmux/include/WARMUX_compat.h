@@ -15,17 +15,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- ******************************************************************************
- * Text typing, deleting, editing, ...
- *****************************************************************************/
+ ******************************************************************************/
 
-#ifndef TEXT_HANDLING_H
-#define TEXT_HANDLING_H
+#ifndef WARMUX_COMPAT_H
+#define WARMUX_COMPAT_H
 
-#include <string>
-#include <SDL_keyboard.h>
+#include <SDL.h>
 
-bool TextHandle(std::string& text, std::string::size_type& pos, const char* keys);
-bool TextHandle(std::string& text, std::string::size_type& pos, const SDL_Keysym& key);
+const Uint8 SDL_BUTTON_WHEELDOWN = 5;
+const Uint8 SDL_BUTTON_WHEELUP = 4;
 
-#endif //TEXT_HANDLING_H
+#endif

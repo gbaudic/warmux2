@@ -63,8 +63,9 @@ OptionMenu::OptionMenu() :
   AppWarmux * app = AppWarmux::GetInstance();
   Config * config = Config::GetInstance();
   Profile *res = GetResourceManager().LoadXMLProfile("graphism.xml", false);
-  int window_w = app->video->window.GetWidth();
-  int window_h = app->video->window.GetHeight();
+  Point2i window_dims = GetRenderer().GetSize();
+  int window_w = window_dims.x;
+  int window_h = window_dims.y;
 
   int border = (window_w<640) ? 0.02f*window_w : 0.05f*window_w;
   int max_w  = window_w - 2*border;
@@ -455,10 +456,10 @@ void OptionMenu::SaveOptions()
 
   AppWarmux * app = AppWarmux::GetInstance();
   app->video->SetMaxFps(opt_max_fps->GetValue());
-  Surface &window = app->video->window;
+  Point2i window_dims = GetRenderer().GetSize();
 
 #ifdef HAVE_TOUCHSCREEN
-  app->video->SetConfig(window.GetWidth(), window.GetHeight(), true);
+  app->video->SetConfig(window_dims.x, window_dims.y, true);
 #else
   // Video mode
   std::string s_mode = cbox_video_mode->GetValue();
@@ -468,8 +469,8 @@ void OptionMenu::SaveOptions()
 
   app->video->SetConfig(w, h, full_screen->GetValue());
 
-  uint x = (window.GetWidth() - actions_buttons->GetSizeX())/2;
-  uint y = window.GetHeight() - actions_buttons->GetSizeY();
+  uint x = (window_dims.x - actions_buttons->GetSizeX())/2;
+  uint y = window_dims.y - actions_buttons->GetSizeY();
 
   SetActionButtonsXY(x, y);
 #endif

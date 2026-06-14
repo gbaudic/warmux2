@@ -102,6 +102,17 @@ bool TalkBox::SendKey(const SDL_Keysym &key)
   return r;
 }
 
+bool TalkBox::SendInput(const char* text)
+{
+  bool r = false;
+
+  if (send_txt_bt->HasFocus()) {
+    r = send_txt_bt->SendInput(text);
+  }
+
+  return r;
+}
+
 void TalkBox::Clear()
 {
   msg_box->Clear();

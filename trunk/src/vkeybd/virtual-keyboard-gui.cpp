@@ -48,8 +48,8 @@ VirtualKeyboardGUI::VirtualKeyboardGUI(VirtualKeyboard *kbd) :
 
   assert(_kbd);
 
-  _screenW = GetMainWindow().GetWidth();
-  _screenH = GetMainWindow().GetHeight();
+  _screenW = GetRenderer().GetWidth();
+  _screenH = GetRenderer().GetHeight();
 
   //memset(_cursor, 0xFF, sizeof(_cursor));
 }
@@ -211,8 +211,8 @@ void VirtualKeyboardGUI::screenChanged()
   //	g_gui.checkScreenChange();
 
   //	_lastScreenChanged = _system->getScreenChangeID();
-  int newScreenW = GetMainWindow().GetWidth();
-  int newScreenH = GetMainWindow().GetHeight();
+  int newScreenW = GetRenderer().GetWidth();
+  int newScreenH = GetRenderer().GetHeight();
 
   if (_screenW != newScreenW || _screenH != newScreenH) {
     _screenW = newScreenW;

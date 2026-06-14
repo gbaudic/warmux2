@@ -202,7 +202,7 @@ TileItem_BaseColorKey::TileItem_BaseColorKey(uint8_t bpp, uint8_t alpha_threshol
                                                CELL_DIM, CELL_DIM, bpp, 0, 0, 0, 0);
   // SDL_DisplayFormat -- Convert a surface to the display format (1.2), no SDL2 equivalent
   // But is it still needed?
-  m_surface = Surface(SDL_DisplayFormat(surf));
+  m_surface = Surface(SDL_ConvertSurface(surf, GetMainWindow().GetSurface()->format, 0));
   SDL_FreeSurface(surf);
   MapColorKey();
 }
@@ -550,7 +550,7 @@ TileItem_AlphaSoftware::TileItem_AlphaSoftware(void *pixels, int pitch, uint8_t 
   SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(pixels, CELL_DIM, CELL_DIM, 32, pitch,
                                                0xFF0000, 0xFF00, 0xFF, 0xFF000000);
   // Required to have a copy of the area
-  m_surface = Surface(SDL_DisplayFormatAlpha(surf));
+  m_surface = Surface(SDL_ConvertSurface(surf, GetMainWindow().GetSurface()->format, 0));
   SDL_FreeSurface(surf);
 
   // Check if the tile is in fact transparent (ie even if empty, must not be deleted)
