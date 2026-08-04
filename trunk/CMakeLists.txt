@@ -20,7 +20,7 @@ ENDIF(PREFIX)
 # Set some global variables
 SET(WARMUX_CFLAGS "") # additional compile flags for warmux
 SET(WARMUX_LDFLAGS "")		# additional linking flags for warmux
-SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/cmake)
+SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/build/cmake ${PROJECT_SOURCE_DIR}/build/cmake/sdl2)
 
 IF(BIN_PATH)
   # If user specified a path for binary, use it
