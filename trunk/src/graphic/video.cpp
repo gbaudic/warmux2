@@ -135,14 +135,14 @@ void Video::AddUniqueConfigSorted(int w, int h)
 void Video::ComputeAvailableConfigs()
 {  
   int displayIndex = 0;
-  SDL_DisplayMode *mode;
+  SDL_DisplayMode mode;
   
   // Check if there are any modes available
   for(int i=0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
-    SDL_GetDisplayMode(displayIndex, i, mode);
+    SDL_GetDisplayMode(displayIndex, i, &mode);
     
-    if (mode->w >= 480 && mode->h >= 320) {
-        AddUniqueConfigSorted(mode->w, mode->h);
+    if (mode.w >= 480 && mode.h >= 320) {
+        AddUniqueConfigSorted(mode.w, mode.h);
       }
   }
 
