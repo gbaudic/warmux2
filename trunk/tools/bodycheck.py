@@ -73,7 +73,7 @@ class LineHandler(ContentHandler):
         if self._current:
             self._current.addChild(node)
         else:
-            print "Can't add node '%s': no parent!" % name
+            print("Can't add node '%s': no parent!" % name)
         self._current = node
     def endElement(self, name):
         #assert(self._current.getName() == name)
@@ -100,7 +100,7 @@ class FixRelativeDTD(EntityResolver):
         return EntityResolver.resolveEntity(self, publicId, systemId)
     
 def report(node, msg):
-    print "Object '%s' (%s): %s" % (node.getName(), node.getPosition(), msg)
+    print("Object '%s' (%s): %s" % (node.getName(), node.getPosition(), msg))
 
 def check_int(node, attr):
     val = node.getAttribute(attr)
@@ -118,7 +118,7 @@ def check_if_bool(node, attr):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Syntax: %s <xml document>" % sys.argv[0]
+        print("Syntax: %s <xml document>" % sys.argv[0])
         sys.exit(0)
     base = os.path.dirname(sys.argv[1])
     
@@ -244,7 +244,7 @@ if __name__ == "__main__":
                     report(member, "no name provided!")
 
     # Consistency check
-    print "# Consistency check (ignoring movements whose name starts with 'weapon'"
+    print("# Consistency check (ignoring movements whose name starts with 'weapon'")
     for mov in movements:
         A = mov.getAttribute("name")
         if not A or A.startswith("weapon"):

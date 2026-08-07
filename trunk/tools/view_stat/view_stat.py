@@ -43,9 +43,9 @@ class GUI:
         try:
             gtk.main()
         except KeyboardInterrupt:
-            print "Interrupted (CTRL+C)."
+            print("Interrupted (CTRL+C).")
         else:
-            print "Quit."
+            print("Quit.")
             
     def on_main_window_destroy(self, widget):
         gtk.main_quit()
@@ -142,7 +142,7 @@ class Stats:
                 gui.addStat(gui_parent, item)
 
 def usage():
-    print "Usage: %s file.xml" % sys.argv[0]
+    print("Usage: %s file.xml" % sys.argv[0])
     sys.exit(1)
 
 def main():
