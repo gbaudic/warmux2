@@ -1,0 +1,45 @@
+changelog:
+  categories:
+    - title: "🛡️ Security Fixes"
+      labels:
+        - "security"
+        - "vulnerability"
+        - "cve"
+    - title: "🚀 New Features"
+      labels:
+        - "feat"
+        - "enhancement"
+    - title: "🐛 Bug Fixes"
+      labels:
+        - "bug"
+        - "fix"
+        - "patch"
+    - title: "📦 Dependency Upgrades"
+      labels:
+        - "dependencies"
+    - title: "📖 Documentation"
+      labels:
+        - "documentation"
+        - "doc"
+    - title: "🧪 Testing"
+      labels:
+        - "test"
+    - title: "🏠 Maintenance & Refactoring"
+      labels:
+        - "chore"
+        - "refactor"
+        - "performance"
+        - "cleanup"
+    - title: "🤖 CI/CD & Build"
+      labels:
+        - "ci"
+        - "github-actions"
+        - "build"
+        - "admin"
+  exclude:
+    labels:
+      - "skip-changelog"
+      - "wip"
+      - "duplicate"
+    authors:
+      - "github-actions[bot]"
