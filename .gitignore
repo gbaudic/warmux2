@@ -40,6 +40,9 @@
 *.out
 *.app
 trunk/src/warmux
+trunk/tools/list_games/warmux-list-games
+trunk/tools/servers/game_server/warmux-server
+trunk/tools/servers/index_server/warmux-index-server
 
 # debug information files
 *.dwo
@@ -56,6 +59,7 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 **/_deps
+**/_CPack_Packages
 CMakeUserPresets.json
 CPackConfig.cmake
 CPackSourceConfig.cmake
