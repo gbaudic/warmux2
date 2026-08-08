@@ -25,6 +25,8 @@
 #include "graphic/renderer.h"
 #include "graphic/fading_effect.h"
 
+Surface& GetMainWindow();
+
 /** Copy constructor: the two share the same data */
 Renderer::Renderer(const Renderer &src)
 {
@@ -48,7 +50,13 @@ void Renderer::Free()
 Point2i Renderer::GetSize() const
 {
   int w, h;
-  SDL_GetRendererOutputSize(renderer, &w, &h);
+  if (SDL_GetRendererOutputSize(renderer, &w, &h) != 0){
+    Error(Format("GetRendererOutputSize errored: %s", SDL_GetError()));
+  }
+  if (w == 0 && h == 0) {
+    // Workaround a bug with WSL
+    return GetMainWindow().GetSize();
+  }
   return Point2i( w, h );
 }
 

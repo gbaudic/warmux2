@@ -178,7 +178,7 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
   if (screen == NULL)
     return false;
 
-  renderer = Renderer(SDL_CreateRenderer(screen, -1, 0));
+  renderer = Renderer(SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED));
   
   if (renderer.IsNull())
     return false;
@@ -191,6 +191,9 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
           SDL_PIXELFORMAT_ARGB8888,
           SDL_TEXTUREACCESS_STREAMING,
           width, height);
+  
+  if (texture == NULL)
+    return false;
 
   fullscreen = __fullscreen;
 
@@ -234,7 +237,7 @@ bool Video::SetConfig(const int width, const int height, const bool _fullscreen)
       // let's have another try without fullscreen
       if (! __SetConfig(old_width, old_height, false)) {
         Error(Format("ERROR: Fail to initialize main window with the following configuration:\n"
-                     " %dx%d, no fullscreen,\n", old_width, old_height));
+                     " %dx%d, no fullscreen\n", old_width, old_height));
         exit(EXIT_FAILURE);
       }
     }
