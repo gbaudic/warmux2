@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    "curl",
+    "fribidi",
+    "gettext",
+    "gettext-libintl",
+    "libpng",
+    "libxml2",
+    "sdl2",
+    "sdl2-gfx",
+    "sdl2-image",
+    "sdl2-mixer",
+    "sdl2-net",
+    "sdl2-ttf"
+  ]
+}

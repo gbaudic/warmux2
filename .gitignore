@@ -122,3 +122,7 @@ configure.scan
 # can automatically generate from config.status script
 # (which is called by configure script))
 Makefile
+
+# Visual Studio outputs
+**/.vs
+trunk/vs-build/
