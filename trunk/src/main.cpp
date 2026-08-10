@@ -18,8 +18,12 @@
  ******************************************************************************
  *  Starting file. (the 'main' function is here.)
  *****************************************************************************/
-
-#include <getopt.h>
+#ifndef _MSC_VER
+# include <getopt.h>
+#else
+  // Include our own version
+# include "msvc/getopt.h"
+#endif
 #ifndef WIN32
 # include <signal.h>
 #endif

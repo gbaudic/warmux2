@@ -41,8 +41,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <math.h>
 #ifdef _MSC_VER
+#if _MSC_VER < 1900
+// stdint.h has been introduced in VS2015
 #  pragma once
 #  include "stdint_fallback.h"
+#else
+#  include <stdint.h>
+#endif
 #else
 #  include <stdint.h>
 #endif

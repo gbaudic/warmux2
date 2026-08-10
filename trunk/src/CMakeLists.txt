@@ -2,8 +2,7 @@ SET(EXECUTABLE warmux)
 
 FILE(GLOB_RECURSE WARMUX_SRCS *.cpp *.c)
 IF(NOT WIN32 AND NOT MSYS)
-        LIST(REMOVE_ITEM WARMUX_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/msvc/config.h
-                                     ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt.c
+        LIST(REMOVE_ITEM WARMUX_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt.c
                                      ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt.h
         )
 ENDIF()
@@ -27,42 +26,44 @@ TARGET_LINK_LIBRARIES( ${EXECUTABLE}
         CURL::libcurl
         PNG::PNG
         SDL2::Core
+        SDL2::Main
         Intl::Intl
         libfixedpoint
 )
 
-IF (FRIBIDI_FOUND)
-TARGET_LINK_LIBRARIES( ${EXECUTABLE}
-        ${FRIBIDI_LIBRARY}
+IF(ENABLE_FRIBIDI AND FRIBIDI_FOUND)
+  TARGET_LINK_LIBRARIES( ${EXECUTABLE}
+        FriBiDi::FriBiDi
 )
-ENDIF ()
+ENDIF()
+
+IF(WIN32)
+  TARGET_LINK_LIBRARIES( ${EXECUTABLE} Ws2_32)
+ENDIF()
 
 INSTALL(TARGETS ${EXECUTABLE} RUNTIME DESTINATION ${BIN_DESTINATION})
 
 IF(WIN32)
   # These .dll files have to be copied to src/ directory
   INSTALL(FILES
-    iconv.dll
-    intl.dll
+    freetype.dll
+    fribidi-0.dll
+    iconv-2.dll
+    intl-8.dll
     jpeg.dll
     libcurl-4.dll
     libfreetype-6.dll
-    libglib-2.0-0.dll
-    libglibmm-2.4-1.dll
-    libgmodule-2.0-0.dll
-    libgobject-2.0-0.dll
-    libpng13.dll
-    libsigc-2.0-0.dll
+    libpng16.dll
     libxml2.dll
     ogg.dll
-    vorbis.dll
-    vorbisfile.dll
     SDL2.dll
     SDL2_gfx.dll
     SDL2_image.dll
     SDL2_mixer.dll
     SDL2_net.dll
     SDL2_ttf.dll
+    vorbis.dll
+    vorbisfile.dll
     zlib1.dll
     DESTINATION ${BIN_DESTINATION}
   )
