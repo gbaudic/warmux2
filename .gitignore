@@ -125,4 +125,4 @@ Makefile
 
 # Visual Studio outputs
 **/.vs
-trunk/vs-build/
+trunk/out/

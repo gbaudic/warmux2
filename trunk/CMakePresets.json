@@ -5,7 +5,7 @@
     {
       "name": "linux",
       "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build/linux",
+      "binaryDir": "${sourceDir}/out/linux",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
@@ -15,13 +15,13 @@
       "name": "msys2-ucrt64-base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/msys2-ucrt64"
+      "binaryDir": "${sourceDir}/out/msys2-ucrt64"
     },
 
     {
       "name": "msvc",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/msvc",
+      "binaryDir": "${sourceDir}/out/msvc",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       }
