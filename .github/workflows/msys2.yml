@@ -31,4 +31,4 @@ jobs:
           mkdir build
           cd build
           cmake ../trunk -G "MinGW Makefiles"
-          cmake --build . VERBOSE=1
+          cmake --build . -j4 -v
