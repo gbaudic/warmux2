@@ -1,7 +1,7 @@
 SET(EXECUTABLE warmux)
 
 FILE(GLOB_RECURSE WARMUX_SRCS *.cpp *.c)
-IF(NOT WIN32 AND NOT MSYS)
+IF(NOT MSVC)
         LIST(REMOVE_ITEM WARMUX_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt.c
                                      ${CMAKE_CURRENT_SOURCE_DIR}/msvc/getopt.h
         )

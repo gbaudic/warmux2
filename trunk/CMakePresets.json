@@ -1,13 +1,61 @@
 {
   "version": 2,
+
   "configurePresets": [
     {
-      "name": "vcpkg",
+      "name": "linux",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+
+    {
+      "name": "msys2-ucrt64-base",
+      "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/vs-build",
+      "binaryDir": "${sourceDir}/build/msys2-ucrt64"
+    },
+
+    {
+      "name": "msvc",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/msvc",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       }
+    },
+    
+    {
+      "name": "msys2-debug",
+      "inherits": "msys2-ucrt64-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+
+    {
+      "name": "msys2-release",
+      "inherits": "msys2-ucrt64-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+
+  "buildPresets": [
+    {
+      "name": "linux",
+      "configurePreset": "linux"
+    },
+    {
+      "name": "msys2-ucrt64",
+      "configurePreset": "msys2-ucrt64"
+    },
+    {
+      "name": "msvc",
+      "configurePreset": "msvc"
     }
   ]
 }

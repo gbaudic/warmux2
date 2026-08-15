@@ -26,13 +26,12 @@
 #include <map>
 #include <set>
 #include <utility>
+#include <SDL_mixer.h>
 
 #include <WARMUX_base.h>
 #include <WARMUX_singleton.h>
 
 #include "sample_cache.h"
-
-typedef struct _Mix_Music Mix_Music;
 
 //-----------------------------------------------------------------------------
 

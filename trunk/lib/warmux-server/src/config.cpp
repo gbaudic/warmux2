@@ -21,8 +21,10 @@
 #include <fstream>
 #include <WSERVER_config.h>
 #include <WSERVER_debug.h>
-#ifdef _WIN32
+#ifdef _MSC_VER
 typedef int ssize_t;
+#endif
+#ifdef _WIN32
 #define realpath(str_, ptr) ((char*)str_)
 #endif
 

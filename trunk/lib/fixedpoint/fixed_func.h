@@ -52,7 +52,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #  include <stdint.h>
 #endif
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #  define PRIi64 "I64d"
 #endif
 
