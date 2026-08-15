@@ -1,0 +1,32 @@
+name: MSYS2
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+
+jobs:
+  msys2-ucrt64:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: ucrt64 {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-git mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-ucrt-x86_64-SDL2_image mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL2_net mingw-w64-ucrt-x86_64-SDL2_gfx mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-fribidi mingw-w64-ucrt-x86_64-curl-winssl
+      - name: CI-Build
+        run: |
+          echo 'Running in MSYS2!'
+          mkdir build
+          cd build
+          cmake ../trunk -G "Unix Makefiles"
+          make -j4 VERBOSE=1
