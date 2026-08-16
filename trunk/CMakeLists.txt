@@ -12,6 +12,7 @@ option (HAVE_TWITTER "Enable twitter" OFF)
 option (HAVE_FACEBOOK "Enable facebook" OFF)
 option (ENABLE_SERVERS "Enable servers" ON)
 option (ENABLE_FRIBIDI "Enable bidirectional text rendering" ON)
+option (ENABLE_LOGGING "Enable logging" OFF)
 
 # Some aliases of cmake variables
 IF(BUILD)
@@ -89,7 +90,44 @@ IF(ENABLE_FRIBIDI)
   FIND_PACKAGE(FriBiDi)
 ENDIF()
 FIND_PACKAGE(CURL REQUIRED)
-FIND_PACKAGE(MbedTLS REQUIRED)
+FIND_PACKAGE(MbedTLS)
+IF(NOT MBEDTLS_FOUND)
+  # Workaround for old versions of MbedTLS which do not provide CMake scripts: use pkg-config instead
+  IF(NOT MSVC)
+    INCLUDE(FindPkgConfig)
+    PKG_SEARCH_MODULE(MBEDTLS REQUIRED mbedtls)
+    PKG_SEARCH_MODULE(MBEDX509 REQUIRED mbedx509)
+    PKG_SEARCH_MODULE(MBEDCRYPTO REQUIRED mbedcrypto)
+
+    # Create imported target MbedTLS::mbedcrypto
+    ADD_LIBRARY(MbedTLS::mbedcrypto SHARED IMPORTED)
+
+    SET_TARGET_PROPERTIES(MbedTLS::mbedcrypto PROPERTIES
+      IMPORTED_LOCATION "${MBEDCRYPTO_LIBRARIES}"
+      INTERFACE_INCLUDE_DIRECTORIES "${MBEDCRYPTO_INCLUDE_DIRS}"
+    )
+
+    # Create imported target MbedTLS::mbedx509
+    ADD_LIBRARY(MbedTLS::mbedx509 SHARED IMPORTED)
+
+    SET_TARGET_PROPERTIES(MbedTLS::mbedx509 PROPERTIES
+      IMPORTED_LOCATION "${MBEDX509_LIBRARIES}"
+      INTERFACE_INCLUDE_DIRECTORIES "${MBEDX509_INCLUDE_DIRS}"
+      INTERFACE_LINK_LIBRARIES "MbedTLS::mbedcrypto"
+    )
+
+    # Create imported target MbedTLS::mbedtls
+    ADD_LIBRARY(MbedTLS::mbedtls SHARED IMPORTED)
+
+    SET_TARGET_PROPERTIES(MbedTLS::mbedtls PROPERTIES
+      IMPORTED_LOCATION "${MBEDTLS_LIBRARIES}"
+      INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIRS}"
+      INTERFACE_LINK_LIBRARIES "MbedTLS::mbedx509"
+    )
+  ELSE()
+    MESSAGE(FATAL_ERROR "MbedTLS library not found")
+  ENDIF()
+ENDIF()
 
 ADD_DEFINITIONS(-DHAVE_LIBCURL)
 
@@ -196,6 +234,11 @@ IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo"
     SET(WARMUX_LDFLAGS "-pg ${WARMUX_LDFLAGS}")
   ENDIF()
 ELSE()
+  # Not a debug build: enable logging anyways if user requested it
+  IF(ENABLE_LOGGING)
+    ADD_DEFINITIONS(-DWMX_LOG)
+  ENDIF()
+  
   # optimise nondebug builds
   SET(WARMUX_CFLAGS "-O2 ${WARMUX_CFLAGS}")
   IF(NOT WIN32 AND NOT APPLE)
