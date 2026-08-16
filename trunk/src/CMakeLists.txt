@@ -28,6 +28,7 @@ TARGET_LINK_LIBRARIES( ${EXECUTABLE}
         SDL2::Core
         SDL2::Main
         Intl::Intl
+        MbedTLS::mbedtls
         libfixedpoint
 )
 

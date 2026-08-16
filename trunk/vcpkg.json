@@ -6,6 +6,7 @@
     "gettext-libintl",
     "libpng",
     "libxml2",
+    "mbedtls",
     "sdl2",
     "sdl2-gfx",
     "sdl2-image",

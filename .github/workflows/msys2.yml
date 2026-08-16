@@ -24,7 +24,7 @@ jobs:
         with:
           msystem: UCRT64
           update: true
-          install: mingw-w64-ucrt-x86_64-git mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gettext-tools mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-ucrt-x86_64-SDL2_image mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL2_net mingw-w64-ucrt-x86_64-SDL2_gfx mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-fribidi mingw-w64-ucrt-x86_64-curl-winssl
+          install: mingw-w64-ucrt-x86_64-git mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gettext-tools mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-SDL2_mixer mingw-w64-ucrt-x86_64-SDL2_image mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL2_net mingw-w64-ucrt-x86_64-SDL2_gfx mingw-w64-ucrt-x86_64-SDL2_ttf mingw-w64-ucrt-x86_64-fribidi mingw-w64-ucrt-x86_64-curl-winssl mingw-w64-ucrt-x86_64-mbedtls
       - name: CI-Build
         run: |
           echo 'Running in MSYS2!'

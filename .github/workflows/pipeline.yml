@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -qq gettext rpm build-essential cmake dh-make autoconf-archive autoconf automake autotools-dev libxml2-dev libcurl4-openssl-dev libfribidi-dev libsdl2-ttf-dev libsdl2-mixer-dev libsdl2-image-dev libsdl2-gfx-dev libsdl2-dev libsdl2-net-dev
+          sudo apt-get install -qq gettext rpm build-essential cmake dh-make autoconf-archive autoconf automake autotools-dev libxml2-dev libcurl4-openssl-dev libfribidi-dev libsdl2-ttf-dev libsdl2-mixer-dev libsdl2-image-dev libsdl2-gfx-dev libsdl2-dev libsdl2-net-dev libmbedtls-dev
       - name: Clone warmux
         uses: actions/checkout@v7
         with:
