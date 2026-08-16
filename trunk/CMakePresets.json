@@ -51,7 +51,7 @@
     },
     {
       "name": "msys2-ucrt64",
-      "configurePreset": "msys2-ucrt64"
+      "configurePreset": "msys2-debug"
     },
     {
       "name": "msvc",
