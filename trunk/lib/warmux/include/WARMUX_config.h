@@ -22,14 +22,14 @@
 #ifndef WARMUX_CONFIG_H
 #define WARMUX_CONFIG_H
 
-#ifdef _MSC_VER
+#ifdef HAVE_CONFIG_H
+#  include "config_autotools.h"
+#elif defined(_MSC_VER)
 #  include "config_visual.h"
 #elif defined(ANDROID)
 #  include "config_android.h"
 #elif defined(__SYMBIAN32__)
 #  include "config_symbian.h"
-#elif defined(HAVE_CONFIG_H)
-#  include "config_autotools.h"
 #else
 #  error "Please add a config_${your_system}.h and include it properly"
 #endif

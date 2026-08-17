@@ -30,7 +30,7 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-# include <config_visual.h>
+# include <config_autotools.h>
 #endif
 
 #if !defined __STDC__ || !__STDC__
