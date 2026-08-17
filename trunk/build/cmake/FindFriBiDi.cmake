@@ -3,12 +3,12 @@
 # This module defines
 #  FRIBIDI_INCLUDE_DIR, where to find fribidi.h, etc.
 #  FRIBIDI_LIBRARIES, the libraries to link against to use FriBiDi.
-#  FRIBIDI_FOUND, If false, do not try to use fribidi.
+#  FriBiDi_FOUND, If false, do not try to use fribidi.
 # also defined, but not for general use are
 #  FRIBIDI_LIBRARY, where to find the FriBiDi library.
 
 include(CheckFunctionExists)
-SET(FRIBIDI_FOUND "NO")
+SET(FriBiDi_FOUND "NO")
 
 FIND_PATH(FRIBIDI_INCLUDE_DIR fribidi/fribidi.h
   /usr/local/include
@@ -27,15 +27,15 @@ IF (FRIBIDI_LIBRARY AND FRIBIDI_INCLUDE_DIR)
   CHECK_FUNCTION_EXISTS(fribidi_log2vis FOUND_fribidi_log2vis)
   IF(FOUND_fribidi_log2vis)
     SET(FRIBIDI_LIBRARIES ${FRIBIDI_LIBRARY})
-    SET(FRIBIDI_FOUND "YES")
+    SET(FriBiDi_FOUND "YES")
   ELSE()
     SET(FRIBIDI_LIBRARIES "NOTFOUND")
     SET(FRIBIDI_INCLUDE_DIR "NOTFOUND")
-    SET(FRIBIDI_FOUND "NO")
+    SET(FriBiDi_FOUND "NO")
   ENDIF()
 ENDIF ()
 
-IF (FRIBIDI_FOUND)
+IF (FriBiDi_FOUND)
   IF (NOT FRIBIDI_FIND_QUIETLY)
     MESSAGE(STATUS "Found FriBiDi: ${FRIBIDI_LIBRARY}")
   ENDIF ()
