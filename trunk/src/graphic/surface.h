@@ -101,6 +101,8 @@ public:
       Free();
 
     surface = newSurface;
+    if (newSurface)
+      renderer = SDL_CreateSoftwareRenderer(surface);
   }
 
   /**

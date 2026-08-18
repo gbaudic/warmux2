@@ -178,7 +178,7 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
   if (screen == NULL)
     return false;
 
-  renderer = Renderer(SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED));
+  renderer.SetRenderer(SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE));
   
   if (renderer.IsNull())
     return false;
@@ -192,8 +192,10 @@ bool Video::__SetConfig(const int width, const int height, const bool _fullscree
           SDL_TEXTUREACCESS_STREAMING,
           width, height);
   
-  if (texture == NULL)
-    return false;
+  if (texture == NULL) {
+      Error(Format("Unable to initialize SDL texture: %s", SDL_GetError()));
+      return false;
+  }
 
   fullscreen = __fullscreen;
 

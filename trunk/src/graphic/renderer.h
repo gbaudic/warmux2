@@ -48,6 +48,8 @@ public:
   inline int GetWidth() const { return GetSize().x; };
   inline int GetHeight() const { return GetSize().y; };
 
+  void SetRenderer(SDL_Renderer* rdr);
+
   /**
    * Return the pointer of the SDL_Renderer.
    *

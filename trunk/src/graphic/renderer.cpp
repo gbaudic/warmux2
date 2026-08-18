@@ -42,8 +42,10 @@ Renderer &Renderer::operator=(const Renderer &src)
 
 void Renderer::Free()
 {
-  if (renderer)
-    SDL_DestroyRenderer(renderer);
+   if (renderer) {
+     SDL_DestroyRenderer(renderer);
+     renderer = NULL;
+   }  
 }
 
 
@@ -58,6 +60,12 @@ Point2i Renderer::GetSize() const
     return GetMainWindow().GetSize();
   }
   return Point2i( w, h );
+}
+
+void Renderer::SetRenderer(SDL_Renderer* rdr)
+{
+  Free();
+  renderer = rdr;
 }
 
 int Renderer::BoxColor(const Rectanglei &rect, const Color &color)
