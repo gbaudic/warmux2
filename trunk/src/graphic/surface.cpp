@@ -43,6 +43,7 @@ Surface& GetMainWindow();
 Surface::Surface(const std::string &filename)
 {
   surface = NULL;
+  renderer = NULL;
   autoFree = true;
   if (!ImgLoad(filename))
     Error(Format("Unable to open image file '%s': %s", filename.c_str(), IMG_GetError()));
@@ -586,6 +587,8 @@ int Surface::ImgLoad(const std::string& filename)
 {
   AutoFree();
   surface = IMG_Load(filename.c_str());
+  if (surface)
+    renderer = SDL_CreateSoftwareRenderer(surface);
 
   return !IsNull();
 }

@@ -68,7 +68,7 @@ public:
    * @see NewSurface
    */
   explicit Surface(const Point2i &size, bool useAlpha = true)
-  : surface(NULL), autoFree(true) { NewSurface(size, useAlpha); }
+  : surface(NULL), renderer(NULL), autoFree(true) { NewSurface(size, useAlpha); }
   explicit Surface(const std::string &filename);
   Surface(const Surface &src);
   /**
